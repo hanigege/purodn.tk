@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">RouterOS queue tree 流量整形</title>
+  <desc id="desc">流量整形教程封面插图</desc>
+  <rect width="1200" height="675" fill="#0f172a"/>
+  <rect x="110" y="165" width="980" height="330" rx="28" fill="#111827" stroke="#334155" stroke-width="5"/>
+  <path d="M180 415C260 240 350 335 430 275s160-130 245-55 155 210 260 65" fill="none" stroke="#22c55e" stroke-width="16" stroke-linecap="round"/>
+  <path d="M180 430h850" stroke="#334155" stroke-width="6"/>
+  <path d="M250 210v225M460 210v225M670 210v225M880 210v225" stroke="#1f2937" stroke-width="5"/>
+  <text x="90" y="105" fill="#f97316" font-family="Arial, sans-serif" font-size="38" font-weight="800">queue tree</text>
+  <text x="90" y="565" fill="#fff" font-family="Arial, sans-serif" font-size="62" font-weight="800">流量整形配置</text>
+  <text x="94" y="620" fill="#94a3b8" font-family="Arial, sans-serif" font-size="32" font-weight="700">带宽分配 / 队列树 / 体验优先级</text>
+</svg>

@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>vyos多网口小主机桥接配置(完整) | 电脑自习室</title>
+    <meta name="description" content="VyOS 多网口小主机桥接与基础上网配置记录。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>软路由</span>
+          <time datetime="2025-05-07">2025年5月7日</time>
+        </div>
+        <h1>vyos多网口小主机桥接配置(完整)</h1>
+          <p>VyOS 多网口小主机桥接与基础上网配置记录。</p>
+      </header>
+          <img class="article-cover" src="/images/vyos/vyos-cover.svg" alt="">
+
+      <div class="article-content">
+        <h3 id="一基本上网配置">一.基本上网配置</h3>
+<h3 id="vyos的命令行界面是基于shell的没有图形界面-但是可以用tab自动补全">vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全</h3>
+<p>本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.</p>
+<p>pve安装vyos:
+<a href="https://github.com/vyos/vyos-nightly-build/releases">下载安装包</a>
+pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos除自己的容器管理工具以外，也可以用podman管理容器.
+vm运行后, 用vyos:vyos登录. 用下面命令安装:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install image
+</span></span></code></pre></div><h2 id="2安装vyos">2.安装vyos.</h2>
+<p>进入配置模式：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>configure
+</span></span></code></pre></div><p>生效：</p>
+<pre tabindex="0"><code>commit
+</code></pre><p>保存配置：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>save
+</span></span></code></pre></div><p>取消未commit生效的,未保存的配置：</p>
+<pre tabindex="0"><code>discard
+</code></pre><p>延时确认：如2分钟后不确认，配置回滚到上一配置</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>commit-confirm <span style="color:#ae81ff">2</span>
+</span></span></code></pre></div><p>回滚后 dircard 清除上次没有commit配置。(因为commit-confirm 2后已经输入过了，只是没有commit提交)
+如果提前提效确认，直接输入：</p>
+<pre tabindex="0"><code>confirm
+</code></pre><p>设置ssh登录:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service ssh port <span style="color:#e6db74">&#39;22&#39;</span>
+</span></span></code></pre></div><p>创建用户gary:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system login user gary full-name gary
+</span></span><span style="display:flex;"><span>set system login user gary authentication plaintext-password <span style="color:#e6db74">&#39;密码&#39;</span>
+</span></span></code></pre></div><p>建议ssh密钥登录:(可选，非必须，熟练后再使用）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system login user gary authentication public-keys gary@laptop key <span style="color:#e6db74">&#39;your-public-key&#39;</span>
+</span></span><span style="display:flex;"><span>set system login user gary authentication public-keys gary@laptop type <span style="color:#e6db74">&#39;ssh-rsa&#39;</span>
+</span></span></code></pre></div><p>禁用默认的vyos用户:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system login user vyos disable
+</span></span></code></pre></div><p>设置系统的hostname:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system host-name <span style="color:#e6db74">&#39;vyos&#39;</span>
+</span></span></code></pre></div><p>查看系统的hostname</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>show system host-name
+</span></span></code></pre></div><p>设置时区:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system time-zone <span style="color:#e6db74">&#39;Asia/Shanghai&#39;</span>
+</span></span></code></pre></div><p>设置ntp:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service ntp server 129.250.35.251
+</span></span><span style="display:flex;"><span>set service ntp server 203.107.6.88
+</span></span></code></pre></div><p>(注: 可以设置多个ntp服务器, 建议用运营商的ntp服务器, 最好是纯ip, 可删除默认的ntp服务器)</p>
+<p>先看下自己的接口情况，有的不是eht0和eth1。。。有的直接就是eth0和eht2,所以请根据自己小主机的情况调整后面的命令接口。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>show interface
+</span></span></code></pre></div><p><img src="/images/vyos/original/vyos-qiaojie-4kou-01.png" alt="图例"></p>
+<h2 id="下面的教程按标准的eht0eth1eth2eth3四网口来说明">下面的教程按标准的eht0,eth1,eth2,eth3四网口来说明：</h2>
+<h2 id="wanlan-接口配置">WAN/LAN 接口配置</h2>
+<ul>
+<li>进入配置模式</li>
+</ul>
+<p>首先，进入 VyOS 配置模式：</p>
+<pre tabindex="0"><code>configure
+</code></pre><ul>
+<li>创建桥接接口（br0）</li>
+</ul>
+<p>接着，创建一个桥接接口 br0，并将 eth0、eth1 和 eth2 加入该桥接组：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set interfaces bridge br0 address <span style="color:#e6db74">&#39;10.20.20.1/24&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces bridge br0 address <span style="color:#e6db74">&#39;fd88::1111/64&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces bridge br0 member interface <span style="color:#e6db74">&#39;eth0&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces bridge br0 member interface <span style="color:#e6db74">&#39;eth1&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces bridge br0 member interface <span style="color:#e6db74">&#39;eth2&#39;</span>
+</span></span></code></pre></div><h2 id="3--lan-配置-dhcp">3. 、 LAN 配置 DHCP</h2>
+<p>3.1 启用 LAN 口的 DHCP server
+LAN 的网段是 10.20.20.0/24，DHCP 的分配 IP 范围是 10.20.20.100-200，同时下发了 dns server 和 ntp server。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service dhcp-server hostfile-update
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 authoritative
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 option ntp-server <span style="color:#e6db74">&#39;10.20.20.1&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 option time-zone <span style="color:#e6db74">&#39;Asia/Shanghai&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 lease <span style="color:#e6db74">&#39;86400&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option default-router <span style="color:#e6db74">&#39;10.20.20.1&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option name-server <span style="color:#e6db74">&#39;10.20.20.6&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 range <span style="color:#ae81ff">100</span> start <span style="color:#e6db74">&#39;10.20.20.100&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 range <span style="color:#ae81ff">100</span> stop <span style="color:#e6db74">&#39;10.20.20.200&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 subnet-id <span style="color:#e6db74">&#39;1&#39;</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 static-mapping freepbx16 ip-address <span style="color:#e6db74">&#39;10.20.20.103&#39;</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 static-mapping freepbx16 mac <span style="color:#e6db74">&#39;bc:24:11:c4:6f:eb&#39;</span>
+</span></span></code></pre></div><p>补充：(这下面的命令只是方便更改复制使用）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 添加一个dns (这个dns是我后续不折腾佬的smbox的IP）</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option name-server <span style="color:#e6db74">&#39;172.23.0.99&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 添加一个dns (这个dns是我后续自己虚拟机mosdns的ip)</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option name-server <span style="color:#e6db74">&#39;10.20.20.6&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 删除一个dns</span>
+</span></span><span style="display:flex;"><span>delete service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option name-server <span style="color:#e6db74">&#39;10.20.20.1&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更改网关 （这个网关是我后续sing-box的IP）</span>
+</span></span><span style="display:flex;"><span>set service dhcp-server shared-network-name LAN_br0 subnet 10.20.20.0/24 option default-router <span style="color:#e6db74">&#39;10.20.20.9&#39;</span>
+</span></span></code></pre></div><h2 id="32-局域网-dns-配置">3.2 局域网 DNS 配置</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system name-server <span style="color:#e6db74">&#39;223.5.5.5&#39;</span> 
+</span></span><span style="display:flex;"><span>set service dns forwarding allow-from <span style="color:#e6db74">&#39;10.20.20.0/24&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns forwarding listen-address <span style="color:#e6db74">&#39;10.20.20.1&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns forwarding cache-size <span style="color:#e6db74">&#39;0&#39;</span> <span style="color:#75715e">## 关闭了缓存</span>
+</span></span></code></pre></div><h2 id="34-内网设备隐藏上网-masqueradesnat">3.4 内网设备隐藏上网 masquerade(SNAT):</h2>
+<p>masquerade</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set nat source rule <span style="color:#ae81ff">100</span> translation address <span style="color:#e6db74">&#39;masquerade&#39;</span> 
+</span></span></code></pre></div><p>指定网段：<strong>（可选）</strong> 可以不用！用了会限制wg.或者再添加wg网段等，不会就不要用！</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set nat source rule <span style="color:#ae81ff">100</span> source address <span style="color:#e6db74">&#39;10.20.20.0/24&#39;</span>
+</span></span></code></pre></div><p>设置回流: 由于上面masquerade(SNAT)的规则, 这里不需要设置回流.</p>
+<p>到这一步基本的<strong>局域网</strong>配置就已经可以了，其他设备加入就可以自动dhcp获取 ip 并上网了。</p>
+<p>四、QoS 流量管理（可选）
+Vyos 提供了非常完善的 Qos Policy，常见的流量策略都支持。家用不用那么麻烦直接使用 Cake 仅需要设置一下带宽，要注意的是启用 Qos 会占用 CPU，同时可能会导致带宽跑不满。好处是多人占用带宽时，可以为每一个人合理分配宽带资源。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set qos policy cake Qos_Cake_Lan bandwidth <span style="color:#e6db74">&#39;1gbit&#39;</span>
+</span></span><span style="display:flex;"><span>set qos policy cake Qos_Cake_Lan description <span style="color:#e6db74">&#39;Qos For Lan interface br0&#39;</span>
+</span></span><span style="display:flex;"><span>set qos policy cake Qos_Cake_Lan flow-isolation dual-src-host
+</span></span><span style="display:flex;"><span>set qos policy cake Qos_Cake_Lan rtt <span style="color:#e6db74">&#39;100&#39;</span>
+</span></span><span style="display:flex;"><span>set qos interface br0 egress <span style="color:#e6db74">&#39;Qos_Cake_Lan&#39;</span>
+</span></span></code></pre></div><h2 id="五防火墙">五、防火墙</h2>
+<p>这里防火墙rule 数字可自定, 同一数字为一组, 建议设置数字时, 留出空隙, 以便以后添加新的规则.
+针对上面这条nat source rule 100 规则, 建议不要限制接口, 就只用上面一条, 这对以后的端口转发和回流设置, 都很方便.
+设置防火墙规则:</p>
+<p>全局：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall global-options state-policy established action <span style="color:#e6db74">&#39;accept&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall global-options state-policy invalid action <span style="color:#e6db74">&#39;drop&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall global-options state-policy related action <span style="color:#e6db74">&#39;accept&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall global-options apply-to-bridged-traffic invalid-connections
+</span></span></code></pre></div><p>上面第四条也就是最后一条，作用是容器与内网互通（桥接）</p>
+<p>设置ipv4入站(input链)规则:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL default-action <span style="color:#e6db74">&#39;drop&#39;</span> <span style="color:#75715e">#默认拒绝</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许已建立和相关连接</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;established&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;related&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许icmp</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> protocol <span style="color:#e6db74">&#39;icmp&#39;</span>
+</span></span></code></pre></div><p>下面是wireguard放行端口（可选）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> description <span style="color:#e6db74">&#34;Allow WireGuard&#34;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许连接wg0</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> destination port <span style="color:#e6db74">&#39;11133&#39;</span> 
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span></code></pre></div><p>#下面是放行连续端口样例：（例）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">40</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#连续端口样例</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">40</span> destination port <span style="color:#e6db74">&#39;10000-10100&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_LOCAL rule <span style="color:#ae81ff">40</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span></code></pre></div><p>设置ipv6入站(input链)规则:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL default-action <span style="color:#e6db74">&#39;drop&#39;</span> <span style="color:#75715e">#默认拒绝</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许已建立和相关连接</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;established&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;related&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许icmpv6</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">20</span> protocol <span style="color:#e6db74">&#39;icmpv6&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许从ISP处获取的dhcp6的信息</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> destination port <span style="color:#e6db74">&#39;546&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">30</span> source port <span style="color:#e6db74">&#39;547&#39;</span>
+</span></span></code></pre></div><p>下面是wireguard放行端口（可选)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv6 name WAN_LOCAL rule <span style="color:#ae81ff">40</span> description <span style="color:#e6db74">&#34;Allow WireGuard
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">set firewall ipv6 name WAN_LOCAL rule 40 action &#39;accept&#39; #允许连接wg0
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">set firewall ipv6 name WAN_LOCAL rule 40 destination port &#39;11133&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">set firewall ipv6 name WAN_LOCAL rule 40 protocol &#39;udp&#39;
+</span></span></span></code></pre></div><p>设置ipv4转发(forward链)规则:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 name WAN_IN default-action <span style="color:#e6db74">&#39;drop&#39;</span> <span style="color:#75715e">#默认拒绝</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许已建立和相关连接</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;established&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;related&#39;</span>
+</span></span></code></pre></div><p>设置ipv6转发(forward链)规则:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv6 name WAN_IN default-action <span style="color:#e6db74">&#39;drop&#39;</span> <span style="color:#75715e">#默认拒绝</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许已建立和相关连接</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;established&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">10</span> state <span style="color:#e6db74">&#39;related&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">20</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许icmpv6</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">20</span> protocol <span style="color:#e6db74">&#39;icmpv6&#39;</span>
+</span></span></code></pre></div><p>下面三条输入，nat端口后不用再在防火墙里打开放行端口，nat优先放行</p>
+<p>IPV4：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">20</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许已DNAT的连接</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">20</span> connection-status nat <span style="color:#e6db74">&#39;destination&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 name WAN_IN rule <span style="color:#ae81ff">20</span> state <span style="color:#e6db74">&#39;new&#39;</span>
+</span></span></code></pre></div><p>下面三条输入，nat端口后不用再在防火墙里打开放行端口，nat优先放行
+IPV6：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">40</span> action <span style="color:#e6db74">&#39;accept&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">40</span> connection-status nat <span style="color:#e6db74">&#39;destination&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">40</span> state <span style="color:#e6db74">&#39;new&#39;</span>
+</span></span></code></pre></div><p>放行ipsec端口（举例：）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">30</span> action <span style="color:#e6db74">&#39;accept&#39;</span> <span style="color:#75715e">#允许ipsec</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">30</span> destination port <span style="color:#e6db74">&#39;500,4500&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 name WAN_IN rule <span style="color:#ae81ff">30</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span></code></pre></div><p>然后分别从input和forward链, 调用WAN_LOCAL和WAN_IN:
+设置接口组:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall group interface-group WAN interface <span style="color:#e6db74">&#39;eth3&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall group interface-group WAN interface <span style="color:#e6db74">&#39;pppoe1&#39;</span>
+</span></span></code></pre></div><p>然后分别从input和forward链, 调用WAN_LOCAL和WAN_IN:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> inbound-interface group <span style="color:#e6db74">&#39;WAN&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface group <span style="color:#e6db74">&#39;WAN&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> inbound-interface group <span style="color:#e6db74">&#39;WAN&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface group <span style="color:#e6db74">&#39;WAN&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span></code></pre></div><p>说明: DNAT（转发的端口）是流量进入后, 最先处理的, 然后进入forward链, 而SNAT是流量出站前, 最后处理的.
+下面只是根据自己的情况复制选用：</p>
+<h4 id="留个pppoe接口例">留个pppoe接口（例）</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> inbound-interface name pppoe1
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface name pppoe1
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> inbound-interface name pppoe1
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface name pppoe1
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span></code></pre></div><h4 id="eth3-wan口例">ETH3 wan口（例）</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> inbound-interface name eth3
+</span></span><span style="display:flex;"><span>set firewall ipv4 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface name eth3
+</span></span><span style="display:flex;"><span>set firewall ipv4 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> inbound-interface name eth3
+</span></span><span style="display:flex;"><span>set firewall ipv6 input filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_LOCAL&#39;</span>
+</span></span><span style="display:flex;"><span>v
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> action <span style="color:#e6db74">&#39;jump&#39;</span>
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> inbound-interface name eth3
+</span></span><span style="display:flex;"><span>set firewall ipv6 forward filter rule <span style="color:#ae81ff">10</span> jump-target <span style="color:#e6db74">&#39;WAN_IN&#39;</span>
+</span></span></code></pre></div><p>IPV4端口转发（样例配置）：NAT端口转发 (配置样例）（不用下接口）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>configure
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Synapse (TCP 12335)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">10</span> description <span style="color:#e6db74">&#39;synapse&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">10</span> destination port <span style="color:#e6db74">&#39;12335&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">10</span> protocol <span style="color:#e6db74">&#39;tcp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">10</span> translation address <span style="color:#e6db74">&#39;10.20.20.8&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">10</span> translation port <span style="color:#e6db74">&#39;12335&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># SB_home (UDP 20521)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">20</span> description <span style="color:#e6db74">&#39;SB_home&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">20</span> destination port <span style="color:#e6db74">&#39;20521&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">20</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">20</span> translation address <span style="color:#e6db74">&#39;10.20.20.9&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">20</span> translation port <span style="color:#e6db74">&#39;20521&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># L2TP VPN (UDP 1701)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">30</span> description <span style="color:#e6db74">&#39;L2TP&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">30</span> destination port <span style="color:#e6db74">&#39;1701&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">30</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">30</span> translation address <span style="color:#e6db74">&#39;10.20.20.4&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">30</span> translation port <span style="color:#e6db74">&#39;1701&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ISAKMP (UDP 500) - 用于 IKE（IPSec 密钥交换）</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">40</span> description <span style="color:#e6db74">&#39;ISAKMP&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">40</span> destination port <span style="color:#e6db74">&#39;500&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">40</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">40</span> translation address <span style="color:#e6db74">&#39;10.20.20.4&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">40</span> translation port <span style="color:#e6db74">&#39;500&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># IPSEC NAT-T (UDP 4500) - NAT 穿透</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">50</span> description <span style="color:#e6db74">&#39;IPSEC&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">50</span> destination port <span style="color:#e6db74">&#39;4500&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">50</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">50</span> translation address <span style="color:#e6db74">&#39;10.20.20.4&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">50</span> translation port <span style="color:#e6db74">&#39;4500&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># OpenVPN (TCP 1194)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">60</span> description <span style="color:#e6db74">&#39;OPENVPN&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">60</span> destination port <span style="color:#e6db74">&#39;1194&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">60</span> protocol <span style="color:#e6db74">&#39;tcp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">60</span> translation address <span style="color:#e6db74">&#39;10.20.20.4&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">60</span> translation port <span style="color:#e6db74">&#39;1194&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># SIP (UDP 5060)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">70</span> description <span style="color:#e6db74">&#39;SIP&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">70</span> destination port <span style="color:#e6db74">&#39;5060&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">70</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">70</span> translation address <span style="color:#e6db74">&#39;10.20.20.17&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">70</span> translation port <span style="color:#e6db74">&#39;5060&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># SIP RTP (UDP 10000-10100)</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">80</span> description <span style="color:#e6db74">&#39;SIP_RTP&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">80</span> destination port <span style="color:#e6db74">&#39;10000-10100&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">80</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">80</span> translation address <span style="color:#e6db74">&#39;10.20.20.17&#39;</span>
+</span></span><span style="display:flex;"><span>set nat destination rule <span style="color:#ae81ff">80</span> translation port <span style="color:#e6db74">&#39;10000-10100&#39;</span> <span style="color:#75715e"># 同一个端口不填也可以</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>commit
+</span></span><span style="display:flex;"><span>save
+</span></span></code></pre></div><p>IPV6端口转发（样例配置）：NAT端口转发 (配置样例）（不用下接口）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set nat66 destination rule <span style="color:#ae81ff">10</span> description <span style="color:#e6db74">&#39;gohome&#39;</span>
+</span></span><span style="display:flex;"><span>set nat66 destination rule <span style="color:#ae81ff">10</span> destination port <span style="color:#e6db74">&#39;10521&#39;</span>
+</span></span><span style="display:flex;"><span>set nat66 destination rule <span style="color:#ae81ff">10</span> protocol <span style="color:#e6db74">&#39;udp&#39;</span>
+</span></span><span style="display:flex;"><span>set nat66 destination rule <span style="color:#ae81ff">10</span> translation address <span style="color:#e6db74">&#39;fd99::9999&#39;</span>
+</span></span></code></pre></div><p>防火墙范围配置结束！</p>
+<h2 id="六wan-口-pppoe-拨号配置">六、WAN 口 PPPoE 拨号配置</h2>
+<p>6.1 拨号配置
+前提是光猫要改桥接，并且有宽带的拨号信息，先从光猫的 LAN 口接一条网线到 vyos 的eth3接口(wan口），并启用一个pppoe1的接口， 自动配置 MTU ：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set interfaces pppoe pppoe1 description <span style="color:#e6db74">&#39;China Telecom\China Unicom&#39;</span>  <span style="color:#75715e">#电信还是联通，二选一，不是的删除</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 source-interface <span style="color:#e6db74">&#39;eth3&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 authentication username <span style="color:#e6db74">&#39;帐号&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 authentication password <span style="color:#e6db74">&#39;密码&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 mtu <span style="color:#e6db74">&#39;1492&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 ip adjust-mss <span style="color:#e6db74">&#39;clamp-mss-to-pmtu&#39;</span>
+</span></span></code></pre></div><p>####PPPOE测试时可以使用下面的命令
+pppoe断开：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>run disconnect interface pppoe1
+</span></span></code></pre></div><p>再连：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>run connect interface pppoe1
+</span></span></code></pre></div><p>查看：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>run show int
+</span></span></code></pre></div><p>6.2 IPv6 PD 配置
+首先设置需要设置 prefix，我的运营商是给的是/60</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e">#set interfaces pppoe pppoe1 dhcpv6-options pd 0 interface br0 sla-id &#39;0&#39;  #第一条第二条二选一，都行，ipv6地址的形态不一样</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 dhcpv6-options pd <span style="color:#ae81ff">0</span> interface br0 address <span style="color:#e6db74">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 dhcpv6-options pd <span style="color:#ae81ff">0</span> length <span style="color:#e6db74">&#39;62&#39;</span>  <span style="color:#75715e"># 这是perxi</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 ipv6 adjust-mss <span style="color:#e6db74">&#39;clamp-mss-to-pmtu&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 ipv6 address autoconf
+</span></span></code></pre></div><p>设置路由器公告RA：</p>
+<pre tabindex="0"><code>set service router-advert interface br0 prefix fd88::/64 valid-lifetime &#39;172800&#39;
+</code></pre><p>6.3 多拨(可选）
+多拨需要运营商支持，vyos 的多拨非常简单，新启用一个 pppoe 的接口拨号即可：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set interfaces pppoe pppoe1 authentication password <span style="color:#e6db74">&#39;宽带密码&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 authentication username <span style="color:#e6db74">&#39;宽带账号&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 description <span style="color:#e6db74">&#39;China Unicom WAN multi-pppoe-2&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces pppoe pppoe1 source-interface <span style="color:#e6db74">&#39;eth3&#39;</span>
+</span></span></code></pre></div><p>至此 WAN-pppoe 的配置全部结束。</p>
+<h2 id="如果公网口是dhcp获取此处是光猫pppoe拨号dhcp下发使用">如果公网口是dhcp获取：(此处是光猫pppoe拨号DHCP下发使用）</h2>
+<pre tabindex="0"><code>set interfaces ethernet eth3 address dhcp
+</code></pre><p>现在应该可以上网了！</p>
+<h2 id="fakeip的支持">fakeip的支持</h2>
+<p>通过 MoS DNS 来分流 Real IP 和 Fake IP 的流量，可这样配置:</p>
+<p>定义 Telegram IPv4 组</p>
+<pre tabindex="0"><code>set firewall group network-group Telegram-v4 network &#39;91.108.56.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;91.108.4.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;91.108.8.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;91.108.16.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;91.108.12.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;149.154.160.0/20&#39;
+set firewall group network-group Telegram-v4 network &#39;91.105.192.0/23&#39;
+set firewall group network-group Telegram-v4 network &#39;91.108.20.0/22&#39;
+set firewall group network-group Telegram-v4 network &#39;185.76.151.0/24&#39;
+</code></pre><p>定义 Telegram IPv6 组</p>
+<pre tabindex="0"><code>set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23d::/48&#39;
+set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23f::/48&#39;
+set firewall group ipv6-network-group Telegram-v6 network &#39;2001:67c:4e8::/48&#39;
+set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23c::/48&#39;
+set firewall group ipv6-network-group Telegram-v6 network &#39;2a0a:f280::/32&#39;
+</code></pre><p>定义 Fake IP 组</p>
+<pre tabindex="0"><code>set firewall group network-group FAKEIP-v4 network &#39;198.18.0.0/15&#39; # Fake IPv4
+set firewall group ipv6-network-group FAKEIP-v6 network &#39;f2b0::/18&#39; # Fake IPv6
+</code></pre><p>配置策略路由 (类似 RouterOS 中的 Mangle 规则)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set policy route Route-to-SB interface br0 <span style="color:#75715e"># br0 是 LAN</span>
+</span></span><span style="display:flex;"><span>set policy route Route-to-SB rule <span style="color:#ae81ff">10</span> set table <span style="color:#e6db74">&#39;100&#39;</span> <span style="color:#75715e"># Table 100 是 to-sb 的表</span>
+</span></span><span style="display:flex;"><span>set policy route Route-to-SB rule <span style="color:#ae81ff">10</span> destination group network-group <span style="color:#e6db74">&#39;Telegram-v4&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route Route-to-SB rule <span style="color:#ae81ff">20</span> set table <span style="color:#e6db74">&#39;100&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route Route-to-SB rule <span style="color:#ae81ff">20</span> destination group network-group <span style="color:#e6db74">&#39;FAKEIP-v4&#39;</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set policy route6 FAKE6-to-SB interface br0
+</span></span><span style="display:flex;"><span>set policy route6 FAKE6-to-SB rule <span style="color:#ae81ff">10</span> set table <span style="color:#e6db74">&#39;106&#39;</span> <span style="color:#75715e"># Table 106 是 to-sb 的表 (IPv6)</span>
+</span></span><span style="display:flex;"><span>set policy route6 FAKE6-to-SB rule <span style="color:#ae81ff">10</span> destination group network-group <span style="color:#e6db74">&#39;FAKEIP-v6&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route6 FAKE6-to-SB rule <span style="color:#ae81ff">20</span> set table <span style="color:#e6db74">&#39;106&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route6 FAKE6-to-SB rule <span style="color:#ae81ff">20</span> destination group network-group <span style="color:#e6db74">&#39;Telegram-v6&#39;</span>
+</span></span></code></pre></div><p>配置路由表</p>
+<pre tabindex="0"><code>set protocols static table 100 route 0.0.0.0/0 next-hop 10.20.20.9 # sb 的内网 IP
+set protocols static table 106 route6 ::/0 next-hop fd88::9999 # sb 的 ULA
+</code></pre><p>IPV6 Nat （导完支持ipv6优先）(注意修改自己的fakeip)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set nat66 source rule <span style="color:#ae81ff">10</span> description <span style="color:#e6db74">&#39;MASQ-FAKE6&#39;</span>
+</span></span><span style="display:flex;"><span>set nat66 source rule <span style="color:#ae81ff">10</span> destination prefix <span style="color:#e6db74">&#39;f2b0::/18&#39;</span>
+</span></span><span style="display:flex;"><span>set nat66 source rule <span style="color:#ae81ff">10</span> translation address <span style="color:#e6db74">&#39;masquerade&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># set interfaces bridge br0 address &#39;fd88::1111/64&#39; #开始设置过就不要再设置了</span>
+</span></span></code></pre></div><p>完了！ok了！</p>
+<p>对了，别忘了，把dns的设置改为，你懂的～，上面DNS设置那块有命令～准备好了～</p>
+<p>附！</p>
+<h2 id="vyos-自己要科学上网">VyOS 自己要科学上网</h2>
+<p>一般在 pull 容器镜像、下载更新时可以这样配置:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system name-server <span style="color:#e6db74">&#39;172.23.0.99&#39;</span> <span style="color:#75715e"># 172.23.0.99 是 sb 的 IP 或 MoS DNS 的 IP</span>
+</span></span></code></pre></div><p>or</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system name-server <span style="color:#e6db74">&#39;10.20.20.9&#39;</span> <span style="color:#75715e"># 10.20.20.9 是 sb 的 IP 或 MoS DNS 的 IP</span>
+</span></span></code></pre></div><p>注意: name-server 只需要一个，确保能区分 Fake IP。</p>
+<pre tabindex="0"><code>set policy local-route rule 10 destination address &#39;198.18.0.0/15&#39;
+set policy local-route rule 10 set table &#39;100&#39;
+
+#只想让 TCP 流量 使用 table 100，而 其他协议（如 UDP、ICMP）仍走默认路由表(可选）
+#set policy local-route rule 10 protocol &#39;tcp&#39;
+</code></pre><p>这三条配置作用如下：</p>
+<p>set policy local-route rule 10 destination address ‘198.18.0.0/15’
+• 该规则匹配 目的地址 在 198.18.0.0/15 网段内的流量。</p>
+<p>set policy local-route rule 10 set table ‘100’
+• 让匹配该规则的流量使用 路由表 100 进行路由查找，而不是默认的 main（254）路由表。</p>
+<p>set policy local-route rule 10 protocol ’tcp'
+• 限制该规则仅适用于 TCP 流量，即 只有 TCP 协议的数据包会匹配此规则。</p>
+<p>第三条（protocol ’tcp’）是否必要？</p>
+<p>• 如果你的目标是 让所有去往 198.18.0.0/15 的流量 都使用 table 100，那么 第三条是不必要的。
+• 但如果你 只想让 TCP 流量 使用 table 100，而 其他协议（如 UDP、ICMP）仍走默认路由表，那么 第三条是有用的。</p>
+<p>因此：
+完整本地科学的命令:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system name-server <span style="color:#e6db74">&#39;172.23.0.99&#39;</span>
+</span></span><span style="display:flex;"><span>delete system name-server <span style="color:#e6db74">&#39;223.5.5.5&#39;</span>
+</span></span><span style="display:flex;"><span>delete system name-server <span style="color:#e6db74">&#39;119.29.29.29&#39;</span>
+</span></span><span style="display:flex;"><span>set policy local-route rule <span style="color:#ae81ff">10</span> destination address <span style="color:#e6db74">&#39;198.18.0.0/15&#39;</span>
+</span></span><span style="display:flex;"><span>set policy local-route rule <span style="color:#ae81ff">10</span> set table <span style="color:#e6db74">&#39;100&#39;</span>
+</span></span></code></pre></div><p>or(或者）（只是ip的区别，方便复制的，你换成你自己的ip)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set system name-server <span style="color:#e6db74">&#39;10.20.20.6&#39;</span>
+</span></span><span style="display:flex;"><span>delete system name-server <span style="color:#e6db74">&#39;223.5.5.5&#39;</span>
+</span></span><span style="display:flex;"><span>delete system name-server <span style="color:#e6db74">&#39;119.29.29.29&#39;</span>
+</span></span><span style="display:flex;"><span>set policy local-route rule <span style="color:#ae81ff">10</span> destination address <span style="color:#e6db74">&#39;198.18.0.0/15&#39;</span>
+</span></span><span style="display:flex;"><span>set policy local-route rule <span style="color:#ae81ff">10</span> set table <span style="color:#e6db74">&#39;100&#39;</span>
+</span></span></code></pre></div><h2 id="配置wireguard">配置wireguard:</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set interfaces wireguard wg0 address <span style="color:#e6db74">&#39;10.20.20.1/24&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces wireguard wg0 peer iphone allowed-ips <span style="color:#e6db74">&#39;10.20.20.2/32&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces wireguard wg0 peer iphone preshared-key <span style="color:#e6db74">&#39;preshared-key&#39;</span> 
+</span></span><span style="display:flex;"><span>set interfaces wireguard wg0 peer iphone public-key <span style="color:#e6db74">&#39;public-key&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces wireguard wg0 port <span style="color:#e6db74">&#39;11133&#39;</span>
+</span></span><span style="display:flex;"><span>set interfaces wireguard wg0 private-key <span style="color:#e6db74">&#39;private-key&#39;</span>
+</span></span></code></pre></div><p>如果让wg科学，下面接着操作：</p>
+<p>添加组：（输入内网IP段，上面如果设置过了就不需要重复设置，这里只是注明这块需要）</p>
+<pre tabindex="0"><code>set firewall group network-group LAN-v4 network &#39;10.20.20.0/24&#39;
+</code></pre><p>设置策略路由:
+举例: 让wg0的流量走100号路由表, 100号路由表是sb的路由表</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set policy route WG0-to-SB interface <span style="color:#e6db74">&#39;wg0&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route WG0-to-SB rule <span style="color:#ae81ff">10</span> destination group network-group <span style="color:#e6db74">&#39;!LAN-v4&#39;</span>
+</span></span><span style="display:flex;"><span>set policy route WG0-to-SB rule <span style="color:#ae81ff">10</span> set table <span style="color:#e6db74">&#39;100&#39;</span>
+</span></span></code></pre></div><p>#路由表（之前添加过就不要重复添加）(10.20.20.9是我sing-box的ip)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set protocols static table <span style="color:#ae81ff">100</span> route 0.0.0.0/0 next-hop 10.20.20.9
+</span></span></code></pre></div><p>##配置ddns:
+cloudflare ddns:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 address interface <span style="color:#e6db74">&#39;pppoe1&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 host-name <span style="color:#e6db74">&#39;ddns.example.com&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 ip-version <span style="color:#e6db74">&#39;ipv4&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 password <span style="color:#e6db74">&#39;token&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 protocol <span style="color:#e6db74">&#39;cloudflare&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v4 zone <span style="color:#e6db74">&#39;example.com&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 address interface <span style="color:#e6db74">&#39;eth0&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 host-name <span style="color:#e6db74">&#39;ddns6.example.com&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 ip-version <span style="color:#e6db74">&#39;ipv6&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 password <span style="color:#e6db74">&#39;token&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 protocol <span style="color:#e6db74">&#39;cloudflare&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DDNS-CF-v6 zone <span style="color:#e6db74">&#39;example.com&#39;</span>
+</span></span></code></pre></div><p>dnspod ddns:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 address interface <span style="color:#e6db74">&#39;pppoe1&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 host-name <span style="color:#e6db74">&#39;ddns.example.com&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 password <span style="color:#e6db74">&#39;token&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 protocol <span style="color:#e6db74">&#39;dyndns2&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 server <span style="color:#e6db74">&#39;dnsapi.cn&#39;</span>
+</span></span><span style="display:flex;"><span>set service dns dynamic name DNSPOD-v4 username <span style="color:#e6db74">&#39;id&#39;</span>
+</span></span></code></pre></div><p>个人使用下来, 上述配置并不需要设置interval, ip变化也会自动更新.</p>
+<p>最后给个小命令知识点：
+确保 NAT 规则完整,查看命令，如:
+检查规则</p>
+<pre tabindex="0"><code>show configuration commands | match &#39;nat destination&#39;
+</code></pre><p>用show命令的时候要注意，在配置模式#下，如看查看模式$下的show,需要在show前面加个run命令。
+祝君使用愉快～</p>
+
+      </div>
+        <footer class="article-source">
+          <span>原文参考</span>
+          <a href="https://blog.jgaga.tk/posts/routers/vyos-qiaojie-4kou/" target="_blank" rel="noopener noreferrer">https://blog.jgaga.tk/posts/routers/vyos-qiaojie-4kou/</a>
+        </footer>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mosdns-install/">
+            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">mosdns 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-install/">
+            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">sing-box 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
+            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
+</footer>
+
+      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>网络排障 on 电脑教程站</title><link>https://example.org/tags/%E7%BD%91%E7%BB%9C%E6%8E%92%E9%9A%9C/</link><description>Recent content in 网络排障 on 电脑教程站</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 12 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://example.org/tags/%E7%BD%91%E7%BB%9C%E6%8E%92%E9%9A%9C/index.xml" rel="self" type="application/rss+xml"/><item><title>家里 Wi-Fi 不稳定的排查顺序</title><link>https://example.org/posts/home-wifi-troubleshooting/</link><pubDate>Tue, 12 May 2026 00:00:00 +0000</pubDate><guid>https://example.org/posts/home-wifi-troubleshooting/</guid><description>&lt;p&gt;Wi-Fi 不稳定时，不要一开始就重置路由器。按顺序排查，可以避免把问题越改越乱。&lt;/p&gt;
+&lt;h2 id="先确认是不是宽带问题"&gt;先确认是不是宽带问题&lt;/h2&gt;
+&lt;p&gt;用网线直连光猫或主路由测试。如果有线也慢，优先联系运营商或检查光猫状态。&lt;/p&gt;
+&lt;h2 id="再看路由器位置"&gt;再看路由器位置&lt;/h2&gt;
+&lt;p&gt;路由器尽量放在房屋中间、较高的位置，远离金属柜、微波炉和弱电箱。弱电箱里信号衰减通常很明显。&lt;/p&gt;
+&lt;h2 id="区分-24ghz-和-5ghz"&gt;区分 2.4GHz 和 5GHz&lt;/h2&gt;
+&lt;p&gt;2.4GHz 穿墙更好但更容易拥堵；5GHz 速度更高但覆盖范围较小。离路由器近时优先用 5GHz，隔墙多时可以测试 2.4GHz。&lt;/p&gt;
+&lt;h2 id="检查终端设备"&gt;检查终端设备&lt;/h2&gt;
+&lt;p&gt;如果只有一台电脑或手机掉线，问题可能在这台设备。可以更新无线网卡驱动、忘记网络后重新连接，或测试其他 Wi-Fi。&lt;/p&gt;</description></item></channel></rss>

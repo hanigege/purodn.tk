@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Proxmox Debian 13 mosdns">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16324f"/>
+      <stop offset=".55" stop-color="#1b5c67"/>
+      <stop offset="1" stop-color="#f07d2b"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <rect x="74" y="72" width="812" height="396" rx="18" fill="#0b1722" opacity=".78"/>
+  <rect x="118" y="122" width="250" height="296" rx="14" fill="#12283b" stroke="#67d6c4" stroke-width="3"/>
+  <rect x="405" y="122" width="186" height="112" rx="14" fill="#163a48" stroke="#e6f4f1" stroke-width="2"/>
+  <rect x="405" y="306" width="186" height="112" rx="14" fill="#163a48" stroke="#e6f4f1" stroke-width="2"/>
+  <rect x="628" y="122" width="214" height="296" rx="14" fill="#111f2f" stroke="#ffb36c" stroke-width="3"/>
+  <path d="M368 178h37M591 178h37M498 234v72" stroke="#e6f4f1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M498 306l-20-20m20 20l20-20" stroke="#e6f4f1" stroke-width="8" stroke-linecap="round"/>
+  <text x="143" y="180" fill="#e6f4f1" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">PVE</text>
+  <text x="143" y="235" fill="#67d6c4" font-family="Arial, Helvetica, sans-serif" font-size="28">Debian 13 VM</text>
+  <text x="143" y="286" fill="#d7e9e7" font-family="Arial, Helvetica, sans-serif" font-size="24">CPU: host</text>
+  <text x="143" y="330" fill="#d7e9e7" font-family="Arial, Helvetica, sans-serif" font-size="24">Cloud-Init</text>
+  <text x="442" y="174" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">53</text>
+  <text x="435" y="210" fill="#d7e9e7" font-family="Arial, Helvetica, sans-serif" font-size="20">release</text>
+  <text x="438" y="358" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">DNS</text>
+  <text x="426" y="394" fill="#d7e9e7" font-family="Arial, Helvetica, sans-serif" font-size="20">mosdns</text>
+  <text x="666" y="190" fill="#ffb36c" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">mosdns</text>
+  <text x="666" y="247" fill="#e6f4f1" font-family="Arial, Helvetica, sans-serif" font-size="26">/cus/mosdns</text>
+  <text x="666" y="294" fill="#e6f4f1" font-family="Arial, Helvetica, sans-serif" font-size="26">systemd</text>
+  <text x="666" y="341" fill="#e6f4f1" font-family="Arial, Helvetica, sans-serif" font-size="26">UI :9099</text>
+  <circle cx="792" cy="366" r="18" fill="#67d6c4"/>
+</svg>

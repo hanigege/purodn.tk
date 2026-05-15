@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>00.RouterOS 初始化及基础配置 | 电脑自习室</title>
+    <meta name="description" content="RouterOS 初始化后的基础配置备份。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>软路由</span>
+          <time datetime="2025-08-14">2025年8月14日</time>
+        </div>
+        <h1>00.RouterOS 初始化及基础配置</h1>
+          <p>RouterOS 初始化后的基础配置备份。</p>
+      </header>
+          <img class="article-cover" src="/images/routeros/routeros-00.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="本文介绍routeros初始化后的一些基础配置第一次进入routeros先恢复原厂设置winbox以mac地址登录">本文介绍RouterOS初始化后的一些基础配置。第一次进入RouterOS先恢复原厂设置，Winbox以mac地址登录</h2>
+<h4 id="1-恢复出厂设置">1. 恢复出厂设置</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/system reset-configuration
+</span></span></code></pre></div><h4 id="2-接口命名与桥接">2. 接口命名与桥接</h4>
+<p>确认接口，区分lan，wan，更改名称为方便以后操作（建议手动操作）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/interface set ether1 name<span style="color:#f92672">=</span>lan
+</span></span><span style="display:flex;"><span>/interface set ether2 name<span style="color:#f92672">=</span>wan
+</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-00-basic-setup-01.png" alt=""></p>
+<ul>
+<li>建立bridge1，并将所有lan接口添加进桥</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/interface bridge add name<span style="color:#f92672">=</span>bridge1
+</span></span><span style="display:flex;"><span>/interface bridge port add bridge<span style="color:#f92672">=</span>bridge1 interface<span style="color:#f92672">=</span>lan
+</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-00-basic-setup-02.png" alt="">
+注：如果双网口，且不打算用ros的容器，可不建bridge，直接使用lan口，并接入物理交换机</p>
+<h4 id="3-本机地址">3. 本机地址</h4>
+<p>为bridge1设置IP。本教程以bridge1为例，即ros本机ip为10.0.0.1/24</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip address add interface<span style="color:#f92672">=</span>bridge1 address<span style="color:#f92672">=</span>10.0.0.1/24 network<span style="color:#f92672">=</span>10.0.0.0
+</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-00-basic-setup-03.png" alt=""></p>
+<h4 id="4-时间与-ntp">4. 时间与 NTP</h4>
+<p>配置时区，配置NTP服务器</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/system clock set time-zone-name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Asia/Shanghai&#34;</span>
+</span></span><span style="display:flex;"><span>/system clock manual set time-zone<span style="color:#f92672">=</span>+08:00
+</span></span><span style="display:flex;"><span>/system ntp client set enabled<span style="color:#f92672">=</span>yes servers<span style="color:#f92672">=</span>cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com
+</span></span></code></pre></div><h4 id="5-服务与端口硬化">5. 服务与端口硬化</h4>
+<p>关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip smb set enabled<span style="color:#f92672">=</span>no
+</span></span><span style="display:flex;"><span>/ip smb shares disable numbers<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>/ip ssh set forwarding-enabled<span style="color:#f92672">=</span>no
+</span></span><span style="display:flex;"><span>/ip socks set enabled<span style="color:#f92672">=</span>no
+</span></span><span style="display:flex;"><span>/ip upnp set enabled<span style="color:#f92672">=</span>no
+</span></span><span style="display:flex;"><span>/ip proxy set enabled<span style="color:#f92672">=</span>no
+</span></span><span style="display:flex;"><span>/ip service disable api
+</span></span><span style="display:flex;"><span>/ip service disable api-ssl
+</span></span><span style="display:flex;"><span>/ip service disable ftp
+</span></span><span style="display:flex;"><span>/ip service disable ssh
+</span></span><span style="display:flex;"><span>/ip service disable telnet
+</span></span><span style="display:flex;"><span>/ip service disable www
+</span></span><span style="display:flex;"><span>/ip service disable www-ssl
+</span></span><span style="display:flex;"><span>/ip service set winbox port<span style="color:#f92672">=</span><span style="color:#ae81ff">5391</span> address<span style="color:#f92672">=</span>10.0.0.0/24
+</span></span><span style="display:flex;"><span>/tool bandwidth-server set enabled<span style="color:#f92672">=</span>no
+</span></span></code></pre></div><h4 id="6-管理员账号">6. 管理员账号</h4>
+<p>创建新的管理员帐号和密码，关闭默认管理员帐号</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/user add name<span style="color:#f92672">=</span>用户名 password<span style="color:#f92672">=</span>密码 group<span style="color:#f92672">=</span>full address<span style="color:#f92672">=</span>10.0.0.0/24
+</span></span></code></pre></div><p>特别注意：先确认上边的用户名和密码已经可以正常登录，再禁用或删除默认用户名</p>
+<h4 id="7-禁用默认账户">7. 禁用默认账户</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/user disable admin
+</span></span></code></pre></div><ul>
+<li>修改端口后登陆时ip地址后注意加上5391端口
+<img src="/images/routeros/original/routeros-00-basic-setup-05.png" alt="ros-0-4"></li>
+</ul>
+<h4 id="8-更新与授权加速">8. 更新与授权加速</h4>
+<p>更新及授权加速服务器添加静态IP（可不操作，若后续更新慢可尝试添加）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip dns static
+</span></span><span style="display:flex;"><span>add address<span style="color:#f92672">=</span>45.12.89.152 name<span style="color:#f92672">=</span>upgrade.mikrotik.com type<span style="color:#f92672">=</span>A
+</span></span><span style="display:flex;"><span>add address<span style="color:#f92672">=</span>45.12.89.152 name<span style="color:#f92672">=</span>licence.mikrotik.com type<span style="color:#f92672">=</span>A
+</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-00-basic-setup-04.png" alt=""></p>
+
+      </div>
+        <footer class="article-source">
+          <span>原文参考</span>
+          <a href="https://blog.847977.xyz/2025/08/14/00-RouterOS%E5%88%9D%E5%A7%8B%E5%8C%96%E5%8F%8A%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/" target="_blank" rel="noopener noreferrer">https://blog.847977.xyz/2025/08/14/00-RouterOS%E5%88%9D%E5%A7%8B%E5%8C%96%E5%8F%8A%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/</a>
+        </footer>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mosdns-install/">
+            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">mosdns 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-install/">
+            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">sing-box 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
+            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
+</footer>
+
+      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

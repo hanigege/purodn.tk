@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">FreeBSD 中文终端配置</title>
+  <desc id="desc">FreeBSD 终端中文环境配置教程封面</desc>
+  <rect width="1200" height="675" fill="#111827"/>
+  <circle cx="990" cy="120" r="190" fill="#dc2626" opacity=".18"/>
+  <circle cx="180" cy="560" r="230" fill="#38bdf8" opacity=".14"/>
+  <rect x="110" y="120" width="980" height="405" rx="28" fill="#0f172a" stroke="#334155" stroke-width="5"/>
+  <rect x="110" y="120" width="980" height="58" rx="28" fill="#1f2937"/>
+  <circle cx="155" cy="149" r="10" fill="#ef4444"/>
+  <circle cx="190" cy="149" r="10" fill="#f97316"/>
+  <circle cx="225" cy="149" r="10" fill="#22c55e"/>
+  <text x="150" y="255" fill="#22c55e" font-family="monospace" font-size="34" font-weight="700">charset=UTF-8</text>
+  <text x="150" y="315" fill="#38bdf8" font-family="monospace" font-size="34" font-weight="700">lang=zh_CN.UTF-8</text>
+  <text x="150" y="375" fill="#f97316" font-family="monospace" font-size="34" font-weight="700">cap_mkdb /etc/login.conf</text>
+  <text x="150" y="435" fill="#e5e7eb" font-family="monospace" font-size="34" font-weight="700">pw usermod root -L chinese</text>
+  <text x="90" y="592" fill="#fff" font-family="Arial, sans-serif" font-size="62" font-weight="800">FreeBSD 终端中文支持</text>
+  <text x="94" y="642" fill="#94a3b8" font-family="Arial, sans-serif" font-size="30" font-weight="700">login.conf / UTF-8 / 中文 locale</text>
+</svg>

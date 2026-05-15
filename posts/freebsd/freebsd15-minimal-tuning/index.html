@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs | 电脑自习室</title>
+    <meta name="description" content="FreeBSD 15 最小化安装后的轻量化整理：修正用户、关闭多余 TTY、配置 pkg 自动清理、添加 Swap 文件、用 tmpfs 加速 pkg 缓存，并保留必要的系统服务。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>FreeBSD</span>
+          <time datetime="2026-02-15">2026年2月15日</time>
+        </div>
+        <h1>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</h1>
+          <p>FreeBSD 15 最小化安装后的轻量化整理：修正用户、关闭多余 TTY、配置 pkg 自动清理、添加 Swap 文件、用 tmpfs 加速 pkg 缓存，并保留必要的系统服务。</p>
+      </header>
+          <img class="article-cover" src="/images/freebsd/freebsd15-minimal-tuning-cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。</p>
+<p>建议按下面顺序做：</p>
+<ol>
+<li>修正误创建的用户。</li>
+<li>保留 <code>ttyv0</code>，关闭多余本地控制台。</li>
+<li>配置 <code>pkg</code> 自动清理缓存。</li>
+<li>小内存机器添加 Swap 文件。</li>
+<li>用 <code>tmpfs</code> 加速 <code>/var/cache/pkg</code>。</li>
+<li>只关闭确认不用的服务。</li>
+</ol>
+<h2 id="修正误创建的用户">修正误创建的用户</h2>
+<p>如果安装阶段把用户名写错了，例如把 <code>felix</code> 写成了 <code>fexil</code>，可以先删除错误用户，再重新创建正确用户。</p>
+<p>确认要删除的用户确实是错误账号后，在 root 下执行：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pw userdel -n fexil -r
+</span></span></code></pre></div><p>参数含义：</p>
+<ul>
+<li><code>-n fexil</code> 指定要删除的用户名。</li>
+<li><code>-r</code> 会同时删除该用户的家目录，例如 <code>/home/fexil</code>。</li>
+</ul>
+<p>然后重新创建正确的普通用户，并加入 <code>wheel</code> 组：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pw useradd felix -m -G wheel -s /bin/sh
+</span></span><span style="display:flex;"><span>passwd felix
+</span></span></code></pre></div><p>创建后检查用户和组：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>id felix
+</span></span></code></pre></div><p>看到输出中包含 <code>wheel</code>，说明这个用户后续可以使用 <code>su</code> 切换到 root。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>su - felix
+</span></span></code></pre></div><p>如果普通用户不能 <code>su</code> 到 root，常见原因有两个：</p>
+<ul>
+<li>用户名拼写错了，实际登录的不是预期用户。</li>
+<li>创建用户时没有加入 <code>wheel</code> 组。</li>
+</ul>
+<h2 id="为什么别人的最小化系统进程更少">为什么别人的最小化系统进程更少</h2>
+<p>FreeBSD 最小化安装后，<code>htop</code> 里看到的进程数量会受几个因素影响：</p>
+<p><img src="/images/freebsd/original/freebsd15-minimal-tuning-01.png" alt="FreeBSD 15 最小化环境的进程状态"></p>
+<ul>
+<li>FreeBSD 默认会开启多个本地控制台，也就是多个 <code>getty</code> 进程。</li>
+<li>不同版本默认服务略有差异，例如 FreeBSD 15-CURRENT 和 14.x RELEASE 的默认进程数量可能不同。</li>
+<li>机器内存、虚拟化模板和服务商镜像也会影响默认后台服务。</li>
+<li><code>syslogd</code>、<code>cron</code>、<code>sshd</code>、<code>devd</code> 等是常见基础服务。</li>
+</ul>
+<p>不要为了追求进程数量最低而一口气关掉所有服务。VPS 上更稳妥的做法是：关闭明显用不到的多余 TTY，保留日志、SSH 和基础设备管理能力。</p>
+<h2 id="关闭多余-tty">关闭多余 TTY</h2>
+<p>TTY 是本地虚拟控制台。在 VPS 上，它通常通过服务商的 VNC / noVNC / IPMI 控制台访问。SSH 登录使用的是 <code>pts/0</code>、<code>pts/1</code> 这类伪终端，不占用 <code>ttyv1</code> 到 <code>ttyv7</code>。</p>
+<p>建议保留 <code>ttyv0</code> 作为救援入口，关闭 <code>ttyv1</code> 到 <code>ttyv7</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sed -i <span style="color:#e6db74">&#39;&#39;</span> <span style="color:#e6db74">&#39;/ttyv[1-7]/s/on/off/&#39;</span> /etc/ttys
+</span></span><span style="display:flex;"><span>kill -HUP <span style="color:#ae81ff">1</span>
+</span></span></code></pre></div><p>也可以手动编辑：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /etc/ttys
+</span></span></code></pre></div><p>修改前类似：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ttyv0  &#34;/usr/libexec/getty Pc&#34;  xterm  on  secure
+</span></span><span style="display:flex;"><span>ttyv1  &#34;/usr/libexec/getty Pc&#34;  xterm  on  secure
+</span></span><span style="display:flex;"><span>ttyv2  &#34;/usr/libexec/getty Pc&#34;  xterm  on  secure
+</span></span></code></pre></div><p>修改后保留 <code>ttyv0</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ttyv0  &#34;/usr/libexec/getty Pc&#34;  xterm  on   secure
+</span></span><span style="display:flex;"><span>ttyv1  &#34;/usr/libexec/getty Pc&#34;  xterm  off  secure
+</span></span><span style="display:flex;"><span>ttyv2  &#34;/usr/libexec/getty Pc&#34;  xterm  off  secure
+</span></span></code></pre></div><p>执行后，<code>htop</code> 中会少掉多个 <code>getty</code> 进程，但不会影响 SSH 登录。</p>
+<h2 id="是否关闭-cron-和-syslogd">是否关闭 cron 和 syslogd</h2>
+<p>极限精简时可以关闭 <code>cron</code> 和 <code>syslogd</code>，但一般不建议。</p>
+<p><code>cron</code> 负责定时任务，<code>syslogd</code> 负责系统日志。服务器一旦出现网络、SSH、pkg 或启动问题，日志往往是排障入口。</p>
+<p>如果确认完全不需要定时任务，可以关闭 <code>cron</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysrc cron_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NO&#34;</span>
+</span></span><span style="display:flex;"><span>service cron stop
+</span></span></code></pre></div><p>如果确认不看本地日志，才考虑关闭 <code>syslogd</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysrc syslogd_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NO&#34;</span>
+</span></span><span style="display:flex;"><span>service syslogd stop
+</span></span></code></pre></div><p>更稳妥的建议是：<code>cron</code> 可按需关闭，<code>syslogd</code> 默认保留。</p>
+<h2 id="配置-pkg-自动清理缓存">配置 pkg 自动清理缓存</h2>
+<p><code>pkg</code> 的全局配置文件是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/usr/local/etc/pkg.conf
+</span></span></code></pre></div><p>如果文件不存在，先创建：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>touch /usr/local/etc/pkg.conf
+</span></span></code></pre></div><p>写入自动清理配置：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;AUTOCLEAN: true&#34;</span> &gt;&gt; /usr/local/etc/pkg.conf
+</span></span></code></pre></div><p>以后执行 <code>pkg install</code> 或 <code>pkg upgrade</code> 时，旧版本缓存包会自动清理，减少磁盘残留。</p>
+<p>验证配置：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pkg -vv | grep AUTOCLEAN
+</span></span></code></pre></div><p>常用维护命令：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pkg clean
+</span></span><span style="display:flex;"><span>pkg autoremove
+</span></span></code></pre></div><h2 id="安装基础工具">安装基础工具</h2>
+<p>精简系统装好后，可以先补一组轻量常用工具：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pkg install -y vim-tiny tmux curl fastfetch
+</span></span></code></pre></div><p>用途：</p>
+<ul>
+<li><code>vim-tiny</code>：轻量编辑器。</li>
+<li><code>tmux</code>：SSH 断线后保留会话，也方便分屏。</li>
+<li><code>curl</code>：下载脚本和访问 API 常用。</li>
+<li><code>fastfetch</code>：快速查看系统信息。</li>
+</ul>
+<p>如果 root 默认 shell 是 <code>/bin/sh</code>，可以把常用别名写入 <code>~/.shrc</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#39;alias ll=&#34;ls -GFahl&#34;&#39;</span> &gt;&gt; ~/.shrc
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#39;alias vi=&#34;vim&#34;&#39;</span> &gt;&gt; ~/.shrc
+</span></span><span style="display:flex;"><span>. ~/.shrc
+</span></span></code></pre></div><p>为了让登录 shell 自动加载：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep -q <span style="color:#e6db74">&#34;ENV=&#34;</span> ~/.profile <span style="color:#f92672">||</span> echo <span style="color:#e6db74">&#39;export ENV=$HOME/.shrc&#39;</span> &gt;&gt; ~/.profile
+</span></span></code></pre></div><h2 id="为-1gb-内存机器添加-swap-文件">为 1GB 内存机器添加 Swap 文件</h2>
+<p>小内存 VPS 建议增加 Swap 文件作为缓冲，避免突发内存占用导致系统卡死。</p>
+<p>创建 2GB Swap 文件：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>dd <span style="color:#66d9ef">if</span><span style="color:#f92672">=</span>/dev/zero of<span style="color:#f92672">=</span>/usr/swap0 bs<span style="color:#f92672">=</span>1M count<span style="color:#f92672">=</span><span style="color:#ae81ff">2048</span>
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">0600</span> /usr/swap0
+</span></span></code></pre></div><p>写入 <code>/etc/fstab</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;md99 none swap sw,file=/usr/swap0,late 0 0&#34;</span> &gt;&gt; /etc/fstab
+</span></span></code></pre></div><p>立即激活：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>swapon -aL
+</span></span></code></pre></div><p>验证：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pstat -s
+</span></span></code></pre></div><p><code>md99</code> 是内存磁盘设备编号，可以换成不冲突的编号。<code>late</code> 表示等文件系统挂载完成后再启用这个 Swap 文件。</p>
+<h2 id="用-tmpfs-加速-pkg-缓存">用 tmpfs 加速 pkg 缓存</h2>
+<p><code>tmpfs</code> 是把一部分内存当临时文件系统使用。对 <code>/var/cache/pkg</code> 这种临时缓存目录来说很合适：安装包下载和解压更快，安装完成后又会自动清理。</p>
+<p>先开启 tmpfs 支持：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysrc tmpfs_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;YES&#34;</span>
+</span></span></code></pre></div><p>给 <code>/var/cache/pkg</code> 挂载一个 200MB 上限的 tmpfs：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#39;tmpfs /var/cache/pkg tmpfs rw,mode=1777,size=200M 0 0&#39;</span> &gt;&gt; /etc/fstab
+</span></span><span style="display:flex;"><span>mount /var/cache/pkg
+</span></span></code></pre></div><p>验证挂载：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>df -h /var/cache/pkg
+</span></span></code></pre></div><p><img src="/images/freebsd/original/freebsd15-minimal-tuning-02.png" alt="查看 pkg 缓存目录的 tmpfs 挂载状态"></p>
+<p>预期类似：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Filesystem    Size    Used   Avail Capacity  Mounted on
+</span></span><span style="display:flex;"><span>tmpfs         200M     0B    200M     0%     /var/cache/pkg
+</span></span></code></pre></div><p>如果只是临时测试，不写入 <code>/etc/fstab</code>，也可以单次挂载：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mount -t tmpfs -o rw,mode<span style="color:#f92672">=</span>1777,size<span style="color:#f92672">=</span>200M tmpfs /var/cache/pkg
+</span></span></code></pre></div><p>重启后不需要手动挂载，只要已经写入 <code>/etc/fstab</code>，FreeBSD 启动时会自动挂载。注意 tmpfs 里的内容重启后会消失，这对 pkg 缓存目录没有问题。</p>
+<h2 id="验证-pkg-缓存加速和自动清理">验证 pkg 缓存加速和自动清理</h2>
+<p>安装一个稍大的包，同时观察缓存目录：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pkg install -y vim
+</span></span></code></pre></div><p>另开一个窗口观察：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#66d9ef">while</span> true; <span style="color:#66d9ef">do</span> du -sh /var/cache/pkg; sleep 0.1; <span style="color:#66d9ef">done</span>
+</span></span></code></pre></div><p><img src="/images/freebsd/original/freebsd15-minimal-tuning-03.png" alt="观察 pkg 缓存目录占用变化"></p>
+<p>通常会看到缓存占用从 <code>0B</code> 增加到几 MB，再在安装完成后回到 <code>0B</code>。这说明：</p>
+<ul>
+<li><code>/var/cache/pkg</code> 已经走 tmpfs。</li>
+<li><code>AUTOCLEAN: true</code> 生效。</li>
+<li>安装缓存没有长期留在磁盘上。</li>
+</ul>
+<p><img src="/images/freebsd/original/freebsd15-minimal-tuning-04.png" alt="pkg 安装后缓存自动清理结果"></p>
+<h2 id="可选关闭-sendmail">可选：关闭 Sendmail</h2>
+<p>如果系统没有安装或启用 Sendmail，可以忽略这一节。</p>
+<p>如果不需要本地邮件服务，可以彻底禁用：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysrc sendmail_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NONE&#34;</span>
+</span></span><span style="display:flex;"><span>sysrc sendmail_submit_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NO&#34;</span>
+</span></span><span style="display:flex;"><span>sysrc sendmail_outbound_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NO&#34;</span>
+</span></span><span style="display:flex;"><span>sysrc sendmail_msp_queue_enable<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;NO&#34;</span>
+</span></span><span style="display:flex;"><span>service sendmail stop
+</span></span></code></pre></div><h2 id="可选减少-swap-依赖">可选：减少 Swap 依赖</h2>
+<p>如果负载很低，又希望内核尽量少把内存页换出到磁盘，可以临时设置：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl vm.defer_swapspace_pageouts<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
+</span></span></code></pre></div><p>永久写入：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;vm.defer_swapspace_pageouts=1&#34;</span> &gt;&gt; /etc/sysctl.conf
+</span></span></code></pre></div><p>这个选项适合低负载 VPS。高负载或不确定用途时，建议先观察一段时间再决定。</p>
+<h2 id="rcconf-示例">rc.conf 示例</h2>
+<p>一个偏精简但仍保留基础能力的 <code>/etc/rc.conf</code> 可以类似这样：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>hostname=&#34;freebsd15mini&#34;
+</span></span><span style="display:flex;"><span>ifconfig_vtnet0=&#34;DHCP&#34;
+</span></span><span style="display:flex;"><span>sshd_enable=&#34;YES&#34;
+</span></span><span style="display:flex;"><span>ntpd_enable=&#34;YES&#34;
+</span></span><span style="display:flex;"><span>dumpdev=&#34;NO&#34;
+</span></span><span style="display:flex;"><span>sendmail_enable=&#34;NONE&#34;
+</span></span><span style="display:flex;"><span>tmpfs_enable=&#34;YES&#34;
+</span></span></code></pre></div><p>其中网卡名 <code>vtnet0</code> 要按实际环境调整。常见还有 <code>em0</code>、<code>igb0</code>、<code>re0</code> 等。</p>
+<h2 id="日常检查命令">日常检查命令</h2>
+<p>优化后，可以用下面几条命令检查当前状态：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ps ax
+</span></span><span style="display:flex;"><span>df -h /var/cache/pkg
+</span></span><span style="display:flex;"><span>pstat -s
+</span></span><span style="display:flex;"><span>top -bn <span style="color:#ae81ff">1</span> | head -n <span style="color:#ae81ff">5</span>
+</span></span></code></pre></div><p>如果想装轻量流量监控工具：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pkg install -y bmon
+</span></span></code></pre></div><h2 id="小结">小结</h2>
+<p>这套配置的思路是：</p>
+<ul>
+<li>用户：普通用户加入 <code>wheel</code>，避免长期直接使用 root。</li>
+<li>控制台：保留 <code>ttyv0</code> 救援，关闭多余 TTY。</li>
+<li>缓存：<code>pkg</code> 自动清理，<code>/var/cache/pkg</code> 使用 tmpfs。</li>
+<li>内存：1GB 小内存机器用 2GB Swap 做缓冲。</li>
+<li>服务：保留 SSH、NTP、日志等基础能力，谨慎关闭系统服务。</li>
+</ul>
+<p>这样 FreeBSD 15 会更轻、更干净，但仍然保留可维护性。</p>
+
+      </div>
+        <footer class="article-source">
+          <span>原文参考</span>
+          <a href="https://7829.eu.org/archives/1771165330709" target="_blank" rel="noopener noreferrer">https://7829.eu.org/archives/1771165330709</a>
+        </footer>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mosdns-install/">
+            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">mosdns 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-install/">
+            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">sing-box 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
+            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
+</footer>
+
+      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>流量分流 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%B5%81/</link>
+    <description>Recent content in 流量分流 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 10 May 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%B5%81/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Vyos上网系列之-Fakeip配置(2)</title>
+      <link>https://purodn.tk/posts/vyos/vyos-fakeip-routing/</link>
+      <pubDate>Sat, 10 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/vyos/vyos-fakeip-routing/</guid>
+      <description>&lt;h2 id=&#34;对于终端网关是vyos的通过mosdns来分流realip和fakeip的流量-可这样配置&#34;&gt;对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置:&lt;/h2&gt;&#xA;&lt;p&gt;(vyos的group分为address-group,network-group等)&lt;/p&gt;&#xA;&lt;h4 id=&#34;定义组-ip例&#34;&gt;定义组 IP例:&lt;/h4&gt;&#xA;&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;set firewall group address-group Telegram-v4 address &amp;#39;157.148.47.204&amp;#39;&#xA;set firewall group address-group Telegram-v4 address &amp;#39;182.43.124.6&amp;#39;&#xA;...&#xA;&lt;/code&gt;&lt;/pre&gt;&lt;h4 id=&#34;定义组网段v4例&#34;&gt;定义组网段V4例：&lt;/h4&gt;&#xA;&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39;&#xA;...&#xA;&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;定义组telegram V4:&lt;/p&gt;&#xA;&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.8.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.16.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.12.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;149.154.160.0/20&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.105.192.0/23&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;91.108.20.0/22&amp;#39;&#xA;set firewall group network-group Telegram-v4 network &amp;#39;185.76.151.0/24&amp;#39;&#xA;&lt;/code&gt;&lt;/pre&gt;&lt;h4 id=&#34;定义组ip-v6例&#34;&gt;定义组ip-V6例：&lt;/h4&gt;&#xA;&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;set firewall group ipv6-address-group Telegram-v6 address &amp;#39;2a00:1098:80:2::1004&amp;#39;&#xA;set firewall group ipv6-address-group Telegram-v6 address &amp;#39;2a00:1098:80:2::1001&amp;#39;&#xA;...&#xA;&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;定义组网段V6例：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
