@@ -1,0 +1,7 @@
+/public/
+/resources/_gen/
+/.hugo_build.lock
+.DS_Store
+# Ignore generated minified CSS and code-copy JS built by Hugo
+css/main.min*.css
+js/code-copy.min*.js
