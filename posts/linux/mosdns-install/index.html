@@ -1,209 +1,38 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>mosdns 安装教程 | 电脑自习室</title>
-    <meta name="description" content="mosdns 安装教程原文备份。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-01">2026年5月1日</time>
-        </div>
-        <h1>mosdns 安装教程</h1>
-          <p>mosdns 安装教程原文备份。</p>
-      </header>
-          <img class="article-cover" src="/images/linux/original/mosdns-install-cover.png" alt="">
-
-      <div class="article-content">
-        <blockquote>
-<p>本文介绍 mosdns（Tom魔改版） 安装使用的方法</p>
-</blockquote>
-<p>[TOC]</p>
-<h3 id="一脚本部署-mosdns">一、脚本部署 mosdns</h3>
-<blockquote>
-<p>需从github下载配置文件，自行准备科学环境</p>
-</blockquote>
-<p>步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh <span style="color:#f92672">&amp;&amp;</span> chmod +x /mnt/main_install.sh <span style="color:#f92672">&amp;&amp;</span> /mnt/main_install.sh
-</span></span></code></pre></div><p>步骤 2： 输入 5 ，再输入 1 ，安装mosdns</p>
-<p><img src="/images/linux/original/mosdns-install-01.png" alt="">
-<img src="/images/linux/original/mosdns-install-02.png" alt=""></p>
-<p>步骤 3： 按提示输入以下信息：</p>
-<ol>
-<li>sing-box/mihomo 提供的socks代理  IP:端口（例如 10.0.0.2:7890）</li>
-<li>输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666)</li>
-</ol>
-<p><img src="/images/linux/original/mosdns-install-03.png" alt=""></p>
-<p>步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099</p>
-<h5 id="mosdns-ui-界面预览">MosDNS UI 界面预览</h5>
-<p><img src="/images/linux/original/mosdns-install-04.png" alt="">
-<img src="/images/linux/original/mosdns-install-05.png" alt="">
-<img src="/images/linux/original/mosdns-install-06.png" alt="">
-<img src="/images/linux/original/mosdns-install-07.png" alt="">
-<img src="/images/linux/original/mosdns-install-08.png" alt=""></p>
-<blockquote>
-<p>更多 mosdns 和 UI 设置问题：加入 TG 群咨询
-点击加入 TG 群</p>
-</blockquote>
-<h3 id="二手动部署-mosdns">二、手动部署 mosdns</h3>
-<p>配置 systemd 开机自启（Debian/Ubuntu）：</p>
-<p>步骤 1： 下载 service 文件</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -o /etc/systemd/system/mosdns.service https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/mosdns/service/mosdns.service
-</span></span></code></pre></div><p>步骤 2： 重新加载 systemd 配置</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl daemon-reload
-</span></span></code></pre></div><p>步骤 3： 启用开机自启动</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl enable mosdns.service
-</span></span></code></pre></div><p>步骤 4： release中下载对应架构的 mosdns二进制文件 (<a href="https://github.com/jasonxtt/mosdns/releases">https://github.com/jasonxtt/mosdns/releases</a>)</p>
-<p>步骤 5： 解压获得mosdns二进制文件上传到 /usr/local/bin/</p>
-<p>步骤 6： 赋予二进制文件执行权限</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo chmod +x /usr/local/bin/mosdns
-</span></span></code></pre></div><p>步骤 7： 下载mosdns配置文件（https://raw.githubusercontent.com/jasonxtt/file/main/mosdns/config/config_all.zip ）</p>
-<p>步骤 8： 解压得到 config_all 文件夹，更名为 mosdns ，上传至/cus目录</p>
-<p>若无/cus目录需先创建目录</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo mkdir /cus
-</span></span></code></pre></div><p>确保目录结构层级为 /cus/mosdns/config_custom.yaml</p>
-<p>步骤 9： 解除系统服务对53端口的占用</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo sed -i.bak -E <span style="color:#e6db74">&#39;s/^\s*#?\s*DNSStubListener\s*=.*/DNSStubListener=no/&#39;</span> /etc/systemd/resolved.conf <span style="color:#f92672">&amp;&amp;</span> sudo systemctl reload-or-restart systemd-resolved
-</span></span></code></pre></div><p>步骤 10： 启动mosdns</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl start mosdns
-</span></span></code></pre></div><p>步骤 11： 打开mosdns UI ，所属虚拟机 IP:9099.  ，例如：</p>
-<p>（ http://10.0.0.3:9099 ）</p>
-<p>步骤 12： 设置“SOCKS5 / ECS 覆盖”</p>
-<ol>
-<li>打开”系统设置“，socks5 代理处填入sing-box或mihomo的socks代理端口，例如 10.0.0.2:7890</li>
-<li>ECS IP处填入自己的公网IP，若无公网IP打开（https://ip138.com/） ，填入显示的IPv4即可，例如110.110.110.110</li>
-</ol>
-<p><img src="/images/linux/original/mosdns-install-09.png" alt=""></p>
-<p>步骤 13： 修改上游</p>
-<p>仅需修改所属组为“nocnfake“这个上游为sing-box或mihomo的DNS监听端口，用途为获取fakeip
-<img src="/images/linux/original/mosdns-install-10.png" alt="">
-<img src="/images/linux/original/mosdns-install-11.png" alt=""></p>
-<p>其余高级选项默认即可，进一步探索功能的高级用法欢迎进群交流</p>
-<p><img src="/images/linux/original/mosdns-install-12.png" alt=""></p>
-<blockquote>
-<p>欢迎加入 TG 群 折腾日记 <a href="https://t.me/+bzSRf6dtG3lhYWVl">https://t.me/+bzSRf6dtG3lhYWVl</a> 交流</p>
-</blockquote>
-
-      </div>
-        <footer class="article-source">
-          <span>原文参考</span>
-          <a href="https://blog.847977.xyz/2026/05/01/mosdns%E5%AE%89%E8%A3%85%E6%95%99%E7%A8%8B/" target="_blank" rel="noopener noreferrer">https://blog.847977.xyz/2026/05/01/mosdns%E5%AE%89%E8%A3%85%E6%95%99%E7%A8%8B/</a>
-        </footer>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">mosdns 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">sing-box 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
-</footer>
-
-      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>mosdns 安装教程 | 电脑自习室</title><meta name=description content="mosdns 安装教程原文备份。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-01>2026年5月1日</time></div><h1>mosdns 安装教程</h1><p>mosdns 安装教程原文备份。</p></header><img class=article-cover src=/images/linux/original/mosdns-install-cover.png alt><div class=article-content><blockquote><p>本文介绍 mosdns（Tom魔改版） 安装使用的方法</p></blockquote><p>[TOC]</p><h3 id=一脚本部署-mosdns>一、脚本部署 mosdns</h3><blockquote><p>需从github下载配置文件，自行准备科学环境</p></blockquote><p>步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh <span style=color:#f92672>&amp;&amp;</span> chmod +x /mnt/main_install.sh <span style=color:#f92672>&amp;&amp;</span> /mnt/main_install.sh
+</span></span></code></pre></div><p>步骤 2： 输入 5 ，再输入 1 ，安装mosdns</p><p><img src=/images/linux/original/mosdns-install-01.png alt>
+<img src=/images/linux/original/mosdns-install-02.png alt></p><p>步骤 3： 按提示输入以下信息：</p><ol><li>sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890）</li><li>输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666)</li></ol><p><img src=/images/linux/original/mosdns-install-03.png alt></p><p>步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099</p><h5 id=mosdns-ui-界面预览>MosDNS UI 界面预览</h5><p><img src=/images/linux/original/mosdns-install-04.png alt>
+<img src=/images/linux/original/mosdns-install-05.png alt>
+<img src=/images/linux/original/mosdns-install-06.png alt>
+<img src=/images/linux/original/mosdns-install-07.png alt>
+<img src=/images/linux/original/mosdns-install-08.png alt></p><blockquote><p>更多 mosdns 和 UI 设置问题：加入 TG 群咨询
+点击加入 TG 群</p></blockquote><h3 id=二手动部署-mosdns>二、手动部署 mosdns</h3><p>配置 systemd 开机自启（Debian/Ubuntu）：</p><p>步骤 1： 下载 service 文件</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>curl -o /etc/systemd/system/mosdns.service https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/mosdns/service/mosdns.service
+</span></span></code></pre></div><p>步骤 2： 重新加载 systemd 配置</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo systemctl daemon-reload
+</span></span></code></pre></div><p>步骤 3： 启用开机自启动</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo systemctl enable mosdns.service
+</span></span></code></pre></div><p>步骤 4： release中下载对应架构的 mosdns二进制文件 (<a href=https://github.com/jasonxtt/mosdns/releases>https://github.com/jasonxtt/mosdns/releases</a>)</p><p>步骤 5： 解压获得mosdns二进制文件上传到 /usr/local/bin/</p><p>步骤 6： 赋予二进制文件执行权限</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo chmod +x /usr/local/bin/mosdns
+</span></span></code></pre></div><p>步骤 7： 下载mosdns配置文件（https://raw.githubusercontent.com/jasonxtt/file/main/mosdns/config/config_all.zip ）</p><p>步骤 8： 解压得到 config_all 文件夹，更名为 mosdns ，上传至/cus目录</p><p>若无/cus目录需先创建目录</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo mkdir /cus
+</span></span></code></pre></div><p>确保目录结构层级为 /cus/mosdns/config_custom.yaml</p><p>步骤 9： 解除系统服务对53端口的占用</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo sed -i.bak -E <span style=color:#e6db74>&#39;s/^\s*#?\s*DNSStubListener\s*=.*/DNSStubListener=no/&#39;</span> /etc/systemd/resolved.conf <span style=color:#f92672>&amp;&amp;</span> sudo systemctl reload-or-restart systemd-resolved
+</span></span></code></pre></div><p>步骤 10： 启动mosdns</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo systemctl start mosdns
+</span></span></code></pre></div><p>步骤 11： 打开mosdns UI ，所属虚拟机 IP:9099. ，例如：</p><p>（ http://10.0.0.3:9099 ）</p><p>步骤 12： 设置“SOCKS5 / ECS 覆盖”</p><ol><li>打开”系统设置“，socks5 代理处填入sing-box或mihomo的socks代理端口，例如 10.0.0.2:7890</li><li>ECS IP处填入自己的公网IP，若无公网IP打开（https://ip138.com/） ，填入显示的IPv4即可，例如110.110.110.110</li></ol><p><img src=/images/linux/original/mosdns-install-09.png alt></p><p>步骤 13： 修改上游</p><p>仅需修改所属组为“nocnfake“这个上游为sing-box或mihomo的DNS监听端口，用途为获取fakeip
+<img src=/images/linux/original/mosdns-install-10.png alt>
+<img src=/images/linux/original/mosdns-install-11.png alt></p><p>其余高级选项默认即可，进一步探索功能的高级用法欢迎进群交流</p><p><img src=/images/linux/original/mosdns-install-12.png alt></p><blockquote><p>欢迎加入 TG 群 折腾日记 <a href=https://t.me/+bzSRf6dtG3lhYWVl>https://t.me/+bzSRf6dtG3lhYWVl</a> 交流</p></blockquote></div><footer class=article-source><span>原文参考</span>
+<a href=https://blog.847977.xyz/2026/05/01/mosdns%E5%AE%89%E8%A3%85%E6%95%99%E7%A8%8B/ target=_blank rel="noopener noreferrer">https://blog.847977.xyz/2026/05/01/mosdns%E5%AE%89%E8%A3%85%E6%95%99%E7%A8%8B/</a></footer></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/images/linux/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/images/docker/original/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/images/linux/original/mosdns-install-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/images/linux/original/sing-box-install-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>sing-box 安装教程</span></a></li><li><a href=/posts/freebsd/freebsd15-neovim-productivity/><img src=/images/freebsd/freebsd15-neovim-productivity-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>FreeBSD15现代化Neovim生产力环境部署指南</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.4baf05c439b51d078266af6d05eacefa3ab43b756c0574fbf88cb4c056e20719.js integrity="sha256-S68FxDm1HQeCZq9tBerO+jq0O3VsBXT7+Iy0wFbiBxk=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

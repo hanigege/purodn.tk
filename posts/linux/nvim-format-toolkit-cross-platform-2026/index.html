@@ -1,363 +1,188 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程 | 电脑自习室</title>
-    <meta name="description" content="在 Alpine、Debian/Ubuntu 和 macOS 下部署统一的 Neovim Lua 配置，包含 lazy.nvim、NvimTree、OSC 52、Conform 和 Prettier 格式化。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-13">2026年5月13日</time>
-        </div>
-        <h1>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</h1>
-          <p>在 Alpine、Debian/Ubuntu 和 macOS 下部署统一的 Neovim Lua 配置，包含 lazy.nvim、NvimTree、OSC 52、Conform 和 Prettier 格式化。</p>
-      </header>
-          <img class="article-cover" src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-
-      <div class="article-content">
-        <p>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。</p>
-<p>这套配置包含：</p>
-<ul>
-<li><code>lazy.nvim</code> 插件管理器</li>
-<li><code>onedark.nvim</code> 护眼深色主题</li>
-<li><code>nvim-tree.lua</code> 文件树</li>
-<li><code>nvim-osc52</code> 远程复制</li>
-<li><code>conform.nvim</code> 代码格式化</li>
-<li><code>prettier</code> 前端与配置文件格式化工具</li>
-<li><code>;t</code> 智能切换文件树</li>
-<li><code>;f</code> 手动格式化</li>
-<li><code>;w</code> 保存并自动格式化</li>
-</ul>
-<h2 id="一安装-neovim">一、安装 Neovim</h2>
-<p>要求 Neovim 版本不低于 <code>0.10.0</code>。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。</p>
-<h3 id="debian--ubuntu">Debian / Ubuntu</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt update
-</span></span><span style="display:flex;"><span>sudo apt install -y neovim git curl
-</span></span><span style="display:flex;"><span>nvim --version | grep ^NVIM
-</span></span></code></pre></div><p>如果 Debian 或 Ubuntu 仓库里的 Neovim 版本低于 <code>0.10.0</code>，可以参考源码编译方案，或使用官方 release 版本。</p>
-<h3 id="alpine">Alpine</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk add --no-cache neovim git curl
-</span></span><span style="display:flex;"><span>nvim --version | grep ^NVIM
-</span></span></code></pre></div><p>Alpine 3.23 官方仓库通常已经提供较新的 Neovim，适合直接安装。</p>
-<h3 id="macos">macOS</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>brew install neovim
-</span></span><span style="display:flex;"><span>nvim --version | grep ^NVIM
-</span></span></code></pre></div><p>macOS 使用 Homebrew 安装即可，默认通常是最新稳定版。</p>
-<h2 id="二安装格式化与剪贴板依赖">二、安装格式化与剪贴板依赖</h2>
-<p><code>conform.nvim</code> 负责调用格式化器，但真正执行格式化的是系统里的外部命令。这里统一使用 <code>prettier</code>。</p>
-<h3 id="debian--ubuntu-1">Debian / Ubuntu</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt update
-</span></span><span style="display:flex;"><span>sudo apt install -y nodejs npm xclip
-</span></span><span style="display:flex;"><span>sudo npm install -g prettier
-</span></span></code></pre></div><h3 id="alpine-1">Alpine</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk add --no-cache nodejs npm build-base
-</span></span><span style="display:flex;"><span>npm install -g prettier
-</span></span></code></pre></div><p>如果 Alpine 下 npm 下载较慢或安装失败，可以临时切换 npm 镜像源：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>npm config set registry https://registry.npmmirror.com
-</span></span><span style="display:flex;"><span>npm install -g prettier
-</span></span></code></pre></div><h3 id="macos-1">macOS</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>brew install node
-</span></span><span style="display:flex;"><span>npm install -g prettier
-</span></span></code></pre></div><p>安装完成后统一验证：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>node -v
-</span></span><span style="display:flex;"><span>npm -v
-</span></span><span style="display:flex;"><span>prettier -v
-</span></span></code></pre></div><h2 id="三写入统一-lua-配置">三、写入统一 Lua 配置</h2>
-<p>下面这份 <code>init.lua</code> 可同时用于 Alpine、Debian/Ubuntu 和 macOS。</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. 清理旧环境</span>
-</span></span><span style="display:flex;"><span>rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. 写入配置</span>
-</span></span><span style="display:flex;"><span>mkdir -p ~/.config/nvim
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>cat <span style="color:#e6db74">&lt;&lt; &#39;EOF&#39; &gt; ~/.config/nvim/init.lua
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [基础设置]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">vim.g.mapleader = &#34;;&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">local opt = vim.opt
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.number = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.relativenumber = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.cursorline = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.termguicolors = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.encoding = &#34;utf-8&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.mouse = &#34;a&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.timeoutlen = 300
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.splitright = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">opt.splitbelow = true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [安装 lazy.nvim]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">local lazypath = vim.fn.stdpath(&#34;data&#34;) .. &#34;/lazy/lazy.nvim&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">if not vim.loop.fs_stat(lazypath) then
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  vim.fn.system({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;git&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;clone&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;--filter=blob:none&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;https://github.com/folke/lazy.nvim.git&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;--branch=stable&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    lazypath,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">end
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">vim.opt.rtp:prepend(lazypath)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [插件配置]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">require(&#34;lazy&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;navarasu/onedark.nvim&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    lazy = false,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    priority = 1000,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;onedark&#34;).setup({ style = &#34;dark&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;onedark&#34;).load()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      local hl = vim.api.nvim_set_hl
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Normal&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#abb2bf&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;NonText&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#3b4048&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;CursorLine&#34;, { bg = &#34;#2c313a&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Visual&#34;, { bg = &#34;#3e4452&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Search&#34;, { bg = &#34;#61afef&#34;, fg = &#34;#1e2127&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;IncSearch&#34;, { bg = &#34;#98c379&#34;, fg = &#34;#1e2127&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;nvim-tree/nvim-tree.lua&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    dependencies = { &#34;nvim-tree/nvim-web-devicons&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;nvim-tree&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        view = { width = 30, side = &#34;left&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        renderer = { indent_markers = { enable = true } },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;ojroques/nvim-osc52&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;osc52&#34;).setup()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      vim.api.nvim_create_autocmd(&#34;TextYankPost&#34;, {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        callback = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          if vim.v.event.operator == &#34;y&#34; and vim.v.event.regname == &#34;&#34; then
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            require(&#34;osc52&#34;).copy_register(&#34;&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          end
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;stevearc/conform.nvim&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;conform&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        formatters_by_ft = {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          json = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          yaml = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          html = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          css = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          javascript = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          typescript = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          markdown = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        format_on_save = {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          timeout_ms = 1000,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          lsp_format = &#34;fallback&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">})
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [快捷键映射]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">local map = vim.keymap.set
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;leader&gt;w&#34;, &#34;:w&lt;CR&gt;&#34;, { silent = true })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;leader&gt;q&#34;, &#34;:q&lt;CR&gt;&#34;, { silent = true })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;CR&gt;&#34;, &#34;:noh&lt;CR&gt;&lt;CR&gt;&#34;, { silent = true })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- 智能文件树切换：;t
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;leader&gt;t&#34;, function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  local view = require(&#34;nvim-tree.view&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  if view.is_visible() then
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    if vim.api.nvim_get_current_win() == view.get_winnr() then
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      vim.cmd(&#34;wincmd p&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    else
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      vim.cmd(&#34;NvimTreeFocus&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  else
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    vim.cmd(&#34;NvimTreeToggle&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  end
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">end, { silent = true })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- 手动格式化：;f
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map({ &#34;n&#34;, &#34;v&#34; }, &#34;&lt;leader&gt;f&#34;, function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  require(&#34;conform&#34;).format({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    timeout_ms = 1000,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    lsp_format = &#34;fallback&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  print(&#34;Format executed&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">end, { silent = true })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- 窗口导航
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;C-h&gt;&#34;, &#34;&lt;C-w&gt;h&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;C-l&gt;&#34;, &#34;&lt;C-w&gt;l&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;C-j&gt;&#34;, &#34;&lt;C-w&gt;j&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">map(&#34;n&#34;, &#34;&lt;C-k&gt;&#34;, &#34;&lt;C-w&gt;k&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span></code></pre></div><h2 id="四首次启动-neovim">四、首次启动 Neovim</h2>
-<p>执行：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim
-</span></span></code></pre></div><p>第一次启动时，<code>lazy.nvim</code> 会自动下载并安装所有插件。保持网络畅通，等待插件安装完成即可。</p>
-<p>退出：</p>
-<pre tabindex="0"><code>:qa
-</code></pre><p>如果 GitHub 访问不稳定，插件下载可能失败。确认网络后，重新打开 Neovim，或者在 Neovim 内执行：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">Lazy</span> <span style="color:#a6e22e">sync</span>
-</span></span></code></pre></div><h2 id="五验证格式化功能">五、验证格式化功能</h2>
-<p>新建 JSON 文件：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim test.json
-</span></span></code></pre></div><p>写入未格式化内容：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;name&#34;</span>:<span style="color:#e6db74">&#34;ubuntu&#34;</span>,<span style="color:#f92672">&#34;version&#34;</span>:<span style="color:#e6db74">&#34;24.04&#34;</span>,<span style="color:#f92672">&#34;editor&#34;</span>:<span style="color:#e6db74">&#34;neovim&#34;</span>}
-</span></span></code></pre></div><p>普通模式下输入：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>;<span style="color:#a6e22e">f</span>
-</span></span></code></pre></div><p>如果配置正常，文件会被 Prettier 格式化。也可以输入：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>;<span style="color:#a6e22e">w</span>
-</span></span></code></pre></div><p>保存时 <code>conform.nvim</code> 会自动执行格式化。</p>
-<p>检查格式化状态：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">ConformInfo</span>
-</span></span></code></pre></div><p>退出：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">exit</span>
-</span></span></code></pre></div><p>如果 <code>prettier</code> 未被识别，先检查命令路径：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>which prettier
-</span></span><span style="display:flex;"><span>prettier -v
-</span></span></code></pre></div><h2 id="六常用快捷键">六、常用快捷键</h2>
-<ul>
-<li><code>;t</code>：文件树与代码窗口智能切换</li>
-<li><code>;f</code>：格式化当前文件或选中范围</li>
-<li><code>;w</code>：保存当前文件，并触发保存时格式化</li>
-<li><code>;q</code>：退出当前窗口</li>
-<li><code>Ctrl+h/j/k/l</code>：在窗口之间移动</li>
-<li><code>Enter</code>：清除搜索高亮</li>
-</ul>
-<h2 id="七平台注意事项">七、平台注意事项</h2>
-<p>Alpine 通常用于轻量虚拟机或容器，系统非常精简。如果插件下载失败，优先检查 DNS、GitHub 访问和 <code>git</code> 是否已安装。</p>
-<p>Debian / Ubuntu 如果仓库里的 Neovim 版本过旧，建议改用源码编译或官方 release 包，不要勉强使用旧版。</p>
-<p>macOS 的剪贴板体验通常比 Linux 更自然；如果远程 SSH 复制不生效，检查终端是否支持 OSC 52。</p>
-<p>图标能否正常显示，取决于本地终端字体是否安装 Nerd Fonts，例如 <code>JetBrainsMono Nerd Font</code>。</p>
-<p>至此，Alpine、Debian/Ubuntu 和 macOS 下的 Neovim 配置体验就基本统一了。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">mosdns 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">sing-box 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
-</footer>
-
-      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程 | 电脑自习室</title><meta name=description content="在 Alpine、Debian/Ubuntu 和 macOS 下部署统一的 Neovim Lua 配置，包含 lazy.nvim、NvimTree、OSC 52、Conform 和 Prettier 格式化。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-13>2026年5月13日</time></div><h1>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</h1><p>在 Alpine、Debian/Ubuntu 和 macOS 下部署统一的 Neovim Lua 配置，包含 lazy.nvim、NvimTree、OSC 52、Conform 和 Prettier 格式化。</p></header><img class=article-cover src=/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png alt><div class=article-content><p>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。</p><p>这套配置包含：</p><ul><li><code>lazy.nvim</code> 插件管理器</li><li><code>onedark.nvim</code> 护眼深色主题</li><li><code>nvim-tree.lua</code> 文件树</li><li><code>nvim-osc52</code> 远程复制</li><li><code>conform.nvim</code> 代码格式化</li><li><code>prettier</code> 前端与配置文件格式化工具</li><li><code>;t</code> 智能切换文件树</li><li><code>;f</code> 手动格式化</li><li><code>;w</code> 保存并自动格式化</li></ul><h2 id=一安装-neovim>一、安装 Neovim</h2><p>要求 Neovim 版本不低于 <code>0.10.0</code>。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。</p><h3 id=debian--ubuntu>Debian / Ubuntu</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt update
+</span></span><span style=display:flex><span>sudo apt install -y neovim git curl
+</span></span><span style=display:flex><span>nvim --version | grep ^NVIM
+</span></span></code></pre></div><p>如果 Debian 或 Ubuntu 仓库里的 Neovim 版本低于 <code>0.10.0</code>，可以参考源码编译方案，或使用官方 release 版本。</p><h3 id=alpine>Alpine</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apk add --no-cache neovim git curl
+</span></span><span style=display:flex><span>nvim --version | grep ^NVIM
+</span></span></code></pre></div><p>Alpine 3.23 官方仓库通常已经提供较新的 Neovim，适合直接安装。</p><h3 id=macos>macOS</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>brew install neovim
+</span></span><span style=display:flex><span>nvim --version | grep ^NVIM
+</span></span></code></pre></div><p>macOS 使用 Homebrew 安装即可，默认通常是最新稳定版。</p><h2 id=二安装格式化与剪贴板依赖>二、安装格式化与剪贴板依赖</h2><p><code>conform.nvim</code> 负责调用格式化器，但真正执行格式化的是系统里的外部命令。这里统一使用 <code>prettier</code>。</p><h3 id=debian--ubuntu-1>Debian / Ubuntu</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt update
+</span></span><span style=display:flex><span>sudo apt install -y nodejs npm xclip
+</span></span><span style=display:flex><span>sudo npm install -g prettier
+</span></span></code></pre></div><h3 id=alpine-1>Alpine</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apk add --no-cache nodejs npm build-base
+</span></span><span style=display:flex><span>npm install -g prettier
+</span></span></code></pre></div><p>如果 Alpine 下 npm 下载较慢或安装失败，可以临时切换 npm 镜像源：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>npm config set registry https://registry.npmmirror.com
+</span></span><span style=display:flex><span>npm install -g prettier
+</span></span></code></pre></div><h3 id=macos-1>macOS</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>brew install node
+</span></span><span style=display:flex><span>npm install -g prettier
+</span></span></code></pre></div><p>安装完成后统一验证：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>node -v
+</span></span><span style=display:flex><span>npm -v
+</span></span><span style=display:flex><span>prettier -v
+</span></span></code></pre></div><h2 id=三写入统一-lua-配置>三、写入统一 Lua 配置</h2><p>下面这份 <code>init.lua</code> 可同时用于 Alpine、Debian/Ubuntu 和 macOS。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 1. 清理旧环境</span>
+</span></span><span style=display:flex><span>rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 2. 写入配置</span>
+</span></span><span style=display:flex><span>mkdir -p ~/.config/nvim
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>&lt;&lt; &#39;EOF&#39; &gt; ~/.config/nvim/init.lua
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- [基础设置]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>vim.g.mapleader = &#34;;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>local opt = vim.opt
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.number = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.relativenumber = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.cursorline = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.termguicolors = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.encoding = &#34;utf-8&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.mouse = &#34;a&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.timeoutlen = 300
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.splitright = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>opt.splitbelow = true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- [安装 lazy.nvim]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>local lazypath = vim.fn.stdpath(&#34;data&#34;) .. &#34;/lazy/lazy.nvim&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>if not vim.loop.fs_stat(lazypath) then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  vim.fn.system({
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;git&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;clone&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;--filter=blob:none&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;https://github.com/folke/lazy.nvim.git&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;--branch=stable&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    lazypath,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>end
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>vim.opt.rtp:prepend(lazypath)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- [插件配置]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>require(&#34;lazy&#34;).setup({
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;navarasu/onedark.nvim&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    lazy = false,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    priority = 1000,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    config = function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      require(&#34;onedark&#34;).setup({ style = &#34;dark&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      require(&#34;onedark&#34;).load()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      local hl = vim.api.nvim_set_hl
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;Normal&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#abb2bf&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;NonText&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#3b4048&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;CursorLine&#34;, { bg = &#34;#2c313a&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;Visual&#34;, { bg = &#34;#3e4452&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;Search&#34;, { bg = &#34;#61afef&#34;, fg = &#34;#1e2127&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      hl(0, &#34;IncSearch&#34;, { bg = &#34;#98c379&#34;, fg = &#34;#1e2127&#34; })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    end,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;nvim-tree/nvim-tree.lua&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    dependencies = { &#34;nvim-tree/nvim-web-devicons&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    config = function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      require(&#34;nvim-tree&#34;).setup({
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        view = { width = 30, side = &#34;left&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        renderer = { indent_markers = { enable = true } },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    end,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;ojroques/nvim-osc52&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    config = function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      require(&#34;osc52&#34;).setup()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      vim.api.nvim_create_autocmd(&#34;TextYankPost&#34;, {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        callback = function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          if vim.v.event.operator == &#34;y&#34; and vim.v.event.regname == &#34;&#34; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            require(&#34;osc52&#34;).copy_register(&#34;&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          end
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        end,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    end,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;stevearc/conform.nvim&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    config = function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      require(&#34;conform&#34;).setup({
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        formatters_by_ft = {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          json = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          yaml = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          html = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          css = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          javascript = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          typescript = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          markdown = { &#34;prettier&#34; },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        format_on_save = {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          timeout_ms = 1000,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          lsp_format = &#34;fallback&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    end,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>})
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- [快捷键映射]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>local map = vim.keymap.set
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;leader&gt;w&#34;, &#34;:w&lt;CR&gt;&#34;, { silent = true })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;leader&gt;q&#34;, &#34;:q&lt;CR&gt;&#34;, { silent = true })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;CR&gt;&#34;, &#34;:noh&lt;CR&gt;&lt;CR&gt;&#34;, { silent = true })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- 智能文件树切换：;t
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;leader&gt;t&#34;, function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  local view = require(&#34;nvim-tree.view&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  if view.is_visible() then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    if vim.api.nvim_get_current_win() == view.get_winnr() then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      vim.cmd(&#34;wincmd p&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      vim.cmd(&#34;NvimTreeFocus&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    end
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    vim.cmd(&#34;NvimTreeToggle&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  end
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>end, { silent = true })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- 手动格式化：;f
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map({ &#34;n&#34;, &#34;v&#34; }, &#34;&lt;leader&gt;f&#34;, function()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  require(&#34;conform&#34;).format({
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    timeout_ms = 1000,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    lsp_format = &#34;fallback&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  print(&#34;Format executed&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>end, { silent = true })
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>-- 窗口导航
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;C-h&gt;&#34;, &#34;&lt;C-w&gt;h&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;C-l&gt;&#34;, &#34;&lt;C-w&gt;l&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;C-j&gt;&#34;, &#34;&lt;C-w&gt;j&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>map(&#34;n&#34;, &#34;&lt;C-k&gt;&#34;, &#34;&lt;C-w&gt;k&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span></code></pre></div><h2 id=四首次启动-neovim>四、首次启动 Neovim</h2><p>执行：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nvim
+</span></span></code></pre></div><p>第一次启动时，<code>lazy.nvim</code> 会自动下载并安装所有插件。保持网络畅通，等待插件安装完成即可。</p><p>退出：</p><pre tabindex=0><code>:qa
+</code></pre><p>如果 GitHub 访问不稳定，插件下载可能失败。确认网络后，重新打开 Neovim，或者在 Neovim 内执行：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-vim data-lang=vim><span style=display:flex><span>:<span style=color:#a6e22e>Lazy</span> <span style=color:#a6e22e>sync</span>
+</span></span></code></pre></div><h2 id=五验证格式化功能>五、验证格式化功能</h2><p>新建 JSON 文件：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nvim test.json
+</span></span></code></pre></div><p>写入未格式化内容：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span>{<span style=color:#f92672>&#34;name&#34;</span>:<span style=color:#e6db74>&#34;ubuntu&#34;</span>,<span style=color:#f92672>&#34;version&#34;</span>:<span style=color:#e6db74>&#34;24.04&#34;</span>,<span style=color:#f92672>&#34;editor&#34;</span>:<span style=color:#e6db74>&#34;neovim&#34;</span>}
+</span></span></code></pre></div><p>普通模式下输入：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-vim data-lang=vim><span style=display:flex><span>;<span style=color:#a6e22e>f</span>
+</span></span></code></pre></div><p>如果配置正常，文件会被 Prettier 格式化。也可以输入：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-vim data-lang=vim><span style=display:flex><span>;<span style=color:#a6e22e>w</span>
+</span></span></code></pre></div><p>保存时 <code>conform.nvim</code> 会自动执行格式化。</p><p>检查格式化状态：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-vim data-lang=vim><span style=display:flex><span>:<span style=color:#a6e22e>ConformInfo</span>
+</span></span></code></pre></div><p>退出：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-vim data-lang=vim><span style=display:flex><span>:<span style=color:#a6e22e>exit</span>
+</span></span></code></pre></div><p>如果 <code>prettier</code> 未被识别，先检查命令路径：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>which prettier
+</span></span><span style=display:flex><span>prettier -v
+</span></span></code></pre></div><h2 id=六常用快捷键>六、常用快捷键</h2><ul><li><code>;t</code>：文件树与代码窗口智能切换</li><li><code>;f</code>：格式化当前文件或选中范围</li><li><code>;w</code>：保存当前文件，并触发保存时格式化</li><li><code>;q</code>：退出当前窗口</li><li><code>Ctrl+h/j/k/l</code>：在窗口之间移动</li><li><code>Enter</code>：清除搜索高亮</li></ul><h2 id=七平台注意事项>七、平台注意事项</h2><p>Alpine 通常用于轻量虚拟机或容器，系统非常精简。如果插件下载失败，优先检查 DNS、GitHub 访问和 <code>git</code> 是否已安装。</p><p>Debian / Ubuntu 如果仓库里的 Neovim 版本过旧，建议改用源码编译或官方 release 包，不要勉强使用旧版。</p><p>macOS 的剪贴板体验通常比 Linux 更自然；如果远程 SSH 复制不生效，检查终端是否支持 OSC 52。</p><p>图标能否正常显示，取决于本地终端字体是否安装 Nerd Fonts，例如 <code>JetBrainsMono Nerd Font</code>。</p><p>至此，Alpine、Debian/Ubuntu 和 macOS 下的 Neovim 配置体验就基本统一了。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/images/linux/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/images/docker/original/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/images/linux/original/mosdns-install-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/images/linux/original/sing-box-install-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>sing-box 安装教程</span></a></li><li><a href=/posts/freebsd/freebsd15-neovim-productivity/><img src=/images/freebsd/freebsd15-neovim-productivity-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>FreeBSD15现代化Neovim生产力环境部署指南</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.4baf05c439b51d078266af6d05eacefa3ab43b756c0574fbf88cb4c056e20719.js integrity="sha256-S68FxDm1HQeCZq9tBerO+jq0O3VsBXT7+Iy0wFbiBxk=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

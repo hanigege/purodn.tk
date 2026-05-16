@@ -1,54 +1,9 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RouterOS NAT 回流与防火墙规则备份 | 电脑自习室</title>
-    <meta name="description" content="RouterOS NAT 回流、端口转发和配套防火墙规则备份。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2026-02-27">2026年2月27日</time>
-        </div>
-        <h1>RouterOS NAT 回流与防火墙规则备份</h1>
-          <p>RouterOS NAT 回流、端口转发和配套防火墙规则备份。</p>
-      </header>
-          <img class="article-cover" src="/images/routeros/routeros-05.svg" alt="">
-
-      <div class="article-content">
-        <h3 id="内网的dst-nat要加外网接口如pppoe-out1">内网的dst-nat要加外网接口如pppoe-out1</h3>
-<h3 id="1-为什么需要回流">1. 为什么需要回流？</h3>
-<p>当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。</p>
-<h3 id="2-完整的-ros-nat-脚本包含-web-回流">2. 完整的 ROS NAT 脚本（包含 Web 回流）</h3>
-<h5 id="请根据你的实际端口修改-12335-web-和-21-ftp-等">请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。</h5>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>RouterOS NAT 回流与防火墙规则备份 | 电脑自习室</title><meta name=description content="RouterOS NAT 回流、端口转发和配套防火墙规则备份。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2026-02-27>2026年2月27日</time></div><h1>RouterOS NAT 回流与防火墙规则备份</h1><p>RouterOS NAT 回流、端口转发和配套防火墙规则备份。</p></header><img class=article-cover src=/images/routeros/routeros-05.svg alt><div class=article-content><h3 id=内网的dst-nat要加外网接口如pppoe-out1>内网的dst-nat要加外网接口如pppoe-out1</h3><h3 id=1-为什么需要回流>1. 为什么需要回流？</h3><p>当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。</p><h3 id=2-完整的-ros-nat-脚本包含-web-回流>2. 完整的 ROS NAT 脚本（包含 Web 回流）</h3><h5 id=请根据你的实际端口修改-12335-web-和-21-ftp-等>请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。</h5><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall nat
 # --- 基础规则 ---
 # 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发）
 add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&#34;Standard Internet Access&#34;
@@ -67,27 +22,12 @@ add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=tcp d
 add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=udp dst-port=3478 action=masquerade comment=&#34;Hairpin DERP STUN&#34;
 # 给 Web 服务添加回流 (假设内网 IP 为 10.20.20.5)
 add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.5 protocol=tcp dst-port=12335 action=masquerade comment=&#34;Hairpin Web&#34;
-</code></pre><h3 id="3-操作建议使用地址列表简化回流">3. 操作建议：使用“地址列表”简化回流</h3>
-<p>如果你有很多内网服务器需要回流，一条条加 srcnat 很麻烦。你可以这样做：</p>
-<p>在 IP -&gt; Firewall -&gt; Address Lists 里，把所有内网服务器 IP 加到一个叫 Internal_Servers 的列表。</p>
-<ol>
-<li>操作步骤</li>
-</ol>
-<p>请在 WinBox 中按照以下两步配置：</p>
-<p>第一步：建立服务器地址列表</p>
-<p>在 IP -&gt; Firewall -&gt; Address Lists 中，将你所有需要从内网访问的服务器 IP 加入列表：</p>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">Name: Internal_Servers | Address: 10.20.20.4 (DERP 服务器)
+</code></pre><h3 id=3-操作建议使用地址列表简化回流>3. 操作建议：使用“地址列表”简化回流</h3><p>如果你有很多内网服务器需要回流，一条条加 srcnat 很麻烦。你可以这样做：</p><p>在 IP -> Firewall -> Address Lists 里，把所有内网服务器 IP 加到一个叫 Internal_Servers 的列表。</p><ol><li>操作步骤</li></ol><p>请在 WinBox 中按照以下两步配置：</p><p>第一步：建立服务器地址列表</p><p>在 IP -> Firewall -> Address Lists 中，将你所有需要从内网访问的服务器 IP 加入列表：</p><pre tabindex=0><code class=language-routeros data-lang=routeros>Name: Internal_Servers | Address: 10.20.20.4 (DERP 服务器)
 Name: Internal_Servers | Address: 10.20.20.5 (Web 服务器)
 (依此类推，将所有有端口转发需求的内网 IP 都加进去)
-</code></pre><p>第二步：添加全局回流规则</p>
-<h4 id="在-ip---firewall---nat-中添加这一条确保它在所有-dst-nat-规则之后但在基础-masquerade-规则之前或者紧随其后">在 IP -&gt; Firewall -&gt; NAT 中添加这一条（确保它在所有 dst-nat 规则之后，但在基础 masquerade 规则之前，或者紧随其后）：</h4>
-<p>代码段</p>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat
+</code></pre><p>第二步：添加全局回流规则</p><h4 id=在-ip---firewall---nat-中添加这一条确保它在所有-dst-nat-规则之后但在基础-masquerade-规则之前或者紧随其后>在 IP -> Firewall -> NAT 中添加这一条（确保它在所有 dst-nat 规则之后，但在基础 masquerade 规则之前，或者紧随其后）：</h4><p>代码段</p><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall nat
 add chain=srcnat src-address=10.20.20.0/24 dst-address-list=Internal_Servers action=masquerade comment=&#34;Global Hairpin NAT&#34;
-</code></pre><p>使用 Address List（地址列表） 的方式最为高效，不需要在 NAT 规则里指定端口。</p>
-<p>当请求的目标地址匹配列表中的 IP 时，RouterOS 会自动对所有协议（TCP/UDP/ICMP 等）和所有端口执行回流操作。</p>
-<h3 id="规则排序-例">规则排序 例：</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat
+</code></pre><p>使用 Address List（地址列表） 的方式最为高效，不需要在 NAT 规则里指定端口。</p><p>当请求的目标地址匹配列表中的 IP 时，RouterOS 会自动对所有协议（TCP/UDP/ICMP 等）和所有端口执行回流操作。</p><h3 id=规则排序-例>规则排序 例：</h3><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall nat
 # ====================
 # 第一部分：端口映射 (DSTNAT - 外部访问内网)
 # ====================
@@ -102,21 +42,10 @@ add chain=srcnat action=masquerade src-address=10.20.20.0/24 dst-address-list=In
 # 2. 全局上网伪装 (全局兜底，必须放在 srcnat 链的最底部)
 # 作用：所有从 WAN 列表物理或虚拟接口发出的流量，全部转换并伪装为路由器的公网 IP
 add chain=srcnat action=masquerade out-interface-list=WAN comment=&#34;Global Internet Masquerade&#34;
-</code></pre><p>至此，你的 RouterOS 防火墙底层重构就已经全部完成，既满足了旁路由科学上网的苛刻要求，又具备了企业级的扩展能力。</p>
-<h3 id="4-验证-web-服务">4. 验证 Web 服务</h3>
-<p>外网测试：手机关 Wi-Fi，访问域名，确认 Web 正常。</p>
-<p>内网测试：手机连 Wi-Fi，访问同一个域名。如果能打开，说明回流配置成功。</p>
-<h3 id="5-配套的防火墙规则也是我自用的">5. 配套的防火墙规则，也是我自用的</h3>
-<h3 id="特别强调如果使用了小包优先规则配置必须停用下面所有配置中的fasttrack-connection-硬件加速规则"><code>特别强调：如果使用了小包优先规则配置，必须停用下面所有配置中的fasttrack-connection 硬件加速规则</code></h3>
-<p>RouterOS 默认开启了 Fasttrack（硬件加速），该功能会强制数据包绕过 Mangle 标记和 Queue Tree 排队，如果不处理，所有 QoS 配置均无效。</p>
-<h3 id="ipv4防火墙配置">ipv4防火墙配置</h3>
-<p>安全清空旧防火墙规则
-使用带有 dynamic=no 参数的清理命令，只抹除手工配置的静态规则，避开系统底层的内置保护规则。</p>
-<p>代码段</p>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall filter remove [find dynamic=no]
+</code></pre><p>至此，你的 RouterOS 防火墙底层重构就已经全部完成，既满足了旁路由科学上网的苛刻要求，又具备了企业级的扩展能力。</p><h3 id=4-验证-web-服务>4. 验证 Web 服务</h3><p>外网测试：手机关 Wi-Fi，访问域名，确认 Web 正常。</p><p>内网测试：手机连 Wi-Fi，访问同一个域名。如果能打开，说明回流配置成功。</p><h3 id=5-配套的防火墙规则也是我自用的>5. 配套的防火墙规则，也是我自用的</h3><h3 id=特别强调如果使用了小包优先规则配置必须停用下面所有配置中的fasttrack-connection-硬件加速规则><code>特别强调：如果使用了小包优先规则配置，必须停用下面所有配置中的fasttrack-connection 硬件加速规则</code></h3><p>RouterOS 默认开启了 Fasttrack（硬件加速），该功能会强制数据包绕过 Mangle 标记和 Queue Tree 排队，如果不处理，所有 QoS 配置均无效。</p><h3 id=ipv4防火墙配置>ipv4防火墙配置</h3><p>安全清空旧防火墙规则
+使用带有 dynamic=no 参数的清理命令，只抹除手工配置的静态规则，避开系统底层的内置保护规则。</p><p>代码段</p><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall filter remove [find dynamic=no]
 /ipv6 firewall filter remove [find dynamic=no]
-</code></pre><h3 id="带添加旁路由ip规则版-mosdnssb">带添加旁路由ip规则版 (mosdns+sb):</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall filter
+</code></pre><h3 id=带添加旁路由ip规则版-mosdnssb>带添加旁路由ip规则版 (mosdns+sb):</h3><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall filter
 # ====================
 # 入站链 (INPUT) - 访问路由器本身
 # ====================
@@ -146,11 +75,8 @@ add action=accept chain=forward comment=&#34;6. Allow bridge1 forward (Internal 
 add action=accept chain=forward comment=&#34;7. Allow DSTNAT (Port Forwarding)&#34; connection-nat-state=dstnat in-interface=pppoe-out1
 # 5. 全局兜底拦截 (零信任原则)
 add action=drop chain=forward comment=&#34;8. Drop all other forward&#34;
-</code></pre><h4 id="转发链-forward特别说明">转发链 (FORWARD)特别说明：</h4>
-<p><strong>FORWARD链</strong>“旁路由豁免”填入你的<code>mos+sb的ip</code>
-<strong>INPUT链</strong>“3981, 2222端口”填入你的<code>winbox，ssh等相关对外开放的端口</code></p>
-<h3 id="不添加旁路由ip规则版">不添加旁路由ip规则版：</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall filter
+</code></pre><h4 id=转发链-forward特别说明>转发链 (FORWARD)特别说明：</h4><p><strong>FORWARD链</strong>“旁路由豁免”填入你的<code>mos+sb的ip</code>
+<strong>INPUT链</strong>“3981, 2222端口”填入你的<code>winbox，ssh等相关对外开放的端口</code></p><h3 id=不添加旁路由ip规则版>不添加旁路由ip规则版：</h3><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall filter
 # ====================
 # 入站链 (INPUT) - 访问路由器本身
 # ====================
@@ -179,13 +105,9 @@ add action=accept chain=forward comment=&#34;6. Allow bridge1 forward (Internal 
 add action=accept chain=forward comment=&#34;7. Allow DSTNAT (Port Forwarding)&#34; connection-nat-state=dstnat in-interface=pppoe-out1
 # 5. 全局兜底拦截 (零信任原则)
 add action=drop chain=forward comment=&#34;8. Drop all other forward&#34;
-</code></pre><h4 id="转发链-forward特别说明-1">转发链 (FORWARD)特别说明：</h4>
-<p><strong>第5条</strong>“DST-NAT&quot;规则：在 IPv4 的 Forward 链中，我加入了一条 connection-nat-state=dstnat。这确保了你在 IP -&gt; Firewall -&gt; NAT 中做的端口映射能够穿透 forward 的兜底 drop 规则。
+</code></pre><h4 id=转发链-forward特别说明-1>转发链 (FORWARD)特别说明：</h4><p><strong>第5条</strong>“DST-NAT"规则：在 IPv4 的 Forward 链中，我加入了一条 connection-nat-state=dstnat。这确保了你在 IP -> Firewall -> NAT 中做的端口映射能够穿透 forward 的兜底 drop 规则。
 内网互通：只要数据包进入 bridge1 接口，就会被 Allow bridge1 forward 捕获并放行，不会受到最后一条 drop 的影响。
-这样配置后，局域网内的 PT 下载、NAS 外部大文件传输等不走 10.20.20.6 的直连流量依然可以享受硬件加速降低 CPU 负载，而 sing-box 进出的流量则由 CPU 稳妥处理，互不干扰</p>
-<h3 id="ipv6防火墙配置">ipv6防火墙配置</h3>
-<h3 id="添加旁路由ip规则版-mosdnssb">添加旁路由ip规则版 (mosdns+sb)</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ipv6 firewall filter
+这样配置后，局域网内的 PT 下载、NAS 外部大文件传输等不走 10.20.20.6 的直连流量依然可以享受硬件加速降低 CPU 负载，而 sing-box 进出的流量则由 CPU 稳妥处理，互不干扰</p><h3 id=ipv6防火墙配置>ipv6防火墙配置</h3><h3 id=添加旁路由ip规则版-mosdnssb>添加旁路由ip规则版 (mosdns+sb)</h3><pre tabindex=0><code class=language-routeros data-lang=routeros>/ipv6 firewall filter
 # ====================
 # 入站链 (INPUT) - 保护路由器本体
 # ====================
@@ -216,12 +138,8 @@ add action=accept chain=forward comment=&#34;10. Allow Shadowsocks&#34; disabled
 add action=drop chain=forward comment=&#34;11. Drop all other forward (Protect LAN)&#34;
 </code></pre><p><strong>关键提醒：</strong>
 修改旁路由的ip为你的ipv6地址
-如果你的宽带是动态 IPv6 前缀（PD），服务器的完整 IPv6 地址会变化。这种情况下，不应直接写死 dst-address，而是需要结合 MikroTik 的 IPv6 Firewall Address Lists 功能，或者使用 in-interface=pppoe-out1 配合 out-interface=bridge1 加上特定设备的特定匹配规则（比如通过防火墙脚本动态更新）。</p>
-<p>IPv4 依靠 NAT，不主动映射外部进不来；但 IPv6 是端到端直通（没有 NAT）。
-你在 forward 链中放行 dst-port=80,443，却没有指定目标地址 (dst-address)。一旦启用，这代表公网可以访问你局域网内所有设备的 80 和 443 端口（包括光猫、路由器后台、智能家居、其他电脑等）。</p>
-<p>正确做法：必须严格绑定目标服务器的 IPv6 地址（dst-address=服务器IPv6地址），或者通过 MAC 地址自动获取到的 IPv6 后缀。</p>
-<h4 id="不添加旁路由ip规则版-mosdnssb">不添加旁路由ip规则版 (mosdns+sb)：</h4>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ipv6 firewall filter
+如果你的宽带是动态 IPv6 前缀（PD），服务器的完整 IPv6 地址会变化。这种情况下，不应直接写死 dst-address，而是需要结合 MikroTik 的 IPv6 Firewall Address Lists 功能，或者使用 in-interface=pppoe-out1 配合 out-interface=bridge1 加上特定设备的特定匹配规则（比如通过防火墙脚本动态更新）。</p><p>IPv4 依靠 NAT，不主动映射外部进不来；但 IPv6 是端到端直通（没有 NAT）。
+你在 forward 链中放行 dst-port=80,443，却没有指定目标地址 (dst-address)。一旦启用，这代表公网可以访问你局域网内所有设备的 80 和 443 端口（包括光猫、路由器后台、智能家居、其他电脑等）。</p><p>正确做法：必须严格绑定目标服务器的 IPv6 地址（dst-address=服务器IPv6地址），或者通过 MAC 地址自动获取到的 IPv6 后缀。</p><h4 id=不添加旁路由ip规则版-mosdnssb>不添加旁路由ip规则版 (mosdns+sb)：</h4><pre tabindex=0><code class=language-routeros data-lang=routeros>/ipv6 firewall filter
 # ====================
 # 入站链 (INPUT) - 保护路由器本体
 # ====================
@@ -249,46 +167,22 @@ add action=accept chain=forward comment=&#34;9. Allow Hysteria2/Proxy&#34; disab
 add action=accept chain=forward comment=&#34;10. Allow Shadowsocks&#34; disabled=yes dst-address=240e::xxxx:xxxx dst-port=36789 protocol=tcp
 # 5. 兜底拦截 (零信任原则)
 add action=drop chain=forward comment=&#34;11. Drop all other forward (Protect LAN)&#34;
-</code></pre><h3 id="解释为什么添加路由ip后要删除屏蔽无效包即forward-链-drop-invalid">解释：为什么添加路由ip后要删除屏蔽无效包：即：<code>FORWARD 链 Drop invalid</code></h3>
-<p>这是因为新加入的 <code>FORWARD</code> 链 <code>Drop invalid</code>（丢弃无效包）规则，与你的旁路由（10.20.20.6）网络架构产生了冲突，导致 RouterOS 误杀了部分正常的 UDP 游戏流量和 Telegram 的初始握手包。</p>
-<hr>
-<h4 id="科学依据">科学依据</h4>
-<p>在你的网络拓扑中，客户端将网关指向了 10.20.20.6（旁路由）。
-当访问不经过代理的直连网络（如国内流量、部分 P2P/UDP 游戏节点）时，往往会产生<strong>非对称路由</strong>：</p>
-<ul>
-<li><strong>去程</strong>：客户端 -&gt; 旁路由 (10.20.20.6) -&gt; 主路由 (ROS) -&gt; 互联网。</li>
-<li><strong>回程</strong>：互联网 -&gt; 主路由 (ROS) -&gt; 直接交回给客户端（因为都在 bridge1 同一网段）。</li>
-</ul>
-<p>这种一来一回路径不一致的数据流，会让 RouterOS 的连接跟踪引擎（Connection Tracker）抓不到完整的 TCP 三次握手或 UDP 双向通讯状态。因此，ROS 会将这些包标记为 <code>invalid</code>（无效状态）。
-在你原来的旧配置中，因为缺少 <code>FORWARD</code> 链的拦截规则，这些包被默认放行了；而新配置补齐了这条严苛的拦截规则，反而导致 Telegram 连接卡顿（等待超时后回退其他协议）以及英雄联盟美服（依赖大量 UDP 报文）断连。</p>
-<hr>
-<h4 id="成功的步骤和方法">成功的步骤和方法</h4>
-<p>解决办法非常简单，只需<strong>禁用或删除转发链中的无效包拦截规则</strong>，将这部分容错空间还给旁路由网络。</p>
-<p>请在 RouterOS 终端中直接复制执行以下两行代码：</p>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros"># 1. 停用 IPv4 转发链中的无效包拦截
+</code></pre><h3 id=解释为什么添加路由ip后要删除屏蔽无效包即forward-链-drop-invalid>解释：为什么添加路由ip后要删除屏蔽无效包：即：<code>FORWARD 链 Drop invalid</code></h3><p>这是因为新加入的 <code>FORWARD</code> 链 <code>Drop invalid</code>（丢弃无效包）规则，与你的旁路由（10.20.20.6）网络架构产生了冲突，导致 RouterOS 误杀了部分正常的 UDP 游戏流量和 Telegram 的初始握手包。</p><hr><h4 id=科学依据>科学依据</h4><p>在你的网络拓扑中，客户端将网关指向了 10.20.20.6（旁路由）。
+当访问不经过代理的直连网络（如国内流量、部分 P2P/UDP 游戏节点）时，往往会产生<strong>非对称路由</strong>：</p><ul><li><strong>去程</strong>：客户端 -> 旁路由 (10.20.20.6) -> 主路由 (ROS) -> 互联网。</li><li><strong>回程</strong>：互联网 -> 主路由 (ROS) -> 直接交回给客户端（因为都在 bridge1 同一网段）。</li></ul><p>这种一来一回路径不一致的数据流，会让 RouterOS 的连接跟踪引擎（Connection Tracker）抓不到完整的 TCP 三次握手或 UDP 双向通讯状态。因此，ROS 会将这些包标记为 <code>invalid</code>（无效状态）。
+在你原来的旧配置中，因为缺少 <code>FORWARD</code> 链的拦截规则，这些包被默认放行了；而新配置补齐了这条严苛的拦截规则，反而导致 Telegram 连接卡顿（等待超时后回退其他协议）以及英雄联盟美服（依赖大量 UDP 报文）断连。</p><hr><h4 id=成功的步骤和方法>成功的步骤和方法</h4><p>解决办法非常简单，只需<strong>禁用或删除转发链中的无效包拦截规则</strong>，将这部分容错空间还给旁路由网络。</p><p>请在 RouterOS 终端中直接复制执行以下两行代码：</p><pre tabindex=0><code class=language-routeros data-lang=routeros># 1. 停用 IPv4 转发链中的无效包拦截
 /ip firewall filter disable [find chain=forward connection-state=invalid]
 # 2. 停用 IPv6 转发链中的无效包拦截
 /ipv6 firewall filter disable [find chain=forward connection-state=invalid]
 </code></pre><p>或者直接删除：
-为了保持配置的整洁，建议直接将这两条已经禁用的无用规则彻底删除。请在终端执行以下命令：</p>
-<p>代码段</p>
-<h2 id="彻底移除已被停用的无效包拦截规则">彻底移除已被停用的无效包拦截规则</h2>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall filter remove [find chain=forward connection-state=invalid disabled=yes]
+为了保持配置的整洁，建议直接将这两条已经禁用的无用规则彻底删除。请在终端执行以下命令：</p><p>代码段</p><h2 id=彻底移除已被停用的无效包拦截规则>彻底移除已被停用的无效包拦截规则</h2><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall filter remove [find chain=forward connection-state=invalid disabled=yes]
 /ipv6 firewall filter remove [find chain=forward connection-state=invalid disabled=yes]
-</code></pre><p>执行完毕后，所有 <code>invalid</code> 状态的数据包会直接跳过该规则，落入后面的 <code>Allow LAN forward</code> 被正常放行。你可以立即重新打开 Telegram 和英雄联盟美服测试，网络应该会瞬间恢复如初，你的网络既能享受全速的 Fasttrack 硬件加速，又能完美兼容 10.20.20.6 的透明代理分流，同时保持着极高的企业级安全防御标准。</p>
-<h3 id="结束">结束！</h3>
-<h3 id="如创建了interface-list防火墙的配置方案"><code>如创建了interface list，防火墙的配置方案：</code></h3>
-<h4 id="1-创建列表名称">1. 创建列表名称</h4>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/interface list
+</code></pre><p>执行完毕后，所有 <code>invalid</code> 状态的数据包会直接跳过该规则，落入后面的 <code>Allow LAN forward</code> 被正常放行。你可以立即重新打开 Telegram 和英雄联盟美服测试，网络应该会瞬间恢复如初，你的网络既能享受全速的 Fasttrack 硬件加速，又能完美兼容 10.20.20.6 的透明代理分流，同时保持着极高的企业级安全防御标准。</p><h3 id=结束>结束！</h3><h3 id=如创建了interface-list防火墙的配置方案><code>如创建了interface list，防火墙的配置方案：</code></h3><h4 id=1-创建列表名称>1. 创建列表名称</h4><pre tabindex=0><code class=language-routeros data-lang=routeros>/interface list
 add name=WAN
 add name=LAN
-</code></pre><h4 id="2-将-pppoe-out1-加入-wan-列表">2. 将 pppoe-out1 加入 WAN 列表</h4>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/interface list member
+</code></pre><h4 id=2-将-pppoe-out1-加入-wan-列表>2. 将 pppoe-out1 加入 WAN 列表</h4><pre tabindex=0><code class=language-routeros data-lang=routeros>/interface list member
 add interface=pppoe-out1 list=WAN
-</code></pre><h4 id="3-将-bridge1-加入-lan-列表">3. 将 bridge1 加入 LAN 列表</h4>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">add interface=bridge1 list=LAN
-</code></pre><h3 id="带添加旁路由ip规则版-mosdnssb-1">带添加旁路由ip规则版 (mosdns+sb)：</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros"># ==========================================
+</code></pre><h4 id=3-将-bridge1-加入-lan-列表>3. 将 bridge1 加入 LAN 列表</h4><pre tabindex=0><code class=language-routeros data-lang=routeros>add interface=bridge1 list=LAN
+</code></pre><h3 id=带添加旁路由ip规则版-mosdnssb-1>带添加旁路由ip规则版 (mosdns+sb)：</h3><pre tabindex=0><code class=language-routeros data-lang=routeros># ==========================================
 # 第一部分：IPv4 防火墙规则 (已适配 Interface List)
 # ==========================================
 /ip firewall filter
@@ -345,8 +239,7 @@ add action=accept chain=forward comment=&#34;9. Allow Hysteria2/Proxy&#34; disab
 add action=accept chain=forward comment=&#34;10. Allow Shadowsocks&#34; disabled=yes dst-address=240e::xxxx:xxxx dst-port=36789 protocol=tcp
 # 6. 兜底拦截
 add action=drop chain=forward comment=&#34;11. Drop all other forward (Protect LAN)&#34;
-</code></pre><h3 id="不添加旁路由ip规则版-mosdnssb-1">不添加旁路由ip规则版 (mosdns+sb):</h3>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros"># ==========================================
+</code></pre><h3 id=不添加旁路由ip规则版-mosdnssb-1>不添加旁路由ip规则版 (mosdns+sb):</h3><pre tabindex=0><code class=language-routeros data-lang=routeros># ==========================================
 # 第一部分：IPv4 防火墙规则 (已适配 Interface List)
 # ==========================================
 /ip firewall filter
@@ -399,105 +292,23 @@ add action=accept chain=forward comment=&#34;9. Allow Hysteria2/Proxy&#34; disab
 add action=accept chain=forward comment=&#34;10. Allow Shadowsocks&#34; disabled=yes dst-address=240e::xxxx:xxxx dst-port=36789 protocol=tcp
 # 5. 兜底拦截
 add action=drop chain=forward comment=&#34;11. Drop all other forward (Protect LAN)&#34;
-</code></pre><h3 id="放行内网v6端口">放行内网v6端口</h3>
-<p>例：在你的 RouterOS Terminal 中执行以下命令，放行外网对 12337（Livekit）和 12336（JWT）端口的访问：</p>
-<pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ipv6 firewall filter
+</code></pre><h3 id=放行内网v6端口>放行内网v6端口</h3><p>例：在你的 RouterOS Terminal 中执行以下命令，放行外网对 12337（Livekit）和 12336（JWT）端口的访问：</p><pre tabindex=0><code class=language-routeros data-lang=routeros>/ipv6 firewall filter
 add action=accept chain=forward comment=&#34;Allow WAN to Livekit (12337)&#34; dst-port=12337 protocol=tcp place-before=[find comment=&#34;11. Drop all other forward (Protect LAN)&#34;]
 add action=accept chain=forward comment=&#34;Allow WAN to JWT (12336)&#34; dst-port=12336 protocol=tcp place-before=[find comment=&#34;11. Drop all other forward (Protect LAN)&#34;]
-</code></pre><h3 id="ipv6的nd照着操作即可">IPV6的ND照着操作即可</h3>
-
-      </div>
-        <footer class="article-source">
-          <span>原文参考</span>
-          <a href="https://blog.jgaga.tk/posts/routers/05.routeros%E5%A6%82%E4%BD%95nat%E5%9B%9E%E6%B5%81/" target="_blank" rel="noopener noreferrer">https://blog.jgaga.tk/posts/routers/05.routeros%E5%A6%82%E4%BD%95nat%E5%9B%9E%E6%B5%81/</a>
-        </footer>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">mosdns 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">sing-box 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p>
-</footer>
-
-      <script src="/js/code-copy.min.c1326a85dd61de4169f23efa48251d5a6bb9883bbf7ec09164428d795daf666f.js" integrity="sha256-wTJqhd1h3kFp8j76SCUdWmu5iDu/fsCRZEKNeV2vZm8=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+</code></pre><h3 id=ipv6的nd照着操作即可>IPV6的ND照着操作即可</h3></div><footer class=article-source><span>原文参考</span>
+<a href=https://blog.jgaga.tk/posts/routers/05.routeros%E5%A6%82%E4%BD%95nat%E5%9B%9E%E6%B5%81/ target=_blank rel="noopener noreferrer">https://blog.jgaga.tk/posts/routers/05.routeros%E5%A6%82%E4%BD%95nat%E5%9B%9E%E6%B5%81/</a></footer></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/images/linux/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/images/docker/original/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/images/linux/original/mosdns-install-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/images/linux/original/sing-box-install-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>sing-box 安装教程</span></a></li><li><a href=/posts/freebsd/freebsd15-neovim-productivity/><img src=/images/freebsd/freebsd15-neovim-productivity-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>FreeBSD15现代化Neovim生产力环境部署指南</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室. 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.4baf05c439b51d078266af6d05eacefa3ab43b756c0574fbf88cb4c056e20719.js integrity="sha256-S68FxDm1HQeCZq9tBerO+jq0O3VsBXT7+Iy0wFbiBxk=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
