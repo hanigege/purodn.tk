@@ -114,7 +114,7 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [安装 lazy.nvim]
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">local lazypath = vim.fn.stdpath(&#34;data&#34;) .. &#34;/lazy/lazy.nvim&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">if not vim.loop.fs_stat(lazypath) then
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">if not (vim.uv or vim.loop).fs_stat(lazypath) then
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  vim.fn.system({
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;git&#34;,
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;clone&#34;,
@@ -128,68 +128,72 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- [插件配置]
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">require(&#34;lazy&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;navarasu/onedark.nvim&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    lazy = false,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    priority = 1000,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;onedark&#34;).setup({ style = &#34;dark&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;onedark&#34;).load()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  spec = {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;navarasu/onedark.nvim&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      lazy = false,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      priority = 1000,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      config = function()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;onedark&#34;).setup({ style = &#34;dark&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;onedark&#34;).load()
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      local hl = vim.api.nvim_set_hl
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Normal&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#abb2bf&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;NonText&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#3b4048&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;CursorLine&#34;, { bg = &#34;#2c313a&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Visual&#34;, { bg = &#34;#3e4452&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;Search&#34;, { bg = &#34;#61afef&#34;, fg = &#34;#1e2127&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      hl(0, &#34;IncSearch&#34;, { bg = &#34;#98c379&#34;, fg = &#34;#1e2127&#34; })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        local hl = vim.api.nvim_set_hl
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;Normal&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#abb2bf&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;NonText&#34;, { bg = &#34;#1e2127&#34;, fg = &#34;#3b4048&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;CursorLine&#34;, { bg = &#34;#2c313a&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;Visual&#34;, { bg = &#34;#3e4452&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;Search&#34;, { bg = &#34;#61afef&#34;, fg = &#34;#1e2127&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        hl(0, &#34;IncSearch&#34;, { bg = &#34;#98c379&#34;, fg = &#34;#1e2127&#34; })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;nvim-tree/nvim-tree.lua&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    dependencies = { &#34;nvim-tree/nvim-web-devicons&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;nvim-tree&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        view = { width = 30, side = &#34;left&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        renderer = { indent_markers = { enable = true } },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;nvim-tree/nvim-tree.lua&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      dependencies = { &#34;nvim-tree/nvim-web-devicons&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      config = function()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;nvim-tree&#34;).setup({
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          view = { width = 30, side = &#34;left&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          renderer = { indent_markers = { enable = true } },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;ojroques/nvim-osc52&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;osc52&#34;).setup()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      vim.api.nvim_create_autocmd(&#34;TextYankPost&#34;, {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        callback = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          if vim.v.event.operator == &#34;y&#34; and vim.v.event.regname == &#34;&#34; then
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            require(&#34;osc52&#34;).copy_register(&#34;&#34;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          end
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;ojroques/nvim-osc52&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      config = function()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;osc52&#34;).setup()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        vim.api.nvim_create_autocmd(&#34;TextYankPost&#34;, {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          callback = function()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            if vim.v.event.operator == &#34;y&#34; and vim.v.event.regname == &#34;&#34; then
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">              require(&#34;osc52&#34;).copy_register(&#34;&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            end
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;stevearc/conform.nvim&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    config = function()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      require(&#34;conform&#34;).setup({
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        formatters_by_ft = {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          json = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          yaml = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          html = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          css = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          javascript = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          typescript = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          markdown = { &#34;prettier&#34; },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        format_on_save = {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          timeout_ms = 1000,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          lsp_format = &#34;fallback&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;stevearc/conform.nvim&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      -- 优化点：打开文件时自动在后台提前加载好，消除第一次格式化的卡顿
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      event = { &#34;BufReadPre&#34;, &#34;BufNewFile&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      config = function()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;conform&#34;).setup({
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          formatters_by_ft = {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            json = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            yaml = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            html = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            css = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            javascript = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            typescript = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            markdown = { &#34;prettier&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          format_on_save = {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            timeout_ms = 1000,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            lsp_format = &#34;fallback&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        })
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      end,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">})
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
@@ -232,10 +236,13 @@
 </span></span></code></pre></div><h2 id="四首次启动-neovim">四、首次启动 Neovim</h2>
 <p>执行：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim
-</span></span></code></pre></div><p>第一次启动时，<code>lazy.nvim</code> 会自动下载并安装所有插件。保持网络畅通，等待插件安装完成即可。</p>
-<p>退出：</p>
-<pre tabindex="0"><code>:qa
-</code></pre><p>如果 GitHub 访问不稳定，插件下载可能失败。确认网络后，重新打开 Neovim，或者在 Neovim 内执行：</p>
+</span></span></code></pre></div><p>启动后：
+<img src="assets/CleanShot%202026-05-16%20at%2022.07.05@2x.png" alt="CleanShot 2026-05-16 at 22.07.05@2x"></p>
+<p>配置和插件已经全部成功加载并正常工作了。</p>
+<p>插件安装完成：conform.nvim、nvim-osc52、nvim-tree.lua、nvim-web-devicons 和 onedark.nvim 5 个插件已全部成功安装，处于 start 运行状态。</p>
+<p>管理器运行正常：底部的 lazy.nvim 提示有<strong>更新</strong>（updates available），如果你想更新它，直接在当前界面按下键盘上的 <code>U</code> 键即可。</p>
+<p>现在可以按下 <code>q </code>退出这个管理界面，开始正常使用你的 Neovim 了。</p>
+<p>如果 GitHub 访问不稳定，插件下载可能失败。确认网络后，重新打开 Neovim，或者在 Neovim 内执行：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">Lazy</span> <span style="color:#a6e22e">sync</span>
 </span></span></code></pre></div><h2 id="五验证格式化功能">五、验证格式化功能</h2>
 <p>新建 JSON 文件：</p>
