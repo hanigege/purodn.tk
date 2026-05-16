@@ -174,11 +174,11 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    {
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;stevearc/conform.nvim&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      -- 优化点：打开文件时自动在后台提前加载好，消除第一次格式化的卡顿
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      event = { &#34;BufReadPre&#34;, &#34;BufNewFile&#34; },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      lazy = false,
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      config = function()
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        require(&#34;conform&#34;).setup({
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          formatters_by_ft = {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            lua = { &#34;stylua&#34; },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            json = { &#34;prettier&#34; },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            yaml = { &#34;prettier&#34; },
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            html = { &#34;prettier&#34; },
@@ -224,7 +224,7 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    timeout_ms = 1000,
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    lsp_format = &#34;fallback&#34;,
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  })
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  print(&#34;Format executed&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  print(&#34;✨ Format executed&#34;)
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">end, { silent = true })
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-- 窗口导航
