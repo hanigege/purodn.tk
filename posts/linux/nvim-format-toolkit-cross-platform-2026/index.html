@@ -254,10 +254,10 @@
 </span></span></code></pre></div><p>如果配置正常，文件会被 Prettier 格式化。也可以输入：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>;<span style="color:#a6e22e">w</span>
 </span></span></code></pre></div><p>保存时 <code>conform.nvim</code> 会自动执行格式化。</p>
-<p>检查格式化状态：</p>
+<p>检查格式化状态（等同看日志），如果文件内容不标准，不对，会拒绝格式化的（比如多个符合等）：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">ConformInfo</span>
-</span></span></code></pre></div><p>退出：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">exit</span>
+</span></span></code></pre></div><p>退出界面：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span><span style="color:#a6e22e">q</span>
 </span></span></code></pre></div><p>如果 <code>prettier</code> 未被识别，先检查命令路径：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>which prettier
 </span></span><span style="display:flex;"><span>prettier -v
