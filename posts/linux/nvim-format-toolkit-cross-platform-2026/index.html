@@ -241,7 +241,13 @@
 <p>新建 JSON 文件：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim test.json
 </span></span></code></pre></div><p>写入未格式化内容：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;name&#34;</span>:<span style="color:#e6db74">&#34;nvim&#34;</span>,<span style="color:#f92672">&#34;platform&#34;</span>:<span style="color:#e6db74">&#34;cross-platform&#34;</span>,<span style="color:#f92672">&#34;format&#34;</span>:<span style="color:#66d9ef">true</span>}
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>     {
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;log&#34;</span>: {
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&#34;level&#34;</span>: <span style="color:#e6db74">&#34;debug&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;output&#34;</span>: <span style="color:#e6db74">&#34;/tmp/test.log&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&#34;timestamp&#34;</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>普通模式下输入：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>;<span style="color:#a6e22e">f</span>
 </span></span></code></pre></div><p>如果配置正常，文件会被 Prettier 格式化。也可以输入：</p>
@@ -249,6 +255,8 @@
 </span></span></code></pre></div><p>保存时 <code>conform.nvim</code> 会自动执行格式化。</p>
 <p>检查格式化状态：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">ConformInfo</span>
+</span></span></code></pre></div><p>退出：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-vim" data-lang="vim"><span style="display:flex;"><span>:<span style="color:#a6e22e">exit</span>
 </span></span></code></pre></div><p>如果 <code>prettier</code> 未被识别，先检查命令路径：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>which prettier
 </span></span><span style="display:flex;"><span>prettier -v
