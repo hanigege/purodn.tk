@@ -1,8 +1,0 @@
-{{- $code := printf "%s" .Inner -}}
-{{- $lang := .Type | default "" -}}
-{{- $opts := .Options | default "" -}}
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button>
-  {{- transform.Highlight $code $lang $opts -}}
-  <script class="code-source" type="application/json">{{ $code | jsonify | safeJS }}</script>
-</div>

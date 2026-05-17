@@ -1,0 +1,17 @@
+# Local Hugo source and collaboration files must stay off GitHub.
+/AGENTS.md
+/archetypes/
+/assets/
+/content/
+/layouts/
+/static/
+/hugo.yaml
+/.github/
+
+# Local build/cache output.
+/public/
+/resources/
+/.hugo_build.lock
+
+# macOS metadata.
+.DS_Store
