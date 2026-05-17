@@ -40,46 +40,58 @@
         <h1>使用 tailscale 内网穿透回家及异地组网</h1>
           <p>使用 tailscale 内网穿透回家及异地组网原文备份。</p>
       </header>
-          <img class="article-cover" src="/images/linux/original/tailscale-home-network-cover.png" alt="">
+          <img class="article-cover" src="/posts/linux/tailscale-home-network/assets/tailscale-home-network-cover.png" alt="">
 
       <div class="article-content">
         <h2 id="一通过部署tailscale内网穿透到家中使用家里的mosdns分流国内流量走客户端直连国外流量fakeip通过tailscale回家后再通过家里的singbox走代理适用于无公网ip无法使用hy2回家的小朋友">一、通过部署tailscale，内网穿透到家中，使用家里的mosdns分流。国内流量走客户端直连，国外流量（fakeip）通过tailscale回家后再通过家里的singbox走代理。适用于无公网ip无法使用hy2回家的小朋友~</h2>
 <h3 id="pve中使用vm虚拟机推荐debian12部署tailscale">pve中使用vm虚拟机（推荐debian12）部署tailscale</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://tailscale.com/install.sh | sh
-</span></span></code></pre></div><h3 id="开启流量转发">开启流量转发</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://tailscale.com/install.sh | sh</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://tailscale.com/install.sh | sh"</script>
+</div>
+<h3 id="开启流量转发">开启流量转发</h3>
 <ul>
 <li>使用nano编辑/etc/sysctl.conf文件</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nano /etc/sysctl.conf
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nano /etc/sysctl.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sudo nano /etc/sysctl.conf"</script>
+</div>
+<ul>
 <li>找到net.ipv4.ip_forward=1去掉#注释，修改为
-<img src="/images/linux/original/tailscale-home-network-05.png" alt=""></li>
+<img src="assets/tailscale-home-network-05.png" alt=""></li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>net.ipv4.ip_forward<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>net.ipv4.ip_forward<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span></span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.ip_forward=1"</script>
+</div>
+<ul>
 <li>使修改生效</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl --system
-</span></span></code></pre></div><h3 id="先关闭tailscale">先关闭tailscale</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale down
-</span></span></code></pre></div><h3 id="加参数启动tailscale">加参数启动tailscale</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl --system</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl --system"</script>
+</div>
+<h3 id="先关闭tailscale">先关闭tailscale</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale down</span></span></code></pre></div><script class="code-source" type="application/json">"tailscale down"</script>
+</div>
+<h3 id="加参数启动tailscale">加参数启动tailscale</h3>
 <p>自行修改示例中的内网ip段和fakeip段，添加后tailscale将允许上述流量通过</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --advertise-routes<span style="color:#f92672">=</span>dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes
-</span></span></code></pre></div><h3 id="点击ssh界面中的登录链接登录ts账号">点击ssh界面中的登录链接登录ts账号</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --advertise-routes<span style="color:#f92672">=</span>dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes</span></span></code></pre></div><script class="code-source" type="application/json">"tailscale up --advertise-routes=dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes"</script>
+</div>
+<h3 id="点击ssh界面中的登录链接登录ts账号">点击ssh界面中的登录链接登录ts账号</h3>
 <h3 id="登录tailscale官网编辑刚才新建的节点点击edit-route-settings点击approve-all选中所有路由的ip勾选use-as-exit-node点击save保存">登录tailscale官网，编辑刚才新建的节点点击“Edit route settings…”，点击“Approve all”选中所有路由的IP，勾选“Use as exit node”，点击“Save保存</h3>
 <p>官网地址：https://login.tailscale.com/admin/machines
-<img src="/images/linux/original/tailscale-home-network-01.png" alt=""></p>
+<img src="assets/tailscale-home-network-01.png" alt=""></p>
 <h3 id="添加mosdns为dns服务器">添加mosdns为DNS服务器</h3>
 <ul>
 <li>修改Global nameservers为mosdns的内网ip
-<img src="/images/linux/original/tailscale-home-network-06.png" alt="">
-<img src="/images/linux/original/tailscale-home-network-07.png" alt=""></li>
+<img src="assets/tailscale-home-network-06.png" alt="">
+<img src="assets/tailscale-home-network-07.png" alt=""></li>
 </ul>
 <h3 id="手机等设备登录tailscale后勾选刚才新建的tailscale服务为exit-node并打开-allow-local-network-access">手机等设备登录tailscale后，勾选刚才新建的tailscale服务为“exit node”，并打开 “Allow Local Network Access”</h3>
-<p><img src="/images/linux/original/tailscale-home-network-02.png" alt="">
-<img src="/images/linux/original/tailscale-home-network-03.png" alt=""></p>
+<p><img src="assets/tailscale-home-network-02.png" alt="">
+<img src="assets/tailscale-home-network-03.png" alt=""></p>
 <h3 id="按需开启enbale选项开启后ts将路由所有流量分流失效图示为未开启状态">按需开启Enbale选项（开启后ts将路由所有流量，分流失效，图示为未开启状态）</h3>
-<p><img src="/images/linux/original/tailscale-home-network-04.png" alt=""></p>
+<p><img src="assets/tailscale-home-network-04.png" alt=""></p>
 <h2 id="二通过tailscale异地组网">二、通过tailscale异地组网</h2>
 <ul>
 <li>可实现vps通过tailscale隧道访问家中服务，配合vps中部署的反代使用效果极佳</li>
@@ -87,33 +99,47 @@
 </ul>
 <h3 id="异地组网不能配置global-nameservers所以上述分流回家方案与这个方案不可兼得手机需要科学的话只能开启路由所有流量">异地组网不能配置Global nameservers，所以上述分流回家方案与这个方案不可兼得。手机需要科学的话只能开启路由所有流量。</h3>
 <h3 id="如果从上述方案迁移到这个方案先在a家里停止刚才的tailscale并重新启动">如果从上述方案迁移到这个方案，先在A家里停止刚才的tailscale并重新启动</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale down
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale down</span></span></code></pre></div><script class="code-source" type="application/json">"tailscale down"</script>
+</div>
+<ul>
 <li>重新启动，通告A家庭中的局域网IP段，可使用key登录</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --auth-key<span style="color:#f92672">=</span>你的key --advertise-routes<span style="color:#f92672">=</span>10.0.0.0/24 --advertise-exit-node --accept-routes
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --auth-key<span style="color:#f92672">=</span>你的key --advertise-routes<span style="color:#f92672">=</span>10.0.0.0/24 --advertise-exit-node --accept-routes</span></span></code></pre></div><script class="code-source" type="application/json">"tailscale up --auth-key=你的key --advertise-routes=10.0.0.0/24 --advertise-exit-node --accept-routes"</script>
+</div>
+<ul>
 <li>在ts网页中，将ts回家时添加的Global nameservers删除，同时点击 DISABLE MagicDNS，禁用 MagicDNS</li>
 </ul>
 <h3 id="在b家中任意vm中安装tailscale">在B家中任意vm中安装tailscale</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://tailscale.com/install.sh | sh
-</span></span></code></pre></div><h3 id="开启流量转发-1">开启流量转发</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://tailscale.com/install.sh | sh</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://tailscale.com/install.sh | sh"</script>
+</div>
+<h3 id="开启流量转发-1">开启流量转发</h3>
 <ul>
 <li>使用nano编辑/etc/sysctl.conf文件</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nano /etc/sysctl.conf
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nano /etc/sysctl.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sudo nano /etc/sysctl.conf"</script>
+</div>
+<ul>
 <li>找到net.ipv4.ip_forward=1去掉#注释，修改为
-<img src="/images/linux/original/tailscale-home-network-08.png" alt=""></li>
+<img src="assets/tailscale-home-network-08.png" alt=""></li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>net.ipv4.ip_forward<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>net.ipv4.ip_forward<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span></span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.ip_forward=1"</script>
+</div>
+<ul>
 <li>使修改生效</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl --system
-</span></span></code></pre></div><h3 id="启动tailscale通告b家庭中的局域网ip段">启动tailscale，通告B家庭中的局域网IP段</h3>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --auth-key<span style="color:#f92672">=</span>你的key --advertise-routes<span style="color:#f92672">=</span>192.168.2.0/24 --advertise-exit-node --accept-routes
-</span></span></code></pre></div><ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl --system</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl --system"</script>
+</div>
+<h3 id="启动tailscale通告b家庭中的局域网ip段">启动tailscale，通告B家庭中的局域网IP段</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tailscale up --auth-key<span style="color:#f92672">=</span>你的key --advertise-routes<span style="color:#f92672">=</span>192.168.2.0/24 --advertise-exit-node --accept-routes</span></span></code></pre></div><script class="code-source" type="application/json">"tailscale up --auth-key=你的key --advertise-routes=192.168.2.0/24 --advertise-exit-node --accept-routes"</script>
+</div>
+<ul>
 <li>注意，两地局域网段不可相同！！</li>
 <li>此时在部署tailscale的vm虚拟机中已组网完成，ping A家里的局域网设备（如 ping 10.0.0.1测试），理论上已通</li>
 <li>通过在主路由中设置静态路由的方式，可实现局域网内所有设备互联。如在B家中的主路由，设置目标IP为A家内网网段的网关（下一跳）为B家部署tailscale的vm虚拟机的IP即可。A家操作同理。</li>
@@ -144,7 +170,7 @@
       
         <li>
           <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
             <span class="latest-rank">1</span>
             <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
           </a>
@@ -152,15 +178,15 @@
       
         <li>
           <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
             <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+            <span class="latest-title">（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
             <span class="latest-rank">3</span>
             <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
           </a>
@@ -168,7 +194,7 @@
       
         <li>
           <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
             <span class="latest-rank">4</span>
             <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
           </a>
@@ -176,7 +202,7 @@
       
         <li>
           <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
             <span class="latest-rank">5</span>
             <span class="latest-title">mosdns 安装教程</span>
           </a>
@@ -184,7 +210,7 @@
       
         <li>
           <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
             <span class="latest-rank">6</span>
             <span class="latest-title">sing-box 安装教程</span>
           </a>
@@ -192,7 +218,7 @@
       
         <li>
           <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <img src="/posts/freebsd/freebsd15-neovim-productivity/assets/freebsd15-neovim-productivity-cover.png" alt="">
             <span class="latest-rank">7</span>
             <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
           </a>
@@ -212,7 +238,7 @@
   </p>
 </footer>
 
-      <script src="/js/code-copy.min.07182005115236bb26805f33e877c9c2d437f4a5d39c304ca1e249515e34cb1c.js" integrity="sha256-BxggBRFSNrsmgF8z6HfJwtQ39KXTnDBMoeJJUV40yxw=" defer></script>
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
     
   <script src="/js/article-toolbar.js" defer></script>
   </body>

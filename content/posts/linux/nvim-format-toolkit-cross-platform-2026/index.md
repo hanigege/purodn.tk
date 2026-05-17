@@ -1,5 +1,5 @@
 ---
-title: "2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程"
+title: "（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程"
 date: 2026-05-13
 description: "在 Alpine、Debian/Ubuntu 和 macOS 下部署统一的 Neovim Lua 配置，包含 lazy.nvim、NvimTree、OSC 52、Conform、jq 和 Prettier 格式化。"
 tags: ["Linux", "Alpine", "Debian", "macOS", "Neovim", "格式化"]
@@ -349,7 +349,11 @@ nvim test.json
 
 保存时 `conform.nvim` 会自动执行格式化。
 
-检查格式化状态（等同看日志），如果配置文件是错的，会拒绝格式化的（比如多个符号等）：
+如果配置文件有错误，会拒绝格式化，比如多个“逗”号，同时起到检查配置文件的作用，（屌不屌？）如下图：
+![CleanShot 2026-05-17 at 09.03.29@2x](assets/CleanShot%202026-05-17%20at%2009.03.29@2x.png)
+
+
+检查格式化状态：
 
 ```vim
 :ConformInfo

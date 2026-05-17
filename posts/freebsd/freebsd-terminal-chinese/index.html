@@ -40,24 +40,30 @@
         <h1>让 FreeBSD 在终端下支持中文</h1>
           <p>通过 login.conf 配置 UTF-8 字符集和中文 locale，让 FreeBSD 终端环境支持中文。</p>
       </header>
-          <img class="article-cover" src="/images/freebsd/freebsd-chinese-terminal.svg" alt="">
+          <img class="article-cover" src="/posts/freebsd/freebsd-terminal-chinese/assets/freebsd-chinese-terminal.svg" alt="">
 
       <div class="article-content">
         <p>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 <code>/etc/login.conf</code> 新增中文登录类，并把用户切换到这个登录类。</p>
 <h2 id="编辑-etcloginconf">编辑 <code>/etc/login.conf</code></h2>
 <p>打开 <code>/etc/login.conf</code>，在文件结尾处添加下面这段配置。我个人一般会放在 <code>russian</code> 段落后面，方便以后查找。</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chinese|Chinese Users Accounts:<span style="color:#ae81ff">\
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chinese|Chinese Users Accounts:<span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>        :charset<span style="color:#f92672">=</span>UTF-8:<span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>        :lang<span style="color:#f92672">=</span>zh_CN.UTF-8:<span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>        :setenv<span style="color:#f92672">=</span>LC_ALL<span style="color:#f92672">=</span>zh_CN.UTF-8:<span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>        :tc<span style="color:#f92672">=</span>default:
-</span></span></code></pre></div><h2 id="重新生成-loginconf-数据库">重新生成 login.conf 数据库</h2>
+</span></span></span><span style="display:flex;"><span>        :tc<span style="color:#f92672">=</span>default:</span></span></code></pre></div><script class="code-source" type="application/json">"chinese|Chinese Users Accounts:\\\n        :charset=UTF-8:\\\n        :lang=zh_CN.UTF-8:\\\n        :setenv=LC_ALL=zh_CN.UTF-8:\\\n        :tc=default:"</script>
+</div>
+<h2 id="重新生成-loginconf-数据库">重新生成 login.conf 数据库</h2>
 <p>保存文件后，运行：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cap_mkdb /etc/login.conf
-</span></span></code></pre></div><h2 id="修改-root-用户登录类">修改 root 用户登录类</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cap_mkdb /etc/login.conf</span></span></code></pre></div><script class="code-source" type="application/json">"cap_mkdb /etc/login.conf"</script>
+</div>
+<h2 id="修改-root-用户登录类">修改 root 用户登录类</h2>
 <p>如果要让 <code>root</code> 使用刚才新增的 <code>chinese</code> 登录类，运行：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pw usermod root -L chinese
-</span></span></code></pre></div><p>重新登录终端后，中文 locale 配置就会生效。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pw usermod root -L chinese</span></span></code></pre></div><script class="code-source" type="application/json">"pw usermod root -L chinese"</script>
+</div>
+<p>重新登录终端后，中文 locale 配置就会生效。</p>
 
       </div>
     </article>
@@ -80,7 +86,7 @@
       
         <li>
           <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
             <span class="latest-rank">1</span>
             <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
           </a>
@@ -88,15 +94,15 @@
       
         <li>
           <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
             <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+            <span class="latest-title">（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
             <span class="latest-rank">3</span>
             <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
           </a>
@@ -104,7 +110,7 @@
       
         <li>
           <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
             <span class="latest-rank">4</span>
             <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
           </a>
@@ -112,7 +118,7 @@
       
         <li>
           <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
             <span class="latest-rank">5</span>
             <span class="latest-title">mosdns 安装教程</span>
           </a>
@@ -120,7 +126,7 @@
       
         <li>
           <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
             <span class="latest-rank">6</span>
             <span class="latest-title">sing-box 安装教程</span>
           </a>
@@ -128,7 +134,7 @@
       
         <li>
           <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <img src="/posts/freebsd/freebsd15-neovim-productivity/assets/freebsd15-neovim-productivity-cover.png" alt="">
             <span class="latest-rank">7</span>
             <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
           </a>
@@ -148,7 +154,7 @@
   </p>
 </footer>
 
-      <script src="/js/code-copy.min.07182005115236bb26805f33e877c9c2d437f4a5d39c304ca1e249515e34cb1c.js" integrity="sha256-BxggBRFSNrsmgF8z6HfJwtQ39KXTnDBMoeJJUV40yxw=" defer></script>
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
     
   <script src="/js/article-toolbar.js" defer></script>
   </body>

@@ -40,41 +40,48 @@
         <h1>01.RouterOS 联网基本配置及 IPv4 防火墙</h1>
           <p>RouterOS 联网基本配置及 IPv4 防火墙原文备份。</p>
       </header>
-          <img class="article-cover" src="/images/routeros/routeros-01.svg" alt="">
+          <img class="article-cover" src="/posts/routeros/routeros-01-connectivity/assets/routeros-01.svg" alt="">
 
       <div class="article-content">
         <h2 id="本文介绍routeros拨号配置dhcp服务器配置dns开启ipv4防火墙等通网的基础配置桥接接口bridge1拨号接口pppoe-out1名称若不同则自行替换">本文介绍RouterOS拨号、配置DHCP服务器、配置DNS、开启IPv4防火墙等通网的基础配置。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换</h2>
 <h4 id="1-pppoe-拨号">1. PPPoE 拨号</h4>
 <p>手动配置pppoe-out1接口拨号，User填入宽带账号，Password填入宽带密码。如果不使用运营商提供的DNS可不勾选User Peed DNS。
-<img src="/images/routeros/original/routeros-01-connectivity-01.png" alt="">
+<img src="assets/routeros-01-connectivity-01.png" alt="">
 注：接口前出现“R”代表拨号成功。拨号成功后建议先禁用，待防火墙配置完毕后再开启!
-<img src="/images/routeros/original/routeros-01-connectivity-02.png" alt=""></p>
+<img src="assets/routeros-01-connectivity-02.png" alt=""></p>
 <h4 id="2-dhcp-服务器">2. DHCP 服务器</h4>
 <p>配置DHCP服务器，DHCP IP范围为10.0.0.100-10.0.0.250，网关和DNS默认为ROS。如果希望全局配置透明代理，dns-server可配置为mosdns</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip pool add name<span style="color:#f92672">=</span>dhcpv4-pool1 ranges<span style="color:#f92672">=</span>10.0.0.100-10.0.0.250
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip pool add name<span style="color:#f92672">=</span>dhcpv4-pool1 ranges<span style="color:#f92672">=</span>10.0.0.100-10.0.0.250
 </span></span><span style="display:flex;"><span>/ip dhcp-server add name<span style="color:#f92672">=</span>dhcpv4-server1 interface<span style="color:#f92672">=</span>bridge1 address-pool<span style="color:#f92672">=</span>dhcpv4-pool1 lease-time<span style="color:#f92672">=</span>1d
-</span></span><span style="display:flex;"><span>/ip dhcp-server network add address<span style="color:#f92672">=</span>10.0.0.0/24 gateway<span style="color:#f92672">=</span>10.0.0.1 dns-server<span style="color:#f92672">=</span>10.0.0.1
-</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-01-connectivity-03.png" alt="">
-<img src="/images/routeros/original/routeros-01-connectivity-04.png" alt="">
-<img src="/images/routeros/original/routeros-01-connectivity-05.png" alt=""></p>
+</span></span><span style="display:flex;"><span>/ip dhcp-server network add address<span style="color:#f92672">=</span>10.0.0.0/24 gateway<span style="color:#f92672">=</span>10.0.0.1 dns-server<span style="color:#f92672">=</span>10.0.0.1</span></span></code></pre></div><script class="code-source" type="application/json">"/ip pool add name=dhcpv4-pool1 ranges=10.0.0.100-10.0.0.250\n/ip dhcp-server add name=dhcpv4-server1 interface=bridge1 address-pool=dhcpv4-pool1 lease-time=1d\n/ip dhcp-server network add address=10.0.0.0/24 gateway=10.0.0.1 dns-server=10.0.0.1"</script>
+</div>
+<p><img src="assets/routeros-01-connectivity-03.png" alt="">
+<img src="assets/routeros-01-connectivity-04.png" alt="">
+<img src="assets/routeros-01-connectivity-05.png" alt=""></p>
 <h4 id="3-dns">3. DNS</h4>
 <p>配置DNS，即ROS的上游DNS，先设置223.5.5.5，也可自定义填入运营商分配DNS服务器等</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip dns set servers<span style="color:#f92672">=</span>223.5.5.5 allow-remote-requests<span style="color:#f92672">=</span>yes max-concurrent-queries<span style="color:#f92672">=</span><span style="color:#ae81ff">4096</span> max-concurrent-tcp-sessions<span style="color:#f92672">=</span><span style="color:#ae81ff">512</span> cache-size<span style="color:#f92672">=</span><span style="color:#ae81ff">8192</span> cache-max-ttl<span style="color:#f92672">=</span>04:00:00
-</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-01-connectivity-06.png" alt=""></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip dns set servers<span style="color:#f92672">=</span>223.5.5.5 allow-remote-requests<span style="color:#f92672">=</span>yes max-concurrent-queries<span style="color:#f92672">=</span><span style="color:#ae81ff">4096</span> max-concurrent-tcp-sessions<span style="color:#f92672">=</span><span style="color:#ae81ff">512</span> cache-size<span style="color:#f92672">=</span><span style="color:#ae81ff">8192</span> cache-max-ttl<span style="color:#f92672">=</span>04:00:00</span></span></code></pre></div><script class="code-source" type="application/json">"/ip dns set servers=223.5.5.5 allow-remote-requests=yes max-concurrent-queries=4096 max-concurrent-tcp-sessions=512 cache-size=8192 cache-max-ttl=04:00:00"</script>
+</div>
+<p><img src="assets/routeros-01-connectivity-06.png" alt=""></p>
 <h4 id="4-源地址伪装">4. 源地址伪装</h4>
 <p>配置源地址伪装，建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall nat add action<span style="color:#f92672">=</span>masquerade chain<span style="color:#f92672">=</span>srcnat comment<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;defconf: masquerade IPv4&#34;</span>
-</span></span></code></pre></div><p><img src="/images/routeros/original/routeros-01-connectivity-07.png" alt="">
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall nat add action<span style="color:#f92672">=</span>masquerade chain<span style="color:#f92672">=</span>srcnat comment<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;defconf: masquerade IPv4&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"/ip firewall nat add action=masquerade chain=srcnat comment=\"defconf: masquerade IPv4\""</script>
+</div>
+<p><img src="assets/routeros-01-connectivity-07.png" alt="">
 至此打开pppoe接口即可通网，但建议继续配置完防火墙再通网！</p>
 <h4 id="5-访问光猫">5. 访问光猫</h4>
 <p>如果需要访问光猫，则为wan口分配一个光猫同网段的IP地址。一般为192.168.1.0/24网段。注意interface为物理接口wan，不是拨号口
-<img src="/images/routeros/original/routeros-01-connectivity-08.png" alt=""></p>
+<img src="assets/routeros-01-connectivity-08.png" alt=""></p>
 <p>防火墙源于@Ron佬2月10日版本，感谢感谢~</p>
 <h4 id="6-ipv4-防火墙">6. IPv4 防火墙</h4>
 <p>添加防火墙规则
 注：5391是Winbox登陆端口，可以加上想隐藏的端口。如果在NAT有映射，端口无法隐藏。
 注：UDP协议 dst-port=!53,853,5391 可以加上wireguard端口，防止触发PSD，造成IP被Block。</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>accept chain<span style="color:#f92672">=</span>forward in-interface<span style="color:#f92672">=</span>bridge1
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>accept chain<span style="color:#f92672">=</span>forward in-interface<span style="color:#f92672">=</span>bridge1
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>accept chain<span style="color:#f92672">=</span>input in-interface<span style="color:#f92672">=</span>bridge1
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>accept chain<span style="color:#f92672">=</span>forward connection-state<span style="color:#f92672">=</span>established,related,untracked
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>accept chain<span style="color:#f92672">=</span>input connection-state<span style="color:#f92672">=</span>established,related
@@ -86,18 +93,23 @@
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>add-src-to-address-list chain<span style="color:#f92672">=</span>input address-list<span style="color:#f92672">=</span>BlockIP address-list-timeout<span style="color:#f92672">=</span>1w protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span>!53,853,5391 tcp-flags<span style="color:#f92672">=</span>rst in-interface<span style="color:#f92672">=</span>pppoe-out1 psd<span style="color:#f92672">=</span>21,5s,3,1
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>add-src-to-address-list chain<span style="color:#f92672">=</span>input address-list<span style="color:#f92672">=</span>BlockIP address-list-timeout<span style="color:#f92672">=</span>1w protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span>!53,853,5391 tcp-flags<span style="color:#f92672">=</span>syn in-interface<span style="color:#f92672">=</span>pppoe-out1 psd<span style="color:#f92672">=</span>21,5s,3,1
 </span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>add-src-to-address-list chain<span style="color:#f92672">=</span>input address-list<span style="color:#f92672">=</span>BlockIP address-list-timeout<span style="color:#f92672">=</span>1w protocol<span style="color:#f92672">=</span>udp dst-port<span style="color:#f92672">=</span>!53,853,5391 in-interface<span style="color:#f92672">=</span>pppoe-out1 psd<span style="color:#f92672">=</span>21,5s,3,1
-</span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>drop chain<span style="color:#f92672">=</span>input src-address-list<span style="color:#f92672">=</span>BlockIP
-</span></span></code></pre></div><h4 id="7-tcp-mss">7. TCP MSS</h4>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall mangle add action<span style="color:#f92672">=</span>change-mss chain<span style="color:#f92672">=</span>forward protocol<span style="color:#f92672">=</span>tcp tcp-flags<span style="color:#f92672">=</span>syn new-mss<span style="color:#f92672">=</span>clamp-to-pmtu passthrough<span style="color:#f92672">=</span>yes
-</span></span><span style="display:flex;"><span>/ip firewall mangle add action<span style="color:#f92672">=</span>change-mss chain<span style="color:#f92672">=</span>output protocol<span style="color:#f92672">=</span>tcp tcp-flags<span style="color:#f92672">=</span>syn new-mss<span style="color:#f92672">=</span>clamp-to-pmtu passthrough<span style="color:#f92672">=</span>yes
-</span></span></code></pre></div><h4 id="8-关闭非必要服务端口">8. 关闭非必要服务端口</h4>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall service-port disable ftp
+</span></span><span style="display:flex;"><span>/ip firewall filter add action<span style="color:#f92672">=</span>drop chain<span style="color:#f92672">=</span>input src-address-list<span style="color:#f92672">=</span>BlockIP</span></span></code></pre></div><script class="code-source" type="application/json">"/ip firewall filter add action=accept chain=forward in-interface=bridge1\n/ip firewall filter add action=accept chain=input in-interface=bridge1\n/ip firewall filter add action=accept chain=forward connection-state=established,related,untracked\n/ip firewall filter add action=accept chain=input connection-state=established,related\n/ip firewall filter add action=drop chain=input src-address-list=BlockIP in-interface=pppoe-out1\n/ip firewall filter add action=drop chain=input connection-state=invalid in-interface=pppoe-out1\n/ip firewall filter add action=drop chain=input protocol=icmp in-interface=pppoe-out1\n/ip firewall filter add action=drop chain=input protocol=tcp dst-port=53,5391 in-interface=pppoe-out1\n/ip firewall filter add action=drop chain=input protocol=udp dst-port=53,5391 in-interface=pppoe-out1\n/ip firewall filter add action=add-src-to-address-list chain=input address-list=BlockIP address-list-timeout=1w protocol=tcp dst-port=!53,853,5391 tcp-flags=rst in-interface=pppoe-out1 psd=21,5s,3,1\n/ip firewall filter add action=add-src-to-address-list chain=input address-list=BlockIP address-list-timeout=1w protocol=tcp dst-port=!53,853,5391 tcp-flags=syn in-interface=pppoe-out1 psd=21,5s,3,1\n/ip firewall filter add action=add-src-to-address-list chain=input address-list=BlockIP address-list-timeout=1w protocol=udp dst-port=!53,853,5391 in-interface=pppoe-out1 psd=21,5s,3,1\n/ip firewall filter add action=drop chain=input src-address-list=BlockIP"</script>
+</div>
+<h4 id="7-tcp-mss">7. TCP MSS</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall mangle add action<span style="color:#f92672">=</span>change-mss chain<span style="color:#f92672">=</span>forward protocol<span style="color:#f92672">=</span>tcp tcp-flags<span style="color:#f92672">=</span>syn new-mss<span style="color:#f92672">=</span>clamp-to-pmtu passthrough<span style="color:#f92672">=</span>yes
+</span></span><span style="display:flex;"><span>/ip firewall mangle add action<span style="color:#f92672">=</span>change-mss chain<span style="color:#f92672">=</span>output protocol<span style="color:#f92672">=</span>tcp tcp-flags<span style="color:#f92672">=</span>syn new-mss<span style="color:#f92672">=</span>clamp-to-pmtu passthrough<span style="color:#f92672">=</span>yes</span></span></code></pre></div><script class="code-source" type="application/json">"/ip firewall mangle add action=change-mss chain=forward protocol=tcp tcp-flags=syn new-mss=clamp-to-pmtu passthrough=yes\n/ip firewall mangle add action=change-mss chain=output protocol=tcp tcp-flags=syn new-mss=clamp-to-pmtu passthrough=yes"</script>
+</div>
+<h4 id="8-关闭非必要服务端口">8. 关闭非必要服务端口</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip firewall service-port disable ftp
 </span></span><span style="display:flex;"><span>/ip firewall service-port disable irc
 </span></span><span style="display:flex;"><span>/ip firewall service-port disable pptp
 </span></span><span style="display:flex;"><span>/ip firewall service-port disable rtsp
 </span></span><span style="display:flex;"><span>/ip firewall service-port disable sip
-</span></span><span style="display:flex;"><span>/ip firewall service-port disable tftp
-</span></span></code></pre></div><p>注：防火墙已配置完毕，可打开pppoe接口开始网上冲浪</p>
+</span></span><span style="display:flex;"><span>/ip firewall service-port disable tftp</span></span></code></pre></div><script class="code-source" type="application/json">"/ip firewall service-port disable ftp\n/ip firewall service-port disable irc\n/ip firewall service-port disable pptp\n/ip firewall service-port disable rtsp\n/ip firewall service-port disable sip\n/ip firewall service-port disable tftp"</script>
+</div>
+<p>注：防火墙已配置完毕，可打开pppoe接口开始网上冲浪</p>
 
       </div>
         <footer class="article-source">
@@ -124,7 +136,7 @@
       
         <li>
           <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
             <span class="latest-rank">1</span>
             <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
           </a>
@@ -132,15 +144,15 @@
       
         <li>
           <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
             <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+            <span class="latest-title">（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
             <span class="latest-rank">3</span>
             <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
           </a>
@@ -148,7 +160,7 @@
       
         <li>
           <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
             <span class="latest-rank">4</span>
             <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
           </a>
@@ -156,7 +168,7 @@
       
         <li>
           <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
             <span class="latest-rank">5</span>
             <span class="latest-title">mosdns 安装教程</span>
           </a>
@@ -164,7 +176,7 @@
       
         <li>
           <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
             <span class="latest-rank">6</span>
             <span class="latest-title">sing-box 安装教程</span>
           </a>
@@ -172,7 +184,7 @@
       
         <li>
           <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <img src="/posts/freebsd/freebsd15-neovim-productivity/assets/freebsd15-neovim-productivity-cover.png" alt="">
             <span class="latest-rank">7</span>
             <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
           </a>
@@ -192,7 +204,7 @@
   </p>
 </footer>
 
-      <script src="/js/code-copy.min.07182005115236bb26805f33e877c9c2d437f4a5d39c304ca1e249515e34cb1c.js" integrity="sha256-BxggBRFSNrsmgF8z6HfJwtQ39KXTnDBMoeJJUV40yxw=" defer></script>
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
     
   <script src="/js/article-toolbar.js" defer></script>
   </body>

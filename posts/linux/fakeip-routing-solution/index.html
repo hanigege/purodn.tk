@@ -40,7 +40,7 @@
         <h1>以 FakeIP 分流为基石的科学上网方案</h1>
           <p>以 FakeIP 分流为基石的科学上网方案原文备份。</p>
       </header>
-          <img class="article-cover" src="/images/linux/original/fakeip-routing-solution-cover.png" alt="">
+          <img class="article-cover" src="/posts/linux/fakeip-routing-solution/assets/fakeip-routing-solution-cover.png" alt="">
 
       <div class="article-content">
         <blockquote>
@@ -70,7 +70,8 @@
 <li>28.0.0.0/8</li>
 </ul>
 <h4 id="完整流量路径">完整流量路径</h4>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>浏览器访问 google
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>浏览器访问 google
 </span></span><span style="display:flex;"><span>    ↓
 </span></span><span style="display:flex;"><span>获取 fakeip（如 28.0.0.5）
 </span></span><span style="display:flex;"><span>    ↓
@@ -84,20 +85,23 @@
 </span></span><span style="display:flex;"><span>    ↓
 </span></span><span style="display:flex;"><span>域名发送给代理节点进行 DNS 解析
 </span></span><span style="display:flex;"><span>    ↓
-</span></span><span style="display:flex;"><span>内容返回浏览器
-</span></span></code></pre></div><h4 id="主路由配置">主路由配置</h4>
+</span></span><span style="display:flex;"><span>内容返回浏览器</span></span></code></pre></div><script class="code-source" type="application/json">"浏览器访问 google\n    ↓\n获取 fakeip（如 28.0.0.5）\n    ↓\n向 28.0.0.5 发起连接\n    ↓\n主路由判断 28.0.0.5 在 fakeip 段内\n    ↓\n通过静态路由/下一跳网关导入代理程序（sing-box 或 mihomo）\n    ↓\n代理程序将 fakeip 还原为域名\n    ↓\n域名发送给代理节点进行 DNS 解析\n    ↓\n内容返回浏览器"</script>
+</div>
+<h4 id="主路由配置">主路由配置</h4>
 <p>仅需 1 条规则：将 fakeip 段导入代理程序。</p>
 <p>RouterOS 用户可通过 mangle 或 route 方式实现，详细参考：RouterOS 使用 FakeIP</p>
 <h3 id="三方案拓扑结构">三、方案拓扑结构</h3>
 <h4 id="整体架构">整体架构</h4>
 <p>本方案属于 旁路网关 架构：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>光猫（桥接）
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>光猫（桥接）
 </span></span><span style="display:flex;"><span>    ↓
 </span></span><span style="display:flex;"><span>PVE/ESXI 底层
 </span></span><span style="display:flex;"><span>    ├── RouterOS 虚拟机（10.0.0.1）→ DHCP + 拨号
 </span></span><span style="display:flex;"><span>    ├── Debian13 虚拟机（10.0.0.2）→ sing-box 透明代理
-</span></span><span style="display:flex;"><span>    └── Debian13 虚拟机（10.0.0.3）→ mosdns DNS 分流
-</span></span></code></pre></div><blockquote>
+</span></span><span style="display:flex;"><span>    └── Debian13 虚拟机（10.0.0.3）→ mosdns DNS 分流</span></span></code></pre></div><script class="code-source" type="application/json">"光猫（桥接）\n    ↓\nPVE/ESXI 底层\n    ├── RouterOS 虚拟机（10.0.0.1）→ DHCP + 拨号\n    ├── Debian13 虚拟机（10.0.0.2）→ sing-box 透明代理\n    └── Debian13 虚拟机（10.0.0.3）→ mosdns DNS 分流"</script>
+</div>
+<blockquote>
 <p>技术过硬的同学可将 sing-box 和 mosdns 部署于同一虚拟机，博主为求稳分开部署。</p>
 </blockquote>
 <h4 id="主路由选择">主路由选择</h4>
@@ -182,7 +186,7 @@ mosdns
       
         <li>
           <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/images/linux/proxmox-debian13-mosdns.svg" alt="">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
             <span class="latest-rank">1</span>
             <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
           </a>
@@ -190,15 +194,15 @@ mosdns
       
         <li>
           <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/images/linux/original/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
             <span class="latest-rank">2</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+            <span class="latest-title">（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/images/docker/original/docker-command-cheatsheet-cover.png" alt="">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
             <span class="latest-rank">3</span>
             <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
           </a>
@@ -206,7 +210,7 @@ mosdns
       
         <li>
           <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/images/linux/original/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
             <span class="latest-rank">4</span>
             <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
           </a>
@@ -214,7 +218,7 @@ mosdns
       
         <li>
           <a href="/posts/linux/mosdns-install/">
-            <img src="/images/linux/original/mosdns-install-cover.png" alt="">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
             <span class="latest-rank">5</span>
             <span class="latest-title">mosdns 安装教程</span>
           </a>
@@ -222,7 +226,7 @@ mosdns
       
         <li>
           <a href="/posts/linux/sing-box-install/">
-            <img src="/images/linux/original/sing-box-install-cover.png" alt="">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
             <span class="latest-rank">6</span>
             <span class="latest-title">sing-box 安装教程</span>
           </a>
@@ -230,7 +234,7 @@ mosdns
       
         <li>
           <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/images/freebsd/freebsd15-neovim-productivity-cover.png" alt="">
+            <img src="/posts/freebsd/freebsd15-neovim-productivity/assets/freebsd15-neovim-productivity-cover.png" alt="">
             <span class="latest-rank">7</span>
             <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
           </a>
@@ -250,7 +254,7 @@ mosdns
   </p>
 </footer>
 
-      <script src="/js/code-copy.min.07182005115236bb26805f33e877c9c2d437f4a5d39c304ca1e249515e34cb1c.js" integrity="sha256-BxggBRFSNrsmgF8z6HfJwtQ39KXTnDBMoeJJUV40yxw=" defer></script>
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
     
   <script src="/js/article-toolbar.js" defer></script>
   </body>
