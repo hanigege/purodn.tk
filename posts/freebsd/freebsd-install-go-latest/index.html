@@ -1,212 +1,29 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FreeBSD 手动安装 Go 最新版 | 电脑自习室</title>
-    <meta name="description" content="在 FreeBSD 上手动下载并安装 Go 官方二进制包，适合 root 全局安装，也适合普通用户隔离安装。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>FreeBSD</span>
-          <time datetime="2025-05-12">2025年5月12日</time>
-        </div>
-        <h1>FreeBSD 手动安装 Go 最新版</h1>
-          <p>在 FreeBSD 上手动下载并安装 Go 官方二进制包，适合 root 全局安装，也适合普通用户隔离安装。</p>
-      </header>
-          <img class="article-cover" src="/posts/freebsd/freebsd-install-go-latest/assets/freebsd-go-install.svg" alt="">
-
-      <div class="article-content">
-        <p>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。</p>
-<p>本文以 <code>go1.26.0.freebsd-amd64.tar.gz</code> 为示例。后续 Go 版本更新时，请先到 <a href="https://go.dev/dl/">Go 官方下载页</a> 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。</p>
-<h2 id="root-用户安装到默认路径">root 用户安装到默认路径</h2>
-<p>如果希望 Go 对系统所有用户可用，可以用 <code>root</code> 权限安装到 <code>/usr/local/go</code>。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-</span></span><span style="display:flex;"><span>tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ntar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz"</script>
-</div>
-<p>默认解压后，Go 会位于：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/go</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/go"</script>
-</div>
-<p>然后把 Go 加入环境变量：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>export PATH<span style="color:#f92672">=</span>$PATH:/usr/local/go/bin</span></span></code></pre></div><script class="code-source" type="application/json">"export PATH=$PATH:/usr/local/go/bin"</script>
-</div>
-<p>如果希望长期生效，可以把上面这一行写入当前用户的 <code>~/.profile</code>。</p>
-<h2 id="root-用户安装到自定义路径">root 用户安装到自定义路径</h2>
-<p>如果你更喜欢把手动安装的软件统一放到 <code>/usr/local/opt/</code> 下面，可以这样操作：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /usr/local/opt/
-</span></span><span style="display:flex;"><span>fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-</span></span><span style="display:flex;"><span>cd /usr/local/opt/
-</span></span><span style="display:flex;"><span>tar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /usr/local/opt/\nfetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd /usr/local/opt/\ntar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"</script>
-</div>
-<p>此时 Go 的目录是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/opt/go</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/opt/go"</script>
-</div>
-<p>对应的环境变量改为：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>export PATH<span style="color:#f92672">=</span>$PATH:/usr/local/opt/go/bin</span></span></code></pre></div><script class="code-source" type="application/json">"export PATH=$PATH:/usr/local/opt/go/bin"</script>
-</div>
-<h2 id="普通用户安装到个人目录">普通用户安装到个人目录</h2>
-<p>普通用户只能在自己的家目录中操作。这个方式更安全，也更适合做隔离安装，推荐日常使用。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p ~/.usr/local/opt/
-</span></span><span style="display:flex;"><span>fetch -o ~/.usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-</span></span><span style="display:flex;"><span>cd ~/.usr/local/opt/
-</span></span><span style="display:flex;"><span>tar -C ~/.usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p ~/.usr/local/opt/\nfetch -o ~/.usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd ~/.usr/local/opt/\ntar -C ~/.usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"</script>
-</div>
-<p>普通用户安装完成后，Go 的目录是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>~/.usr/local/opt/go</span></span></code></pre></div><script class="code-source" type="application/json">"~/.usr/local/opt/go"</script>
-</div>
-<p>如果普通用户使用的是 <code>bash</code>，可以在 <code>~/.bash_profile</code> 中添加：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>export PATH<span style="color:#f92672">=</span>$PATH:$HOME/.usr/local/opt/go/bin</span></span></code></pre></div><script class="code-source" type="application/json">"export PATH=$PATH:$HOME/.usr/local/opt/go/bin"</script>
-</div>
-<p>如果使用的是 FreeBSD 默认的 <code>sh</code>，可以把上面这行写入 <code>~/.profile</code>。</p>
-<h2 id="刷新环境变量">刷新环境变量</h2>
-<p>FreeBSD 默认 shell 通常是 <code>sh</code>，它不使用 <code>source</code> 命令，而是使用 <code>.</code> 来加载配置文件。</p>
-<p>如果你修改的是 <code>~/.profile</code>，运行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>. ~/.profile</span></span></code></pre></div><script class="code-source" type="application/json">". ~/.profile"</script>
-</div>
-<p>如果你修改的是 <code>~/.bash_profile</code>，运行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>. ~/.bash_profile</span></span></code></pre></div><script class="code-source" type="application/json">". ~/.bash_profile"</script>
-</div>
-<p>也可以直接重新登录终端，让新的环境变量自动生效。</p>
-<h2 id="验证-go-版本">验证 Go 版本</h2>
-<p>运行下面的命令检查 Go 是否安装成功：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go version</span></span></code></pre></div><script class="code-source" type="application/json">"go version"</script>
-</div>
-<p>如果安装成功，会看到类似输出：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go version go1.26.0 freebsd/amd64</span></span></code></pre></div><script class="code-source" type="application/json">"go version go1.26.0 freebsd/amd64"</script>
-</div>
-<h2 id="总结">总结</h2>
-<p>这篇文章的核心思路是：下载 FreeBSD 对应的 Go 官方二进制包，解压到你希望使用的目录，然后把 <code>go/bin</code> 加入 <code>PATH</code>。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/mosdns-install/">
-            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">mosdns 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/sing-box-install/">
-            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">sing-box 安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-neovim-productivity/">
-            <img src="/posts/freebsd/freebsd15-neovim-productivity/assets/freebsd15-neovim-productivity-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">FreeBSD15现代化Neovim生产力环境部署指南</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>FreeBSD 手动安装 Go 最新版 | 电脑自习室</title><meta name=description content="在 FreeBSD 上手动下载并安装 Go 官方二进制包，适合 root 全局安装，也适合普通用户隔离安装。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
+<time datetime=2025-05-12>2025年5月12日</time></div><h1>FreeBSD 手动安装 Go 最新版</h1><p>在 FreeBSD 上手动下载并安装 Go 官方二进制包，适合 root 全局安装，也适合普通用户隔离安装。</p></header><img class=article-cover src=/posts/freebsd/freebsd-install-go-latest/assets/freebsd-go-install.svg alt><div class=article-content><p>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。</p><p>本文以 <code>go1.26.0.freebsd-amd64.tar.gz</code> 为示例。后续 Go 版本更新时，请先到 <a href=https://go.dev/dl/>Go 官方下载页</a> 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。</p><h2 id=root-用户安装到默认路径>root 用户安装到默认路径</h2><p>如果希望 Go 对系统所有用户可用，可以用 <code>root</code> 权限安装到 <code>/usr/local/go</code>。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
+</span></span><span style=display:flex><span>tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class=code-source type=application/json>"fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ntar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz"</script></div><p>默认解压后，Go 会位于：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>/usr/local/go</span></span></code></pre></div><script class=code-source type=application/json>"/usr/local/go"</script></div><p>然后把 Go 加入环境变量：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export PATH<span style=color:#f92672>=</span>$PATH:/usr/local/go/bin</span></span></code></pre></div><script class=code-source type=application/json>"export PATH=$PATH:/usr/local/go/bin"</script></div><p>如果希望长期生效，可以把上面这一行写入当前用户的 <code>~/.profile</code>。</p><h2 id=root-用户安装到自定义路径>root 用户安装到自定义路径</h2><p>如果你更喜欢把手动安装的软件统一放到 <code>/usr/local/opt/</code> 下面，可以这样操作：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /usr/local/opt/
+</span></span><span style=display:flex><span>fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
+</span></span><span style=display:flex><span>cd /usr/local/opt/
+</span></span><span style=display:flex><span>tar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /usr/local/opt/\nfetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd /usr/local/opt/\ntar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"</script></div><p>此时 Go 的目录是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>/usr/local/opt/go</span></span></code></pre></div><script class=code-source type=application/json>"/usr/local/opt/go"</script></div><p>对应的环境变量改为：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export PATH<span style=color:#f92672>=</span>$PATH:/usr/local/opt/go/bin</span></span></code></pre></div><script class=code-source type=application/json>"export PATH=$PATH:/usr/local/opt/go/bin"</script></div><h2 id=普通用户安装到个人目录>普通用户安装到个人目录</h2><p>普通用户只能在自己的家目录中操作。这个方式更安全，也更适合做隔离安装，推荐日常使用。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/.usr/local/opt/
+</span></span><span style=display:flex><span>fetch -o ~/.usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
+</span></span><span style=display:flex><span>cd ~/.usr/local/opt/
+</span></span><span style=display:flex><span>tar -C ~/.usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p ~/.usr/local/opt/\nfetch -o ~/.usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd ~/.usr/local/opt/\ntar -C ~/.usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"</script></div><p>普通用户安装完成后，Go 的目录是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>~/.usr/local/opt/go</span></span></code></pre></div><script class=code-source type=application/json>"~/.usr/local/opt/go"</script></div><p>如果普通用户使用的是 <code>bash</code>，可以在 <code>~/.bash_profile</code> 中添加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export PATH<span style=color:#f92672>=</span>$PATH:$HOME/.usr/local/opt/go/bin</span></span></code></pre></div><script class=code-source type=application/json>"export PATH=$PATH:$HOME/.usr/local/opt/go/bin"</script></div><p>如果使用的是 FreeBSD 默认的 <code>sh</code>，可以把上面这行写入 <code>~/.profile</code>。</p><h2 id=刷新环境变量>刷新环境变量</h2><p>FreeBSD 默认 shell 通常是 <code>sh</code>，它不使用 <code>source</code> 命令，而是使用 <code>.</code> 来加载配置文件。</p><p>如果你修改的是 <code>~/.profile</code>，运行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>. ~/.profile</span></span></code></pre></div><script class=code-source type=application/json>". ~/.profile"</script></div><p>如果你修改的是 <code>~/.bash_profile</code>，运行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>. ~/.bash_profile</span></span></code></pre></div><script class=code-source type=application/json>". ~/.bash_profile"</script></div><p>也可以直接重新登录终端，让新的环境变量自动生效。</p><h2 id=验证-go-版本>验证 Go 版本</h2><p>运行下面的命令检查 Go 是否安装成功：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>go version</span></span></code></pre></div><script class=code-source type=application/json>"go version"</script></div><p>如果安装成功，会看到类似输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>go version go1.26.0 freebsd/amd64</span></span></code></pre></div><script class=code-source type=application/json>"go version go1.26.0 freebsd/amd64"</script></div><h2 id=总结>总结</h2><p>这篇文章的核心思路是：下载 FreeBSD 对应的 Go 官方二进制包，解压到你希望使用的目录，然后把 <code>go/bin</code> 加入 <code>PATH</code>。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/freebsd/freebsd15-nginx-static-file-browser/><img src=/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/posts/linux/mosdns-install/assets/mosdns-install-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/posts/linux/sing-box-install/assets/sing-box-install-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>sing-box 安装教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
