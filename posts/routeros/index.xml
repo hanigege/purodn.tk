@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>软路由 on 电脑自习室</title><link>https://purodn.tk/posts/routeros/</link><description>Recent content in 软路由 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 27 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/posts/routeros/index.xml" rel="self" type="application/rss+xml"/><item><title>RouterOS NAT 回流与防火墙规则备份</title><link>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</link><pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</guid><description>&lt;h3 id="内网的dst-nat要加外网接口如pppoe-out1"&gt;内网的dst-nat要加外网接口如pppoe-out1&lt;/h3&gt;
+&lt;h3 id="1-为什么需要回流"&gt;1. 为什么需要回流？&lt;/h3&gt;
+&lt;p&gt;当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。&lt;/p&gt;
+&lt;h3 id="2-完整的-ros-nat-脚本包含-web-回流"&gt;2. 完整的 ROS NAT 脚本（包含 Web 回流）&lt;/h3&gt;
+&lt;h5 id="请根据你的实际端口修改-12335-web-和-21-ftp-等"&gt;请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。&lt;/h5&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code class="language-routeros" data-lang="routeros"&gt;/ip firewall nat
+# --- 基础规则 ---
+# 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发）
+add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&amp;#34;Standard Internet Access&amp;#34;
+# --- 端口转发 (DST-NAT) ---
+# 2. DERP 转发
+add chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=&amp;#34;DERP TCP&amp;#34;
+add chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=&amp;#34;DERP STUN&amp;#34;
+# 3. Web 服务转发 (示例)
+add chain=dstnat protocol=tcp dst-port=12335 action=dst-nat to-addresses=10.20.20.x to-ports=12335 comment=&amp;#34;web&amp;#34;
+# 4. FTP 服务转发 (示例)
+add chain=dstnat protocol=tcp dst-port=21 action=dst-nat to-addresses=10.20.20.x to-ports=21 comment=&amp;#34;vsftpd&amp;#34;
+# --- 回流规则 (Hairpin NAT) ---
+# 只有当内网访问内网服务器时才触发。建议将所有内网服务器放在一个规则里，或者逐个添加。
+# 给 DERP 添加回流
+add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=tcp dst-port=12340 action=masquerade comment=&amp;#34;Hairpin DERP TCP&amp;#34;
+add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=udp dst-port=3478 action=masquerade comment=&amp;#34;Hairpin DERP STUN&amp;#34;
+# 给 Web 服务添加回流 (假设内网 IP 为 10.20.20.5)
+add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.5 protocol=tcp dst-port=12335 action=masquerade comment=&amp;#34;Hairpin Web&amp;#34;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"/ip firewall nat\n# --- 基础规则 ---\n# 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发）\nadd chain=srcnat action=masquerade out-interface=pppoe-out1 comment=\"Standard Internet Access\"\n# --- 端口转发 (DST-NAT) ---\n# 2. DERP 转发\nadd chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=\"DERP TCP\"\nadd chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=\"DERP STUN\"\n# 3. Web 服务转发 (示例)\nadd chain=dstnat protocol=tcp dst-port=12335 action=dst-nat to-addresses=10.20.20.x to-ports=12335 comment=\"web\"\n# 4. FTP 服务转发 (示例)\nadd chain=dstnat protocol=tcp dst-port=21 action=dst-nat to-addresses=10.20.20.x to-ports=21 comment=\"vsftpd\"\n# --- 回流规则 (Hairpin NAT) ---\n# 只有当内网访问内网服务器时才触发。建议将所有内网服务器放在一个规则里，或者逐个添加。\n# 给 DERP 添加回流\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=tcp dst-port=12340 action=masquerade comment=\"Hairpin DERP TCP\"\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=udp dst-port=3478 action=masquerade comment=\"Hairpin DERP STUN\"\n# 给 Web 服务添加回流 (假设内网 IP 为 10.20.20.5)\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.5 protocol=tcp dst-port=12335 action=masquerade comment=\"Hairpin Web\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="3-操作建议使用地址列表简化回流"&gt;3. 操作建议：使用“地址列表”简化回流&lt;/h3&gt;
+&lt;p&gt;如果你有很多内网服务器需要回流，一条条加 srcnat 很麻烦。你可以这样做：&lt;/p&gt;</description></item><item><title>07.RouterOS 配置 WireGuard</title><link>https://purodn.tk/posts/routeros/routeros-07-wireguard/</link><pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-07-wireguard/</guid><description>&lt;h2 id="本文介绍如何在routeros中配置wireguard包括两个ros之间通过wireguard异地组网"&gt;本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网&lt;/h2&gt;
+&lt;h3 id="1-客户端接入家庭局域网"&gt;1. 客户端接入家庭局域网&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;添加wireguard。名字（Name）及监听端口（Listen Port）可自定义
+&lt;img src="assets/routeros-07-wireguard-07.png" alt="1.png"&gt;&lt;/li&gt;
+&lt;li&gt;为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例
+&lt;img src="assets/routeros-07-wireguard-08.png" alt="2.png"&gt;&lt;/li&gt;
+&lt;li&gt;添加客户端（peer）配置
+&lt;img src="assets/routeros-07-wireguard-09.png" alt="3.png"&gt;&lt;/li&gt;
+&lt;li&gt;双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置
+&lt;img src="assets/routeros-07-wireguard-10.png" alt="4.png"&gt;&lt;/li&gt;
+&lt;li&gt;客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可
+&lt;img src="assets/routeros-07-wireguard-11.png" alt="5.png"&gt;&lt;/li&gt;
+&lt;li&gt;如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="2-两个-ros-之间通过-wireguard-异地组网"&gt;2. 两个 ROS 之间通过 WireGuard 异地组网&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;ROS1号
+ROS2号&lt;/p&gt;
+&lt;p&gt;LAN IP
+10.0.0.1/24
+192.168.31.1/24&lt;/p&gt;
+&lt;p&gt;wireguard IP
+10.20.30.1/24
+10.20.40.1/24&lt;/p&gt;
+&lt;p&gt;DDNS域名
+无
+ros2.66666.xyz&lt;/p&gt;</description></item><item><title>06.RouterOS 配置 DDNS 脚本</title><link>https://purodn.tk/posts/routeros/routeros-06-ddns-script/</link><pubDate>Fri, 22 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-06-ddns-script/</guid><description>&lt;h2 id="本文介绍如何在routeros中使用脚本完成动态域名解析ddns"&gt;本文介绍如何在RouterOS中使用脚本完成动态域名解析DDNS&lt;/h2&gt;
+&lt;h3 id="1-cloudflare-ddns-脚本"&gt;1. Cloudflare DDNS 脚本&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;先祭出ddns脚本，仅提供解析至cf的脚本。自行准备好“你的DDNS token”“你的ZONEID””你的RECORD6ID“或”RECORD4ID“以及域名（支持ddns泛解析）。文末提供”ZONEID“、”RECORD4ID”等所需参数获取教程。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4 id="11-完整脚本模板"&gt;1.1 完整脚本模板&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;此模板为先更新IPV6记录，等待300s后更新IPV4记录&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# token $ zoneid&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local TOKEN &lt;span style="color:#e6db74"&gt;&amp;#34;你的DDNS token&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local ZONEID &lt;span style="color:#e6db74"&gt;&amp;#34;你的ZONEID&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# IPv6&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD6ID &lt;span style="color:#e6db74"&gt;&amp;#34;你的RECORD6ID&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD6NAME &lt;span style="color:#e6db74"&gt;&amp;#34;*.你的v6域名.com&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local WANIF6 &lt;span style="color:#e6db74"&gt;&amp;#34;pppoe-out1或bridge1&amp;#34;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#自行更改，NAT6选PPPOE接口，SLAAC选bridge&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local url6 &lt;span style="color:#e6db74"&gt;&amp;#34;https://api.cloudflare.com/client/v4/zones/&lt;/span&gt;$ZONEID&lt;span style="color:#e6db74"&gt;/dns_records/&lt;/span&gt;$RECORD6ID&lt;span style="color:#e6db74"&gt;/&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# IPv4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD4ID &lt;span style="color:#e6db74"&gt;&amp;#34;你的RECORD4ID&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD4NAME &lt;span style="color:#e6db74"&gt;&amp;#34;*.你的v4域名.com&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local WANIF4 &lt;span style="color:#e6db74"&gt;&amp;#34;pppoe-out1&amp;#34;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#自行更改&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local url4 &lt;span style="color:#e6db74"&gt;&amp;#34;https://api.cloudflare.com/client/v4/zones/&lt;/span&gt;$ZONEID&lt;span style="color:#e6db74"&gt;/dns_records/&lt;/span&gt;$RECORD4ID&lt;span style="color:#e6db74"&gt;/&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 更新 IPv6 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:if &lt;span style="color:#f92672"&gt;([&lt;/span&gt;/interface get $WANIF6 value-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;running&lt;span style="color:#f92672"&gt;])&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取本地 IPv6 地址&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local currentIP6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/ipv6/address/get &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick &lt;span style="color:#f92672"&gt;[&lt;/span&gt;find global interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$WANIF6&lt;span style="color:#f92672"&gt;]&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;0&lt;/span&gt; &lt;span style="color:#f92672"&gt;]&lt;/span&gt; address&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local IP6NEW &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $currentIP6 &lt;span style="color:#ae81ff"&gt;0&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $currentIP6 &lt;span style="color:#e6db74"&gt;&amp;#34;/&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前IPv6地址: &lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取 Cloudflare 当前的 DNS 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfRecord &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url6 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 解析 Cloudflare 返回的 JSON 数据&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$cfRecord-&amp;gt;&lt;span style="color:#e6db74"&gt;&amp;#34;data&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local startIndex &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;content\&amp;#34;:\&amp;#34;&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfIP6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;CF IPv6地址: &lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 对比本机 IP 和 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :if &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$IP6NEW !&lt;span style="color:#f92672"&gt;=&lt;/span&gt; $cfIP6&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;检测到 IP 变化：Cloudflare=&lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;, 本地=&lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 更新 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfUpdate6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch http-method&lt;span style="color:#f92672"&gt;=&lt;/span&gt;put mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url6 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-data&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;{\&amp;#34;type\&amp;#34;:\&amp;#34;AAAA\&amp;#34;,\&amp;#34;name\&amp;#34;:\&amp;#34;&lt;/span&gt;$RECORD6NAME&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;content\&amp;#34;:\&amp;#34;&lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;ttl\&amp;#34;:120,\&amp;#34;proxied\&amp;#34;:false}&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;已更新 Cloudflare IPv6 为 &lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前 Cloudflare 记录 (&lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;) 与本机 IP 相同，无需更新。&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log error &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$WANIF6&lt;span style="color:#e6db74"&gt; 接口未运行，无法获取本地 IPv6 地址&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#等待300s，若仅更新V4或V6需删除&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:delay 300s
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 更新 IPv4 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:if &lt;span style="color:#f92672"&gt;([&lt;/span&gt;/interface get $WANIF4 value-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;running&lt;span style="color:#f92672"&gt;])&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取本地 IPv4 地址&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local currentIP4 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/ip/address get &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/ip/address find interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$WANIF4&lt;span style="color:#f92672"&gt;]&lt;/span&gt; address&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local IP4NEW &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $currentIP4 &lt;span style="color:#ae81ff"&gt;0&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $currentIP4 &lt;span style="color:#e6db74"&gt;&amp;#34;/&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前IPv4地址: &lt;/span&gt;$IP4NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取 Cloudflare 当前的 DNS 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfRecord &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url4 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 解析 Cloudflare 返回的 JSON 数据&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$cfRecord-&amp;gt;&lt;span style="color:#e6db74"&gt;&amp;#34;data&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local startIndex &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;content\&amp;#34;:\&amp;#34;&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfIP4 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;CF IPv4地址: &lt;/span&gt;$cfIP4&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 对比本机 IP 和 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :if &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$IP4NEW !&lt;span style="color:#f92672"&gt;=&lt;/span&gt; $cfIP4&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;检测到 IP 变化：Cloudflare=&lt;/span&gt;$cfIP4&lt;span style="color:#e6db74"&gt;, 本地=&lt;/span&gt;$IP4NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 更新 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfUpdate4 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch http-method&lt;span style="color:#f92672"&gt;=&lt;/span&gt;put mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url4 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-data&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;{\&amp;#34;type\&amp;#34;:\&amp;#34;A\&amp;#34;,\&amp;#34;name\&amp;#34;:\&amp;#34;&lt;/span&gt;$RECORD4NAME&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;content\&amp;#34;:\&amp;#34;&lt;/span&gt;$IP4NEW&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;ttl\&amp;#34;:120,\&amp;#34;proxied\&amp;#34;:false}&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;已更新 Cloudflare IPv4 为 &lt;/span&gt;$IP4NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前 Cloudflare 记录 (&lt;/span&gt;$cfIP4&lt;span style="color:#e6db74"&gt;) 与本机 IP 相同，无需更新。&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log error &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$WANIF4&lt;span style="color:#e6db74"&gt; 接口未运行，无法获取本地 IPv4 地址&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或bridge1\" #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# IPv4\n\n:local RECORD4ID \"你的RECORD4ID\"\n\n:local RECORD4NAME \"*.你的v4域名.com\"\n\n:local WANIF4 \"pppoe-out1\" #自行更改\n\n:local url4 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD4ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n # 获取本地 IPv6 地址\n\n :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n :log info \"当前IPv6地址: $IP6NEW\"\n\n # 获取 Cloudflare 当前的 DNS 记录\n\n :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n # 解析 Cloudflare 返回的 JSON 数据\n\n :local cfContent ($cfRecord-\u003e\"data\")\n\n :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n :log info \"CF IPv6地址: $cfIP6\"\n\n # 对比本机 IP 和 Cloudflare 记录\n\n :if ($IP6NEW != $cfIP6) do={\n\n :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n # 更新 Cloudflare 记录\n\n :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n }\n\n} else={\n\n :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}\n\n#等待300s，若仅更新V4或V6需删除\n\n:delay 300s\n\n# 更新 IPv4 记录\n\n:if ([/interface get $WANIF4 value-name=running]) do={\n\n # 获取本地 IPv4 地址\n\n :local currentIP4 [/ip/address get [/ip/address find interface=$WANIF4] address]\n\n :local IP4NEW [:pick $currentIP4 0 [:find $currentIP4 \"/\"]]\n\n :log info \"当前IPv4地址: $IP4NEW\"\n\n # 获取 Cloudflare 当前的 DNS 记录\n\n :local cfRecord [/tool fetch mode=https url=$url4 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n # 解析 Cloudflare 返回的 JSON 数据\n\n :local cfContent ($cfRecord-\u003e\"data\")\n\n :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n :local cfIP4 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n :log info \"CF IPv4地址: $cfIP4\"\n\n # 对比本机 IP 和 Cloudflare 记录\n\n :if ($IP4NEW != $cfIP4) do={\n\n :log info \"检测到 IP 变化：Cloudflare=$cfIP4, 本地=$IP4NEW\"\n\n # 更新 Cloudflare 记录\n\n :local cfUpdate4 [/tool fetch http-method=put mode=https url=$url4 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n http-data=\"{\\\"type\\\":\\\"A\\\",\\\"name\\\":\\\"$RECORD4NAME\\\",\\\"content\\\":\\\"$IP4NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n :log info \"已更新 Cloudflare IPv4 为 $IP4NEW\"\n\n} else={\n\n :log info \"当前 Cloudflare 记录 ($cfIP4) 与本机 IP 相同，无需更新。\"\n\n }\n\n} else={\n\n :log error \"$WANIF4 接口未运行，无法获取本地 IPv4 地址\"\n\n}"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="12-单独-ipv4ipv6-版本"&gt;1.2 单独 IPv4/IPv6 版本&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;若仅需更新IPV4或IPV6，删除多余板块和”:delay 300s”即可&lt;/li&gt;
+&lt;li&gt;以仅更新IPV6为例&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# token $ zoneid&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local TOKEN &lt;span style="color:#e6db74"&gt;&amp;#34;你的DDNS token&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local ZONEID &lt;span style="color:#e6db74"&gt;&amp;#34;你的ZONEID&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# IPv6&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD6ID &lt;span style="color:#e6db74"&gt;&amp;#34;你的RECORD6ID&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local RECORD6NAME &lt;span style="color:#e6db74"&gt;&amp;#34;*.你的v6域名.com&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local WANIF6 &lt;span style="color:#e6db74"&gt;&amp;#34;pppoe-out1或是bridge1&amp;#34;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#自行更改，NAT6选PPPOE接口，SLAAC选bridge&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:local url6 &lt;span style="color:#e6db74"&gt;&amp;#34;https://api.cloudflare.com/client/v4/zones/&lt;/span&gt;$ZONEID&lt;span style="color:#e6db74"&gt;/dns_records/&lt;/span&gt;$RECORD6ID&lt;span style="color:#e6db74"&gt;/&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 更新 IPv6 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:if &lt;span style="color:#f92672"&gt;([&lt;/span&gt;/interface get $WANIF6 value-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;running&lt;span style="color:#f92672"&gt;])&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取本地 IPv6 地址&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local currentIP6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/ipv6/address/get &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick &lt;span style="color:#f92672"&gt;[&lt;/span&gt;find global interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$WANIF6&lt;span style="color:#f92672"&gt;]&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;0&lt;/span&gt; &lt;span style="color:#f92672"&gt;]&lt;/span&gt; address&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local IP6NEW &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $currentIP6 &lt;span style="color:#ae81ff"&gt;0&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $currentIP6 &lt;span style="color:#e6db74"&gt;&amp;#34;/&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前IPv6地址: &lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 获取 Cloudflare 当前的 DNS 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfRecord &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url6 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 解析 Cloudflare 返回的 JSON 数据&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$cfRecord-&amp;gt;&lt;span style="color:#e6db74"&gt;&amp;#34;data&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local startIndex &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;content\&amp;#34;:\&amp;#34;&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfIP6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:pick $cfContent &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#f92672"&gt;[&lt;/span&gt;:find $cfContent &lt;span style="color:#e6db74"&gt;&amp;#34;\&amp;#34;&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$startIndex + 11&lt;span style="color:#f92672"&gt;)]]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;CF IPv6地址: &lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 对比本机 IP 和 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :if &lt;span style="color:#f92672"&gt;(&lt;/span&gt;$IP6NEW !&lt;span style="color:#f92672"&gt;=&lt;/span&gt; $cfIP6&lt;span style="color:#f92672"&gt;)&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;检测到 IP 变化：Cloudflare=&lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;, 本地=&lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 更新 Cloudflare 记录&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :local cfUpdate6 &lt;span style="color:#f92672"&gt;[&lt;/span&gt;/tool fetch http-method&lt;span style="color:#f92672"&gt;=&lt;/span&gt;put mode&lt;span style="color:#f92672"&gt;=&lt;/span&gt;https url&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$url6 check-certificate&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;user as-value &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-header-field&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;$TOKEN&lt;span style="color:#e6db74"&gt;,Content-Type: application/json&amp;#34;&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; http-data&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;{\&amp;#34;type\&amp;#34;:\&amp;#34;AAAA\&amp;#34;,\&amp;#34;name\&amp;#34;:\&amp;#34;&lt;/span&gt;$RECORD6NAME&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;content\&amp;#34;:\&amp;#34;&lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;\&amp;#34;,\&amp;#34;ttl\&amp;#34;:120,\&amp;#34;proxied\&amp;#34;:false}&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;已更新 Cloudflare IPv6 为 &lt;/span&gt;$IP6NEW&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log info &lt;span style="color:#e6db74"&gt;&amp;#34;当前 Cloudflare 记录 (&lt;/span&gt;$cfIP6&lt;span style="color:#e6db74"&gt;) 与本机 IP 相同，无需更新。&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt;&lt;span style="color:#f92672"&gt;={&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :log error &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$WANIF6&lt;span style="color:#e6db74"&gt; 接口未运行，无法获取本地 IPv6 地址&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或是bridge1\" #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n # 获取本地 IPv6 地址\n\n :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n :log info \"当前IPv6地址: $IP6NEW\"\n\n # 获取 Cloudflare 当前的 DNS 记录\n\n :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n # 解析 Cloudflare 返回的 JSON 数据\n\n :local cfContent ($cfRecord-\u003e\"data\")\n\n :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n :log info \"CF IPv6地址: $cfIP6\"\n\n # 对比本机 IP 和 Cloudflare 记录\n\n :if ($IP6NEW != $cfIP6) do={\n\n :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n # 更新 Cloudflare 记录\n\n :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n }\n\n} else={\n\n :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="2-在-routeros-中配置-ddns"&gt;2. 在 RouterOS 中配置 DDNS&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;配置DNS static （可选项，博主所在地区无法直连cf的api，所以设置后通过代理访问cf的api）&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dns static add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;104.19.192.175 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;api.cloudflare.com type&lt;span style="color:#f92672"&gt;=&lt;/span&gt;A&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip dns static add address=104.19.192.175 name=api.cloudflare.com type=A"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;添加脚本，名字随意
+&lt;img src="assets/routeros-06-ddns-script-01.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;点击运行脚本，查看log是否报错
+&lt;img src="assets/routeros-06-ddns-script-02.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;若报错，将104.19.192.175路由至sing-box走代理
+&lt;img src="assets/routeros-06-ddns-script-03.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;添加计划任务，3分钟执行一次
+&lt;img src="assets/routeros-06-ddns-script-04.png" alt=""&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="3-获取-ddns-脚本所需参数"&gt;3. 获取 DDNS 脚本所需参数&lt;/h3&gt;
+&lt;h4 id="31-获取-global-api-key"&gt;3.1 获取 Global API Key&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;登录CF主页，点击我的个人资料
+&lt;img src="assets/routeros-06-ddns-script-05.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;输入密码查看Global API KEY
+&lt;img src="assets/routeros-06-ddns-script-06.png" alt=""&gt;
+&lt;img src="assets/routeros-06-ddns-script-07.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;创建DDNS token
+&lt;img src="assets/routeros-06-ddns-script-08.png" alt=""&gt;
+&lt;img src="assets/routeros-06-ddns-script-09.png" alt=""&gt;
+&lt;img src="assets/routeros-06-ddns-script-10.png" alt=""&gt;
+注：API令牌仅出现1次，务必保存好
+&lt;img src="assets/routeros-06-ddns-script-11.png" alt=""&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id="32-获取-zoneid"&gt;3.2 获取 ZONEID&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;账户主页-进入需DDNS的域名界面
+&lt;img src="assets/routeros-06-ddns-script-12.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;往下滑找到区域ID即为ZONEID
+&lt;img src="assets/routeros-06-ddns-script-13.png" alt=""&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id="33-获取-recordid"&gt;3.3 获取 RECORDID&lt;/h4&gt;
+&lt;p&gt;若域名无DNS记录，需先创建1条DNS记录
+在任意linux系统中通过下述命令获取你的RECORDID，A代表V4，AAAA代表V6，如果同域名需要解析V4和V6，在CF上使用同一个二个域名，分别选择A和AAAA&lt;/p&gt;</description></item><item><title>00.RouterOS 初始化及基础配置</title><link>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</guid><description>&lt;h2 id="本文介绍routeros初始化后的一些基础配置第一次进入routeros先恢复原厂设置winbox以mac地址登录"&gt;本文介绍RouterOS初始化后的一些基础配置。第一次进入RouterOS先恢复原厂设置，Winbox以mac地址登录&lt;/h2&gt;
+&lt;h4 id="1-恢复出厂设置"&gt;1. 恢复出厂设置&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system reset-configuration&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/system reset-configuration"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="2-接口命名与桥接"&gt;2. 接口命名与桥接&lt;/h4&gt;
+&lt;p&gt;确认接口，区分lan，wan，更改名称为方便以后操作（建议手动操作）&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether1 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether2 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;wan&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/interface set ether1 name=lan\n/interface set ether2 name=wan"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-01.png" alt=""&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;建立bridge1，并将所有lan接口添加进桥&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge port add bridge&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/interface bridge add name=bridge1\n/interface bridge port add bridge=bridge1 interface=lan"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-02.png" alt=""&gt;
+注：如果双网口，且不打算用ros的容器，可不建bridge，直接使用lan口，并接入物理交换机&lt;/p&gt;
+&lt;h4 id="3-本机地址"&gt;3. 本机地址&lt;/h4&gt;
+&lt;p&gt;为bridge1设置IP。本教程以bridge1为例，即ros本机ip为10.0.0.1/24&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip address add interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1/24 network&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip address add interface=bridge1 address=10.0.0.1/24 network=10.0.0.0"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-03.png" alt=""&gt;&lt;/p&gt;
+&lt;h4 id="4-时间与-ntp"&gt;4. 时间与 NTP&lt;/h4&gt;
+&lt;p&gt;配置时区，配置NTP服务器&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system clock set time-zone-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Asia/Shanghai&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system clock manual set time-zone&lt;span style="color:#f92672"&gt;=&lt;/span&gt;+08:00
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system ntp client set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes servers&lt;span style="color:#f92672"&gt;=&lt;/span&gt;cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/system clock set time-zone-name=\"Asia/Shanghai\"\n/system clock manual set time-zone=+08:00\n/system ntp client set enabled=yes servers=cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="5-服务与端口硬化"&gt;5. 服务与端口硬化&lt;/h4&gt;
+&lt;p&gt;关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段&lt;/p&gt;</description></item><item><title>01.RouterOS 联网基本配置及 IPv4 防火墙</title><link>https://purodn.tk/posts/routeros/routeros-01-connectivity/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-01-connectivity/</guid><description>&lt;h2 id="本文介绍routeros拨号配置dhcp服务器配置dns开启ipv4防火墙等通网的基础配置桥接接口bridge1拨号接口pppoe-out1名称若不同则自行替换"&gt;本文介绍RouterOS拨号、配置DHCP服务器、配置DNS、开启IPv4防火墙等通网的基础配置。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换&lt;/h2&gt;
+&lt;h4 id="1-pppoe-拨号"&gt;1. PPPoE 拨号&lt;/h4&gt;
+&lt;p&gt;手动配置pppoe-out1接口拨号，User填入宽带账号，Password填入宽带密码。如果不使用运营商提供的DNS可不勾选User Peed DNS。
+&lt;img src="assets/routeros-01-connectivity-01.png" alt=""&gt;
+注：接口前出现“R”代表拨号成功。拨号成功后建议先禁用，待防火墙配置完毕后再开启!
+&lt;img src="assets/routeros-01-connectivity-02.png" alt=""&gt;&lt;/p&gt;
+&lt;h4 id="2-dhcp-服务器"&gt;2. DHCP 服务器&lt;/h4&gt;
+&lt;p&gt;配置DHCP服务器，DHCP IP范围为10.0.0.100-10.0.0.250，网关和DNS默认为ROS。如果希望全局配置透明代理，dns-server可配置为mosdns&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip pool add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-pool1 ranges&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.100-10.0.0.250
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dhcp-server add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-server1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 address-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-pool1 lease-time&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dhcp-server network add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0/24 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1 dns-server&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip pool add name=dhcpv4-pool1 ranges=10.0.0.100-10.0.0.250\n/ip dhcp-server add name=dhcpv4-server1 interface=bridge1 address-pool=dhcpv4-pool1 lease-time=1d\n/ip dhcp-server network add address=10.0.0.0/24 gateway=10.0.0.1 dns-server=10.0.0.1"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-01-connectivity-03.png" alt=""&gt;
+&lt;img src="assets/routeros-01-connectivity-04.png" alt=""&gt;
+&lt;img src="assets/routeros-01-connectivity-05.png" alt=""&gt;&lt;/p&gt;
+&lt;h4 id="3-dns"&gt;3. DNS&lt;/h4&gt;
+&lt;p&gt;配置DNS，即ROS的上游DNS，先设置223.5.5.5，也可自定义填入运营商分配DNS服务器等&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dns set servers&lt;span style="color:#f92672"&gt;=&lt;/span&gt;223.5.5.5 allow-remote-requests&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes max-concurrent-queries&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;4096&lt;/span&gt; max-concurrent-tcp-sessions&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; cache-size&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8192&lt;/span&gt; cache-max-ttl&lt;span style="color:#f92672"&gt;=&lt;/span&gt;04:00:00&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip dns set servers=223.5.5.5 allow-remote-requests=yes max-concurrent-queries=4096 max-concurrent-tcp-sessions=512 cache-size=8192 cache-max-ttl=04:00:00"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-01-connectivity-06.png" alt=""&gt;&lt;/p&gt;</description></item><item><title>02.RouterOS 开启 IPv6 并配置防火墙</title><link>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</guid><description>&lt;h2 id="本文介绍routeros如何开启ipv6"&gt;本文介绍RouterOS如何开启IPV6&lt;/h2&gt;
+&lt;p&gt;以NAT6模式为例，ipv6内网网段默认为dc00::/64，Routeros bridge1的IPv6内网地址为dc00::1111/64。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换&lt;/p&gt;
+&lt;h4 id="1-开启-ipv6"&gt;1. 开启 IPv6&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 settings set disable-ipv6&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 settings set disable-ipv6=no"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="2-获取-ipv6-前缀"&gt;2. 获取 IPv6 前缀&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 dhcp-client add interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;pppoe-out1 pool-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-gua-pool1 pool-prefix-length&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;60&lt;/span&gt; request&lt;span style="color:#f92672"&gt;=&lt;/span&gt;prefix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 dhcp-client add interface=pppoe-out1 pool-name=dhcpv6-gua-pool1 pool-prefix-length=60 request=prefix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="3-添加-ula-地址池"&gt;3. 添加 ULA 地址池&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 pool add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-ula-pool1 prefix&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::/64 prefix-length&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;64&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 pool add name=dhcpv6-ula-pool1 prefix=dc00::/64 prefix-length=64"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="4-计算并配置地址"&gt;4. 计算并配置地址&lt;/h4&gt;
+&lt;p&gt;使用wan网卡的MAC地址计算标准EUI-64地址（非必须，简单操作则在下一步中输入::1即可）
+&lt;a href="https://eui64-calc.princelle.org/"&gt;https://eui64-calc.princelle.org/&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;使用上面计算得到的后缀（例如::BF24:12FF:FEE1:E81B）配置pppoe-out1的GUA地址&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 address add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;::BF24:12FF:FEE1:E81B/64 from-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-gua-pool1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;pppoe-out1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 address add address=::BF24:12FF:FEE1:E81B/64 from-pool=dhcpv6-gua-pool1 interface=pppoe-out1"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;配置bridge1的ula地址，默认dc00::1111（可自行修改）&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 address add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::1111/64 from-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-ula-pool1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 address add address=dc00::1111/64 from-pool=dhcpv6-ula-pool1 interface=bridge1"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="5-配置-nat6"&gt;5. 配置 NAT6&lt;/h4&gt;
+&lt;p&gt;配置动态源地址伪装（开启NAT6）,建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”&lt;/p&gt;</description></item><item><title>03.RouterOS 配置 FakeIP</title><link>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</guid><description>&lt;h2 id="本文介绍使用fakeip分流法实现局域网内设备透明代理中主路由部分的设置"&gt;本文介绍使用FakeIP分流法，实现局域网内设备透明代理中，主路由部分的设置&lt;/h2&gt;
+&lt;p&gt;sing-box及mosdns的使用方法不在本文讨论范围内&lt;/p&gt;
+&lt;h3 id="1-三种方案总览"&gt;1. 三种方案总览&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;默认sing-box的ipv4为10.0.0.2，ipv6为dc00::2222，Fake v4网段为28.0.0.0/8，Fake v6网段为f2b0::/18。
+特别注意：ros开启fasttrack，mangle会失效，只能采取route的方式路由fakeip&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;小tips：添加完下方的proxy_ipv4和proxy_ipv6列表后，在源地址伪装中排除掉目标地址是代理列表的IP，即可实现在代理程序（sing-box或mihomo）中正确显示连接的源IP
+&lt;img src="assets/routeros-03-ipv6-fakeip-01.png" alt="ros-3-3.png"&gt;&lt;/p&gt;
+&lt;h4 id="11-方案一使用-mangle-打标签的方式"&gt;1.1 方案一：使用 mangle 打标签的方式&lt;/h4&gt;
+&lt;h5 id="ipv4-部分"&gt;IPv4 部分&lt;/h5&gt;
+&lt;ul&gt;
+&lt;li&gt;添加sing-box-v4路由表&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/routing table add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v4 fib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/routing table add name=sing-box-v4 fib"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;地址列表中新增proxy_ipv4列表，填入fakeip网段、tg v4网段、奈菲v4网段&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;28.0.0.0/8
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1.1.1.1/32
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1.0.0.1/32
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.8.8.8/32
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.8.4.4/32
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.41.4.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;23.23.189.144/28
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;23.246.0.0/18
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;34.195.253.0/25
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;37.77.184.0/21
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;38.72.126.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;45.57.0.0/17
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;52.24.178.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;52.35.140.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;54.204.25.0/28
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;54.213.167.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;64.120.128.0/17
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;66.197.128.0/17
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;69.53.224.0/19
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;103.87.204.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;108.175.32.0/20
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;185.2.220.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;185.9.188.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;192.173.64.0/18
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;198.38.96.0/19
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;198.45.48.0/20
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;203.75.84.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;203.198.13.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;203.198.80.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;207.45.72.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;208.75.76.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;210.0.153.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.56.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.4.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.8.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.16.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.12.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;149.154.160.0/20
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.105.192.0/23
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;91.108.20.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;185.76.151.0/24
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall address-list add list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;95.161.64.0/20&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip firewall address-list add list=proxy_ipv4 address=28.0.0.0/8\n/ip firewall address-list add list=proxy_ipv4 address=1.1.1.1/32\n/ip firewall address-list add list=proxy_ipv4 address=1.0.0.1/32\n/ip firewall address-list add list=proxy_ipv4 address=8.8.8.8/32\n/ip firewall address-list add list=proxy_ipv4 address=8.8.4.4/32\n/ip firewall address-list add list=proxy_ipv4 address=8.41.4.0/24\n/ip firewall address-list add list=proxy_ipv4 address=23.23.189.144/28\n/ip firewall address-list add list=proxy_ipv4 address=23.246.0.0/18\n/ip firewall address-list add list=proxy_ipv4 address=34.195.253.0/25\n/ip firewall address-list add list=proxy_ipv4 address=37.77.184.0/21\n/ip firewall address-list add list=proxy_ipv4 address=38.72.126.0/24\n/ip firewall address-list add list=proxy_ipv4 address=45.57.0.0/17\n/ip firewall address-list add list=proxy_ipv4 address=52.24.178.0/24\n/ip firewall address-list add list=proxy_ipv4 address=52.35.140.0/24\n/ip firewall address-list add list=proxy_ipv4 address=54.204.25.0/28\n/ip firewall address-list add list=proxy_ipv4 address=54.213.167.0/24\n/ip firewall address-list add list=proxy_ipv4 address=64.120.128.0/17\n/ip firewall address-list add list=proxy_ipv4 address=66.197.128.0/17\n/ip firewall address-list add list=proxy_ipv4 address=69.53.224.0/19\n/ip firewall address-list add list=proxy_ipv4 address=103.87.204.0/22\n/ip firewall address-list add list=proxy_ipv4 address=108.175.32.0/20\n/ip firewall address-list add list=proxy_ipv4 address=185.2.220.0/22\n/ip firewall address-list add list=proxy_ipv4 address=185.9.188.0/22\n/ip firewall address-list add list=proxy_ipv4 address=192.173.64.0/18\n/ip firewall address-list add list=proxy_ipv4 address=198.38.96.0/19\n/ip firewall address-list add list=proxy_ipv4 address=198.45.48.0/20\n/ip firewall address-list add list=proxy_ipv4 address=203.75.84.0/24\n/ip firewall address-list add list=proxy_ipv4 address=203.198.13.0/24\n/ip firewall address-list add list=proxy_ipv4 address=203.198.80.0/24\n/ip firewall address-list add list=proxy_ipv4 address=207.45.72.0/22\n/ip firewall address-list add list=proxy_ipv4 address=208.75.76.0/22\n/ip firewall address-list add list=proxy_ipv4 address=210.0.153.0/24\n/ip firewall address-list add list=proxy_ipv4 address=91.108.56.0/22\n/ip firewall address-list add list=proxy_ipv4 address=91.108.4.0/22\n/ip firewall address-list add list=proxy_ipv4 address=91.108.8.0/22\n/ip firewall address-list add list=proxy_ipv4 address=91.108.16.0/22\n/ip firewall address-list add list=proxy_ipv4 address=91.108.12.0/22\n/ip firewall address-list add list=proxy_ipv4 address=149.154.160.0/20\n/ip firewall address-list add list=proxy_ipv4 address=91.105.192.0/23\n/ip firewall address-list add list=proxy_ipv4 address=91.108.20.0/22\n/ip firewall address-list add list=proxy_ipv4 address=185.76.151.0/24\n/ip firewall address-list add list=proxy_ipv4 address=95.161.64.0/20"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;为目的ip为proxy_ipv4地址列表的连接打上“sing-box-v4”标记&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip firewall mangle add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;mark-routing chain&lt;span style="color:#f92672"&gt;=&lt;/span&gt;prerouting dst-address-list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv4 new-routing-mark&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v4 passthrough&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip firewall mangle add action=mark-routing chain=prerouting dst-address-list=proxy_ipv4 new-routing-mark=sing-box-v4 passthrough=yes"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;设置路由表sing-box-v4的下一跳网关为sing-box&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;0.0.0.0/0 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v4&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip route add dst-address=0.0.0.0/0 gateway=10.0.0.2 routing-table=sing-box-v4"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h5 id="ipv6-部分"&gt;IPv6 部分&lt;/h5&gt;
+&lt;ul&gt;
+&lt;li&gt;添加sing-box-v6路由表&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/routing table add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v6 fib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/routing table add name=sing-box-v6 fib"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;地址列表添加添加fakev6及tg v6网段&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;f2b0::/18 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;2001:b28:f23d::/48 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;2001:b28:f23f::/48 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;2001:67c:4e8::/48 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;2001:b28:f23c::/48 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall address-list add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;2a0a:f280::/32 list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 firewall address-list add address=f2b0::/18 list=proxy_ipv6\n/ipv6 firewall address-list add address=2001:b28:f23d::/48 list=proxy_ipv6\n/ipv6 firewall address-list add address=2001:b28:f23f::/48 list=proxy_ipv6\n/ipv6 firewall address-list add address=2001:67c:4e8::/48 list=proxy_ipv6\n/ipv6 firewall address-list add address=2001:b28:f23c::/48 list=proxy_ipv6\n/ipv6 firewall address-list add address=2a0a:f280::/32 list=proxy_ipv6"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;为目的ip为proxy_ipv6的连接打标记&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall mangle add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;mark-routing chain&lt;span style="color:#f92672"&gt;=&lt;/span&gt;prerouting dst-address-list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;proxy_ipv6 new-routing-mark&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v6&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 firewall mangle add action=mark-routing chain=prerouting dst-address-list=proxy_ipv6 new-routing-mark=sing-box-v6"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;设置路由表sing-box-v6的下一跳网关为sing-box。注意gateway为sing-box的IPv6&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 route add dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;::/0 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::2222 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v6&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 route add dst-address=::/0 gateway=dc00::2222 routing-table=sing-box-v6"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;添加路由规则确保fakev6路由正常执行&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/routing rule add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lookup-only-in-table comment&lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;for ipv6 mangle effective in route&amp;#34;&lt;/span&gt; disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no routing-mark&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v6 table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;sing-box-v6&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/routing rule add action=lookup-only-in-table comment= \"for ipv6 mangle effective in route\" disabled=no routing-mark=sing-box-v6 table=sing-box-v6"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="2-方案二通过-ip-route-直接添加路由"&gt;2. 方案二：通过 /ip route 直接添加路由&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;下面命令未包含TG IP、奈菲IP，需要用可自行添加。此方法与第1种mangle标记法不冲突，例如可以FakeIP使用route，TG IP等依然使用mangle。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h5 id="ipv4-部分-1"&gt;IPv4 部分&lt;/h5&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;28.0.0.0/8 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;main suppress-hw-offload&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no distance&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.8.8.8/32 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;main scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; suppress-hw-offload&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no target-scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no distance&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1.1.1.1/32 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;main scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; suppress-hw-offload&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no target-scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no distance&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.8.4.4/32 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;main scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; suppress-hw-offload&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no target-scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip route add disabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no distance&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; dst-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1.0.0.1/32 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.2 routing-table&lt;span style="color:#f92672"&gt;=&lt;/span&gt;main scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; suppress-hw-offload&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no target-scope&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip route add disabled=no dst-address=28.0.0.0/8 gateway=10.0.0.2 routing-table=main suppress-hw-offload=no\n/ip route add disabled=no distance=1 dst-address=8.8.8.8/32 gateway=10.0.0.2 routing-table=main scope=30 suppress-hw-offload=no target-scope=10\n/ip route add disabled=no distance=1 dst-address=1.1.1.1/32 gateway=10.0.0.2 routing-table=main scope=30 suppress-hw-offload=no target-scope=10\n/ip route add disabled=no distance=1 dst-address=8.8.4.4/32 gateway=10.0.0.2 routing-table=main scope=30 suppress-hw-offload=no target-scope=10\n/ip route add disabled=no distance=1 dst-address=1.0.0.1/32 gateway=10.0.0.2 routing-table=main scope=30 suppress-hw-offload=no target-scope=10"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-03-ipv6-fakeip-02.png" alt=""&gt;&lt;/p&gt;</description></item><item><title>04.RouterOS 使用 queue tree 配置流量整形</title><link>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</guid><description>&lt;h2 id="使用-queue-tree-配置-routeros-流控"&gt;使用 queue tree 配置 RouterOS 流控&lt;/h2&gt;
+&lt;blockquote&gt;
+&lt;p&gt;介绍两种流量整形，第一种适用于家庭普通用户，第二种适用经常有于BT PT等大流量应用占用带宽的用户&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="1-低延迟优先级流控"&gt;1. 低延迟优先级流控&lt;/h3&gt;
+&lt;h4 id="11-添加-queue-type"&gt;1.1 添加 queue type&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;128&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;30ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;128&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;4096.0KiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;3ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Dns_Up
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;256&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;30ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;128&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;3ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Dns_Down
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;50ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;5ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Small_Up
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;50ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;16.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;5ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Small_Down
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;512&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;50ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;2048&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;64.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1400&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;5ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Web_Up
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1024&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;50ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;4096&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;128.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1500&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;5ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Web_Down
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1024&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;100ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8192&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;128.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1400&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Stream_Up
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;2048&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;100ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10240&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;256.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1500&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;8ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Stream_Down
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;2048&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;100ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10240&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;128.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1400&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;20ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Nomark_Up
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/queue type add fq-codel-flows&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;4096&lt;/span&gt; fq-codel-interval&lt;span style="color:#f92672"&gt;=&lt;/span&gt;100ms fq-codel-limit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10240&lt;/span&gt; fq-codel-memlimit&lt;span style="color:#f92672"&gt;=&lt;/span&gt;256.0MiB fq-codel-quantum&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1500&lt;/span&gt; fq-codel-target&lt;span style="color:#f92672"&gt;=&lt;/span&gt;15ms kind&lt;span style="color:#f92672"&gt;=&lt;/span&gt;fq-codel name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Fq_Codel_Nomark_Down&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/queue type add fq-codel-flows=128 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=4096.0KiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Up\n/queue type add fq-codel-flows=256 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Down\n/queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Up\n/queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=16.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Down\n/queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=2048 fq-codel-memlimit=64.0MiB fq-codel-quantum=1400 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Web_Up\n/queue type add fq-codel-flows=1024 fq-codel-interval=50ms fq-codel-limit=4096 fq-codel-memlimit=128.0MiB fq-codel-quantum=1500 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Web_Down\n/queue type add fq-codel-flows=1024 fq-codel-interval=100ms fq-codel-limit=8192 fq-codel-memlimit=128.0MiB fq-codel-quantum=1400 fq-codel-target=8ms kind=fq-codel name=Fq_Codel_Stream_Up\n/queue type add fq-codel-flows=2048 fq-codel-interval=100ms fq-codel-limit=10240 fq-codel-memlimit=256.0MiB fq-codel-quantum=1500 fq-codel-target=8ms kind=fq-codel name=Fq_Codel_Stream_Down\n/queue type add fq-codel-flows=2048 fq-codel-interval=100ms fq-codel-limit=10240 fq-codel-memlimit=128.0MiB fq-codel-quantum=1400 fq-codel-target=20ms kind=fq-codel name=Fq_Codel_Nomark_Up\n/queue type add fq-codel-flows=4096 fq-codel-interval=100ms fq-codel-limit=10240 fq-codel-memlimit=256.0MiB fq-codel-quantum=1500 fq-codel-target=15ms kind=fq-codel name=Fq_Codel_Nomark_Down"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="12-配置-queue-tree"&gt;1.2 配置 queue tree&lt;/h4&gt;
+&lt;p&gt;自行修改桥的名称（bridge1）及pppoe拨号口（pppoe-out1）的名称&lt;/p&gt;</description></item><item><title>05.RouterOS 配置动态公网 IP 的本地网络回流</title><link>https://purodn.tk/posts/routeros/routeros-05-hairpin-nat/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-05-hairpin-nat/</guid><description>&lt;h2 id="特别注意配置源地址伪装时若未限制出接口则回流已自动生效无需参考本文设置"&gt;特别注意！！配置源地址伪装时若未限制出接口，则回流已自动生效，无需参考本文设置&lt;/h2&gt;
+&lt;h3 id="1-适用条件"&gt;1. 适用条件&lt;/h3&gt;
+&lt;p&gt;本文介绍动态源地址伪装时限制出接口为pppoe-out1的情况下，如何在动态公网IP环境中，为ROS配置域名的本地网络回流。以动态公网IPv6为例，IPv4同理&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;注：先做好域名的DDNS&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="2-公网入口映射"&gt;2. 公网入口映射&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;在/ipv6/firewall/address-list中添加域名（任意一个能解析到ros的域名均可），以 ros.11111.xyz 为例
+&lt;img src="assets/routeros-05-hairpin-nat-05.png" alt=""&gt;&lt;/li&gt;
+&lt;li&gt;添加来自公网（pppoe-out1接口）的端口映射
+注：dc00::6666为内网反向代理服务（caddy）的ip，8443为转发的端口&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall nat add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dst-nat chain&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dstnat dst-port&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8443&lt;/span&gt; in-interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;pppoe-out1 protocol&lt;span style="color:#f92672"&gt;=&lt;/span&gt;tcp to-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::6666/128 to-ports&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8443&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-port=8443 in-interface=pppoe-out1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-05-hairpin-nat-01.png" alt=""&gt;&lt;/p&gt;
+&lt;h3 id="3-内网回流映射"&gt;3. 内网回流映射&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;添加来自内网（bridge1接口）的端口映射
+注：Dst.Address List选择第一步添加的域名，转发端口依然是8443&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall nat add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dst-nat chain&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dstnat dst-address-list&lt;span style="color:#f92672"&gt;=&lt;/span&gt;ros.11111.xyz dst-port&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8443&lt;/span&gt; in-interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 protocol&lt;span style="color:#f92672"&gt;=&lt;/span&gt;tcp to-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::6666/128 to-ports&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8443&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-address-list=ros.11111.xyz dst-port=8443 in-interface=bridge1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-05-hairpin-nat-02.png" alt=""&gt;&lt;/p&gt;
+&lt;h3 id="4-回流伪装"&gt;4. 回流伪装&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;为来自内网的回流流量添加动态伪装
+注：dc00::/64为内网IPv6段&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 firewall nat add action&lt;span style="color:#f92672"&gt;=&lt;/span&gt;masquerade chain&lt;span style="color:#f92672"&gt;=&lt;/span&gt;srcnat dst-port&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;8443&lt;/span&gt; out-interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 protocol&lt;span style="color:#f92672"&gt;=&lt;/span&gt;tcp src-address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::/64&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 firewall nat add action=masquerade chain=srcnat dst-port=8443 out-interface=bridge1 protocol=tcp src-address=dc00::/64"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-05-hairpin-nat-03.png" alt=""&gt;&lt;/p&gt;</description></item></channel></rss>

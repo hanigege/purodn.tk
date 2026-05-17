@@ -1,43 +1,36 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ros基础配置 on 电脑自习室</title><link>https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/</link><description>Recent content in Ros基础配置 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/index.xml" rel="self" type="application/rss+xml"/><item><title>00.RouterOS 初始化及基础配置</title><link>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</guid><description>&lt;h2 id="本文介绍routeros初始化后的一些基础配置第一次进入routeros先恢复原厂设置winbox以mac地址登录"&gt;本文介绍RouterOS初始化后的一些基础配置。第一次进入RouterOS先恢复原厂设置，Winbox以mac地址登录&lt;/h2&gt;
 &lt;h4 id="1-恢复出厂设置"&gt;1. 恢复出厂设置&lt;/h4&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system reset-configuration
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h4 id="2-接口命名与桥接"&gt;2. 接口命名与桥接&lt;/h4&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system reset-configuration&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/system reset-configuration"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="2-接口命名与桥接"&gt;2. 接口命名与桥接&lt;/h4&gt;
 &lt;p&gt;确认接口，区分lan，wan，更改名称为方便以后操作（建议手动操作）&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether1 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether2 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;wan
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src="https://purodn.tk/images/routeros/original/routeros-00-basic-setup-01.png" alt=""&gt;&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether1 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface set ether2 name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;wan&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/interface set ether1 name=lan\n/interface set ether2 name=wan"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-01.png" alt=""&gt;&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;建立bridge1，并将所有lan接口添加进桥&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge port add bridge&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src="https://purodn.tk/images/routeros/original/routeros-00-basic-setup-02.png" alt=""&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/interface bridge port add bridge&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;lan&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/interface bridge add name=bridge1\n/interface bridge port add bridge=bridge1 interface=lan"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-02.png" alt=""&gt;
 注：如果双网口，且不打算用ros的容器，可不建bridge，直接使用lan口，并接入物理交换机&lt;/p&gt;
 &lt;h4 id="3-本机地址"&gt;3. 本机地址&lt;/h4&gt;
 &lt;p&gt;为bridge1设置IP。本教程以bridge1为例，即ros本机ip为10.0.0.1/24&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip address add interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1/24 network&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src="https://purodn.tk/images/routeros/original/routeros-00-basic-setup-03.png" alt=""&gt;&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip address add interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1/24 network&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip address add interface=bridge1 address=10.0.0.1/24 network=10.0.0.0"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/routeros-00-basic-setup-03.png" alt=""&gt;&lt;/p&gt;
 &lt;h4 id="4-时间与-ntp"&gt;4. 时间与 NTP&lt;/h4&gt;
 &lt;p&gt;配置时区，配置NTP服务器&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system clock set time-zone-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Asia/Shanghai&amp;#34;&lt;/span&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system clock set time-zone-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Asia/Shanghai&amp;#34;&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system clock manual set time-zone&lt;span style="color:#f92672"&gt;=&lt;/span&gt;+08:00
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system ntp client set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes servers&lt;span style="color:#f92672"&gt;=&lt;/span&gt;cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h4 id="5-服务与端口硬化"&gt;5. 服务与端口硬化&lt;/h4&gt;
-&lt;p&gt;关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip smb set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip smb shares disable numbers&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;0&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip ssh set forwarding-enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip socks set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip upnp set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip proxy set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable api
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable api-ssl
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable ftp
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable ssh
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable telnet
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable www
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service disable www-ssl
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip service set winbox port&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;5391&lt;/span&gt; address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0/24
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/tool bandwidth-server set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h4 id="6-管理员账号"&gt;6. 管理员账号&lt;/h4&gt;
-&lt;p&gt;创建新的管理员帐号和密码，关闭默认管理员帐号&lt;/p&gt;</description></item></channel></rss>
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/system ntp client set enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes servers&lt;span style="color:#f92672"&gt;=&lt;/span&gt;cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/system clock set time-zone-name=\"Asia/Shanghai\"\n/system clock manual set time-zone=+08:00\n/system ntp client set enabled=yes servers=cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="5-服务与端口硬化"&gt;5. 服务与端口硬化&lt;/h4&gt;
+&lt;p&gt;关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段&lt;/p&gt;</description></item></channel></rss>

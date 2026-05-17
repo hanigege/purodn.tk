@@ -47,12 +47,12 @@
 &lt;/table&gt;
 &lt;h2 id="进入安装器"&gt;进入安装器&lt;/h2&gt;
 &lt;p&gt;启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&lt;/p&gt;
-&lt;p&gt;&lt;img src="https://purodn.tk/images/freebsd/original/freebsd15-minimal-install-01.png" alt="FreeBSD 安装器欢迎界面"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-01.png" alt="FreeBSD 安装器欢迎界面"&gt;&lt;/p&gt;
 &lt;h2 id="选择最小安装组件"&gt;选择最小安装组件&lt;/h2&gt;
 &lt;p&gt;&lt;code&gt;Distribution Sets&lt;/code&gt; 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&lt;/p&gt;
-&lt;p&gt;&lt;img src="https://purodn.tk/images/freebsd/original/freebsd15-minimal-install-02.png" alt="不要选择额外安装组件"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-02.png" alt="不要选择额外安装组件"&gt;&lt;/p&gt;
 &lt;p&gt;输入主机名。这里可以直接写机器用途，例如 &lt;code&gt;freebsd&lt;/code&gt;、&lt;code&gt;vps-freebsd&lt;/code&gt; 或自己的主机命名。&lt;/p&gt;
-&lt;p&gt;&lt;img src="https://purodn.tk/images/freebsd/original/freebsd15-minimal-install-03.png" alt="输入主机名"&gt;&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-03.png" alt="输入主机名"&gt;&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&lt;/p&gt;
 &lt;p&gt;建议按下面顺序做：&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;修正误创建的用户。&lt;/li&gt;
@@ -65,23 +65,21 @@
 &lt;h2 id="修正误创建的用户"&gt;修正误创建的用户&lt;/h2&gt;
 &lt;p&gt;如果安装阶段把用户名写错了，例如把 &lt;code&gt;felix&lt;/code&gt; 写成了 &lt;code&gt;fexil&lt;/code&gt;，可以先删除错误用户，再重新创建正确用户。&lt;/p&gt;
 &lt;p&gt;确认要删除的用户确实是错误账号后，在 root 下执行：&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw userdel -n fexil -r
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;参数含义：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw userdel -n fexil -r&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw userdel -n fexil -r"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;参数含义：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;code&gt;-n fexil&lt;/code&gt; 指定要删除的用户名。&lt;/li&gt;
 &lt;li&gt;&lt;code&gt;-r&lt;/code&gt; 会同时删除该用户的家目录，例如 &lt;code&gt;/home/fexil&lt;/code&gt;。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;然后重新创建正确的普通用户，并加入 &lt;code&gt;wheel&lt;/code&gt; 组：&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw useradd felix -m -G wheel -s /bin/sh
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;passwd felix
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;创建后检查用户和组：&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;id felix
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;看到输出中包含 &lt;code&gt;wheel&lt;/code&gt;，说明这个用户后续可以使用 &lt;code&gt;su&lt;/code&gt; 切换到 root。&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;su - felix
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;如果普通用户不能 &lt;code&gt;su&lt;/code&gt; 到 root，常见原因有两个：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;用户名拼写错了，实际登录的不是预期用户。&lt;/li&gt;
-&lt;li&gt;创建用户时没有加入 &lt;code&gt;wheel&lt;/code&gt; 组。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="为什么别人的最小化系统进程更少"&gt;为什么别人的最小化系统进程更少&lt;/h2&gt;
-&lt;p&gt;FreeBSD 最小化安装后，&lt;code&gt;htop&lt;/code&gt; 里看到的进程数量会受几个因素影响：&lt;/p&gt;</description></item></channel></rss>
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw useradd felix -m -G wheel -s /bin/sh
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;passwd felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw useradd felix -m -G wheel -s /bin/sh\npasswd felix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建后检查用户和组：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;id felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"id felix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;看到输出中包含 &lt;code&gt;wheel&lt;/code&gt;，说明这个用户后续可以使用 &lt;code&gt;su&lt;/code&gt; 切换到 root。&lt;/p&gt;</description></item></channel></rss>

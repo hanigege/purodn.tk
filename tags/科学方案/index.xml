@@ -25,7 +25,8 @@
 &lt;li&gt;28.0.0.0/8&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h4 id="完整流量路径"&gt;完整流量路径&lt;/h4&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-plaintext" data-lang="plaintext"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;浏览器访问 google
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-plaintext" data-lang="plaintext"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;浏览器访问 google
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;获取 fakeip（如 28.0.0.5）
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
@@ -39,6 +40,7 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;域名发送给代理节点进行 DNS 解析
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;内容返回浏览器
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h4 id="主路由配置"&gt;主路由配置&lt;/h4&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;内容返回浏览器&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"浏览器访问 google\n ↓\n获取 fakeip（如 28.0.0.5）\n ↓\n向 28.0.0.5 发起连接\n ↓\n主路由判断 28.0.0.5 在 fakeip 段内\n ↓\n通过静态路由/下一跳网关导入代理程序（sing-box 或 mihomo）\n ↓\n代理程序将 fakeip 还原为域名\n ↓\n域名发送给代理节点进行 DNS 解析\n ↓\n内容返回浏览器"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h4 id="主路由配置"&gt;主路由配置&lt;/h4&gt;
 &lt;p&gt;仅需 1 条规则：将 fakeip 段导入代理程序。&lt;/p&gt;</description></item></channel></rss>

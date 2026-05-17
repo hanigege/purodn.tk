@@ -2,19 +2,21 @@
 &lt;h3 id="1-客户端接入家庭局域网"&gt;1. 客户端接入家庭局域网&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;添加wireguard。名字（Name）及监听端口（Listen Port）可自定义
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-07.png" alt="1.png"&gt;&lt;/li&gt;
+&lt;img src="assets/routeros-07-wireguard-07.png" alt="1.png"&gt;&lt;/li&gt;
 &lt;li&gt;为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-08.png" alt="2.png"&gt;&lt;/li&gt;
+&lt;img src="assets/routeros-07-wireguard-08.png" alt="2.png"&gt;&lt;/li&gt;
 &lt;li&gt;添加客户端（peer）配置
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-09.png" alt="3.png"&gt;&lt;/li&gt;
+&lt;img src="assets/routeros-07-wireguard-09.png" alt="3.png"&gt;&lt;/li&gt;
 &lt;li&gt;双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-10.png" alt="4.png"&gt;&lt;/li&gt;
+&lt;img src="assets/routeros-07-wireguard-10.png" alt="4.png"&gt;&lt;/li&gt;
 &lt;li&gt;客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-11.png" alt="5.png"&gt;&lt;/li&gt;
+&lt;img src="assets/routeros-07-wireguard-11.png" alt="5.png"&gt;&lt;/li&gt;
 &lt;li&gt;如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="2-两个-ros-之间通过-wireguard-异地组网"&gt;2. 两个 ROS 之间通过 WireGuard 异地组网&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="2-两个-ros-之间通过-wireguard-异地组网"&gt;2. 两个 ROS 之间通过 WireGuard 异地组网&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例&lt;/li&gt;
 &lt;/ul&gt;
@@ -28,65 +30,55 @@ ROS2号&lt;/p&gt;
 10.20.40.1/24&lt;/p&gt;
 &lt;p&gt;DDNS域名
 无
-ros2.66666.xyz&lt;/p&gt;
-&lt;p&gt;wireguard监听端口
-13231
-13231&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;前提：ros1号已按第一种方法配置好wireguard&lt;/li&gt;
-&lt;li&gt;为ros2号添加wireguard，操作与ros1号一致，Name及Listen Port随意，以13231为例&lt;/li&gt;
-&lt;li&gt;为ros2号的wireguard配置ip。网段不可与ros2号现有局域网网段相同，也与ros1使用的wireguard网段不同，例如ros1的wireguard ip为10.20.30.1/24，ros2的wireguard ip为10.20.40.1/24
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-01.png" alt=""&gt;&lt;/li&gt;
-&lt;li&gt;在ros1中添加ros2号的peer。案例以ros2号有公网IP为例，在Endpoint、EndpointPort中填入DDNS域名及端口
-如果ros1号和ros2号均有公网IP，则Endpoint、EndpointPort都填入对方的DDNS域名及端口
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-02.png" alt=""&gt;&lt;/li&gt;
-&lt;li&gt;同理，在ros2号中添加ros1号的peer。ros1号无公网IP，则Endpoint、EndpointPort留空
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-03.png" alt=""&gt;&lt;/li&gt;
-&lt;li&gt;在ros1号中通过ping ros2号的wireguard ip检测wireguard隧道是否联通
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-04.png" alt=""&gt;&lt;/li&gt;
-&lt;li&gt;在ros1号和ros2号中分别添加route，将对方的局域网端通过wireguard联通。图示为ros2号添加route
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-05.png" alt=""&gt;&lt;/li&gt;
-&lt;li&gt;参照上一步，在ros1号中ping ros2号的LAN IP （192.168.31.1）检测route是否正确&lt;/li&gt;
-&lt;li&gt;现在两个ros的局域网已通过wireguard隧道连接&lt;/li&gt;
-&lt;li&gt;如果IPv4防火墙里的动态伪装限制了out interface为pppoe-out1，则需要新增一条以wireguard为out interfaces的动态伪装，没有限制则不需要做此操作。
-&lt;img src="https://purodn.tk/images/routeros/original/routeros-07-wireguard-06.png" alt=""&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>使用 tailscale 内网穿透回家及异地组网</title><link>https://purodn.tk/posts/linux/tailscale-home-network/</link><pubDate>Fri, 22 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/tailscale-home-network/</guid><description>&lt;h2 id="一通过部署tailscale内网穿透到家中使用家里的mosdns分流国内流量走客户端直连国外流量fakeip通过tailscale回家后再通过家里的singbox走代理适用于无公网ip无法使用hy2回家的小朋友"&gt;一、通过部署tailscale，内网穿透到家中，使用家里的mosdns分流。国内流量走客户端直连，国外流量（fakeip）通过tailscale回家后再通过家里的singbox走代理。适用于无公网ip无法使用hy2回家的小朋友~&lt;/h2&gt;
+ros2.66666.xyz&lt;/p&gt;</description></item><item><title>使用 tailscale 内网穿透回家及异地组网</title><link>https://purodn.tk/posts/linux/tailscale-home-network/</link><pubDate>Fri, 22 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/tailscale-home-network/</guid><description>&lt;h2 id="一通过部署tailscale内网穿透到家中使用家里的mosdns分流国内流量走客户端直连国外流量fakeip通过tailscale回家后再通过家里的singbox走代理适用于无公网ip无法使用hy2回家的小朋友"&gt;一、通过部署tailscale，内网穿透到家中，使用家里的mosdns分流。国内流量走客户端直连，国外流量（fakeip）通过tailscale回家后再通过家里的singbox走代理。适用于无公网ip无法使用hy2回家的小朋友~&lt;/h2&gt;
 &lt;h3 id="pve中使用vm虚拟机推荐debian12部署tailscale"&gt;pve中使用vm虚拟机（推荐debian12）部署tailscale&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://tailscale.com/install.sh | sh
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="开启流量转发"&gt;开启流量转发&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://tailscale.com/install.sh | sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"curl -fsSL https://tailscale.com/install.sh | sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="开启流量转发"&gt;开启流量转发&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;使用nano编辑/etc/sysctl.conf文件&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo nano /etc/sysctl.conf
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo nano /etc/sysctl.conf&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo nano /etc/sysctl.conf"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;找到net.ipv4.ip_forward=1去掉#注释，修改为
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-05.png" alt=""&gt;&lt;/li&gt;
+&lt;img src="assets/tailscale-home-network-05.png" alt=""&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;net.ipv4.ip_forward&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;net.ipv4.ip_forward&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"net.ipv4.ip_forward=1"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;使修改生效&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl --system
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="先关闭tailscale"&gt;先关闭tailscale&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale down
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="加参数启动tailscale"&gt;加参数启动tailscale&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl --system&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sysctl --system"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="先关闭tailscale"&gt;先关闭tailscale&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale down&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"tailscale down"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="加参数启动tailscale"&gt;加参数启动tailscale&lt;/h3&gt;
 &lt;p&gt;自行修改示例中的内网ip段和fakeip段，添加后tailscale将允许上述流量通过&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="点击ssh界面中的登录链接登录ts账号"&gt;点击ssh界面中的登录链接登录ts账号&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"tailscale up --advertise-routes=dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="点击ssh界面中的登录链接登录ts账号"&gt;点击ssh界面中的登录链接登录ts账号&lt;/h3&gt;
 &lt;h3 id="登录tailscale官网编辑刚才新建的节点点击edit-route-settings点击approve-all选中所有路由的ip勾选use-as-exit-node点击save保存"&gt;登录tailscale官网，编辑刚才新建的节点点击“Edit route settings…”，点击“Approve all”选中所有路由的IP，勾选“Use as exit node”，点击“Save保存&lt;/h3&gt;
 &lt;p&gt;官网地址：https://login.tailscale.com/admin/machines
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-01.png" alt=""&gt;&lt;/p&gt;
+&lt;img src="assets/tailscale-home-network-01.png" alt=""&gt;&lt;/p&gt;
 &lt;h3 id="添加mosdns为dns服务器"&gt;添加mosdns为DNS服务器&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;修改Global nameservers为mosdns的内网ip
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-06.png" alt=""&gt;
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-07.png" alt=""&gt;&lt;/li&gt;
+&lt;img src="assets/tailscale-home-network-06.png" alt=""&gt;
+&lt;img src="assets/tailscale-home-network-07.png" alt=""&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 id="手机等设备登录tailscale后勾选刚才新建的tailscale服务为exit-node并打开-allow-local-network-access"&gt;手机等设备登录tailscale后，勾选刚才新建的tailscale服务为“exit node”，并打开 “Allow Local Network Access”&lt;/h3&gt;
-&lt;p&gt;&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-02.png" alt=""&gt;
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-03.png" alt=""&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/tailscale-home-network-02.png" alt=""&gt;
+&lt;img src="assets/tailscale-home-network-03.png" alt=""&gt;&lt;/p&gt;
 &lt;h3 id="按需开启enbale选项开启后ts将路由所有流量分流失效图示为未开启状态"&gt;按需开启Enbale选项（开启后ts将路由所有流量，分流失效，图示为未开启状态）&lt;/h3&gt;
-&lt;p&gt;&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-04.png" alt=""&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/tailscale-home-network-04.png" alt=""&gt;&lt;/p&gt;
 &lt;h2 id="二通过tailscale异地组网"&gt;二、通过tailscale异地组网&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;可实现vps通过tailscale隧道访问家中服务，配合vps中部署的反代使用效果极佳&lt;/li&gt;
@@ -94,33 +86,47 @@ ros2.66666.xyz&lt;/p&gt;
 &lt;/ul&gt;
 &lt;h3 id="异地组网不能配置global-nameservers所以上述分流回家方案与这个方案不可兼得手机需要科学的话只能开启路由所有流量"&gt;异地组网不能配置Global nameservers，所以上述分流回家方案与这个方案不可兼得。手机需要科学的话只能开启路由所有流量。&lt;/h3&gt;
 &lt;h3 id="如果从上述方案迁移到这个方案先在a家里停止刚才的tailscale并重新启动"&gt;如果从上述方案迁移到这个方案，先在A家里停止刚才的tailscale并重新启动&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale down
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale down&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"tailscale down"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;重新启动，通告A家庭中的局域网IP段，可使用key登录&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --auth-key&lt;span style="color:#f92672"&gt;=&lt;/span&gt;你的key --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0/24 --advertise-exit-node --accept-routes
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --auth-key&lt;span style="color:#f92672"&gt;=&lt;/span&gt;你的key --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0/24 --advertise-exit-node --accept-routes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"tailscale up --auth-key=你的key --advertise-routes=10.0.0.0/24 --advertise-exit-node --accept-routes"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;在ts网页中，将ts回家时添加的Global nameservers删除，同时点击 DISABLE MagicDNS，禁用 MagicDNS&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 id="在b家中任意vm中安装tailscale"&gt;在B家中任意vm中安装tailscale&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://tailscale.com/install.sh | sh
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="开启流量转发-1"&gt;开启流量转发&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://tailscale.com/install.sh | sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"curl -fsSL https://tailscale.com/install.sh | sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="开启流量转发-1"&gt;开启流量转发&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;使用nano编辑/etc/sysctl.conf文件&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo nano /etc/sysctl.conf
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo nano /etc/sysctl.conf&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo nano /etc/sysctl.conf"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;找到net.ipv4.ip_forward=1去掉#注释，修改为
-&lt;img src="https://purodn.tk/images/linux/original/tailscale-home-network-08.png" alt=""&gt;&lt;/li&gt;
+&lt;img src="assets/tailscale-home-network-08.png" alt=""&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;net.ipv4.ip_forward&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;net.ipv4.ip_forward&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"net.ipv4.ip_forward=1"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;使修改生效&lt;/li&gt;
 &lt;/ul&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl --system
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="启动tailscale通告b家庭中的局域网ip段"&gt;启动tailscale，通告B家庭中的局域网IP段&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --auth-key&lt;span style="color:#f92672"&gt;=&lt;/span&gt;你的key --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;192.168.2.0/24 --advertise-exit-node --accept-routes
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl --system&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sysctl --system"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h3 id="启动tailscale通告b家庭中的局域网ip段"&gt;启动tailscale，通告B家庭中的局域网IP段&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tailscale up --auth-key&lt;span style="color:#f92672"&gt;=&lt;/span&gt;你的key --advertise-routes&lt;span style="color:#f92672"&gt;=&lt;/span&gt;192.168.2.0/24 --advertise-exit-node --accept-routes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"tailscale up --auth-key=你的key --advertise-routes=192.168.2.0/24 --advertise-exit-node --accept-routes"&lt;/script&gt;
+&lt;/div&gt;
+&lt;ul&gt;
 &lt;li&gt;注意，两地局域网段不可相同！！&lt;/li&gt;
 &lt;li&gt;此时在部署tailscale的vm虚拟机中已组网完成，ping A家里的局域网设备（如 ping 10.0.0.1测试），理论上已通&lt;/li&gt;
 &lt;li&gt;通过在主路由中设置静态路由的方式，可实现局域网内所有设备互联。如在B家中的主路由，设置目标IP为A家内网网段的网关（下一跳）为B家部署tailscale的vm虚拟机的IP即可。A家操作同理。&lt;/li&gt;
