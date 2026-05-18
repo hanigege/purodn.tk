@@ -13,5 +13,20 @@
 /resources/
 /.hugo_build.lock
 
+# Generated static output should not live in the Hugo source root.
+/categories/
+/css/
+/images/
+/js/
+/page/
+/posts/
+/search/
+/tags/
+/index.html
+/index.json
+/index.xml
+/sitemap.xml
+/CNAME
+
 # macOS metadata.
 .DS_Store

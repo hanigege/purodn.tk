@@ -21,6 +21,11 @@
 &lt;p&gt;这里推荐让目录归属为 &lt;code&gt;root:www&lt;/code&gt;。Nginx worker 以 &lt;code&gt;www&lt;/code&gt; 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&lt;/p&gt;
 &lt;h2 id="创建认证密码文件"&gt;创建认证密码文件&lt;/h2&gt;
 &lt;p&gt;如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 &lt;code&gt;openssl&lt;/code&gt;，不需要额外安装工具。&lt;/p&gt;</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>&lt;p&gt;本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&lt;/p&gt;
+&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
+&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
+ &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/f4ShA57AAco?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
+ &lt;/div&gt;
+
 &lt;h2 id="一在-proxmox-ve-中创建-debian-13-虚拟机"&gt;一、在 Proxmox VE 中创建 Debian 13 虚拟机&lt;/h2&gt;
 &lt;p&gt;进入 Proxmox VE Shell，执行社区脚本：&lt;/p&gt;
 &lt;div class="code-block"&gt;
@@ -33,13 +38,12 @@
 &lt;li&gt;DNS&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;填写完成后点击“重生成镜像”，然后重启虚拟机。&lt;/p&gt;
-&lt;p&gt;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 &lt;code&gt;host&lt;/code&gt;。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&lt;/p&gt;
-&lt;h2 id="二登录-debian-13-并安装基础工具"&gt;二、登录 Debian 13 并安装基础工具&lt;/h2&gt;
-&lt;p&gt;通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt update &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; apt install -y curl wget unzip&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apt update \u0026\u0026 apt install -y curl wget unzip"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;操作前检查 53 端口占用情况：&lt;/p&gt;</description></item><item><title>（原创）2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>&lt;p&gt;本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&lt;/p&gt;
+&lt;p&gt;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 &lt;code&gt;host&lt;/code&gt;。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&lt;/p&gt;</description></item><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>&lt;p&gt;本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&lt;/p&gt;
+&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
+&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
+ &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/QTZRFvTacwU?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
+ &lt;/div&gt;
+
 &lt;p&gt;这套配置包含：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;code&gt;lazy.nvim&lt;/code&gt; 插件管理器&lt;/li&gt;
