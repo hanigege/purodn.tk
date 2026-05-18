@@ -1,502 +1,205 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务 | 电脑自习室</title>
-    <meta name="description" content="在 Alpine Linux 上使用 Nginx 提供 HTTPS 文件目录浏览，配置 Basic Auth、敏感文件拦截、日志轮转、Gzip、限流、强制下载和 BBR。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-18">2026年5月18日</time>
-        </div>
-        <h1>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</h1>
-          <p>在 Alpine Linux 上使用 Nginx 提供 HTTPS 文件目录浏览，配置 Basic Auth、敏感文件拦截、日志轮转、Gzip、限流、强制下载和 BBR。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg" alt="">
-
-      <div class="article-content">
-        <p>在 Alpine Linux 下，如果只是临时分享目录，<code>python3 -m http.server</code> 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。</p>
-<p>本文以 <code>fetch.jgaga.tk</code> 为示例域名，Web 根目录为 <code>/var/www/fetch.jgaga.tk</code>。实际使用时，把域名和目录替换成自己的即可。</p>
-<h2 id="准备证书">准备证书</h2>
-<p>正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 <code>acme.sh</code>、<code>lego</code> 或 <code>certbot</code>。</p>
-<p>本文后续示例假设证书和私钥已经放在下面的位置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt
-</span></span><span style="display:flex;"><span>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key</span></span></code></pre></div><script class="code-source" type="application/json">"/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt\n/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key"</script>
-</div>
-<p>如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 <code>ssl_certificate</code> 和 <code>ssl_certificate_key</code>。</p>
-<h2 id="安装并启用-nginx">安装并启用 Nginx</h2>
-<p>Alpine 使用 <code>apk</code> 安装软件，服务管理使用 OpenRC：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk update
-</span></span><span style="display:flex;"><span>apk add nginx openssl logrotate
-</span></span><span style="display:flex;"><span>rc-update add nginx default</span></span></code></pre></div><script class="code-source" type="application/json">"apk update\napk add nginx openssl logrotate\nrc-update add nginx default"</script>
-</div>
-<p>创建 Web 根目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /var/www/fetch.jgaga.tk
-</span></span><span style="display:flex;"><span>chown -R root:nginx /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /var/www/fetch.jgaga.tk\nchown -R root:nginx /var/www/fetch.jgaga.tk"</script>
-</div>
-<p>这里推荐让目录归属为 <code>root:nginx</code>。Nginx worker 以 <code>nginx</code> 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。</p>
-<h2 id="创建认证密码文件">创建认证密码文件</h2>
-<p>如果目录要对外开放，建议先加 Basic Auth。下面以用户名 <code>admin</code> 为例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>printf <span style="color:#e6db74">&#34;admin:%s\n&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>openssl passwd -apr1<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> &gt; /etc/nginx/.htpasswd
-</span></span><span style="display:flex;"><span>chown root:nginx /etc/nginx/.htpasswd
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">640</span> /etc/nginx/.htpasswd</span></span></code></pre></div><script class="code-source" type="application/json">"printf \"admin:%s\\n\" \"$(openssl passwd -apr1)\" \u003e /etc/nginx/.htpasswd\nchown root:nginx /etc/nginx/.htpasswd\nchmod 640 /etc/nginx/.htpasswd"</script>
-</div>
-<p>执行第一条命令时，系统会提示输入并确认密码，输入过程不会显示字符，这是正常的。</p>
-<p>如果要换用户名，修改冒号前面的 <code>admin</code> 后重新生成即可：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>printf <span style="color:#e6db74">&#34;your_username:%s\n&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>openssl passwd -apr1<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> &gt; /etc/nginx/.htpasswd
-</span></span><span style="display:flex;"><span>chown root:nginx /etc/nginx/.htpasswd
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">640</span> /etc/nginx/.htpasswd</span></span></code></pre></div><script class="code-source" type="application/json">"printf \"your_username:%s\\n\" \"$(openssl passwd -apr1)\" \u003e /etc/nginx/.htpasswd\nchown root:nginx /etc/nginx/.htpasswd\nchmod 640 /etc/nginx/.htpasswd"</script>
-</div>
-<h2 id="创建日志目录">创建日志目录</h2>
-<p>为了让日志路径和后面的 <code>logrotate</code> 规则一致，先显式创建 Nginx 日志目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /var/log/nginx
-</span></span><span style="display:flex;"><span>chown root:nginx /var/log/nginx
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /var/log/nginx</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /var/log/nginx\nchown root:nginx /var/log/nginx\nchmod 755 /var/log/nginx"</script>
-</div>
-<h2 id="nginx-完整配置">Nginx 完整配置</h2>
-<p>编辑 <code>/etc/nginx/nginx.conf</code>，可以按下面这份配置整理。它包含：</p>
-<ul>
-<li>HTTP 自动跳转 HTTPS</li>
-<li>Let&rsquo;s Encrypt ACME 验证目录放行</li>
-<li>TLS 1.2 / TLS 1.3</li>
-<li>HTTP/2</li>
-<li>目录浏览</li>
-<li>Basic Auth</li>
-<li>敏感文件拦截</li>
-<li>Gzip</li>
-<li>单 IP 并发、请求频率和下载速度限制</li>
-<li>指定格式强制下载</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">user</span> <span style="color:#e6db74">nginx</span>;
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">worker_processes</span> <span style="color:#e6db74">auto</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">events</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">worker_connections</span> <span style="color:#ae81ff">1024</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">http</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">include</span>       <span style="color:#e6db74">/etc/nginx/mime.types</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">default_type</span>  <span style="color:#e6db74">application/octet-stream</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">access_log</span> <span style="color:#e6db74">/var/log/nginx/access.log</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">error_log</span>  <span style="color:#e6db74">/var/log/nginx/error.log</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">sendfile</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">keepalive_timeout</span> <span style="color:#ae81ff">65</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gzip</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gzip_vary</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gzip_comp_level</span> <span style="color:#ae81ff">5</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gzip_min_length</span> <span style="color:#ae81ff">1024</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gzip_types</span> <span style="color:#e6db74">text/plain</span> <span style="color:#e6db74">text/css</span> <span style="color:#e6db74">text/xml</span> <span style="color:#e6db74">text/javascript</span> <span style="color:#e6db74">application/json</span> <span style="color:#e6db74">application/javascript</span> <span style="color:#e6db74">application/x-javascript</span> <span style="color:#e6db74">application/xml</span> <span style="color:#e6db74">application/xml+rss</span> <span style="color:#e6db74">application/x-sh</span> <span style="color:#e6db74">application/x-yaml</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 限速与请求频率的共享内存区域定义
-</span></span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_conn_zone</span> $binary_remote_addr <span style="color:#e6db74">zone=addr_conn:10m</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_req_zone</span>  $binary_remote_addr <span style="color:#e6db74">zone=addr_req:10m</span> <span style="color:#e6db74">rate=5r/s</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ========================================================
-</span></span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 1. 80 端口：负责 Let&#39;s Encrypt 证书验证及全站强制跳转 HTTPS
-</span></span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ========================================================
-</span></span></span><span style="display:flex;"><span>    <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">listen</span> <span style="color:#ae81ff">80</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">listen</span> <span style="color:#e6db74">[::]:80</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">server_name</span> <span style="color:#e6db74">fetch.jgaga.tk</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">location</span> <span style="color:#e6db74">/.well-known/acme-challenge/</span> {
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">root</span> <span style="color:#e6db74">/var/www/fetch.jgaga.tk</span>;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">location</span> <span style="color:#e6db74">/</span> {
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">return</span> <span style="color:#ae81ff">301</span> <span style="color:#e6db74">https://</span>$host$request_uri;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ========================================================
-</span></span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 2. 10521 端口：全站安全、密码认证、完全去重后的限速下载服务
-</span></span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ========================================================
-</span></span></span><span style="display:flex;"><span>    <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">listen</span> <span style="color:#ae81ff">10521</span> <span style="color:#e6db74">ssl</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">listen</span> <span style="color:#e6db74">[::]:10521</span> <span style="color:#e6db74">ssl</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">http2</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">server_name</span> <span style="color:#e6db74">fetch.jgaga.tk</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># SSL 证书配置
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_certificate</span>     <span style="color:#e6db74">/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_certificate_key</span> <span style="color:#e6db74">/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># SSL 安全参数
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_protocols</span> <span style="color:#e6db74">TLSv1.2</span> <span style="color:#e6db74">TLSv1.3</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_ciphers</span> <span style="color:#e6db74">ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_prefer_server_ciphers</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_session_timeout</span> <span style="color:#e6db74">1d</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_session_cache</span> <span style="color:#e6db74">shared:MozSSL:10m</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ssl_session_tickets</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 【优化】提取至 server 全局：全站通用的安全响应头
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">add_header</span> <span style="color:#e6db74">Strict-Transport-Security</span> <span style="color:#e6db74">&#34;max-age=63072000&#34;</span> <span style="color:#e6db74">always</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">add_header</span> <span style="color:#e6db74">X-Content-Type-Options</span> <span style="color:#e6db74">nosniff</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">add_header</span> <span style="color:#e6db74">X-Frame-Options</span> <span style="color:#e6db74">SAMEORIGIN</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">add_header</span> <span style="color:#e6db74">X-XSS-Protection</span> <span style="color:#e6db74">&#34;1</span>; <span style="color:#f92672">mode=block&#34;</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 【优化】提取至 server 全局：网页与文件下载统一要求密码认证
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">auth_basic</span> <span style="color:#e6db74">&#34;Restricted</span> <span style="color:#e6db74">Access&#34;</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">auth_basic_user_file</span> <span style="color:#e6db74">/etc/nginx/.htpasswd</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 【优化】提取至 server 全局：统一限速规则（前 500MB 全速，后续 500KB/s）
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">limit_conn</span> <span style="color:#e6db74">addr_conn</span> <span style="color:#ae81ff">3</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">limit_req</span> <span style="color:#e6db74">zone=addr_req</span> <span style="color:#e6db74">burst=10</span> <span style="color:#e6db74">nodelay</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">limit_rate_after</span> <span style="color:#ae81ff">500m</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">limit_rate</span> <span style="color:#ae81ff">500k</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 网站根目录
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">root</span> <span style="color:#e6db74">/var/www/fetch.jgaga.tk</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">index</span> <span style="color:#e6db74">index.html</span> <span style="color:#e6db74">index.htm</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 拒绝访问以 . 开头的隐藏文件（如 .htaccess, .git 等）
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">location</span> ~ <span style="color:#e6db74">/\.</span> {
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">deny</span> <span style="color:#e6db74">all</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">access_log</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">log_not_found</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 拒绝访问敏感后缀文件
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">location</span> ~ <span style="color:#e6db74">\.(key|pem|conf|sh|sql)$</span> {
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">deny</span> <span style="color:#e6db74">all</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">access_log</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">log_not_found</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># 核心处理块：包含全站文件浏览列表
-</span></span></span><span style="display:flex;"><span>        <span style="color:#f92672">location</span> <span style="color:#e6db74">/</span> {
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">autoindex</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">autoindex_exact_size</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">autoindex_localtime</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#f92672">charset</span> <span style="color:#e6db74">utf-8</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>            <span style="color:#75715e"># 【无重绝招】如果是特定的媒体或文档文件，直接在此强制触发下载。
-</span></span></span><span style="display:flex;"><span>            <span style="color:#75715e"># 这样既实现了图片/视频强制下载，又完美继承了上面所有的安全头、认证和限速，绝无重复代码。
-</span></span></span><span style="display:flex;"><span>            <span style="color:#f92672">if</span> <span style="color:#e6db74">(</span>$request_filename ~<span style="color:#e6db74">*</span> <span style="color:#e6db74">\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)</span>$<span style="color:#e6db74">)</span> {
-</span></span><span style="display:flex;"><span>                <span style="color:#f92672">add_header</span> <span style="color:#e6db74">Content-Disposition</span> <span style="color:#e6db74">&#34;attachment&#34;</span>;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"user nginx;\nworker_processes auto;\n\nevents {\n    worker_connections 1024;\n}\n\nhttp {\n    include       /etc/nginx/mime.types;\n    default_type  application/octet-stream;\n\n    access_log /var/log/nginx/access.log;\n    error_log  /var/log/nginx/error.log;\n\n    sendfile on;\n    keepalive_timeout 65;\n\n    gzip on;\n    gzip_vary on;\n    gzip_comp_level 5;\n    gzip_min_length 1024;\n    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/x-javascript application/xml application/xml+rss application/x-sh application/x-yaml;\n\n    # 限速与请求频率的共享内存区域定义\n    limit_conn_zone $binary_remote_addr zone=addr_conn:10m;\n    limit_req_zone  $binary_remote_addr zone=addr_req:10m rate=5r/s;\n\n    # ========================================================\n    # 1. 80 端口：负责 Let's Encrypt 证书验证及全站强制跳转 HTTPS\n    # ========================================================\n    server {\n        listen 80;\n        listen [::]:80;\n        server_name fetch.jgaga.tk;\n\n        location /.well-known/acme-challenge/ {\n            root /var/www/fetch.jgaga.tk;\n        }\n\n        location / {\n            return 301 https://$host$request_uri;\n        }\n    }\n\n    # ========================================================\n    # 2. 10521 端口：全站安全、密码认证、完全去重后的限速下载服务\n    # ========================================================\n    server {\n        listen 10521 ssl;\n        listen [::]:10521 ssl;\n        http2 on;\n        server_name fetch.jgaga.tk;\n\n        # SSL 证书配置\n        ssl_certificate     /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt;\n        ssl_certificate_key /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key;\n\n        # SSL 安全参数\n        ssl_protocols TLSv1.2 TLSv1.3;\n        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;\n        ssl_prefer_server_ciphers off;\n        ssl_session_timeout 1d;\n        ssl_session_cache shared:MozSSL:10m;\n        ssl_session_tickets off;\n\n        # 【优化】提取至 server 全局：全站通用的安全响应头\n        add_header Strict-Transport-Security \"max-age=63072000\" always;\n        add_header X-Content-Type-Options nosniff;\n        add_header X-Frame-Options SAMEORIGIN;\n        add_header X-XSS-Protection \"1; mode=block\";\n\n        # 【优化】提取至 server 全局：网页与文件下载统一要求密码认证\n        auth_basic \"Restricted Access\";\n        auth_basic_user_file /etc/nginx/.htpasswd;\n\n        # 【优化】提取至 server 全局：统一限速规则（前 500MB 全速，后续 500KB/s）\n        limit_conn addr_conn 3;\n        limit_req zone=addr_req burst=10 nodelay;\n        limit_rate_after 500m;\n        limit_rate 500k;\n\n        # 网站根目录\n        root /var/www/fetch.jgaga.tk;\n        index index.html index.htm;\n\n        # 拒绝访问以 . 开头的隐藏文件（如 .htaccess, .git 等）\n        location ~ /\\. {\n            deny all;\n            access_log off;\n            log_not_found off;\n        }\n\n        # 拒绝访问敏感后缀文件\n        location ~ \\.(key|pem|conf|sh|sql)$ {\n            deny all;\n            access_log off;\n            log_not_found off;\n        }\n\n        # 核心处理块：包含全站文件浏览列表\n        location / {\n            autoindex on;\n            autoindex_exact_size off;\n            autoindex_localtime on;\n            charset utf-8;\n\n            # 【无重绝招】如果是特定的媒体或文档文件，直接在此强制触发下载。\n            # 这样既实现了图片/视频强制下载，又完美继承了上面所有的安全头、认证和限速，绝无重复代码。\n            if ($request_filename ~* \\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)$) {\n                add_header Content-Disposition \"attachment\";\n            }\n        }\n    }\n}"</script>
-</div>
-<p>注意：使用正则 <code>location</code> 匹配强制下载文件时，请把认证和限流也写进去。否则直接访问这些文件 URL 时，可能绕过 <code>location /</code> 中的控制规则。</p>
-<h2 id="测试并启动服务">测试并启动服务</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nginx -t
-</span></span><span style="display:flex;"><span>rc-service nginx start</span></span></code></pre></div><script class="code-source" type="application/json">"nginx -t\nrc-service nginx start"</script>
-</div>
-<p>后续修改配置后，使用 reload 即可：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nginx -t
-</span></span><span style="display:flex;"><span>rc-service nginx reload</span></span></code></pre></div><script class="code-source" type="application/json">"nginx -t\nrc-service nginx reload"</script>
-</div>
-<p>打开 <code>https://fetch.jgaga.tk:10521</code> 后，应该会先弹出 Basic Auth 登录框。认证通过后，可以看到 Nginx 的目录列表。</p>
-<h2 id="修复点击文件-403-的权限问题">修复点击文件 403 的权限问题</h2>
-<p>如果目录列表能显示文件名，但点击 <code>.jpg</code> 等文件时返回 <code>403 Forbidden</code>，通常是文件本身权限不足。<code>autoindex</code> 能列目录，不代表 Nginx 一定能读取文件内容。</p>
-<p>推荐先把目录所有权整理为 <code>root:nginx</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown -R root:nginx /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R root:nginx /var/www/fetch.jgaga.tk"</script>
-</div>
-<p>如果仍然有权限问题，再统一修正目录和文件权限：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>find /var/www/fetch.jgaga.tk -type d -exec chmod <span style="color:#ae81ff">755</span> <span style="color:#f92672">{}</span> <span style="color:#ae81ff">\;</span>
-</span></span><span style="display:flex;"><span>find /var/www/fetch.jgaga.tk -type f -exec chmod <span style="color:#ae81ff">644</span> <span style="color:#f92672">{}</span> <span style="color:#ae81ff">\;</span></span></span></code></pre></div><script class="code-source" type="application/json">"find /var/www/fetch.jgaga.tk -type d -exec chmod 755 {} \\;\nfind /var/www/fetch.jgaga.tk -type f -exec chmod 644 {} \\;"</script>
-</div>
-<p>执行完不需要重启 Nginx，刷新浏览器即可。</p>
-<h2 id="让普通用户管理文件目录">让普通用户管理文件目录</h2>
-<p>普通用户不能直接运行当前这套 Nginx 服务，因为 80 和 443 属于特权端口，证书私钥和系统日志也需要更高权限。正确做法是：Nginx 仍由 root 启动，worker 自动降权为 <code>nginx</code>；普通用户只负责上传和管理 Web 根目录里的文件。</p>
-<p>假设普通用户是 <code>felix</code>，先把它加入 <code>nginx</code> 组：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>addgroup felix nginx</span></span></code></pre></div><script class="code-source" type="application/json">"addgroup felix nginx"</script>
-</div>
-<p>再允许同组用户写入目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod -R <span style="color:#ae81ff">775</span> /var/www/fetch.jgaga.tk
-</span></span><span style="display:flex;"><span>chmod g+s /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class="code-source" type="application/json">"chmod -R 775 /var/www/fetch.jgaga.tk\nchmod g+s /var/www/fetch.jgaga.tk"</script>
-</div>
-<p><code>chmod g+s</code> 会让目录中新建的文件继承 <code>nginx</code> 组，避免后续文件归属变得混乱。</p>
-<p>修改用户组后，旧 SSH 会话不会自动刷新身份。重新登录，或在当前终端执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>su - felix</span></span></code></pre></div><script class="code-source" type="application/json">"su - felix"</script>
-</div>
-<p>然后用 <code>id</code> 确认输出里包含 <code>nginx</code> 组。</p>
-<h2 id="配置日志按天轮转">配置日志按天轮转</h2>
-<p>Alpine 没有 FreeBSD 的 <code>newsyslog</code>，这里使用 <code>logrotate</code>。前面已经通过 <code>apk add logrotate</code> 安装。</p>
-<p>创建 <code>/etc/logrotate.d/nginx</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/var/log/nginx/*.log {
-</span></span><span style="display:flex;"><span>    daily
-</span></span><span style="display:flex;"><span>    rotate 30
-</span></span><span style="display:flex;"><span>    missingok
-</span></span><span style="display:flex;"><span>    notifempty
-</span></span><span style="display:flex;"><span>    compress
-</span></span><span style="display:flex;"><span>    delaycompress
-</span></span><span style="display:flex;"><span>    create 0644 root nginx
-</span></span><span style="display:flex;"><span>    sharedscripts
-</span></span><span style="display:flex;"><span>    postrotate
-</span></span><span style="display:flex;"><span>        [ -s /run/nginx/nginx.pid ] &amp;&amp; kill -USR1 &#34;$(cat /run/nginx/nginx.pid)&#34;
-</span></span><span style="display:flex;"><span>    endscript
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"/var/log/nginx/*.log {\n    daily\n    rotate 30\n    missingok\n    notifempty\n    compress\n    delaycompress\n    create 0644 root nginx\n    sharedscripts\n    postrotate\n        [ -s /run/nginx/nginx.pid ] \u0026\u0026 kill -USR1 \"$(cat /run/nginx/nginx.pid)\"\n    endscript\n}"</script>
-</div>
-<p>参数说明：</p>
-<ul>
-<li><code>daily</code>：每天轮转。</li>
-<li><code>rotate 30</code>：保留最近 30 天日志。</li>
-<li><code>compress</code> 和 <code>delaycompress</code>：压缩旧日志，并延后一轮压缩当前刚切走的文件。</li>
-<li><code>create 0644 root nginx</code>：轮转后创建新的日志文件。</li>
-<li><code>kill -USR1</code>：通知 Nginx master 重新打开日志文件，无需重启服务。</li>
-</ul>
-<p>测试配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>logrotate -d /etc/logrotate.d/nginx</span></span></code></pre></div><script class="code-source" type="application/json">"logrotate -d /etc/logrotate.d/nginx"</script>
-</div>
-<p>如果没有语法错误，即可交给系统定时任务自动执行。Alpine 通常通过 <code>/etc/periodic/daily/logrotate</code> 调用 logrotate；如果你的系统没有这个文件，可以手动确认 <code>crond</code> 是否启用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-update add crond default
-</span></span><span style="display:flex;"><span>rc-service crond start</span></span></code></pre></div><script class="code-source" type="application/json">"rc-update add crond default\nrc-service crond start"</script>
-</div>
-<h2 id="强制下载指定文件类型">强制下载指定文件类型</h2>
-<p>如果希望点击图片、视频、PDF、文本文件时不要在浏览器中预览，而是直接弹出下载，可以使用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">location</span> ~<span style="color:#e6db74">*</span> <span style="color:#e6db74">\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)</span>$ {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">add_header</span> <span style="color:#e6db74">Content-Disposition</span> <span style="color:#e6db74">&#34;attachment&#34;</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">auth_basic</span> <span style="color:#e6db74">&#34;Restricted</span> <span style="color:#e6db74">Access&#34;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">auth_basic_user_file</span> <span style="color:#e6db74">/etc/nginx/.htpasswd</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_conn</span> <span style="color:#e6db74">addr_conn</span> <span style="color:#ae81ff">3</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_req</span> <span style="color:#e6db74">zone=addr_req</span> <span style="color:#e6db74">burst=10</span> <span style="color:#e6db74">nodelay</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_rate_after</span> <span style="color:#ae81ff">500m</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limit_rate</span> <span style="color:#ae81ff">500k</span>;
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"location ~* \\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)$ {\n    add_header Content-Disposition \"attachment\";\n\n    auth_basic \"Restricted Access\";\n    auth_basic_user_file /etc/nginx/.htpasswd;\n\n    limit_conn addr_conn 3;\n    limit_req zone=addr_req burst=10 nodelay;\n    limit_rate_after 500m;\n    limit_rate 500k;\n}"</script>
-</div>
-<p>如果你的 HTTPS server 里已经有全局安全响应头，建议也在这个正则 <code>location</code> 中补齐一份 <code>add_header</code>。Nginx 的 <code>add_header</code> 在不同层级混用时容易出现继承行为不符合直觉的情况，直接写全更稳。</p>
-<h2 id="可选内网免密外网认证">可选：内网免密、外网认证</h2>
-<p>如果以后想让内网直接访问，外网才需要密码，可以在 <code>location /</code> 中使用 <code>satisfy any</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">location</span> <span style="color:#e6db74">/</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">autoindex</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">autoindex_exact_size</span> <span style="color:#66d9ef">off</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">autoindex_localtime</span> <span style="color:#66d9ef">on</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">charset</span> <span style="color:#e6db74">utf-8</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">satisfy</span> <span style="color:#e6db74">any</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">allow</span> 192.168.100.0<span style="color:#e6db74">/24</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">allow</span> 10.20.20.0<span style="color:#e6db74">/24</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">allow</span> <span style="color:#e6db74">fd88::/64</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">allow</span> 127.0.0.1;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">deny</span> <span style="color:#e6db74">all</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">auth_basic</span> <span style="color:#e6db74">&#34;Restricted</span> <span style="color:#e6db74">Access&#34;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">auth_basic_user_file</span> <span style="color:#e6db74">/etc/nginx/.htpasswd</span>;
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"location / {\n    autoindex on;\n    autoindex_exact_size off;\n    autoindex_localtime on;\n    charset utf-8;\n\n    satisfy any;\n    allow 192.168.100.0/24;\n    allow 10.20.20.0/24;\n    allow fd88::/64;\n    allow 127.0.0.1;\n    deny all;\n\n    auth_basic \"Restricted Access\";\n    auth_basic_user_file /etc/nginx/.htpasswd;\n}"</script>
-</div>
-<p>本文完整配置没有启用这段规则。如果你没有固定内网网段需求，保持 Basic Auth 全局生效即可。</p>
-<h2 id="可选配合-fail2ban-封禁限流-ip">可选：配合 fail2ban 封禁限流 IP</h2>
-<p>Nginx 触发 <code>limit_req</code> 或 <code>limit_conn</code> 后，会在错误日志里写入 <code>limiting requests</code> 或 <code>limiting connections</code>。可以用 fail2ban 继续联动封禁。</p>
-<p>安装：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk add fail2ban
-</span></span><span style="display:flex;"><span>rc-update add fail2ban default</span></span></code></pre></div><script class="code-source" type="application/json">"apk add fail2ban\nrc-update add fail2ban default"</script>
-</div>
-<p>创建 <code>/etc/fail2ban/filter.d/nginx-limit.conf</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#66d9ef">[Definition]</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">failregex</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">^\s*\[error\] \d+#\d+: \*\d+ limiting (requests|connections).*? client: &lt;HOST&gt;,</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ignoreregex</span> <span style="color:#f92672">=</span></span></span></code></pre></div><script class="code-source" type="application/json">"[Definition]\nfailregex = ^\\s*\\[error\\] \\d+#\\d+: \\*\\d+ limiting (requests|connections).*? client: \u003cHOST\u003e,\nignoreregex ="</script>
-</div>
-<p>在 <code>/etc/fail2ban/jail.local</code> 中加入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#66d9ef">[nginx-limit]</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">enabled</span>  <span style="color:#f92672">=</span> <span style="color:#e6db74">true</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">filter</span>   <span style="color:#f92672">=</span> <span style="color:#e6db74">nginx-limit</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">port</span>     <span style="color:#f92672">=</span> <span style="color:#e6db74">http,https</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">logpath</span>  <span style="color:#f92672">=</span> <span style="color:#e6db74">/var/log/nginx/error.log</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">findtime</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">60</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">maxretry</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">5</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bantime</span>  <span style="color:#f92672">=</span> <span style="color:#e6db74">3600</span></span></span></code></pre></div><script class="code-source" type="application/json">"[nginx-limit]\nenabled  = true\nfilter   = nginx-limit\nport     = http,https\nlogpath  = /var/log/nginx/error.log\nfindtime = 60\nmaxretry = 5\nbantime  = 3600"</script>
-</div>
-<p>测试正则并重载：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>fail2ban-regex /var/log/nginx/error.log /etc/fail2ban/filter.d/nginx-limit.conf
-</span></span><span style="display:flex;"><span>rc-service fail2ban restart</span></span></code></pre></div><script class="code-source" type="application/json">"fail2ban-regex /var/log/nginx/error.log /etc/fail2ban/filter.d/nginx-limit.conf\nrc-service fail2ban restart"</script>
-</div>
-<p>Alpine 常见防火墙可能是 <code>nftables</code>、<code>iptables</code> 或 <code>awall</code>，封禁动作要按你实际使用的防火墙调整。</p>
-<h2 id="可选开启-linux-bbr">可选：开启 Linux BBR</h2>
-<p>Alpine 是 Linux 系统，BBR 的开启方式和 FreeBSD 不同。先确认内核支持：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.tcp_available_congestion_control</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.tcp_available_congestion_control"</script>
-</div>
-<p>如果输出里包含 <code>bbr</code>，可以临时开启：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>modprobe tcp_bbr 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>sysctl -w net.core.default_qdisc<span style="color:#f92672">=</span>fq
-</span></span><span style="display:flex;"><span>sysctl -w net.ipv4.tcp_congestion_control<span style="color:#f92672">=</span>bbr</span></span></code></pre></div><script class="code-source" type="application/json">"modprobe tcp_bbr 2\u003e/dev/null || true\nsysctl -w net.core.default_qdisc=fq\nsysctl -w net.ipv4.tcp_congestion_control=bbr"</script>
-</div>
-<p>验证：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.tcp_congestion_control</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.tcp_congestion_control"</script>
-</div>
-<p>如果输出为下面这样，就说明已经生效：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.ipv4.tcp_congestion_control = bbr</span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.tcp_congestion_control = bbr"</script>
-</div>
-<p>永久生效：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat &gt; /etc/sysctl.d/99-bbr.conf <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.default_qdisc=fq
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.ipv4.tcp_congestion_control=bbr
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sysctl --system</span></span></code></pre></div><script class="code-source" type="application/json">"cat \u003e /etc/sysctl.d/99-bbr.conf \u003c\u003c'EOF'\nnet.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\nEOF\n\nsysctl --system"</script>
-</div>
-<p>如果你的 Alpine 内核没有内置或加载 BBR，<code>sysctl</code> 会报 <code>No such file or directory</code> 或可用算法中没有 <code>bbr</code>。这种情况需要更换支持 BBR 的内核，不能只靠 Nginx 配置解决。</p>
-<h2 id="总结">总结</h2>
-<p>这套配置可以把 Alpine 上的一个普通目录整理成可长期使用的 HTTPS 文件浏览服务：</p>
-<ul>
-<li>Nginx 负责目录浏览和静态文件传输。</li>
-<li>TLS 与安全响应头保证基础 HTTPS 安全性。</li>
-<li>Basic Auth 防止目录裸奔。</li>
-<li>敏感文件拦截避免 <code>.htpasswd</code>、私钥、配置文件等被访问。</li>
-<li><code>logrotate</code> 负责日志轮转。</li>
-<li>Gzip 和限流分别处理传输效率与带宽保护。</li>
-<li>强制下载规则让图片、视频、PDF 等文件点击后直接下载。</li>
-</ul>
-<p>完成配置后，记得每次修改都先执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nginx -t</span></span></code></pre></div><script class="code-source" type="application/json">"nginx -t"</script>
-</div>
-<p>确认语法无误后再 reload。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/tmux-basic-config/">
-            <img src="/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/alpine-nginx-static-file-browser/">
-            <img src="/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-nginx-static-file-browser/">
-            <img src="/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务 | 电脑自习室</title><meta name=description content="在 Alpine Linux 上使用 Nginx 提供 HTTPS 文件目录浏览，配置 Basic Auth、敏感文件拦截、日志轮转、Gzip、限流、强制下载和 BBR。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-18>2026年5月18日</time></div><h1>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</h1><p>在 Alpine Linux 上使用 Nginx 提供 HTTPS 文件目录浏览，配置 Basic Auth、敏感文件拦截、日志轮转、Gzip、限流、强制下载和 BBR。</p></header><img class=article-cover src=/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg alt><div class=article-content><p>在 Alpine Linux 下，如果只是临时分享目录，<code>python3 -m http.server</code> 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。</p><p>本文以 <code>fetch.jgaga.tk</code> 为示例域名，Web 根目录为 <code>/var/www/fetch.jgaga.tk</code>。实际使用时，把域名和目录替换成自己的即可。</p><h2 id=准备证书>准备证书</h2><p>正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 <code>acme.sh</code>、<code>lego</code> 或 <code>certbot</code>。</p><p>本文后续示例假设证书和私钥已经放在下面的位置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt
+</span></span><span style=display:flex><span>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key</span></span></code></pre></div><script class=code-source type=application/json>"/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt\n/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key"</script></div><p>如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 <code>ssl_certificate</code> 和 <code>ssl_certificate_key</code>。</p><h2 id=安装并启用-nginx>安装并启用 Nginx</h2><p>Alpine 使用 <code>apk</code> 安装软件，服务管理使用 OpenRC：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apk update
+</span></span><span style=display:flex><span>apk add nginx openssl logrotate
+</span></span><span style=display:flex><span>rc-update add nginx default</span></span></code></pre></div><script class=code-source type=application/json>"apk update\napk add nginx openssl logrotate\nrc-update add nginx default"</script></div><p>创建 Web 根目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /var/www/fetch.jgaga.tk
+</span></span><span style=display:flex><span>chown -R root:nginx /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /var/www/fetch.jgaga.tk\nchown -R root:nginx /var/www/fetch.jgaga.tk"</script></div><p>这里推荐让目录归属为 <code>root:nginx</code>。Nginx worker 以 <code>nginx</code> 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。</p><h2 id=创建认证密码文件>创建认证密码文件</h2><p>如果目录要对外开放，建议先加 Basic Auth。下面以用户名 <code>admin</code> 为例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>printf <span style=color:#e6db74>&#34;admin:%s\n&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>openssl passwd -apr1<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> &gt; /etc/nginx/.htpasswd
+</span></span><span style=display:flex><span>chown root:nginx /etc/nginx/.htpasswd
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>640</span> /etc/nginx/.htpasswd</span></span></code></pre></div><script class=code-source type=application/json>"printf \"admin:%s\\n\" \"$(openssl passwd -apr1)\" \u003e /etc/nginx/.htpasswd\nchown root:nginx /etc/nginx/.htpasswd\nchmod 640 /etc/nginx/.htpasswd"</script></div><p>执行第一条命令时，系统会提示输入并确认密码，输入过程不会显示字符，这是正常的。</p><p>如果要换用户名，修改冒号前面的 <code>admin</code> 后重新生成即可：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>printf <span style=color:#e6db74>&#34;your_username:%s\n&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>openssl passwd -apr1<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> &gt; /etc/nginx/.htpasswd
+</span></span><span style=display:flex><span>chown root:nginx /etc/nginx/.htpasswd
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>640</span> /etc/nginx/.htpasswd</span></span></code></pre></div><script class=code-source type=application/json>"printf \"your_username:%s\\n\" \"$(openssl passwd -apr1)\" \u003e /etc/nginx/.htpasswd\nchown root:nginx /etc/nginx/.htpasswd\nchmod 640 /etc/nginx/.htpasswd"</script></div><h2 id=创建日志目录>创建日志目录</h2><p>为了让日志路径和后面的 <code>logrotate</code> 规则一致，先显式创建 Nginx 日志目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /var/log/nginx
+</span></span><span style=display:flex><span>chown root:nginx /var/log/nginx
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>755</span> /var/log/nginx</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /var/log/nginx\nchown root:nginx /var/log/nginx\nchmod 755 /var/log/nginx"</script></div><h2 id=nginx-完整配置>Nginx 完整配置</h2><p>编辑 <code>/etc/nginx/nginx.conf</code>，可以按下面这份配置整理。它包含：</p><ul><li>HTTP 自动跳转 HTTPS</li><li>Let&rsquo;s Encrypt ACME 验证目录放行</li><li>TLS 1.2 / TLS 1.3</li><li>HTTP/2</li><li>目录浏览</li><li>Basic Auth</li><li>敏感文件拦截</li><li>Gzip</li><li>单 IP 并发、请求频率和下载速度限制</li><li>指定格式强制下载</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#66d9ef>user</span> <span style=color:#e6db74>nginx</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>worker_processes</span> <span style=color:#e6db74>auto</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>events</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>worker_connections</span> <span style=color:#ae81ff>1024</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>http</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>include</span>       <span style=color:#e6db74>/etc/nginx/mime.types</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>default_type</span>  <span style=color:#e6db74>application/octet-stream</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>access_log</span> <span style=color:#e6db74>/var/log/nginx/access.log</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>error_log</span>  <span style=color:#e6db74>/var/log/nginx/error.log</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sendfile</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>keepalive_timeout</span> <span style=color:#ae81ff>65</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gzip</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gzip_vary</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gzip_comp_level</span> <span style=color:#ae81ff>5</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gzip_min_length</span> <span style=color:#ae81ff>1024</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gzip_types</span> <span style=color:#e6db74>text/plain</span> <span style=color:#e6db74>text/css</span> <span style=color:#e6db74>text/xml</span> <span style=color:#e6db74>text/javascript</span> <span style=color:#e6db74>application/json</span> <span style=color:#e6db74>application/javascript</span> <span style=color:#e6db74>application/x-javascript</span> <span style=color:#e6db74>application/xml</span> <span style=color:#e6db74>application/xml+rss</span> <span style=color:#e6db74>application/x-sh</span> <span style=color:#e6db74>application/x-yaml</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 限速与请求频率的共享内存区域定义
+</span></span></span><span style=display:flex><span>    <span style=color:#f92672>limit_conn_zone</span> $binary_remote_addr <span style=color:#e6db74>zone=addr_conn:10m</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>limit_req_zone</span>  $binary_remote_addr <span style=color:#e6db74>zone=addr_req:10m</span> <span style=color:#e6db74>rate=5r/s</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># ========================================================
+</span></span></span><span style=display:flex><span>    <span style=color:#75715e># 1. 80 端口：负责 Let&#39;s Encrypt 证书验证及全站强制跳转 HTTPS
+</span></span></span><span style=display:flex><span>    <span style=color:#75715e># ========================================================
+</span></span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>listen</span> <span style=color:#ae81ff>80</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>listen</span> <span style=color:#e6db74>[::]:80</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>server_name</span> <span style=color:#e6db74>fetch.jgaga.tk</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>location</span> <span style=color:#e6db74>/.well-known/acme-challenge/</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f92672>root</span> <span style=color:#e6db74>/var/www/fetch.jgaga.tk</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>location</span> <span style=color:#e6db74>/</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f92672>return</span> <span style=color:#ae81ff>301</span> <span style=color:#e6db74>https://</span>$host$request_uri;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># ========================================================
+</span></span></span><span style=display:flex><span>    <span style=color:#75715e># 2. 10521 端口：全站安全、密码认证、完全去重后的限速下载服务
+</span></span></span><span style=display:flex><span>    <span style=color:#75715e># ========================================================
+</span></span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>listen</span> <span style=color:#ae81ff>10521</span> <span style=color:#e6db74>ssl</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>listen</span> <span style=color:#e6db74>[::]:10521</span> <span style=color:#e6db74>ssl</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>http2</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>server_name</span> <span style=color:#e6db74>fetch.jgaga.tk</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># SSL 证书配置
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_certificate</span>     <span style=color:#e6db74>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_certificate_key</span> <span style=color:#e6db74>/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># SSL 安全参数
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_protocols</span> <span style=color:#e6db74>TLSv1.2</span> <span style=color:#e6db74>TLSv1.3</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_ciphers</span> <span style=color:#e6db74>ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_prefer_server_ciphers</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_session_timeout</span> <span style=color:#e6db74>1d</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_session_cache</span> <span style=color:#e6db74>shared:MozSSL:10m</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>ssl_session_tickets</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 【优化】提取至 server 全局：全站通用的安全响应头
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>add_header</span> <span style=color:#e6db74>Strict-Transport-Security</span> <span style=color:#e6db74>&#34;max-age=63072000&#34;</span> <span style=color:#e6db74>always</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>add_header</span> <span style=color:#e6db74>X-Content-Type-Options</span> <span style=color:#e6db74>nosniff</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>add_header</span> <span style=color:#e6db74>X-Frame-Options</span> <span style=color:#e6db74>SAMEORIGIN</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>add_header</span> <span style=color:#e6db74>X-XSS-Protection</span> <span style=color:#e6db74>&#34;1</span>; <span style=color:#f92672>mode=block&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 【优化】提取至 server 全局：网页与文件下载统一要求密码认证
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>auth_basic</span> <span style=color:#e6db74>&#34;Restricted</span> <span style=color:#e6db74>Access&#34;</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>auth_basic_user_file</span> <span style=color:#e6db74>/etc/nginx/.htpasswd</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 【优化】提取至 server 全局：统一限速规则（前 500MB 全速，后续 500KB/s）
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>limit_conn</span> <span style=color:#e6db74>addr_conn</span> <span style=color:#ae81ff>3</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>limit_req</span> <span style=color:#e6db74>zone=addr_req</span> <span style=color:#e6db74>burst=10</span> <span style=color:#e6db74>nodelay</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>limit_rate_after</span> <span style=color:#ae81ff>500m</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>limit_rate</span> <span style=color:#ae81ff>500k</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 网站根目录
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>root</span> <span style=color:#e6db74>/var/www/fetch.jgaga.tk</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>index</span> <span style=color:#e6db74>index.html</span> <span style=color:#e6db74>index.htm</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 拒绝访问以 . 开头的隐藏文件（如 .htaccess, .git 等）
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>location</span> ~ <span style=color:#e6db74>/\.</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f92672>deny</span> <span style=color:#e6db74>all</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>access_log</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>log_not_found</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 拒绝访问敏感后缀文件
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>location</span> ~ <span style=color:#e6db74>\.(key|pem|conf|sh|sql)$</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f92672>deny</span> <span style=color:#e6db74>all</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>access_log</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>log_not_found</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 核心处理块：包含全站文件浏览列表
+</span></span></span><span style=display:flex><span>        <span style=color:#f92672>location</span> <span style=color:#e6db74>/</span> {
+</span></span><span style=display:flex><span>            <span style=color:#f92672>autoindex</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>autoindex_exact_size</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>autoindex_localtime</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>            <span style=color:#f92672>charset</span> <span style=color:#e6db74>utf-8</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#75715e># 【无重绝招】如果是特定的媒体或文档文件，直接在此强制触发下载。
+</span></span></span><span style=display:flex><span>            <span style=color:#75715e># 这样既实现了图片/视频强制下载，又完美继承了上面所有的安全头、认证和限速，绝无重复代码。
+</span></span></span><span style=display:flex><span>            <span style=color:#f92672>if</span> <span style=color:#e6db74>(</span>$request_filename ~<span style=color:#e6db74>*</span> <span style=color:#e6db74>\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)</span>$<span style=color:#e6db74>)</span> {
+</span></span><span style=display:flex><span>                <span style=color:#f92672>add_header</span> <span style=color:#e6db74>Content-Disposition</span> <span style=color:#e6db74>&#34;attachment&#34;</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"user nginx;\nworker_processes auto;\n\nevents {\n    worker_connections 1024;\n}\n\nhttp {\n    include       /etc/nginx/mime.types;\n    default_type  application/octet-stream;\n\n    access_log /var/log/nginx/access.log;\n    error_log  /var/log/nginx/error.log;\n\n    sendfile on;\n    keepalive_timeout 65;\n\n    gzip on;\n    gzip_vary on;\n    gzip_comp_level 5;\n    gzip_min_length 1024;\n    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/x-javascript application/xml application/xml+rss application/x-sh application/x-yaml;\n\n    # 限速与请求频率的共享内存区域定义\n    limit_conn_zone $binary_remote_addr zone=addr_conn:10m;\n    limit_req_zone  $binary_remote_addr zone=addr_req:10m rate=5r/s;\n\n    # ========================================================\n    # 1. 80 端口：负责 Let's Encrypt 证书验证及全站强制跳转 HTTPS\n    # ========================================================\n    server {\n        listen 80;\n        listen [::]:80;\n        server_name fetch.jgaga.tk;\n\n        location /.well-known/acme-challenge/ {\n            root /var/www/fetch.jgaga.tk;\n        }\n\n        location / {\n            return 301 https://$host$request_uri;\n        }\n    }\n\n    # ========================================================\n    # 2. 10521 端口：全站安全、密码认证、完全去重后的限速下载服务\n    # ========================================================\n    server {\n        listen 10521 ssl;\n        listen [::]:10521 ssl;\n        http2 on;\n        server_name fetch.jgaga.tk;\n\n        # SSL 证书配置\n        ssl_certificate     /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt;\n        ssl_certificate_key /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key;\n\n        # SSL 安全参数\n        ssl_protocols TLSv1.2 TLSv1.3;\n        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;\n        ssl_prefer_server_ciphers off;\n        ssl_session_timeout 1d;\n        ssl_session_cache shared:MozSSL:10m;\n        ssl_session_tickets off;\n\n        # 【优化】提取至 server 全局：全站通用的安全响应头\n        add_header Strict-Transport-Security \"max-age=63072000\" always;\n        add_header X-Content-Type-Options nosniff;\n        add_header X-Frame-Options SAMEORIGIN;\n        add_header X-XSS-Protection \"1; mode=block\";\n\n        # 【优化】提取至 server 全局：网页与文件下载统一要求密码认证\n        auth_basic \"Restricted Access\";\n        auth_basic_user_file /etc/nginx/.htpasswd;\n\n        # 【优化】提取至 server 全局：统一限速规则（前 500MB 全速，后续 500KB/s）\n        limit_conn addr_conn 3;\n        limit_req zone=addr_req burst=10 nodelay;\n        limit_rate_after 500m;\n        limit_rate 500k;\n\n        # 网站根目录\n        root /var/www/fetch.jgaga.tk;\n        index index.html index.htm;\n\n        # 拒绝访问以 . 开头的隐藏文件（如 .htaccess, .git 等）\n        location ~ /\\. {\n            deny all;\n            access_log off;\n            log_not_found off;\n        }\n\n        # 拒绝访问敏感后缀文件\n        location ~ \\.(key|pem|conf|sh|sql)$ {\n            deny all;\n            access_log off;\n            log_not_found off;\n        }\n\n        # 核心处理块：包含全站文件浏览列表\n        location / {\n            autoindex on;\n            autoindex_exact_size off;\n            autoindex_localtime on;\n            charset utf-8;\n\n            # 【无重绝招】如果是特定的媒体或文档文件，直接在此强制触发下载。\n            # 这样既实现了图片/视频强制下载，又完美继承了上面所有的安全头、认证和限速，绝无重复代码。\n            if ($request_filename ~* \\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)$) {\n                add_header Content-Disposition \"attachment\";\n            }\n        }\n    }\n}"</script></div><p>注意：使用正则 <code>location</code> 匹配强制下载文件时，请把认证和限流也写进去。否则直接访问这些文件 URL 时，可能绕过 <code>location /</code> 中的控制规则。</p><h2 id=测试并启动服务>测试并启动服务</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nginx -t
+</span></span><span style=display:flex><span>rc-service nginx start</span></span></code></pre></div><script class=code-source type=application/json>"nginx -t\nrc-service nginx start"</script></div><p>后续修改配置后，使用 reload 即可：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nginx -t
+</span></span><span style=display:flex><span>rc-service nginx reload</span></span></code></pre></div><script class=code-source type=application/json>"nginx -t\nrc-service nginx reload"</script></div><p>打开 <code>https://fetch.jgaga.tk:10521</code> 后，应该会先弹出 Basic Auth 登录框。认证通过后，可以看到 Nginx 的目录列表。</p><h2 id=修复点击文件-403-的权限问题>修复点击文件 403 的权限问题</h2><p>如果目录列表能显示文件名，但点击 <code>.jpg</code> 等文件时返回 <code>403 Forbidden</code>，通常是文件本身权限不足。<code>autoindex</code> 能列目录，不代表 Nginx 一定能读取文件内容。</p><p>推荐先把目录所有权整理为 <code>root:nginx</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>chown -R root:nginx /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class=code-source type=application/json>"chown -R root:nginx /var/www/fetch.jgaga.tk"</script></div><p>如果仍然有权限问题，再统一修正目录和文件权限：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>find /var/www/fetch.jgaga.tk -type d -exec chmod <span style=color:#ae81ff>755</span> <span style=color:#f92672>{}</span> <span style=color:#ae81ff>\;</span>
+</span></span><span style=display:flex><span>find /var/www/fetch.jgaga.tk -type f -exec chmod <span style=color:#ae81ff>644</span> <span style=color:#f92672>{}</span> <span style=color:#ae81ff>\;</span></span></span></code></pre></div><script class=code-source type=application/json>"find /var/www/fetch.jgaga.tk -type d -exec chmod 755 {} \\;\nfind /var/www/fetch.jgaga.tk -type f -exec chmod 644 {} \\;"</script></div><p>执行完不需要重启 Nginx，刷新浏览器即可。</p><h2 id=让普通用户管理文件目录>让普通用户管理文件目录</h2><p>普通用户不能直接运行当前这套 Nginx 服务，因为 80 和 443 属于特权端口，证书私钥和系统日志也需要更高权限。正确做法是：Nginx 仍由 root 启动，worker 自动降权为 <code>nginx</code>；普通用户只负责上传和管理 Web 根目录里的文件。</p><p>假设普通用户是 <code>felix</code>，先把它加入 <code>nginx</code> 组：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>addgroup felix nginx</span></span></code></pre></div><script class=code-source type=application/json>"addgroup felix nginx"</script></div><p>再允许同组用户写入目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>chmod -R <span style=color:#ae81ff>775</span> /var/www/fetch.jgaga.tk
+</span></span><span style=display:flex><span>chmod g+s /var/www/fetch.jgaga.tk</span></span></code></pre></div><script class=code-source type=application/json>"chmod -R 775 /var/www/fetch.jgaga.tk\nchmod g+s /var/www/fetch.jgaga.tk"</script></div><p><code>chmod g+s</code> 会让目录中新建的文件继承 <code>nginx</code> 组，避免后续文件归属变得混乱。</p><p>修改用户组后，旧 SSH 会话不会自动刷新身份。重新登录，或在当前终端执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>su - felix</span></span></code></pre></div><script class=code-source type=application/json>"su - felix"</script></div><p>然后用 <code>id</code> 确认输出里包含 <code>nginx</code> 组。</p><h2 id=配置日志按天轮转>配置日志按天轮转</h2><p>Alpine 没有 FreeBSD 的 <code>newsyslog</code>，这里使用 <code>logrotate</code>。前面已经通过 <code>apk add logrotate</code> 安装。</p><p>创建 <code>/etc/logrotate.d/nginx</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/var/log/nginx/*.log {
+</span></span><span style=display:flex><span>    daily
+</span></span><span style=display:flex><span>    rotate 30
+</span></span><span style=display:flex><span>    missingok
+</span></span><span style=display:flex><span>    notifempty
+</span></span><span style=display:flex><span>    compress
+</span></span><span style=display:flex><span>    delaycompress
+</span></span><span style=display:flex><span>    create 0644 root nginx
+</span></span><span style=display:flex><span>    sharedscripts
+</span></span><span style=display:flex><span>    postrotate
+</span></span><span style=display:flex><span>        [ -s /run/nginx/nginx.pid ] &amp;&amp; kill -USR1 &#34;$(cat /run/nginx/nginx.pid)&#34;
+</span></span><span style=display:flex><span>    endscript
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"/var/log/nginx/*.log {\n    daily\n    rotate 30\n    missingok\n    notifempty\n    compress\n    delaycompress\n    create 0644 root nginx\n    sharedscripts\n    postrotate\n        [ -s /run/nginx/nginx.pid ] \u0026\u0026 kill -USR1 \"$(cat /run/nginx/nginx.pid)\"\n    endscript\n}"</script></div><p>参数说明：</p><ul><li><code>daily</code>：每天轮转。</li><li><code>rotate 30</code>：保留最近 30 天日志。</li><li><code>compress</code> 和 <code>delaycompress</code>：压缩旧日志，并延后一轮压缩当前刚切走的文件。</li><li><code>create 0644 root nginx</code>：轮转后创建新的日志文件。</li><li><code>kill -USR1</code>：通知 Nginx master 重新打开日志文件，无需重启服务。</li></ul><p>测试配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>logrotate -d /etc/logrotate.d/nginx</span></span></code></pre></div><script class=code-source type=application/json>"logrotate -d /etc/logrotate.d/nginx"</script></div><p>如果没有语法错误，即可交给系统定时任务自动执行。Alpine 通常通过 <code>/etc/periodic/daily/logrotate</code> 调用 logrotate；如果你的系统没有这个文件，可以手动确认 <code>crond</code> 是否启用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>rc-update add crond default
+</span></span><span style=display:flex><span>rc-service crond start</span></span></code></pre></div><script class=code-source type=application/json>"rc-update add crond default\nrc-service crond start"</script></div><h2 id=强制下载指定文件类型>强制下载指定文件类型</h2><p>如果希望点击图片、视频、PDF、文本文件时不要在浏览器中预览，而是直接弹出下载，可以使用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#66d9ef>location</span> ~<span style=color:#e6db74>*</span> <span style=color:#e6db74>\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)</span>$ {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>add_header</span> <span style=color:#e6db74>Content-Disposition</span> <span style=color:#e6db74>&#34;attachment&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>auth_basic</span> <span style=color:#e6db74>&#34;Restricted</span> <span style=color:#e6db74>Access&#34;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>auth_basic_user_file</span> <span style=color:#e6db74>/etc/nginx/.htpasswd</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>limit_conn</span> <span style=color:#e6db74>addr_conn</span> <span style=color:#ae81ff>3</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>limit_req</span> <span style=color:#e6db74>zone=addr_req</span> <span style=color:#e6db74>burst=10</span> <span style=color:#e6db74>nodelay</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>limit_rate_after</span> <span style=color:#ae81ff>500m</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>limit_rate</span> <span style=color:#ae81ff>500k</span>;
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"location ~* \\.(jpg|jpeg|png|gif|mp4|mkv|avi|mp3|pdf|txt)$ {\n    add_header Content-Disposition \"attachment\";\n\n    auth_basic \"Restricted Access\";\n    auth_basic_user_file /etc/nginx/.htpasswd;\n\n    limit_conn addr_conn 3;\n    limit_req zone=addr_req burst=10 nodelay;\n    limit_rate_after 500m;\n    limit_rate 500k;\n}"</script></div><p>如果你的 HTTPS server 里已经有全局安全响应头，建议也在这个正则 <code>location</code> 中补齐一份 <code>add_header</code>。Nginx 的 <code>add_header</code> 在不同层级混用时容易出现继承行为不符合直觉的情况，直接写全更稳。</p><h2 id=可选内网免密外网认证>可选：内网免密、外网认证</h2><p>如果以后想让内网直接访问，外网才需要密码，可以在 <code>location /</code> 中使用 <code>satisfy any</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#66d9ef>location</span> <span style=color:#e6db74>/</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>autoindex</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>autoindex_exact_size</span> <span style=color:#66d9ef>off</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>autoindex_localtime</span> <span style=color:#66d9ef>on</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>charset</span> <span style=color:#e6db74>utf-8</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>satisfy</span> <span style=color:#e6db74>any</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>allow</span> 192.168.100.0<span style=color:#e6db74>/24</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>allow</span> 10.20.20.0<span style=color:#e6db74>/24</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>allow</span> <span style=color:#e6db74>fd88::/64</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>allow</span> 127.0.0.1;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>deny</span> <span style=color:#e6db74>all</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>auth_basic</span> <span style=color:#e6db74>&#34;Restricted</span> <span style=color:#e6db74>Access&#34;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>auth_basic_user_file</span> <span style=color:#e6db74>/etc/nginx/.htpasswd</span>;
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"location / {\n    autoindex on;\n    autoindex_exact_size off;\n    autoindex_localtime on;\n    charset utf-8;\n\n    satisfy any;\n    allow 192.168.100.0/24;\n    allow 10.20.20.0/24;\n    allow fd88::/64;\n    allow 127.0.0.1;\n    deny all;\n\n    auth_basic \"Restricted Access\";\n    auth_basic_user_file /etc/nginx/.htpasswd;\n}"</script></div><p>本文完整配置没有启用这段规则。如果你没有固定内网网段需求，保持 Basic Auth 全局生效即可。</p><h2 id=可选配合-fail2ban-封禁限流-ip>可选：配合 fail2ban 封禁限流 IP</h2><p>Nginx 触发 <code>limit_req</code> 或 <code>limit_conn</code> 后，会在错误日志里写入 <code>limiting requests</code> 或 <code>limiting connections</code>。可以用 fail2ban 继续联动封禁。</p><p>安装：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apk add fail2ban
+</span></span><span style=display:flex><span>rc-update add fail2ban default</span></span></code></pre></div><script class=code-source type=application/json>"apk add fail2ban\nrc-update add fail2ban default"</script></div><p>创建 <code>/etc/fail2ban/filter.d/nginx-limit.conf</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[Definition]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>failregex</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>^\s*\[error\] \d+#\d+: \*\d+ limiting (requests|connections).*? client: &lt;HOST&gt;,</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>ignoreregex</span> <span style=color:#f92672>=</span></span></span></code></pre></div><script class=code-source type=application/json>"[Definition]\nfailregex = ^\\s*\\[error\\] \\d+#\\d+: \\*\\d+ limiting (requests|connections).*? client: \u003cHOST\u003e,\nignoreregex ="</script></div><p>在 <code>/etc/fail2ban/jail.local</code> 中加入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[nginx-limit]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>enabled</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>true</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>filter</span>   <span style=color:#f92672>=</span> <span style=color:#e6db74>nginx-limit</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>port</span>     <span style=color:#f92672>=</span> <span style=color:#e6db74>http,https</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>logpath</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>/var/log/nginx/error.log</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>findtime</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>60</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>maxretry</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>5</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bantime</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>3600</span></span></span></code></pre></div><script class=code-source type=application/json>"[nginx-limit]\nenabled  = true\nfilter   = nginx-limit\nport     = http,https\nlogpath  = /var/log/nginx/error.log\nfindtime = 60\nmaxretry = 5\nbantime  = 3600"</script></div><p>测试正则并重载：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>fail2ban-regex /var/log/nginx/error.log /etc/fail2ban/filter.d/nginx-limit.conf
+</span></span><span style=display:flex><span>rc-service fail2ban restart</span></span></code></pre></div><script class=code-source type=application/json>"fail2ban-regex /var/log/nginx/error.log /etc/fail2ban/filter.d/nginx-limit.conf\nrc-service fail2ban restart"</script></div><p>Alpine 常见防火墙可能是 <code>nftables</code>、<code>iptables</code> 或 <code>awall</code>，封禁动作要按你实际使用的防火墙调整。</p><h2 id=可选开启-linux-bbr>可选：开启 Linux BBR</h2><p>Alpine 是 Linux 系统，BBR 的开启方式和 FreeBSD 不同。先确认内核支持：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.tcp_available_congestion_control</span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.tcp_available_congestion_control"</script></div><p>如果输出里包含 <code>bbr</code>，可以临时开启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>modprobe tcp_bbr 2&gt;/dev/null <span style=color:#f92672>||</span> true
+</span></span><span style=display:flex><span>sysctl -w net.core.default_qdisc<span style=color:#f92672>=</span>fq
+</span></span><span style=display:flex><span>sysctl -w net.ipv4.tcp_congestion_control<span style=color:#f92672>=</span>bbr</span></span></code></pre></div><script class=code-source type=application/json>"modprobe tcp_bbr 2\u003e/dev/null || true\nsysctl -w net.core.default_qdisc=fq\nsysctl -w net.ipv4.tcp_congestion_control=bbr"</script></div><p>验证：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.tcp_congestion_control</span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.tcp_congestion_control"</script></div><p>如果输出为下面这样，就说明已经生效：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>net.ipv4.tcp_congestion_control = bbr</span></span></code></pre></div><script class=code-source type=application/json>"net.ipv4.tcp_congestion_control = bbr"</script></div><p>永久生效：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>cat &gt; /etc/sysctl.d/99-bbr.conf <span style=color:#e6db74>&lt;&lt;&#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.default_qdisc=fq
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.ipv4.tcp_congestion_control=bbr
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sysctl --system</span></span></code></pre></div><script class=code-source type=application/json>"cat \u003e /etc/sysctl.d/99-bbr.conf \u003c\u003c'EOF'\nnet.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\nEOF\n\nsysctl --system"</script></div><p>如果你的 Alpine 内核没有内置或加载 BBR，<code>sysctl</code> 会报 <code>No such file or directory</code> 或可用算法中没有 <code>bbr</code>。这种情况需要更换支持 BBR 的内核，不能只靠 Nginx 配置解决。</p><h2 id=总结>总结</h2><p>这套配置可以把 Alpine 上的一个普通目录整理成可长期使用的 HTTPS 文件浏览服务：</p><ul><li>Nginx 负责目录浏览和静态文件传输。</li><li>TLS 与安全响应头保证基础 HTTPS 安全性。</li><li>Basic Auth 防止目录裸奔。</li><li>敏感文件拦截避免 <code>.htpasswd</code>、私钥、配置文件等被访问。</li><li><code>logrotate</code> 负责日志轮转。</li><li>Gzip 和限流分别处理传输效率与带宽保护。</li><li>强制下载规则让图片、视频、PDF 等文件点击后直接下载。</li></ul><p>完成配置后，记得每次修改都先执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nginx -t</span></span></code></pre></div><script class=code-source type=application/json>"nginx -t"</script></div><p>确认语法无误后再 reload。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/tmux-basic-config/><img src=/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</span></a></li><li><a href=/posts/linux/alpine-nginx-static-file-browser/><img src=/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/freebsd/freebsd15-nginx-static-file-browser/><img src=/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

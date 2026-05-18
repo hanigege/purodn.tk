@@ -1,195 +1,43 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>07.RouterOS 配置 WireGuard | 电脑自习室</title>
-    <meta name="description" content="RouterOS WireGuard 。">
-      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2025-09-01">2025年9月1日</time>
-        </div>
-        <h1>07.RouterOS 配置 WireGuard</h1>
-          <p>RouterOS WireGuard 。</p>
-      </header>
-          <img class="article-cover" src="/posts/routeros/routeros-07-wireguard/assets/routeros-07.svg" alt="">
-
-      <div class="article-content">
-        <h2 id="本文介绍如何在routeros中配置wireguard包括两个ros之间通过wireguard异地组网">本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网</h2>
-<h3 id="1-客户端接入家庭局域网">1. 客户端接入家庭局域网</h3>
-<ul>
-<li>添加wireguard。名字（Name）及监听端口（Listen Port）可自定义
-<img src="assets/routeros-07-wireguard-07.png" alt="1.png"></li>
-<li>为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例
-<img src="assets/routeros-07-wireguard-08.png" alt="2.png"></li>
-<li>添加客户端（peer）配置
-<img src="assets/routeros-07-wireguard-09.png" alt="3.png"></li>
-<li>双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置
-<img src="assets/routeros-07-wireguard-10.png" alt="4.png"></li>
-<li>客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可
-<img src="assets/routeros-07-wireguard-11.png" alt="5.png"></li>
-<li>如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48</span></span></code></pre></div><script class="code-source" type="application/json">"10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48"</script>
-</div>
-<h3 id="2-两个-ros-之间通过-wireguard-异地组网">2. 两个 ROS 之间通过 WireGuard 异地组网</h3>
-<ul>
-<li>以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例</li>
-</ul>
-<p>ROS1号
-ROS2号</p>
-<p>LAN IP
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>07.RouterOS 配置 WireGuard | 电脑自习室</title><meta name=description content="RouterOS WireGuard 。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2025-09-01>2025年9月1日</time></div><h1>07.RouterOS 配置 WireGuard</h1><p>RouterOS WireGuard 。</p></header><img class=article-cover src=/posts/routeros/routeros-07-wireguard/assets/routeros-07.svg alt><div class=article-content><h2 id=本文介绍如何在routeros中配置wireguard包括两个ros之间通过wireguard异地组网>本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网</h2><h3 id=1-客户端接入家庭局域网>1. 客户端接入家庭局域网</h3><ul><li>添加wireguard。名字（Name）及监听端口（Listen Port）可自定义
+<img src=assets/routeros-07-wireguard-07.png alt=1.png></li><li>为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例
+<img src=assets/routeros-07-wireguard-08.png alt=2.png></li><li>添加客户端（peer）配置
+<img src=assets/routeros-07-wireguard-09.png alt=3.png></li><li>双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置
+<img src=assets/routeros-07-wireguard-10.png alt=4.png></li><li>客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可
+<img src=assets/routeros-07-wireguard-11.png alt=5.png></li><li>如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48</span></span></code></pre></div><script class=code-source type=application/json>"10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48"</script></div><h3 id=2-两个-ros-之间通过-wireguard-异地组网>2. 两个 ROS 之间通过 WireGuard 异地组网</h3><ul><li>以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例</li></ul><p>ROS1号
+ROS2号</p><p>LAN IP
 10.0.0.1/24
-192.168.31.1/24</p>
-<p>wireguard IP
+192.168.31.1/24</p><p>wireguard IP
 10.20.30.1/24
-10.20.40.1/24</p>
-<p>DDNS域名
+10.20.40.1/24</p><p>DDNS域名
 无
-ros2.66666.xyz</p>
-<p>wireguard监听端口
+ros2.66666.xyz</p><p>wireguard监听端口
 13231
-13231</p>
-<ul>
-<li>前提：ros1号已按第一种方法配置好wireguard</li>
-<li>为ros2号添加wireguard，操作与ros1号一致，Name及Listen Port随意，以13231为例</li>
-<li>为ros2号的wireguard配置ip。网段不可与ros2号现有局域网网段相同，也与ros1使用的wireguard网段不同，例如ros1的wireguard ip为10.20.30.1/24，ros2的wireguard ip为10.20.40.1/24
-<img src="assets/routeros-07-wireguard-01.png" alt=""></li>
-<li>在ros1中添加ros2号的peer。案例以ros2号有公网IP为例，在Endpoint、EndpointPort中填入DDNS域名及端口
+13231</p><ul><li>前提：ros1号已按第一种方法配置好wireguard</li><li>为ros2号添加wireguard，操作与ros1号一致，Name及Listen Port随意，以13231为例</li><li>为ros2号的wireguard配置ip。网段不可与ros2号现有局域网网段相同，也与ros1使用的wireguard网段不同，例如ros1的wireguard ip为10.20.30.1/24，ros2的wireguard ip为10.20.40.1/24
+<img src=assets/routeros-07-wireguard-01.png alt></li><li>在ros1中添加ros2号的peer。案例以ros2号有公网IP为例，在Endpoint、EndpointPort中填入DDNS域名及端口
 如果ros1号和ros2号均有公网IP，则Endpoint、EndpointPort都填入对方的DDNS域名及端口
-<img src="assets/routeros-07-wireguard-02.png" alt=""></li>
-<li>同理，在ros2号中添加ros1号的peer。ros1号无公网IP，则Endpoint、EndpointPort留空
-<img src="assets/routeros-07-wireguard-03.png" alt=""></li>
-<li>在ros1号中通过ping ros2号的wireguard ip检测wireguard隧道是否联通
-<img src="assets/routeros-07-wireguard-04.png" alt=""></li>
-<li>在ros1号和ros2号中分别添加route，将对方的局域网端通过wireguard联通。图示为ros2号添加route
-<img src="assets/routeros-07-wireguard-05.png" alt=""></li>
-<li>参照上一步，在ros1号中ping ros2号的LAN IP （192.168.31.1）检测route是否正确</li>
-<li>现在两个ros的局域网已通过wireguard隧道连接</li>
-<li>如果IPv4防火墙里的动态伪装限制了out interface为pppoe-out1，则需要新增一条以wireguard为out interfaces的动态伪装，没有限制则不需要做此操作。
-<img src="assets/routeros-07-wireguard-06.png" alt=""></li>
-</ul>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/tmux-basic-config/">
-            <img src="/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/alpine-nginx-static-file-browser/">
-            <img src="/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/freebsd/freebsd15-nginx-static-file-browser/">
-            <img src="/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/proxmox-debian13-mosdns/">
-            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
-            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-command-cheatsheet/">
-            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
-            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<img src=assets/routeros-07-wireguard-02.png alt></li><li>同理，在ros2号中添加ros1号的peer。ros1号无公网IP，则Endpoint、EndpointPort留空
+<img src=assets/routeros-07-wireguard-03.png alt></li><li>在ros1号中通过ping ros2号的wireguard ip检测wireguard隧道是否联通
+<img src=assets/routeros-07-wireguard-04.png alt></li><li>在ros1号和ros2号中分别添加route，将对方的局域网端通过wireguard联通。图示为ros2号添加route
+<img src=assets/routeros-07-wireguard-05.png alt></li><li>参照上一步，在ros1号中ping ros2号的LAN IP （192.168.31.1）检测route是否正确</li><li>现在两个ros的局域网已通过wireguard隧道连接</li><li>如果IPv4防火墙里的动态伪装限制了out interface为pppoe-out1，则需要新增一条以wireguard为out interfaces的动态伪装，没有限制则不需要做此操作。
+<img src=assets/routeros-07-wireguard-06.png alt></li></ul></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/tmux-basic-config/><img src=/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</span></a></li><li><a href=/posts/linux/alpine-nginx-static-file-browser/><img src=/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/freebsd/freebsd15-nginx-static-file-browser/><img src=/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

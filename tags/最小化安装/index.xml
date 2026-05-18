@@ -1,19 +1,55 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>最小化安装 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/</link>
-    <description>Recent content in 最小化安装 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link>
-      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid>
-      <description>&lt;p&gt;这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&lt;/p&gt;&#xA;&lt;p&gt;适合下面几种场景：&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;VPS 面板只提供 VNC / noVNC 控制台。&lt;/li&gt;&#xA;&lt;li&gt;内存较小，优先选择 UFS 而不是 ZFS。&lt;/li&gt;&#xA;&lt;li&gt;只需要一个干净的 FreeBSD 基础系统。&lt;/li&gt;&#xA;&lt;li&gt;安装阶段先跑通网络、时区和 SSH，后续再做安全加固。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;快速选择表&#34;&gt;快速选择表&lt;/h2&gt;&#xA;&lt;table&gt;&#xA;  &lt;thead&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;th&gt;阶段&lt;/th&gt;&#xA;          &lt;th&gt;推荐选择&lt;/th&gt;&#xA;      &lt;/tr&gt;&#xA;  &lt;/thead&gt;&#xA;  &lt;tbody&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;Distribution Sets&lt;/td&gt;&#xA;          &lt;td&gt;全部取消，保持最小安装&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;文件系统&lt;/td&gt;&#xA;          &lt;td&gt;小内存 VPS 优先 UFS&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;分区表&lt;/td&gt;&#xA;          &lt;td&gt;GPT&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;网络&lt;/td&gt;&#xA;          &lt;td&gt;VPS 通常选 Auto / DHCP&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;时区&lt;/td&gt;&#xA;          &lt;td&gt;Asia / China / CST&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;NTP&lt;/td&gt;&#xA;          &lt;td&gt;建议启用 ntpd 相关选项&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;用户&lt;/td&gt;&#xA;          &lt;td&gt;推荐创建普通用户，并加入 wheel 组&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;  &lt;/tbody&gt;&#xA;&lt;/table&gt;&#xA;&lt;h2 id=&#34;进入安装器&#34;&gt;进入安装器&lt;/h2&gt;&#xA;&lt;p&gt;启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&lt;/p&gt;&#xA;&lt;p&gt;&lt;img src=&#34;assets/freebsd15-minimal-install-01.png&#34; alt=&#34;FreeBSD 安装器欢迎界面&#34;&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;选择最小安装组件&#34;&gt;选择最小安装组件&lt;/h2&gt;&#xA;&lt;p&gt;&lt;code&gt;Distribution Sets&lt;/code&gt; 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&lt;/p&gt;&#xA;&lt;p&gt;&lt;img src=&#34;assets/freebsd15-minimal-install-02.png&#34; alt=&#34;不要选择额外安装组件&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;输入主机名。这里可以直接写机器用途，例如 &lt;code&gt;freebsd&lt;/code&gt;、&lt;code&gt;vps-freebsd&lt;/code&gt; 或自己的主机命名。&lt;/p&gt;&#xA;&lt;p&gt;&lt;img src=&#34;assets/freebsd15-minimal-install-03.png&#34; alt=&#34;输入主机名&#34;&gt;&lt;/p&gt;</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>最小化安装 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/</link><description>Recent content in 最小化安装 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>&lt;p&gt;这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&lt;/p&gt;
+&lt;p&gt;适合下面几种场景：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;VPS 面板只提供 VNC / noVNC 控制台。&lt;/li&gt;
+&lt;li&gt;内存较小，优先选择 UFS 而不是 ZFS。&lt;/li&gt;
+&lt;li&gt;只需要一个干净的 FreeBSD 基础系统。&lt;/li&gt;
+&lt;li&gt;安装阶段先跑通网络、时区和 SSH，后续再做安全加固。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="快速选择表"&gt;快速选择表&lt;/h2&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;阶段&lt;/th&gt;
+ &lt;th&gt;推荐选择&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Distribution Sets&lt;/td&gt;
+ &lt;td&gt;全部取消，保持最小安装&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;文件系统&lt;/td&gt;
+ &lt;td&gt;小内存 VPS 优先 UFS&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;分区表&lt;/td&gt;
+ &lt;td&gt;GPT&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;网络&lt;/td&gt;
+ &lt;td&gt;VPS 通常选 Auto / DHCP&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;时区&lt;/td&gt;
+ &lt;td&gt;Asia / China / CST&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;NTP&lt;/td&gt;
+ &lt;td&gt;建议启用 ntpd 相关选项&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;用户&lt;/td&gt;
+ &lt;td&gt;推荐创建普通用户，并加入 wheel 组&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="进入安装器"&gt;进入安装器&lt;/h2&gt;
+&lt;p&gt;启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-01.png" alt="FreeBSD 安装器欢迎界面"&gt;&lt;/p&gt;
+&lt;h2 id="选择最小安装组件"&gt;选择最小安装组件&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;Distribution Sets&lt;/code&gt; 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-02.png" alt="不要选择额外安装组件"&gt;&lt;/p&gt;
+&lt;p&gt;输入主机名。这里可以直接写机器用途，例如 &lt;code&gt;freebsd&lt;/code&gt;、&lt;code&gt;vps-freebsd&lt;/code&gt; 或自己的主机命名。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-03.png" alt="输入主机名"&gt;&lt;/p&gt;</description></item></channel></rss>
