@@ -1,26 +1,42 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>格式化 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E6%A0%BC%E5%BC%8F%E5%8C%96/</link>
-    <description>Recent content in 格式化 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E6%A0%BC%E5%BC%8F%E5%8C%96/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title>
-      <link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link>
-      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid>
-      <description>&lt;p&gt;本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&lt;/p&gt;&#xA;&lt;h2 id=&#34;视频演示&#34;&gt;视频演示&lt;/h2&gt;&#xA;&lt;div style=&#34;position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;&#34;&gt;&#xA;      &lt;iframe allow=&#34;accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen&#34; loading=&#34;eager&#34; referrerpolicy=&#34;strict-origin-when-cross-origin&#34; src=&#34;https://www.youtube.com/embed/QTZRFvTacwU?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0&#34; style=&#34;position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;&#34; title=&#34;YouTube video&#34;&gt;&lt;/iframe&gt;&#xA;    &lt;/div&gt;&#xA;&#xA;&lt;p&gt;这套配置包含：&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;code&gt;lazy.nvim&lt;/code&gt; 插件管理器&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;onedark.nvim&lt;/code&gt; 护眼深色主题&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;nvim-tree.lua&lt;/code&gt; 文件树&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;nvim-osc52&lt;/code&gt; 远程复制&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;conform.nvim&lt;/code&gt; 代码格式化&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;jq&lt;/code&gt; JSON 格式化工具&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;prettier&lt;/code&gt; 前端、Markdown 与 YAML 格式化工具&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;;t&lt;/code&gt; 智能切换文件树&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;;f&lt;/code&gt; 手动格式化&lt;/li&gt;&#xA;&lt;li&gt;&lt;code&gt;;w&lt;/code&gt; 保存并自动格式化&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;一安装-neovim&#34;&gt;一、安装 Neovim&lt;/h2&gt;&#xA;&lt;p&gt;要求 Neovim 版本不低于 &lt;code&gt;0.10.0&lt;/code&gt;。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。&lt;/p&gt;&#xA;&lt;h3 id=&#34;debian--ubuntu&#34;&gt;Debian / Ubuntu&lt;/h3&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt update&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt install -y neovim git curl&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;nvim --version | grep ^NVIM&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;sudo apt update\nsudo apt install -y neovim git curl\nnvim --version | grep ^NVIM&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;如果 Debian 或 Ubuntu 仓库里的 Neovim 版本低于 &lt;code&gt;0.10.0&lt;/code&gt;，可以参考源码编译方案，或使用官方 release 版本。&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title>
-      <link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link>
-      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid>
-      <description>&lt;p&gt;本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&lt;/p&gt;&#xA;&lt;p&gt;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 &lt;code&gt;conform.nvim&lt;/code&gt; 和 &lt;code&gt;prettier&lt;/code&gt; 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&lt;/p&gt;&#xA;&lt;h2 id=&#34;第一步安装依赖并源码编译-neovim&#34;&gt;第一步：安装依赖并源码编译 Neovim&lt;/h2&gt;&#xA;&lt;p&gt;在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt update&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt install ninja-build gettext cmake unzip curl build-essential git -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;sudo apt update\nsudo apt install ninja-build gettext cmake unzip curl build-essential git -y&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;拉取 Neovim 源码，并切换到稳定版分支。使用 &lt;code&gt;stable&lt;/code&gt; 分支可以规避开发版中可能出现的临时问题。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git clone https://github.com/neovim/neovim.git ~/neovim-src&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;cd ~/neovim-src&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git checkout stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;git clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;开始编译并全局安装：&lt;/p&gt;</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>格式化 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%A0%BC%E5%BC%8F%E5%8C%96/</link><description>Recent content in 格式化 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%A0%BC%E5%BC%8F%E5%8C%96/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>&lt;p&gt;本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&lt;/p&gt;
+&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
+&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
+ &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/QTZRFvTacwU?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
+ &lt;/div&gt;
+
+&lt;p&gt;这套配置包含：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;lazy.nvim&lt;/code&gt; 插件管理器&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;onedark.nvim&lt;/code&gt; 护眼深色主题&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;nvim-tree.lua&lt;/code&gt; 文件树&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;nvim-osc52&lt;/code&gt; 远程复制&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;conform.nvim&lt;/code&gt; 代码格式化&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;jq&lt;/code&gt; JSON 格式化工具&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;prettier&lt;/code&gt; 前端、Markdown 与 YAML 格式化工具&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;;t&lt;/code&gt; 智能切换文件树&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;;f&lt;/code&gt; 手动格式化&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;;w&lt;/code&gt; 保存并自动格式化&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="一安装-neovim"&gt;一、安装 Neovim&lt;/h2&gt;
+&lt;p&gt;要求 Neovim 版本不低于 &lt;code&gt;0.10.0&lt;/code&gt;。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。&lt;/p&gt;
+&lt;h3 id="debian--ubuntu"&gt;Debian / Ubuntu&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install -y neovim git curl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim --version | grep ^NVIM&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install -y neovim git curl\nnvim --version | grep ^NVIM"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果 Debian 或 Ubuntu 仓库里的 Neovim 版本低于 &lt;code&gt;0.10.0&lt;/code&gt;，可以参考源码编译方案，或使用官方 release 版本。&lt;/p&gt;</description></item><item><title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title><link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid><description>&lt;p&gt;本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&lt;/p&gt;
+&lt;p&gt;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 &lt;code&gt;conform.nvim&lt;/code&gt; 和 &lt;code&gt;prettier&lt;/code&gt; 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&lt;/p&gt;
+&lt;h2 id="第一步安装依赖并源码编译-neovim"&gt;第一步：安装依赖并源码编译 Neovim&lt;/h2&gt;
+&lt;p&gt;在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install ninja-build gettext cmake unzip curl build-essential git -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install ninja-build gettext cmake unzip curl build-essential git -y"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;拉取 Neovim 源码，并切换到稳定版分支。使用 &lt;code&gt;stable&lt;/code&gt; 分支可以规避开发版中可能出现的临时问题。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git clone https://github.com/neovim/neovim.git ~/neovim-src
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd ~/neovim-src
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git checkout stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"git clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;开始编译并全局安装：&lt;/p&gt;</description></item></channel></rss>
