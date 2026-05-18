@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">ntfy Docker Compose matrix cover</title>
+  <desc id="desc">A Docker themed cover for ntfy connected to the matrix network with persistent cache and config volumes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.52" stop-color="#1d3b36"/>
+      <stop offset="1" stop-color="#22406f"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#e0f2fe" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M88 482 C210 388 322 538 472 440 C600 356 760 350 906 436 C1012 498 1110 466 1200 414 L1200 630 L88 630 Z" fill="#38bdf8" opacity="0.15"/>
+  <path d="M0 220 C126 156 256 196 380 130 C552 38 720 124 880 80 C1000 48 1090 44 1200 70 L1200 0 L0 0 Z" fill="#a7f3d0" opacity="0.13"/>
+
+  <g stroke="#d1fae5" stroke-width="3" opacity="0.28">
+    <path d="M244 404 C354 318 444 320 548 404"/>
+    <path d="M652 404 C762 318 852 320 956 404"/>
+    <path d="M548 404 C582 456 618 456 652 404"/>
+    <circle cx="244" cy="404" r="8" fill="#d1fae5"/>
+    <circle cx="548" cy="404" r="8" fill="#d1fae5"/>
+    <circle cx="652" cy="404" r="8" fill="#d1fae5"/>
+    <circle cx="956" cy="404" r="8" fill="#d1fae5"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="88" y="92" width="1024" height="446" rx="34" fill="url(#panel)"/>
+  </g>
+
+  <g transform="translate(132 132)">
+    <rect x="0" y="0" width="148" height="78" rx="22" fill="#2563eb"/>
+    <path d="M47 28 h44 c18 0 31 12 31 30 v1 H29 v-1 c0 -18 9 -30 18 -30 Z" fill="#dbeafe"/>
+    <path d="M42 60 h66" stroke="#2563eb" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="54" cy="66" r="5" fill="#1e3a8a"/>
+    <circle cx="96" cy="66" r="5" fill="#1e3a8a"/>
+
+    <text x="0" y="156" font-family="Inter, Arial, sans-serif" font-size="68" fill="#102033" font-weight="800">ntfy</text>
+    <text x="0" y="214" font-family="Inter, Arial, sans-serif" font-size="41" fill="#155e75" font-weight="700">Docker Compose + matrix</text>
+    <text x="0" y="270" font-family="Inter, Arial, sans-serif" font-size="26" fill="#3f5865">notifications behind the same reverse proxy network</text>
+  </g>
+
+  <g transform="translate(710 132)">
+    <rect x="0" y="0" width="322" height="340" rx="28" fill="#0f172a"/>
+    <rect x="34" y="34" width="254" height="64" rx="16" fill="#14532d"/>
+    <text x="62" y="75" font-family="Menlo, Consolas, monospace" font-size="24" fill="#dcfce7">container: ntfy</text>
+    <rect x="34" y="122" width="254" height="64" rx="16" fill="#164e63"/>
+    <text x="62" y="163" font-family="Menlo, Consolas, monospace" font-size="24" fill="#cffafe">network: matrix</text>
+    <rect x="34" y="210" width="254" height="64" rx="16" fill="#1d4ed8"/>
+    <text x="62" y="251" font-family="Menlo, Consolas, monospace" font-size="24" fill="#dbeafe">serve :80</text>
+    <path d="M161 290 v28" stroke="#86efac" stroke-width="5" stroke-linecap="round"/>
+    <path d="M143 305 l18 18 l18 -18" fill="none" stroke="#86efac" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g transform="translate(166 468)">
+    <rect x="0" y="0" width="198" height="44" rx="22" fill="#0f766e"/>
+    <text x="32" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">/var/cache/ntfy</text>
+    <rect x="224" y="0" width="160" height="44" rx="22" fill="#0369a1"/>
+    <text x="260" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">/etc/ntfy</text>
+    <rect x="410" y="0" width="196" height="44" rx="22" fill="#1e40af"/>
+    <text x="448" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">NPM upstream</text>
+  </g>
+</svg>
