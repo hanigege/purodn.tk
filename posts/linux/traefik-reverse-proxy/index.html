@@ -1,200 +1,413 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>使用 traefik 搭建反向代理 | 电脑自习室</title><meta name=description content="使用 traefik 搭建反向代理原文备份。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
-<time datetime=2025-08-15>2025年8月15日</time></div><h1>使用 traefik 搭建反向代理</h1><p>使用 traefik 搭建反向代理原文备份。</p></header><img class=article-cover src=/posts/linux/traefik-reverse-proxy/assets/traefik-reverse-proxy-cover.png alt><div class=article-content><h2 id=本文介绍家庭宽带环境下使用traefik部署反向代理实现自动申请证书自动续签反代局域网内服务等功能>本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能</h2><p>注：1.目前traefik仅能通过docker部署 2. 后附unraid使用的traefik模板</p><h3 id=以下教程以在pve的lxc中安装为例>以下教程以在pve的lxc中安装为例</h3><h3 id=一lxc环境准备>（一）lxc环境准备</h3><ul><li>pve中以ubuntu22.04或debian12为模板，创建lxc</li><li>修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录</li><li>ssh登录lxc，更换国内源（有科学环境可不用换源）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>bash &lt;<span style=color:#f92672>(</span>curl -sSL https://linuxmirrors.cn/main.sh<span style=color:#f92672>)</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span>    --source mirrors.tuna.tsinghua.edu.cn <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span>    --web-protocol https <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span>    --backup true <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span>    --ignore-backup-tips <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span>    --updata-software false</span></span></code></pre></div><script class=code-source type=application/json>"bash \u003c(curl -sSL https://linuxmirrors.cn/main.sh) \\\n    --source mirrors.tuna.tsinghua.edu.cn \\\n    --web-protocol https \\\n    --backup true \\\n    --ignore-backup-tips \\\n    --updata-software false"</script></div><ul><li>更新软件包，安装必要依赖（若弹出选择框直接回车即可）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apt update <span style=color:#f92672>&amp;&amp;</span> apt upgrade -y <span style=color:#f92672>&amp;&amp;</span> apt install curl nano -y</span></span></code></pre></div><script class=code-source type=application/json>"apt update \u0026\u0026 apt upgrade -y \u0026\u0026 apt install curl nano -y"</script></div><ul><li>使用官方脚本一键安装docker和docker-compose</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>curl -fsSL https://get.docker.com -o get-docker.sh</span></span></code></pre></div><script class=code-source type=application/json>"curl -fsSL https://get.docker.com -o get-docker.sh"</script></div><h3 id=二部署traefik>（二）部署traefik</h3><ul><li>创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /root/docker/traefik/configurations
-</span></span><span style=display:flex><span>cd /root/docker/traefik
-</span></span><span style=display:flex><span>touch docker-compose.yaml
-</span></span><span style=display:flex><span>touch traefik.yml
-</span></span><span style=display:flex><span>touch acme.json
-</span></span><span style=display:flex><span>touch configurations/dynamic.yml
-</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>600</span> acme.json</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /root/docker/traefik/configurations\ncd /root/docker/traefik\ntouch docker-compose.yaml\ntouch traefik.yml\ntouch acme.json\ntouch configurations/dynamic.yml\nchmod 600 acme.json"</script></div><ul><li>编辑docker-compose.yaml文件</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nano /root/docker/traefik/docker-compose.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano /root/docker/traefik/docker-compose.yaml"</script></div><ul><li>粘贴以下代码至docker-compose.yaml，注意修改cloudflare dns api以及域名（域名格式参考traefik.abc.com）。</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>version: <span style=color:#e6db74>&#39;3.8&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>  traefik:
-</span></span><span style=display:flex><span>    image: traefik:latest
-</span></span><span style=display:flex><span>    container_name: traefik
-</span></span><span style=display:flex><span>    restart: always
-</span></span><span style=display:flex><span>    security_opt:
-</span></span><span style=display:flex><span>      - no-new-privileges:true
-</span></span><span style=display:flex><span>    ports:
-</span></span><span style=display:flex><span>      - 80:80
-</span></span><span style=display:flex><span>      - 443:443
-</span></span><span style=display:flex><span>      - 8080:8080
-</span></span><span style=display:flex><span>    environment:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;CF_DNS_API_TOKEN=修改为你的cloudflare DNS api&#34;</span>
-</span></span><span style=display:flex><span>    volumes:
-</span></span><span style=display:flex><span>      - /etc/localtime:/etc/localtime:ro
-</span></span><span style=display:flex><span>      - /var/run/docker.sock:/var/run/docker.sock:ro
-</span></span><span style=display:flex><span>      - ./traefik.yml:/traefik.yml:ro
-</span></span><span style=display:flex><span>      - ./acme.json:/acme.json
-</span></span><span style=display:flex><span>      - ./configurations:/configurations
-</span></span><span style=display:flex><span>    networks:
-</span></span><span style=display:flex><span>      - proxy
-</span></span><span style=display:flex><span>    labels:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.docker.network=bridge&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.entrypoints=websecure&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.middlewares=user-auth@file&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.service=api@internal&#34;</span>
-</span></span><span style=display:flex><span>networks:
-</span></span><span style=display:flex><span>  proxy:</span></span></code></pre></div><script class=code-source type=application/json>"version: '3.8'\n\nservices:\n  traefik:\n    image: traefik:latest\n    container_name: traefik\n    restart: always\n    security_opt:\n      - no-new-privileges:true\n    ports:\n      - 80:80\n      - 443:443\n      - 8080:8080\n    environment:\n      - \"CF_DNS_API_TOKEN=修改为你的cloudflare DNS api\"\n    volumes:\n      - /etc/localtime:/etc/localtime:ro\n      - /var/run/docker.sock:/var/run/docker.sock:ro\n      - ./traefik.yml:/traefik.yml:ro\n      - ./acme.json:/acme.json\n      - ./configurations:/configurations\n    networks:\n      - proxy\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.docker.network=bridge\"\n      - \"traefik.http.routers.traefik-secure.entrypoints=websecure\"\n      - \"traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)\"\n      - \"traefik.http.routers.traefik-secure.middlewares=user-auth@file\"\n      - \"traefik.http.routers.traefik-secure.service=api@internal\"\nnetworks:\n  proxy:"</script></div><ul><li>若要使用traefik的服务发现功能，需将traefik和其他容器加入共同的bridge网络，例如先创建名为“docker_bridge”的桥接网络，traefik和其他容器均使用此bridge才可实现服务发现功能，traefik加入已有桥接网络的compose格式如下</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>version: <span style=color:#e6db74>&#39;3.8&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>  traefik:
-</span></span><span style=display:flex><span>    image: traefik:latest
-</span></span><span style=display:flex><span>    container_name: traefik
-</span></span><span style=display:flex><span>    restart: unless-stopped
-</span></span><span style=display:flex><span>    security_opt:
-</span></span><span style=display:flex><span>      - no-new-privileges:true
-</span></span><span style=display:flex><span>    ports:
-</span></span><span style=display:flex><span>      - 80:80
-</span></span><span style=display:flex><span>      - 443:443
-</span></span><span style=display:flex><span>    environment:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;CF_DNS_API_TOKEN=修改为你的cloudflare DNS api&#34;</span>
-</span></span><span style=display:flex><span>    volumes:
-</span></span><span style=display:flex><span>      - /etc/localtime:/etc/localtime:ro
-</span></span><span style=display:flex><span>      - /var/run/docker.sock:/var/run/docker.sock:ro
-</span></span><span style=display:flex><span>      - ./traefik.yml:/traefik.yml:ro
-</span></span><span style=display:flex><span>      - ./acme.json:/acme.json
-</span></span><span style=display:flex><span>      - ./configurations:/configurations
-</span></span><span style=display:flex><span>    networks:
-</span></span><span style=display:flex><span>      - docker_bridge
-</span></span><span style=display:flex><span>    labels:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.docker.network=bridge&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.entrypoints=websecure&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.middlewares=user-auth@file&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.traefik-secure.service=api@internal&#34;</span>
-</span></span><span style=display:flex><span>networks:
-</span></span><span style=display:flex><span>  docker_bridge:
-</span></span><span style=display:flex><span>    external: true</span></span></code></pre></div><script class=code-source type=application/json>"version: '3.8'\n\nservices:\n  traefik:\n    image: traefik:latest\n    container_name: traefik\n    restart: unless-stopped\n    security_opt:\n      - no-new-privileges:true\n    ports:\n      - 80:80\n      - 443:443\n    environment:\n      - \"CF_DNS_API_TOKEN=修改为你的cloudflare DNS api\"\n    volumes:\n      - /etc/localtime:/etc/localtime:ro\n      - /var/run/docker.sock:/var/run/docker.sock:ro\n      - ./traefik.yml:/traefik.yml:ro\n      - ./acme.json:/acme.json\n      - ./configurations:/configurations\n    networks:\n      - docker_bridge\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.docker.network=bridge\"\n      - \"traefik.http.routers.traefik-secure.entrypoints=websecure\"\n      - \"traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)\"\n      - \"traefik.http.routers.traefik-secure.middlewares=user-auth@file\"\n      - \"traefik.http.routers.traefik-secure.service=api@internal\"\nnetworks:\n  docker_bridge:\n    external: true"</script></div><ul><li>编辑traefik.yml文件</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nano /root/docker/traefik/traefik.yml</span></span></code></pre></div><script class=code-source type=application/json>"nano /root/docker/traefik/traefik.yml"</script></div><ul><li>粘贴以下代码，注意修改“你的域名.com”及“*.你的域名.com”为自己的二级域名及三级泛域名，需先通过ddns完成二级域名及泛域名的解析</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>api:
-</span></span><span style=display:flex><span>  dashboard: true
-</span></span><span style=display:flex><span>  insecure: true
-</span></span><span style=display:flex><span>entryPoints:
-</span></span><span style=display:flex><span>  web:
-</span></span><span style=display:flex><span>    address: :80
-</span></span><span style=display:flex><span>    proxyProtocol:
-</span></span><span style=display:flex><span>      insecure: true
-</span></span><span style=display:flex><span>    http:
-</span></span><span style=display:flex><span>      redirections:
-</span></span><span style=display:flex><span>        entryPoint:
-</span></span><span style=display:flex><span>          to: websecure
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>  websecure:
-</span></span><span style=display:flex><span>    address: :443
-</span></span><span style=display:flex><span>    proxyProtocol:
-</span></span><span style=display:flex><span>      insecure: true
-</span></span><span style=display:flex><span>    http:
-</span></span><span style=display:flex><span>      middlewares:
-</span></span><span style=display:flex><span>        - secureHeaders@file
-</span></span><span style=display:flex><span>      tls:
-</span></span><span style=display:flex><span>        certResolver: myssl
-</span></span><span style=display:flex><span>        domains:
-</span></span><span style=display:flex><span>          - main: <span style=color:#e6db74>&#34;你的域名.com&#34;</span>
-</span></span><span style=display:flex><span>            sans:
-</span></span><span style=display:flex><span>              - <span style=color:#e6db74>&#34;*.你的域名.com&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>serversTransport:
-</span></span><span style=display:flex><span>  insecureSkipVerify: true
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>providers:
-</span></span><span style=display:flex><span>  docker:
-</span></span><span style=display:flex><span>    endpoint: <span style=color:#e6db74>&#34;unix:///var/run/docker.sock&#34;</span>
-</span></span><span style=display:flex><span>    exposedByDefault: false
-</span></span><span style=display:flex><span>  file:
-</span></span><span style=display:flex><span>    filename: /configurations/dynamic.yml
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>certificatesResolvers:
-</span></span><span style=display:flex><span>  myssl:
-</span></span><span style=display:flex><span>    acme:
-</span></span><span style=display:flex><span>      dnsChallenge:
-</span></span><span style=display:flex><span>        provider: cloudflare
-</span></span><span style=display:flex><span>        delayBeforeCheck: <span style=color:#ae81ff>0</span>
-</span></span><span style=display:flex><span>        resolvers:
-</span></span><span style=display:flex><span>          - <span style=color:#e6db74>&#34;119.29.29.29:53&#34;</span>
-</span></span><span style=display:flex><span>          - <span style=color:#e6db74>&#34;8.8.8.8:53&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"api:\n  dashboard: true\n  insecure: true\nentryPoints:\n  web:\n    address: :80\n    proxyProtocol:\n      insecure: true\n    http:\n      redirections:\n        entryPoint:\n          to: websecure\n\n  websecure:\n    address: :443\n    proxyProtocol:\n      insecure: true\n    http:\n      middlewares:\n        - secureHeaders@file\n      tls:\n        certResolver: myssl\n        domains:\n          - main: \"你的域名.com\"\n            sans:\n              - \"*.你的域名.com\"\n\nserversTransport:\n  insecureSkipVerify: true\n\nproviders:\n  docker:\n    endpoint: \"unix:///var/run/docker.sock\"\n    exposedByDefault: false\n  file:\n    filename: /configurations/dynamic.yml\n\ncertificatesResolvers:\n  myssl:\n    acme:\n      dnsChallenge:\n        provider: cloudflare\n        delayBeforeCheck: 0\n        resolvers:\n          - \"119.29.29.29:53\"\n          - \"8.8.8.8:53\""</script></div><ul><li>修改dynamic.yml （反向代理配置文件）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nano /root/docker/traefik/</span></span></code></pre></div><script class=code-source type=application/json>"nano /root/docker/traefik/"</script></div><ul><li>自行修改添加域名及内网ip对应关系，注意routers中service名称与services内名称需对应一致</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Dynamic configuration</span>
-</span></span><span style=display:flex><span>    http:
-</span></span><span style=display:flex><span>      routers:
-</span></span><span style=display:flex><span>        pve:
-</span></span><span style=display:flex><span>          service: pve
-</span></span><span style=display:flex><span>          middlewares:
-</span></span><span style=display:flex><span>          rule: <span style=color:#e6db74>&#34;Host(`pve.你的域名.com`)&#34;</span>
-</span></span><span style=display:flex><span>        unraid:
-</span></span><span style=display:flex><span>          service: unraid
-</span></span><span style=display:flex><span>          middlewares:
-</span></span><span style=display:flex><span>          rule: <span style=color:#e6db74>&#34;Host(`unraid.你的域名.com`)&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      services:
-</span></span><span style=display:flex><span>        pve:
-</span></span><span style=display:flex><span>          loadBalancer:
-</span></span><span style=display:flex><span>            servers:
-</span></span><span style=display:flex><span>              - url: <span style=color:#e6db74>&#34;https://10.0.0.254:8006&#34;</span>
-</span></span><span style=display:flex><span>        unraid:
-</span></span><span style=display:flex><span>          loadBalancer:
-</span></span><span style=display:flex><span>            servers:
-</span></span><span style=display:flex><span>              - url: <span style=color:#e6db74>&#34;http://10.0.0.8&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e>############################</span>
-</span></span><span style=display:flex><span>      middlewares:
-</span></span><span style=display:flex><span>        secureHeaders:
-</span></span><span style=display:flex><span>          headers:
-</span></span><span style=display:flex><span>            sslRedirect: true
-</span></span><span style=display:flex><span>            forceSTSHeader: true
-</span></span><span style=display:flex><span>            stsIncludeSubdomains: true
-</span></span><span style=display:flex><span>            stsPreload: true
-</span></span><span style=display:flex><span>            stsSeconds: <span style=color:#ae81ff>31536000</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        cors:
-</span></span><span style=display:flex><span>          headers:
-</span></span><span style=display:flex><span>            customResponseHeaders:
-</span></span><span style=display:flex><span>              Access-Control-Allow-Origin: <span style=color:#e6db74>&#34;*&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        user-auth:
-</span></span><span style=display:flex><span>          basicAuth:
-</span></span><span style=display:flex><span>            users:
-</span></span><span style=display:flex><span>              - <span style=color:#e6db74>&#34;admin:</span>$apr1$tm53ra6x$FntXd6jcvxYM<span style=color:#e6db74>/YH0P2hcc1&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"# Dynamic configuration\n    http:\n      routers:\n        pve:\n          service: pve\n          middlewares:\n          rule: \"Host(`pve.你的域名.com`)\"\n        unraid:\n          service: unraid\n          middlewares:\n          rule: \"Host(`unraid.你的域名.com`)\"\n\n      services:\n        pve:\n          loadBalancer:\n            servers:\n              - url: \"https://10.0.0.254:8006\"\n        unraid:\n          loadBalancer:\n            servers:\n              - url: \"http://10.0.0.8\"\n\n############################\n      middlewares:\n        secureHeaders:\n          headers:\n            sslRedirect: true\n            forceSTSHeader: true\n            stsIncludeSubdomains: true\n            stsPreload: true\n            stsSeconds: 31536000\n\n        cors:\n          headers:\n            customResponseHeaders:\n              Access-Control-Allow-Origin: \"*\"\n\n        user-auth:\n          basicAuth:\n            users:\n              - \"admin:$apr1$tm53ra6x$FntXd6jcvxYM/YH0P2hcc1\""</script></div><ul><li>启动容器</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose up -d</span></span></code></pre></div><script class=code-source type=application/json>"docker compose up -d"</script></div><ul><li>traefik面板为ip:8080，默认用户名admin，密码qwer1234（面板仅有显示作用，无法部署反代）</li></ul><h3 id=三使用traefik的服务发现功能>（三）使用traefik的服务发现功能</h3><ul><li>以部署frps为例，在下述compose文件中，添加 “labels”部分内容，修改域名及端口，加入traefik使用的”docker_bridge“网络，即可使用traefik的服务发现，frps容器部署成功后，访问”frps.你的域名.com“即可使用反代，无需到traefik中配置</li></ul><p>注意：“labels”中“port”需填容器内端口，如例子中所示，实际运行无需映射 - 9000:9527 ，即可反代访问9527端口</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>version: <span style=color:#e6db74>&#39;3.3&#39;</span>
-</span></span><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>    frps:
-</span></span><span style=display:flex><span>        restart: unless-stopped
-</span></span><span style=display:flex><span>        volumes:
-</span></span><span style=display:flex><span>            - <span style=color:#e6db74>&#39;/root/docker/frps/frps.toml:/etc/frp/frps.toml&#39;</span>
-</span></span><span style=display:flex><span>        container_name: frps
-</span></span><span style=display:flex><span>        image: snowdreamtech/frps
-</span></span><span style=display:flex><span>        ports:
-</span></span><span style=display:flex><span>            - 5443:5443
-</span></span><span style=display:flex><span>            - 9000:9527
-</span></span><span style=display:flex><span>        networks:
-</span></span><span style=display:flex><span>            - docker_bridge
-</span></span><span style=display:flex><span>        labels:
-</span></span><span style=display:flex><span>            - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
-</span></span><span style=display:flex><span>            - <span style=color:#e6db74>&#34;traefik.http.routers.frps.rule=Host(`frps.你的域名.com`)&#34;</span>
-</span></span><span style=display:flex><span>            - <span style=color:#e6db74>&#34;traefik.http.services.frps.loadbalancer.server.port=9527&#34;</span>
-</span></span><span style=display:flex><span>networks:
-</span></span><span style=display:flex><span>  docker_bridge:
-</span></span><span style=display:flex><span>    external: true</span></span></code></pre></div><script class=code-source type=application/json>"version: '3.3'\nservices:\n    frps:\n        restart: unless-stopped\n        volumes:\n            - '/root/docker/frps/frps.toml:/etc/frp/frps.toml'\n        container_name: frps\n        image: snowdreamtech/frps\n        ports:\n            - 5443:5443\n            - 9000:9527\n        networks:\n            - docker_bridge\n        labels:\n            - \"traefik.enable=true\"\n            - \"traefik.http.routers.frps.rule=Host(`frps.你的域名.com`)\"\n            - \"traefik.http.services.frps.loadbalancer.server.port=9527\"\nnetworks:\n  docker_bridge:\n    external: true"</script></div><h3 id=四unraid模板下载>（四）unraid模板下载</h3><p><a href=https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml>https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml</a></p></div><footer class=article-source><span>原文参考</span>
-<a href=https://blog.847977.xyz/2025/08/15/%E4%BD%BF%E7%94%A8traefik%E6%90%AD%E5%BB%BA%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86/ target=_blank rel="noopener noreferrer">https://blog.847977.xyz/2025/08/15/%E4%BD%BF%E7%94%A8traefik%E6%90%AD%E5%BB%BA%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86/</a></footer></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/freebsd/freebsd15-nginx-static-file-browser/><img src=/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/posts/linux/mosdns-install/assets/mosdns-install-cover.png alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/posts/linux/sing-box-install/assets/sing-box-install-cover.png alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>sing-box 安装教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>使用 traefik 搭建反向代理 | 电脑自习室</title>
+    <meta name="description" content="使用 traefik 搭建反向代理原文备份。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2025-08-15">2025年8月15日</time>
+        </div>
+        <h1>使用 traefik 搭建反向代理</h1>
+          <p>使用 traefik 搭建反向代理原文备份。</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/traefik-reverse-proxy/assets/traefik-reverse-proxy-cover.png" alt="">
+
+      <div class="article-content">
+        <h2 id="本文介绍家庭宽带环境下使用traefik部署反向代理实现自动申请证书自动续签反代局域网内服务等功能">本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能</h2>
+<p>注：1.目前traefik仅能通过docker部署       2. 后附unraid使用的traefik模板</p>
+<h3 id="以下教程以在pve的lxc中安装为例">以下教程以在pve的lxc中安装为例</h3>
+<h3 id="一lxc环境准备">（一）lxc环境准备</h3>
+<ul>
+<li>pve中以ubuntu22.04或debian12为模板，创建lxc</li>
+<li>修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录</li>
+<li>ssh登录lxc，更换国内源（有科学环境可不用换源）</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>bash &lt;<span style="color:#f92672">(</span>curl -sSL https://linuxmirrors.cn/main.sh<span style="color:#f92672">)</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    --source mirrors.tuna.tsinghua.edu.cn <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    --web-protocol https <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    --backup true <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    --ignore-backup-tips <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    --updata-software false</span></span></code></pre></div><script class="code-source" type="application/json">"bash \u003c(curl -sSL https://linuxmirrors.cn/main.sh) \\\n    --source mirrors.tuna.tsinghua.edu.cn \\\n    --web-protocol https \\\n    --backup true \\\n    --ignore-backup-tips \\\n    --updata-software false"</script>
+</div>
+<ul>
+<li>更新软件包，安装必要依赖（若弹出选择框直接回车即可）</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update <span style="color:#f92672">&amp;&amp;</span> apt upgrade -y <span style="color:#f92672">&amp;&amp;</span> apt install curl nano -y</span></span></code></pre></div><script class="code-source" type="application/json">"apt update \u0026\u0026 apt upgrade -y \u0026\u0026 apt install curl nano -y"</script>
+</div>
+<ul>
+<li>使用官方脚本一键安装docker和docker-compose</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://get.docker.com -o get-docker.sh</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://get.docker.com -o get-docker.sh"</script>
+</div>
+<h3 id="二部署traefik">（二）部署traefik</h3>
+<ul>
+<li>创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/docker/traefik/configurations
+</span></span><span style="display:flex;"><span>cd /root/docker/traefik
+</span></span><span style="display:flex;"><span>touch docker-compose.yaml
+</span></span><span style="display:flex;"><span>touch traefik.yml
+</span></span><span style="display:flex;"><span>touch acme.json
+</span></span><span style="display:flex;"><span>touch configurations/dynamic.yml
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> acme.json</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/docker/traefik/configurations\ncd /root/docker/traefik\ntouch docker-compose.yaml\ntouch traefik.yml\ntouch acme.json\ntouch configurations/dynamic.yml\nchmod 600 acme.json"</script>
+</div>
+<ul>
+<li>编辑docker-compose.yaml文件</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /root/docker/traefik/docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano /root/docker/traefik/docker-compose.yaml"</script>
+</div>
+<ul>
+<li>粘贴以下代码至docker-compose.yaml，注意修改cloudflare dns api以及域名（域名格式参考traefik.abc.com）。</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>version: <span style="color:#e6db74">&#39;3.8&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>  traefik:
+</span></span><span style="display:flex;"><span>    image: traefik:latest
+</span></span><span style="display:flex;"><span>    container_name: traefik
+</span></span><span style="display:flex;"><span>    restart: always
+</span></span><span style="display:flex;"><span>    security_opt:
+</span></span><span style="display:flex;"><span>      - no-new-privileges:true
+</span></span><span style="display:flex;"><span>    ports:
+</span></span><span style="display:flex;"><span>      - 80:80
+</span></span><span style="display:flex;"><span>      - 443:443
+</span></span><span style="display:flex;"><span>      - 8080:8080
+</span></span><span style="display:flex;"><span>    environment:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;CF_DNS_API_TOKEN=修改为你的cloudflare DNS api&#34;</span>
+</span></span><span style="display:flex;"><span>    volumes:
+</span></span><span style="display:flex;"><span>      - /etc/localtime:/etc/localtime:ro
+</span></span><span style="display:flex;"><span>      - /var/run/docker.sock:/var/run/docker.sock:ro
+</span></span><span style="display:flex;"><span>      - ./traefik.yml:/traefik.yml:ro
+</span></span><span style="display:flex;"><span>      - ./acme.json:/acme.json
+</span></span><span style="display:flex;"><span>      - ./configurations:/configurations
+</span></span><span style="display:flex;"><span>    networks:
+</span></span><span style="display:flex;"><span>      - proxy
+</span></span><span style="display:flex;"><span>    labels:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.docker.network=bridge&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.entrypoints=websecure&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.middlewares=user-auth@file&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.service=api@internal&#34;</span>
+</span></span><span style="display:flex;"><span>networks:
+</span></span><span style="display:flex;"><span>  proxy:</span></span></code></pre></div><script class="code-source" type="application/json">"version: '3.8'\n\nservices:\n  traefik:\n    image: traefik:latest\n    container_name: traefik\n    restart: always\n    security_opt:\n      - no-new-privileges:true\n    ports:\n      - 80:80\n      - 443:443\n      - 8080:8080\n    environment:\n      - \"CF_DNS_API_TOKEN=修改为你的cloudflare DNS api\"\n    volumes:\n      - /etc/localtime:/etc/localtime:ro\n      - /var/run/docker.sock:/var/run/docker.sock:ro\n      - ./traefik.yml:/traefik.yml:ro\n      - ./acme.json:/acme.json\n      - ./configurations:/configurations\n    networks:\n      - proxy\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.docker.network=bridge\"\n      - \"traefik.http.routers.traefik-secure.entrypoints=websecure\"\n      - \"traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)\"\n      - \"traefik.http.routers.traefik-secure.middlewares=user-auth@file\"\n      - \"traefik.http.routers.traefik-secure.service=api@internal\"\nnetworks:\n  proxy:"</script>
+</div>
+<ul>
+<li>若要使用traefik的服务发现功能，需将traefik和其他容器加入共同的bridge网络，例如先创建名为“docker_bridge”的桥接网络，traefik和其他容器均使用此bridge才可实现服务发现功能，traefik加入已有桥接网络的compose格式如下</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>version: <span style="color:#e6db74">&#39;3.8&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>  traefik:
+</span></span><span style="display:flex;"><span>    image: traefik:latest
+</span></span><span style="display:flex;"><span>    container_name: traefik
+</span></span><span style="display:flex;"><span>    restart: unless-stopped
+</span></span><span style="display:flex;"><span>    security_opt:
+</span></span><span style="display:flex;"><span>      - no-new-privileges:true
+</span></span><span style="display:flex;"><span>    ports:
+</span></span><span style="display:flex;"><span>      - 80:80
+</span></span><span style="display:flex;"><span>      - 443:443
+</span></span><span style="display:flex;"><span>    environment:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;CF_DNS_API_TOKEN=修改为你的cloudflare DNS api&#34;</span>
+</span></span><span style="display:flex;"><span>    volumes:
+</span></span><span style="display:flex;"><span>      - /etc/localtime:/etc/localtime:ro
+</span></span><span style="display:flex;"><span>      - /var/run/docker.sock:/var/run/docker.sock:ro
+</span></span><span style="display:flex;"><span>      - ./traefik.yml:/traefik.yml:ro
+</span></span><span style="display:flex;"><span>      - ./acme.json:/acme.json
+</span></span><span style="display:flex;"><span>      - ./configurations:/configurations
+</span></span><span style="display:flex;"><span>    networks:
+</span></span><span style="display:flex;"><span>      - docker_bridge
+</span></span><span style="display:flex;"><span>    labels:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.docker.network=bridge&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.entrypoints=websecure&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.middlewares=user-auth@file&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;traefik.http.routers.traefik-secure.service=api@internal&#34;</span>
+</span></span><span style="display:flex;"><span>networks:
+</span></span><span style="display:flex;"><span>  docker_bridge:
+</span></span><span style="display:flex;"><span>    external: true</span></span></code></pre></div><script class="code-source" type="application/json">"version: '3.8'\n\nservices:\n  traefik:\n    image: traefik:latest\n    container_name: traefik\n    restart: unless-stopped\n    security_opt:\n      - no-new-privileges:true\n    ports:\n      - 80:80\n      - 443:443\n    environment:\n      - \"CF_DNS_API_TOKEN=修改为你的cloudflare DNS api\"\n    volumes:\n      - /etc/localtime:/etc/localtime:ro\n      - /var/run/docker.sock:/var/run/docker.sock:ro\n      - ./traefik.yml:/traefik.yml:ro\n      - ./acme.json:/acme.json\n      - ./configurations:/configurations\n    networks:\n      - docker_bridge\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.docker.network=bridge\"\n      - \"traefik.http.routers.traefik-secure.entrypoints=websecure\"\n      - \"traefik.http.routers.traefik-secure.rule=Host(`修改为你的域名，例如traefik.abc.com`)\"\n      - \"traefik.http.routers.traefik-secure.middlewares=user-auth@file\"\n      - \"traefik.http.routers.traefik-secure.service=api@internal\"\nnetworks:\n  docker_bridge:\n    external: true"</script>
+</div>
+<ul>
+<li>编辑traefik.yml文件</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /root/docker/traefik/traefik.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nano /root/docker/traefik/traefik.yml"</script>
+</div>
+<ul>
+<li>粘贴以下代码，注意修改“你的域名.com”及“*.你的域名.com”为自己的二级域名及三级泛域名，需先通过ddns完成二级域名及泛域名的解析</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>api:
+</span></span><span style="display:flex;"><span>  dashboard: true
+</span></span><span style="display:flex;"><span>  insecure: true
+</span></span><span style="display:flex;"><span>entryPoints:
+</span></span><span style="display:flex;"><span>  web:
+</span></span><span style="display:flex;"><span>    address: :80
+</span></span><span style="display:flex;"><span>    proxyProtocol:
+</span></span><span style="display:flex;"><span>      insecure: true
+</span></span><span style="display:flex;"><span>    http:
+</span></span><span style="display:flex;"><span>      redirections:
+</span></span><span style="display:flex;"><span>        entryPoint:
+</span></span><span style="display:flex;"><span>          to: websecure
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  websecure:
+</span></span><span style="display:flex;"><span>    address: :443
+</span></span><span style="display:flex;"><span>    proxyProtocol:
+</span></span><span style="display:flex;"><span>      insecure: true
+</span></span><span style="display:flex;"><span>    http:
+</span></span><span style="display:flex;"><span>      middlewares:
+</span></span><span style="display:flex;"><span>        - secureHeaders@file
+</span></span><span style="display:flex;"><span>      tls:
+</span></span><span style="display:flex;"><span>        certResolver: myssl
+</span></span><span style="display:flex;"><span>        domains:
+</span></span><span style="display:flex;"><span>          - main: <span style="color:#e6db74">&#34;你的域名.com&#34;</span>
+</span></span><span style="display:flex;"><span>            sans:
+</span></span><span style="display:flex;"><span>              - <span style="color:#e6db74">&#34;*.你的域名.com&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>serversTransport:
+</span></span><span style="display:flex;"><span>  insecureSkipVerify: true
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>providers:
+</span></span><span style="display:flex;"><span>  docker:
+</span></span><span style="display:flex;"><span>    endpoint: <span style="color:#e6db74">&#34;unix:///var/run/docker.sock&#34;</span>
+</span></span><span style="display:flex;"><span>    exposedByDefault: false
+</span></span><span style="display:flex;"><span>  file:
+</span></span><span style="display:flex;"><span>    filename: /configurations/dynamic.yml
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>certificatesResolvers:
+</span></span><span style="display:flex;"><span>  myssl:
+</span></span><span style="display:flex;"><span>    acme:
+</span></span><span style="display:flex;"><span>      dnsChallenge:
+</span></span><span style="display:flex;"><span>        provider: cloudflare
+</span></span><span style="display:flex;"><span>        delayBeforeCheck: <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>        resolvers:
+</span></span><span style="display:flex;"><span>          - <span style="color:#e6db74">&#34;119.29.29.29:53&#34;</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#e6db74">&#34;8.8.8.8:53&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"api:\n  dashboard: true\n  insecure: true\nentryPoints:\n  web:\n    address: :80\n    proxyProtocol:\n      insecure: true\n    http:\n      redirections:\n        entryPoint:\n          to: websecure\n\n  websecure:\n    address: :443\n    proxyProtocol:\n      insecure: true\n    http:\n      middlewares:\n        - secureHeaders@file\n      tls:\n        certResolver: myssl\n        domains:\n          - main: \"你的域名.com\"\n            sans:\n              - \"*.你的域名.com\"\n\nserversTransport:\n  insecureSkipVerify: true\n\nproviders:\n  docker:\n    endpoint: \"unix:///var/run/docker.sock\"\n    exposedByDefault: false\n  file:\n    filename: /configurations/dynamic.yml\n\ncertificatesResolvers:\n  myssl:\n    acme:\n      dnsChallenge:\n        provider: cloudflare\n        delayBeforeCheck: 0\n        resolvers:\n          - \"119.29.29.29:53\"\n          - \"8.8.8.8:53\""</script>
+</div>
+<ul>
+<li>修改dynamic.yml （反向代理配置文件）</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /root/docker/traefik/</span></span></code></pre></div><script class="code-source" type="application/json">"nano /root/docker/traefik/"</script>
+</div>
+<ul>
+<li>自行修改添加域名及内网ip对应关系，注意routers中service名称与services内名称需对应一致</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Dynamic configuration</span>
+</span></span><span style="display:flex;"><span>    http:
+</span></span><span style="display:flex;"><span>      routers:
+</span></span><span style="display:flex;"><span>        pve:
+</span></span><span style="display:flex;"><span>          service: pve
+</span></span><span style="display:flex;"><span>          middlewares:
+</span></span><span style="display:flex;"><span>          rule: <span style="color:#e6db74">&#34;Host(`pve.你的域名.com`)&#34;</span>
+</span></span><span style="display:flex;"><span>        unraid:
+</span></span><span style="display:flex;"><span>          service: unraid
+</span></span><span style="display:flex;"><span>          middlewares:
+</span></span><span style="display:flex;"><span>          rule: <span style="color:#e6db74">&#34;Host(`unraid.你的域名.com`)&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      services:
+</span></span><span style="display:flex;"><span>        pve:
+</span></span><span style="display:flex;"><span>          loadBalancer:
+</span></span><span style="display:flex;"><span>            servers:
+</span></span><span style="display:flex;"><span>              - url: <span style="color:#e6db74">&#34;https://10.0.0.254:8006&#34;</span>
+</span></span><span style="display:flex;"><span>        unraid:
+</span></span><span style="display:flex;"><span>          loadBalancer:
+</span></span><span style="display:flex;"><span>            servers:
+</span></span><span style="display:flex;"><span>              - url: <span style="color:#e6db74">&#34;http://10.0.0.8&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">############################</span>
+</span></span><span style="display:flex;"><span>      middlewares:
+</span></span><span style="display:flex;"><span>        secureHeaders:
+</span></span><span style="display:flex;"><span>          headers:
+</span></span><span style="display:flex;"><span>            sslRedirect: true
+</span></span><span style="display:flex;"><span>            forceSTSHeader: true
+</span></span><span style="display:flex;"><span>            stsIncludeSubdomains: true
+</span></span><span style="display:flex;"><span>            stsPreload: true
+</span></span><span style="display:flex;"><span>            stsSeconds: <span style="color:#ae81ff">31536000</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        cors:
+</span></span><span style="display:flex;"><span>          headers:
+</span></span><span style="display:flex;"><span>            customResponseHeaders:
+</span></span><span style="display:flex;"><span>              Access-Control-Allow-Origin: <span style="color:#e6db74">&#34;*&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        user-auth:
+</span></span><span style="display:flex;"><span>          basicAuth:
+</span></span><span style="display:flex;"><span>            users:
+</span></span><span style="display:flex;"><span>              - <span style="color:#e6db74">&#34;admin:</span>$apr1$tm53ra6x$FntXd6jcvxYM<span style="color:#e6db74">/YH0P2hcc1&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# Dynamic configuration\n    http:\n      routers:\n        pve:\n          service: pve\n          middlewares:\n          rule: \"Host(`pve.你的域名.com`)\"\n        unraid:\n          service: unraid\n          middlewares:\n          rule: \"Host(`unraid.你的域名.com`)\"\n\n      services:\n        pve:\n          loadBalancer:\n            servers:\n              - url: \"https://10.0.0.254:8006\"\n        unraid:\n          loadBalancer:\n            servers:\n              - url: \"http://10.0.0.8\"\n\n############################\n      middlewares:\n        secureHeaders:\n          headers:\n            sslRedirect: true\n            forceSTSHeader: true\n            stsIncludeSubdomains: true\n            stsPreload: true\n            stsSeconds: 31536000\n\n        cors:\n          headers:\n            customResponseHeaders:\n              Access-Control-Allow-Origin: \"*\"\n\n        user-auth:\n          basicAuth:\n            users:\n              - \"admin:$apr1$tm53ra6x$FntXd6jcvxYM/YH0P2hcc1\""</script>
+</div>
+<ul>
+<li>启动容器</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<ul>
+<li>traefik面板为ip:8080，默认用户名admin，密码qwer1234（面板仅有显示作用，无法部署反代）</li>
+</ul>
+<h3 id="三使用traefik的服务发现功能">（三）使用traefik的服务发现功能</h3>
+<ul>
+<li>以部署frps为例，在下述compose文件中，添加 “labels”部分内容，修改域名及端口，加入traefik使用的”docker_bridge“网络，即可使用traefik的服务发现，frps容器部署成功后，访问”frps.你的域名.com“即可使用反代，无需到traefik中配置</li>
+</ul>
+<p>注意：“labels”中“port”需填容器内端口，如例子中所示，实际运行无需映射 - 9000:9527 ，即可反代访问9527端口</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>version: <span style="color:#e6db74">&#39;3.3&#39;</span>
+</span></span><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>    frps:
+</span></span><span style="display:flex;"><span>        restart: unless-stopped
+</span></span><span style="display:flex;"><span>        volumes:
+</span></span><span style="display:flex;"><span>            - <span style="color:#e6db74">&#39;/root/docker/frps/frps.toml:/etc/frp/frps.toml&#39;</span>
+</span></span><span style="display:flex;"><span>        container_name: frps
+</span></span><span style="display:flex;"><span>        image: snowdreamtech/frps
+</span></span><span style="display:flex;"><span>        ports:
+</span></span><span style="display:flex;"><span>            - 5443:5443
+</span></span><span style="display:flex;"><span>            - 9000:9527
+</span></span><span style="display:flex;"><span>        networks:
+</span></span><span style="display:flex;"><span>            - docker_bridge
+</span></span><span style="display:flex;"><span>        labels:
+</span></span><span style="display:flex;"><span>            - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+</span></span><span style="display:flex;"><span>            - <span style="color:#e6db74">&#34;traefik.http.routers.frps.rule=Host(`frps.你的域名.com`)&#34;</span>
+</span></span><span style="display:flex;"><span>            - <span style="color:#e6db74">&#34;traefik.http.services.frps.loadbalancer.server.port=9527&#34;</span>
+</span></span><span style="display:flex;"><span>networks:
+</span></span><span style="display:flex;"><span>  docker_bridge:
+</span></span><span style="display:flex;"><span>    external: true</span></span></code></pre></div><script class="code-source" type="application/json">"version: '3.3'\nservices:\n    frps:\n        restart: unless-stopped\n        volumes:\n            - '/root/docker/frps/frps.toml:/etc/frp/frps.toml'\n        container_name: frps\n        image: snowdreamtech/frps\n        ports:\n            - 5443:5443\n            - 9000:9527\n        networks:\n            - docker_bridge\n        labels:\n            - \"traefik.enable=true\"\n            - \"traefik.http.routers.frps.rule=Host(`frps.你的域名.com`)\"\n            - \"traefik.http.services.frps.loadbalancer.server.port=9527\"\nnetworks:\n  docker_bridge:\n    external: true"</script>
+</div>
+<h3 id="四unraid模板下载">（四）unraid模板下载</h3>
+<p><a href="https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml">https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml</a></p>
+
+      </div>
+        <footer class="article-source">
+          <span>原文参考</span>
+          <a href="https://blog.847977.xyz/2025/08/15/%E4%BD%BF%E7%94%A8traefik%E6%90%AD%E5%BB%BA%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86/" target="_blank" rel="noopener noreferrer">https://blog.847977.xyz/2025/08/15/%E4%BD%BF%E7%94%A8traefik%E6%90%AD%E5%BB%BA%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86/</a>
+        </footer>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-nginx-static-file-browser/">
+            <img src="/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mosdns-install/">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">mosdns 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-install/">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">sing-box 安装教程</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

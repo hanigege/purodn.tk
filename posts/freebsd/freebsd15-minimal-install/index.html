@@ -1,30 +1,285 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>FreeBSD 15 最小化安装：VPS 控制台图文流程 | 电脑自习室</title><meta name=description content="在 VPS 或小内存机器上安装 FreeBSD 15 的最小化流程，覆盖安装集、UFS 分区、网络、时区、NTP、用户创建和重启后的处理。"><link rel=stylesheet href=/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n+JlDUM="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
-<time datetime=2026-02-17>2026年2月17日</time></div><h1>FreeBSD 15 最小化安装：VPS 控制台图文流程</h1><p>在 VPS 或小内存机器上安装 FreeBSD 15 的最小化流程，覆盖安装集、UFS 分区、网络、时区、NTP、用户创建和重启后的处理。</p></header><img class=article-cover src=/posts/freebsd/freebsd15-minimal-install/assets/freebsd15-minimal-install-cover.svg alt><div class=article-content><p>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。</p><p>适合下面几种场景：</p><ul><li>VPS 面板只提供 VNC / noVNC 控制台。</li><li>内存较小，优先选择 UFS 而不是 ZFS。</li><li>只需要一个干净的 FreeBSD 基础系统。</li><li>安装阶段先跑通网络、时区和 SSH，后续再做安全加固。</li></ul><h2 id=快速选择表>快速选择表</h2><table><thead><tr><th>阶段</th><th>推荐选择</th></tr></thead><tbody><tr><td>Distribution Sets</td><td>全部取消，保持最小安装</td></tr><tr><td>文件系统</td><td>小内存 VPS 优先 UFS</td></tr><tr><td>分区表</td><td>GPT</td></tr><tr><td>网络</td><td>VPS 通常选 Auto / DHCP</td></tr><tr><td>时区</td><td>Asia / China / CST</td></tr><tr><td>NTP</td><td>建议启用 ntpd 相关选项</td></tr><tr><td>用户</td><td>推荐创建普通用户，并加入 wheel 组</td></tr></tbody></table><h2 id=进入安装器>进入安装器</h2><p>启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。</p><p><img src=assets/freebsd15-minimal-install-01.png alt="FreeBSD 安装器欢迎界面"></p><h2 id=选择最小安装组件>选择最小安装组件</h2><p><code>Distribution Sets</code> 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。</p><p><img src=assets/freebsd15-minimal-install-02.png alt=不要选择额外安装组件></p><p>输入主机名。这里可以直接写机器用途，例如 <code>freebsd</code>、<code>vps-freebsd</code> 或自己的主机命名。</p><p><img src=assets/freebsd15-minimal-install-03.png alt=输入主机名></p><p>进入 <code>Distribution Sets</code> 选择界面。</p><p><img src=assets/freebsd15-minimal-install-04.png alt="进入 Distribution Sets"></p><p>把所有可选项取消，只保留最小基础系统。</p><p><img src=assets/freebsd15-minimal-install-05.png alt=取消所有可选组件></p><h2 id=磁盘和分区>磁盘和分区</h2><p>小内存 VPS 建议先选 UFS。ZFS 功能更强，但对内存和磁盘布局更挑剔，最小化安装场景里 UFS 更省心。</p><p><img src=assets/freebsd15-minimal-install-06.png alt="选择 UFS 文件系统"></p><p>选择要安装 FreeBSD 的磁盘。VPS 环境通常只有一块虚拟磁盘，确认磁盘名和容量无误后继续。</p><p><img src=assets/freebsd15-minimal-install-07.png alt=选择安装磁盘></p><p>确认对这块磁盘进行分区和写入。</p><p><img src=assets/freebsd15-minimal-install-08.png alt=确认使用目标磁盘></p><p>分区表选择 <code>GPT (GUID Partition Table)</code>。这是现代系统的标准分区格式，比 MBR 更适合新系统和虚拟化环境。除非 VPS 平台明确要求 Legacy BIOS / MBR，否则优先选 GPT。</p><p><img src=assets/freebsd15-minimal-install-09.png alt="选择 GPT 分区表"></p><p>分区方案确认后选择 <code>Finish</code>。</p><p><img src=assets/freebsd15-minimal-install-10.png alt=完成分区设置></p><p>最后选择 <code>Commit</code>，把分区更改写入磁盘。</p><p><img src=assets/freebsd15-minimal-install-11.png alt=提交分区更改></p><h2 id=root-密码和网络>Root 密码和网络</h2><p>安装文件复制完成后，先设置 root 密码。密码输入时屏幕不会显示字符，这是正常现象。</p><p><img src=assets/freebsd15-minimal-install-12.png alt="设置 root 密码"></p><p>网络配置阶段，如果是在 VPS 上安装，通常建议选择 <code>Auto</code>，让系统通过 DHCP 自动获取 IP 地址。只有在服务商明确提供静态 IP、网关、掩码和 DNS 参数时，才选择手动配置。</p><p><img src=assets/freebsd15-minimal-install-13.png alt=选择自动网络配置></p><h2 id=时区和时间同步>时区和时间同步</h2><p>时区区域选择 <code>Asia</code>。</p><p><img src=assets/freebsd15-minimal-install-14.png alt="选择 Asia 时区区域"></p><p>继续选择国家或地区。</p><p><img src=assets/freebsd15-minimal-install-15.png alt=选择国家或地区></p><p>确认时区条目。</p><p><img src=assets/freebsd15-minimal-install-16.png alt=确认时区条目></p><p>国内 VPS 使用 <code>CST</code> 作为时区缩写是合理的，对应 China Standard Time。</p><p><img src=assets/freebsd15-minimal-install-17.png alt="确认 CST 时区缩写"></p><p>日期时间额外调整可以先跳过。后面启用 NTP 后，系统会自动校时。</p><p><img src=assets/freebsd15-minimal-install-18.png alt=跳过手动时间调整></p><p><img src=assets/freebsd15-minimal-install-19.png alt=跳过额外时间设置></p><p>服务项里建议把 <code>ntpd</code> 相关选项勾上，用于自动同步时间。</p><p><img src=assets/freebsd15-minimal-install-20.png alt="启用 ntpd 自动校时"></p><p>安全加固选项如果还不熟悉，可以先不选。等系统安装完成、确认 SSH 能登录后，再按实际用途逐项调整。</p><p><img src=assets/freebsd15-minimal-install-21.png alt=暂不启用额外加固选项></p><p><img src=assets/freebsd15-minimal-install-22.png alt=保持加固选项为空></p><h2 id=用户创建>用户创建</h2><p>安装器会询问是否创建普通用户。只使用 root 也可以直接选 <code>no</code>，但更推荐创建一个普通用户，并把它加入 <code>wheel</code> 组，后续通过 <code>su</code> 或 <code>sudo</code> 管理系统会更安全。</p><p><img src=assets/freebsd15-minimal-install-23.png alt=选择是否添加普通用户></p><p>如果选择创建用户，<code>Uid (Leave empty for default)</code> 直接回车即可，系统会自动分配 UID。</p><p><img src=assets/freebsd15-minimal-install-24.png alt="保留默认 UID"></p><p>FreeBSD 15 的用户创建流程如下。大部分字段可以直接回车保持默认，但 <code>Invite user into other groups? []:</code> 这一步建议输入 <code>wheel</code>。</p><p><img src=assets/freebsd15-minimal-install-25.png alt="FreeBSD 15 用户创建提示"></p><p>FreeBSD 13 / 14 的界面略有不同，但原则一样：普通用户建议加入 <code>wheel</code> 组。</p><p><img src=assets/freebsd15-minimal-install-26.png alt="FreeBSD 13/14 用户创建界面"></p><p>可以参考下面的填写方式：</p><ul><li><code>Login group</code>: 默认即可，通常与用户名相同。</li><li><code>Invite user into other groups? []</code>: 输入 <code>wheel</code>。</li><li><code>Login class</code>: 默认即可。</li><li><code>Shell</code>: 默认可用，后续也能改成 <code>sh</code>、<code>csh</code> 或其他 shell。</li><li><code>Home directory</code>: 默认即可。</li><li><code>Use password-based authentication? [yes]</code>: 默认 <code>yes</code>。</li><li><code>Use an empty password? (yes/no) [no]</code>: 默认 <code>no</code>。</li><li><code>Password</code>: 输入普通用户密码。</li><li><code>Lock out the account after creation? [no]</code>: 默认 <code>no</code>。</li></ul><p>输入完密码后，后面的确认项通常保持默认或选择 <code>no</code>，直接回车即可。</p><p><img src=assets/freebsd15-minimal-install-27.png alt=确认用户密码后的选项></p><p>最后检查信息无误后输入 <code>yes</code> 确认创建。</p><p><img src=assets/freebsd15-minimal-install-28.png alt=确认创建用户></p><p>如果不再添加其他用户，<code>Add another user?</code> 选择 <code>no</code>。</p><p><img src=assets/freebsd15-minimal-install-29.png alt=不再添加其他用户></p><h2 id=结束安装并重启>结束安装并重启</h2><p>回到最终配置菜单后，选择 <code>Exit</code> 或 <code>Select</code> 进入收尾流程。</p><p><img src=assets/freebsd15-minimal-install-30.png alt=进入安装收尾菜单></p><p>如果安装器询问是否进入 shell 做最后修改，暂时选择 <code>no</code>。</p><p><img src=assets/freebsd15-minimal-install-31.png alt="不进入最终 shell"></p><p>重启完成后，系统会从硬盘进入刚安装好的 FreeBSD。</p><p><img src=assets/freebsd15-minimal-install-32.png alt=重启完成></p><h2 id=重启后的-ssh-提醒>重启后的 SSH 提醒</h2><p>如果安装阶段没有创建普通用户，只能先通过 VNC 进入系统处理 root 登录和 SSH 配置。为了长期使用，建议后续至少做这几件事：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 更新软件仓库</span>
-</span></span><span style=display:flex><span>pkg update
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 安装 sudo</span>
-</span></span><span style=display:flex><span>pkg install -y sudo
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 创建普通用户时加入 wheel 组，或把已有用户加入 wheel</span>
-</span></span><span style=display:flex><span>pw groupmod wheel -m 用户名</span></span></code></pre></div><script class=code-source type=application/json>"# 更新软件仓库\npkg update\n\n# 安装 sudo\npkg install -y sudo\n\n# 创建普通用户时加入 wheel 组，或把已有用户加入 wheel\npw groupmod wheel -m 用户名"</script></div><p>然后按需调整 <code>/etc/ssh/sshd_config</code>。生产环境里不建议长期开放 root 密码登录，确认普通用户能正常登录和提权后，再收紧 SSH 配置。</p></div><footer class=article-source><span>原文参考</span>
-<a href=https://7829.eu.org/archives/1771261257707 target=_blank rel="noopener noreferrer">https://7829.eu.org/archives/1771261257707</a></footer></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/freebsd/freebsd15-nginx-static-file-browser/><img src=/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span></a></li><li><a href=/posts/linux/proxmox-debian13-mosdns/><img src=/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span></a></li><li><a href=/posts/linux/nvim-format-toolkit-cross-platform-2026/><img src=/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span></a></li><li><a href=/posts/docker/docker-command-cheatsheet/><img src=/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span></a></li><li><a href=/posts/linux/ubuntu2404-neovim-source-toolkit/><img src=/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span></a></li><li><a href=/posts/linux/mosdns-install/><img src=/posts/linux/mosdns-install/assets/mosdns-install-cover.png alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>mosdns 安装教程</span></a></li><li><a href=/posts/linux/sing-box-install/><img src=/posts/linux/sing-box-install/assets/sing-box-install-cover.png alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>sing-box 安装教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FreeBSD 15 最小化安装：VPS 控制台图文流程 | 电脑自习室</title>
+    <meta name="description" content="在 VPS 或小内存机器上安装 FreeBSD 15 的最小化流程，覆盖安装集、UFS 分区、网络、时区、NTP、用户创建和重启后的处理。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>FreeBSD</span>
+          <time datetime="2026-02-17">2026年2月17日</time>
+        </div>
+        <h1>FreeBSD 15 最小化安装：VPS 控制台图文流程</h1>
+          <p>在 VPS 或小内存机器上安装 FreeBSD 15 的最小化流程，覆盖安装集、UFS 分区、网络、时区、NTP、用户创建和重启后的处理。</p>
+      </header>
+          <img class="article-cover" src="/posts/freebsd/freebsd15-minimal-install/assets/freebsd15-minimal-install-cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。</p>
+<p>适合下面几种场景：</p>
+<ul>
+<li>VPS 面板只提供 VNC / noVNC 控制台。</li>
+<li>内存较小，优先选择 UFS 而不是 ZFS。</li>
+<li>只需要一个干净的 FreeBSD 基础系统。</li>
+<li>安装阶段先跑通网络、时区和 SSH，后续再做安全加固。</li>
+</ul>
+<h2 id="快速选择表">快速选择表</h2>
+<table>
+  <thead>
+      <tr>
+          <th>阶段</th>
+          <th>推荐选择</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Distribution Sets</td>
+          <td>全部取消，保持最小安装</td>
+      </tr>
+      <tr>
+          <td>文件系统</td>
+          <td>小内存 VPS 优先 UFS</td>
+      </tr>
+      <tr>
+          <td>分区表</td>
+          <td>GPT</td>
+      </tr>
+      <tr>
+          <td>网络</td>
+          <td>VPS 通常选 Auto / DHCP</td>
+      </tr>
+      <tr>
+          <td>时区</td>
+          <td>Asia / China / CST</td>
+      </tr>
+      <tr>
+          <td>NTP</td>
+          <td>建议启用 ntpd 相关选项</td>
+      </tr>
+      <tr>
+          <td>用户</td>
+          <td>推荐创建普通用户，并加入 wheel 组</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="进入安装器">进入安装器</h2>
+<p>启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。</p>
+<p><img src="assets/freebsd15-minimal-install-01.png" alt="FreeBSD 安装器欢迎界面"></p>
+<h2 id="选择最小安装组件">选择最小安装组件</h2>
+<p><code>Distribution Sets</code> 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。</p>
+<p><img src="assets/freebsd15-minimal-install-02.png" alt="不要选择额外安装组件"></p>
+<p>输入主机名。这里可以直接写机器用途，例如 <code>freebsd</code>、<code>vps-freebsd</code> 或自己的主机命名。</p>
+<p><img src="assets/freebsd15-minimal-install-03.png" alt="输入主机名"></p>
+<p>进入 <code>Distribution Sets</code> 选择界面。</p>
+<p><img src="assets/freebsd15-minimal-install-04.png" alt="进入 Distribution Sets"></p>
+<p>把所有可选项取消，只保留最小基础系统。</p>
+<p><img src="assets/freebsd15-minimal-install-05.png" alt="取消所有可选组件"></p>
+<h2 id="磁盘和分区">磁盘和分区</h2>
+<p>小内存 VPS 建议先选 UFS。ZFS 功能更强，但对内存和磁盘布局更挑剔，最小化安装场景里 UFS 更省心。</p>
+<p><img src="assets/freebsd15-minimal-install-06.png" alt="选择 UFS 文件系统"></p>
+<p>选择要安装 FreeBSD 的磁盘。VPS 环境通常只有一块虚拟磁盘，确认磁盘名和容量无误后继续。</p>
+<p><img src="assets/freebsd15-minimal-install-07.png" alt="选择安装磁盘"></p>
+<p>确认对这块磁盘进行分区和写入。</p>
+<p><img src="assets/freebsd15-minimal-install-08.png" alt="确认使用目标磁盘"></p>
+<p>分区表选择 <code>GPT (GUID Partition Table)</code>。这是现代系统的标准分区格式，比 MBR 更适合新系统和虚拟化环境。除非 VPS 平台明确要求 Legacy BIOS / MBR，否则优先选 GPT。</p>
+<p><img src="assets/freebsd15-minimal-install-09.png" alt="选择 GPT 分区表"></p>
+<p>分区方案确认后选择 <code>Finish</code>。</p>
+<p><img src="assets/freebsd15-minimal-install-10.png" alt="完成分区设置"></p>
+<p>最后选择 <code>Commit</code>，把分区更改写入磁盘。</p>
+<p><img src="assets/freebsd15-minimal-install-11.png" alt="提交分区更改"></p>
+<h2 id="root-密码和网络">Root 密码和网络</h2>
+<p>安装文件复制完成后，先设置 root 密码。密码输入时屏幕不会显示字符，这是正常现象。</p>
+<p><img src="assets/freebsd15-minimal-install-12.png" alt="设置 root 密码"></p>
+<p>网络配置阶段，如果是在 VPS 上安装，通常建议选择 <code>Auto</code>，让系统通过 DHCP 自动获取 IP 地址。只有在服务商明确提供静态 IP、网关、掩码和 DNS 参数时，才选择手动配置。</p>
+<p><img src="assets/freebsd15-minimal-install-13.png" alt="选择自动网络配置"></p>
+<h2 id="时区和时间同步">时区和时间同步</h2>
+<p>时区区域选择 <code>Asia</code>。</p>
+<p><img src="assets/freebsd15-minimal-install-14.png" alt="选择 Asia 时区区域"></p>
+<p>继续选择国家或地区。</p>
+<p><img src="assets/freebsd15-minimal-install-15.png" alt="选择国家或地区"></p>
+<p>确认时区条目。</p>
+<p><img src="assets/freebsd15-minimal-install-16.png" alt="确认时区条目"></p>
+<p>国内 VPS 使用 <code>CST</code> 作为时区缩写是合理的，对应 China Standard Time。</p>
+<p><img src="assets/freebsd15-minimal-install-17.png" alt="确认 CST 时区缩写"></p>
+<p>日期时间额外调整可以先跳过。后面启用 NTP 后，系统会自动校时。</p>
+<p><img src="assets/freebsd15-minimal-install-18.png" alt="跳过手动时间调整"></p>
+<p><img src="assets/freebsd15-minimal-install-19.png" alt="跳过额外时间设置"></p>
+<p>服务项里建议把 <code>ntpd</code> 相关选项勾上，用于自动同步时间。</p>
+<p><img src="assets/freebsd15-minimal-install-20.png" alt="启用 ntpd 自动校时"></p>
+<p>安全加固选项如果还不熟悉，可以先不选。等系统安装完成、确认 SSH 能登录后，再按实际用途逐项调整。</p>
+<p><img src="assets/freebsd15-minimal-install-21.png" alt="暂不启用额外加固选项"></p>
+<p><img src="assets/freebsd15-minimal-install-22.png" alt="保持加固选项为空"></p>
+<h2 id="用户创建">用户创建</h2>
+<p>安装器会询问是否创建普通用户。只使用 root 也可以直接选 <code>no</code>，但更推荐创建一个普通用户，并把它加入 <code>wheel</code> 组，后续通过 <code>su</code> 或 <code>sudo</code> 管理系统会更安全。</p>
+<p><img src="assets/freebsd15-minimal-install-23.png" alt="选择是否添加普通用户"></p>
+<p>如果选择创建用户，<code>Uid (Leave empty for default)</code> 直接回车即可，系统会自动分配 UID。</p>
+<p><img src="assets/freebsd15-minimal-install-24.png" alt="保留默认 UID"></p>
+<p>FreeBSD 15 的用户创建流程如下。大部分字段可以直接回车保持默认，但 <code>Invite user into other groups? []:</code> 这一步建议输入 <code>wheel</code>。</p>
+<p><img src="assets/freebsd15-minimal-install-25.png" alt="FreeBSD 15 用户创建提示"></p>
+<p>FreeBSD 13 / 14 的界面略有不同，但原则一样：普通用户建议加入 <code>wheel</code> 组。</p>
+<p><img src="assets/freebsd15-minimal-install-26.png" alt="FreeBSD 13/14 用户创建界面"></p>
+<p>可以参考下面的填写方式：</p>
+<ul>
+<li><code>Login group</code>: 默认即可，通常与用户名相同。</li>
+<li><code>Invite user into other groups? []</code>: 输入 <code>wheel</code>。</li>
+<li><code>Login class</code>: 默认即可。</li>
+<li><code>Shell</code>: 默认可用，后续也能改成 <code>sh</code>、<code>csh</code> 或其他 shell。</li>
+<li><code>Home directory</code>: 默认即可。</li>
+<li><code>Use password-based authentication? [yes]</code>: 默认 <code>yes</code>。</li>
+<li><code>Use an empty password? (yes/no) [no]</code>: 默认 <code>no</code>。</li>
+<li><code>Password</code>: 输入普通用户密码。</li>
+<li><code>Lock out the account after creation? [no]</code>: 默认 <code>no</code>。</li>
+</ul>
+<p>输入完密码后，后面的确认项通常保持默认或选择 <code>no</code>，直接回车即可。</p>
+<p><img src="assets/freebsd15-minimal-install-27.png" alt="确认用户密码后的选项"></p>
+<p>最后检查信息无误后输入 <code>yes</code> 确认创建。</p>
+<p><img src="assets/freebsd15-minimal-install-28.png" alt="确认创建用户"></p>
+<p>如果不再添加其他用户，<code>Add another user?</code> 选择 <code>no</code>。</p>
+<p><img src="assets/freebsd15-minimal-install-29.png" alt="不再添加其他用户"></p>
+<h2 id="结束安装并重启">结束安装并重启</h2>
+<p>回到最终配置菜单后，选择 <code>Exit</code> 或 <code>Select</code> 进入收尾流程。</p>
+<p><img src="assets/freebsd15-minimal-install-30.png" alt="进入安装收尾菜单"></p>
+<p>如果安装器询问是否进入 shell 做最后修改，暂时选择 <code>no</code>。</p>
+<p><img src="assets/freebsd15-minimal-install-31.png" alt="不进入最终 shell"></p>
+<p>重启完成后，系统会从硬盘进入刚安装好的 FreeBSD。</p>
+<p><img src="assets/freebsd15-minimal-install-32.png" alt="重启完成"></p>
+<h2 id="重启后的-ssh-提醒">重启后的 SSH 提醒</h2>
+<p>如果安装阶段没有创建普通用户，只能先通过 VNC 进入系统处理 root 登录和 SSH 配置。为了长期使用，建议后续至少做这几件事：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 更新软件仓库</span>
+</span></span><span style="display:flex;"><span>pkg update
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 安装 sudo</span>
+</span></span><span style="display:flex;"><span>pkg install -y sudo
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 创建普通用户时加入 wheel 组，或把已有用户加入 wheel</span>
+</span></span><span style="display:flex;"><span>pw groupmod wheel -m 用户名</span></span></code></pre></div><script class="code-source" type="application/json">"# 更新软件仓库\npkg update\n\n# 安装 sudo\npkg install -y sudo\n\n# 创建普通用户时加入 wheel 组，或把已有用户加入 wheel\npw groupmod wheel -m 用户名"</script>
+</div>
+<p>然后按需调整 <code>/etc/ssh/sshd_config</code>。生产环境里不建议长期开放 root 密码登录，确认普通用户能正常登录和提权后，再收紧 SSH 配置。</p>
+
+      </div>
+        <footer class="article-source">
+          <span>原文参考</span>
+          <a href="https://7829.eu.org/archives/1771261257707" target="_blank" rel="noopener noreferrer">https://7829.eu.org/archives/1771261257707</a>
+        </footer>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-nginx-static-file-browser/">
+            <img src="/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mosdns-install/">
+            <img src="/posts/linux/mosdns-install/assets/mosdns-install-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">mosdns 安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-install/">
+            <img src="/posts/linux/sing-box-install/assets/sing-box-install-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">sing-box 安装教程</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>
