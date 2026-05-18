@@ -1,15 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ubuntu on 电脑自习室</title><link>https://purodn.tk/tags/ubuntu/</link><description>Recent content in Ubuntu on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/ubuntu/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title><link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid><description>&lt;p&gt;本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&lt;/p&gt;
-&lt;p&gt;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 &lt;code&gt;conform.nvim&lt;/code&gt; 和 &lt;code&gt;prettier&lt;/code&gt; 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&lt;/p&gt;
-&lt;h2 id="第一步安装依赖并源码编译-neovim"&gt;第一步：安装依赖并源码编译 Neovim&lt;/h2&gt;
-&lt;p&gt;在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install ninja-build gettext cmake unzip curl build-essential git -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install ninja-build gettext cmake unzip curl build-essential git -y"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;拉取 Neovim 源码，并切换到稳定版分支。使用 &lt;code&gt;stable&lt;/code&gt; 分支可以规避开发版中可能出现的临时问题。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git clone https://github.com/neovim/neovim.git ~/neovim-src
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd ~/neovim-src
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git checkout stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"git clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;开始编译并全局安装：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Ubuntu on 电脑自习室</title>
+    <link>https://purodn.tk/tags/ubuntu/</link>
+    <description>Recent content in Ubuntu on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/ubuntu/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title>
+      <link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link>
+      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid>
+      <description>&lt;p&gt;本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&lt;/p&gt;&#xA;&lt;p&gt;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 &lt;code&gt;conform.nvim&lt;/code&gt; 和 &lt;code&gt;prettier&lt;/code&gt; 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&lt;/p&gt;&#xA;&lt;h2 id=&#34;第一步安装依赖并源码编译-neovim&#34;&gt;第一步：安装依赖并源码编译 Neovim&lt;/h2&gt;&#xA;&lt;p&gt;在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt update&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt install ninja-build gettext cmake unzip curl build-essential git -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;sudo apt update\nsudo apt install ninja-build gettext cmake unzip curl build-essential git -y&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;拉取 Neovim 源码，并切换到稳定版分支。使用 &lt;code&gt;stable&lt;/code&gt; 分支可以规避开发版中可能出现的临时问题。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git clone https://github.com/neovim/neovim.git ~/neovim-src&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;cd ~/neovim-src&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git checkout stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;git clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;开始编译并全局安装：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

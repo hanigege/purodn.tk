@@ -1,33 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Wireguard on 电脑自习室</title><link>https://purodn.tk/tags/wireguard/</link><description>Recent content in Wireguard on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 01 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/wireguard/index.xml" rel="self" type="application/rss+xml"/><item><title>07.RouterOS 配置 WireGuard</title><link>https://purodn.tk/posts/routeros/routeros-07-wireguard/</link><pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-07-wireguard/</guid><description>&lt;h2 id="本文介绍如何在routeros中配置wireguard包括两个ros之间通过wireguard异地组网"&gt;本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网&lt;/h2&gt;
-&lt;h3 id="1-客户端接入家庭局域网"&gt;1. 客户端接入家庭局域网&lt;/h3&gt;
-&lt;ul&gt;
-&lt;li&gt;添加wireguard。名字（Name）及监听端口（Listen Port）可自定义
-&lt;img src="assets/routeros-07-wireguard-07.png" alt="1.png"&gt;&lt;/li&gt;
-&lt;li&gt;为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例
-&lt;img src="assets/routeros-07-wireguard-08.png" alt="2.png"&gt;&lt;/li&gt;
-&lt;li&gt;添加客户端（peer）配置
-&lt;img src="assets/routeros-07-wireguard-09.png" alt="3.png"&gt;&lt;/li&gt;
-&lt;li&gt;双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置
-&lt;img src="assets/routeros-07-wireguard-10.png" alt="4.png"&gt;&lt;/li&gt;
-&lt;li&gt;客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可
-&lt;img src="assets/routeros-07-wireguard-11.png" alt="5.png"&gt;&lt;/li&gt;
-&lt;li&gt;如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h3 id="2-两个-ros-之间通过-wireguard-异地组网"&gt;2. 两个 ROS 之间通过 WireGuard 异地组网&lt;/h3&gt;
-&lt;ul&gt;
-&lt;li&gt;以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;ROS1号
-ROS2号&lt;/p&gt;
-&lt;p&gt;LAN IP
-10.0.0.1/24
-192.168.31.1/24&lt;/p&gt;
-&lt;p&gt;wireguard IP
-10.20.30.1/24
-10.20.40.1/24&lt;/p&gt;
-&lt;p&gt;DDNS域名
-无
-ros2.66666.xyz&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Wireguard on 电脑自习室</title>
+    <link>https://purodn.tk/tags/wireguard/</link>
+    <description>Recent content in Wireguard on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 01 Sep 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/wireguard/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>07.RouterOS 配置 WireGuard</title>
+      <link>https://purodn.tk/posts/routeros/routeros-07-wireguard/</link>
+      <pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/routeros/routeros-07-wireguard/</guid>
+      <description>&lt;h2 id=&#34;本文介绍如何在routeros中配置wireguard包括两个ros之间通过wireguard异地组网&#34;&gt;本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网&lt;/h2&gt;&#xA;&lt;h3 id=&#34;1-客户端接入家庭局域网&#34;&gt;1. 客户端接入家庭局域网&lt;/h3&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;添加wireguard。名字（Name）及监听端口（Listen Port）可自定义&#xA;&lt;img src=&#34;assets/routeros-07-wireguard-07.png&#34; alt=&#34;1.png&#34;&gt;&lt;/li&gt;&#xA;&lt;li&gt;为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例&#xA;&lt;img src=&#34;assets/routeros-07-wireguard-08.png&#34; alt=&#34;2.png&#34;&gt;&lt;/li&gt;&#xA;&lt;li&gt;添加客户端（peer）配置&#xA;&lt;img src=&#34;assets/routeros-07-wireguard-09.png&#34; alt=&#34;3.png&#34;&gt;&lt;/li&gt;&#xA;&lt;li&gt;双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置&#xA;&lt;img src=&#34;assets/routeros-07-wireguard-10.png&#34; alt=&#34;4.png&#34;&gt;&lt;/li&gt;&#xA;&lt;li&gt;客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可&#xA;&lt;img src=&#34;assets/routeros-07-wireguard-11.png&#34; alt=&#34;5.png&#34;&gt;&lt;/li&gt;&#xA;&lt;li&gt;如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;h3 id=&#34;2-两个-ros-之间通过-wireguard-异地组网&#34;&gt;2. 两个 ROS 之间通过 WireGuard 异地组网&lt;/h3&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;ROS1号&#xA;ROS2号&lt;/p&gt;&#xA;&lt;p&gt;LAN IP&#xA;10.0.0.1/24&#xA;192.168.31.1/24&lt;/p&gt;&#xA;&lt;p&gt;wireguard IP&#xA;10.20.30.1/24&#xA;10.20.40.1/24&lt;/p&gt;&#xA;&lt;p&gt;DDNS域名&#xA;无&#xA;ros2.66666.xyz&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
