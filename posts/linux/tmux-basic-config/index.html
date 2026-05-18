@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板 | 电脑自习室</title>
+    <meta name="description" content="整理一份适合日常服务器使用的 tmux 配置，包含鼠标支持、窗口编号、状态栏、vi 复制模式、系统剪贴板透传和配置热重载。">
+      <link rel="stylesheet" href="/css/main.min.d76fffe9bccd7e9134270096af7c6589a20875fda820f9b52f4f7d9fe2650d43.css" integrity="sha256-12//6bzNfpE0JwCWr3xliaIIdf2oIPm1L099n&#43;JlDUM=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-05-18">2026年5月18日</time>
+        </div>
+        <h1>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</h1>
+          <p>整理一份适合日常服务器使用的 tmux 配置，包含鼠标支持、窗口编号、状态栏、vi 复制模式、系统剪贴板透传和配置热重载。</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg" alt="">
+
+      <div class="article-content">
+        <p><code>tmux</code> 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。</p>
+<p>下面这份配置偏向日常使用：开启鼠标，窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。</p>
+<h2 id="写入配置文件">写入配置文件</h2>
+<p>编辑 <code>~/.tmux.conf</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim ~/.tmux.conf</span></span></code></pre></div><script class="code-source" type="application/json">"nvim ~/.tmux.conf"</script>
+</div>
+<p>如果没有安装 <code>nvim</code>，也可以使用 <code>vim</code> 或 <code>nano</code>。</p>
+<p>写入下面这份配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-tmux" data-lang="tmux"># ============================================================
+# 基础设置
+# ============================================================
+set -g mouse on
+set -g base-index 1
+set -g pane-base-index 1
+set -g renumber-windows on
+
+# 降低 Esc 延迟，让 vi 模式和快捷键响应更跟手
+set-option -sg escape-time 10
+
+# 保留更多滚动历史
+set-option -g history-limit 10000
+
+# 兼容性较好的 256 色终端类型
+set-option -g default-terminal &#34;screen-256color&#34;
+
+# ============================================================
+# 状态栏
+# ============================================================
+set -g status-style &#34;bg=#282c34,fg=#abb2bf&#34;
+set -g status-left-length 30
+set -g status-left &#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &#34;
+
+# ============================================================
+# 复制模式
+# ============================================================
+setw -g mode-keys vi
+
+# tmux 3.2+ 配合支持 OSC 52 的终端，可以把复制内容同步到系统剪贴板
+set -s set-clipboard on
+
+# 在 vi 复制模式中按 y 复制选区并退出复制模式
+bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
+
+# ============================================================
+# 前缀键与热重载
+# ============================================================
+# 将默认前缀键 Ctrl+b 改成 Ctrl+a
+unbind C-b
+set -g prefix C-a
+bind C-a send-prefix
+
+# 按 Ctrl+a 后再按 r，重新读取 tmux 配置
+bind r source-file ~/.tmux.conf \; display-message &#34;Config reloaded!&#34;</code></pre><script class="code-source" type="application/json">"# ============================================================\n# 基础设置\n# ============================================================\nset -g mouse on\nset -g base-index 1\nset -g pane-base-index 1\nset -g renumber-windows on\n\n# 降低 Esc 延迟，让 vi 模式和快捷键响应更跟手\nset-option -sg escape-time 10\n\n# 保留更多滚动历史\nset-option -g history-limit 10000\n\n# 兼容性较好的 256 色终端类型\nset-option -g default-terminal \"screen-256color\"\n\n# ============================================================\n# 状态栏\n# ============================================================\nset -g status-style \"bg=#282c34,fg=#abb2bf\"\nset -g status-left-length 30\nset -g status-left \"#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] \"\n\n# ============================================================\n# 复制模式\n# ============================================================\nsetw -g mode-keys vi\n\n# tmux 3.2+ 配合支持 OSC 52 的终端，可以把复制内容同步到系统剪贴板\nset -s set-clipboard on\n\n# 在 vi 复制模式中按 y 复制选区并退出复制模式\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# ============================================================\n# 前缀键与热重载\n# ============================================================\n# 将默认前缀键 Ctrl+b 改成 Ctrl+a\nunbind C-b\nset -g prefix C-a\nbind C-a send-prefix\n\n# 按 Ctrl+a 后再按 r，重新读取 tmux 配置\nbind r source-file ~/.tmux.conf \\; display-message \"Config reloaded!\""</script>
+</div>
+<p>如果你更习惯 tmux 默认的 <code>Ctrl+b</code>，可以删掉最后“前缀键与热重载”中的这几行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-tmux" data-lang="tmux">unbind C-b
+set -g prefix C-a
+bind C-a send-prefix</code></pre><script class="code-source" type="application/json">"unbind C-b\nset -g prefix C-a\nbind C-a send-prefix"</script>
+</div>
+<h2 id="让配置立即生效">让配置立即生效</h2>
+<p>已经在 tmux 里面时，可以直接执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux source-file ~/.tmux.conf</span></span></code></pre></div><script class="code-source" type="application/json">"tmux source-file ~/.tmux.conf"</script>
+</div>
+<p>也可以按：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Ctrl+a，然后按 r</span></span></code></pre></div><script class="code-source" type="application/json">"Ctrl+a，然后按 r"</script>
+</div>
+<p>如果是第一次启动 tmux，直接新建会话即可：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux new -s main</span></span></code></pre></div><script class="code-source" type="application/json">"tmux new -s main"</script>
+</div>
+<p>以后重新进入这个会话：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux attach -t main</span></span></code></pre></div><script class="code-source" type="application/json">"tmux attach -t main"</script>
+</div>
+<h2 id="常用操作">常用操作</h2>
+<p>配置里的前缀键已经改成 <code>Ctrl+a</code>，所以后续操作都先按 <code>Ctrl+a</code>，松开后再按对应按键。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Ctrl+a c      新建窗口
+</span></span><span style="display:flex;"><span>Ctrl+a ,      重命名当前窗口
+</span></span><span style="display:flex;"><span>Ctrl+a n      切到下一个窗口
+</span></span><span style="display:flex;"><span>Ctrl+a p      切到上一个窗口
+</span></span><span style="display:flex;"><span>Ctrl+a %      左右分屏
+</span></span><span style="display:flex;"><span>Ctrl+a &#34;      上下分屏
+</span></span><span style="display:flex;"><span>Ctrl+a x      关闭当前面板
+</span></span><span style="display:flex;"><span>Ctrl+a d      断开当前会话，任务继续留在后台
+</span></span><span style="display:flex;"><span>Ctrl+a r      重新加载 ~/.tmux.conf</span></span></code></pre></div><script class="code-source" type="application/json">"Ctrl+a c      新建窗口\nCtrl+a ,      重命名当前窗口\nCtrl+a n      切到下一个窗口\nCtrl+a p      切到上一个窗口\nCtrl+a %      左右分屏\nCtrl+a \"      上下分屏\nCtrl+a x      关闭当前面板\nCtrl+a d      断开当前会话，任务继续留在后台\nCtrl+a r      重新加载 ~/.tmux.conf"</script>
+</div>
+<p>进入复制模式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Ctrl+a [</span></span></code></pre></div><script class="code-source" type="application/json">"Ctrl+a ["</script>
+</div>
+<p>在复制模式中：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>h/j/k/l       移动光标
+</span></span><span style="display:flex;"><span>Space         开始选择
+</span></span><span style="display:flex;"><span>y             复制选区并退出复制模式
+</span></span><span style="display:flex;"><span>q             退出复制模式</span></span></code></pre></div><script class="code-source" type="application/json">"h/j/k/l       移动光标\nSpace         开始选择\ny             复制选区并退出复制模式\nq             退出复制模式"</script>
+</div>
+<h2 id="关于系统剪贴板">关于系统剪贴板</h2>
+<p><code>set -s set-clipboard on</code> 依赖终端对 OSC 52 剪贴板透传的支持。常见的 iTerm2、WezTerm、Windows Terminal、较新的 Kitty 等终端通常可以配合使用；如果复制后没有进入本机剪贴板，优先检查本地终端是否允许应用访问剪贴板。</p>
+<p>在远程 SSH 场景下，tmux 自己只负责发出剪贴板序列，最终能不能写入本机剪贴板，取决于本地终端、SSH 链路和外层终端复用器是否放行 OSC 52。</p>
+<h2 id="快速检查">快速检查</h2>
+<p>确认当前 tmux 版本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux -V</span></span></code></pre></div><script class="code-source" type="application/json">"tmux -V"</script>
+</div>
+<p>确认配置文件能被正常读取：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux source-file ~/.tmux.conf</span></span></code></pre></div><script class="code-source" type="application/json">"tmux source-file ~/.tmux.conf"</script>
+</div>
+<p>如果没有报错，再进入复制模式试一下选区复制即可。对于长期使用 SSH 的服务器，这份配置已经足够轻量，也不会绑定太多个人习惯，后续可以在它的基础上继续加插件、主题或更细的面板快捷键。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/tmux-basic-config/">
+            <img src="/posts/linux/tmux-basic-config/assets/tmux-basic-config-cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-nginx-static-file-browser/">
+            <img src="/posts/linux/alpine-nginx-static-file-browser/assets/alpine-nginx-static-file-browser-cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/freebsd/freebsd15-nginx-static-file-browser/">
+            <img src="/posts/freebsd/freebsd15-nginx-static-file-browser/assets/freebsd15-nginx-static-file-browser-cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-debian13-mosdns/">
+            <img src="/posts/linux/proxmox-debian13-mosdns/assets/proxmox-debian13-mosdns.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nvim-format-toolkit-cross-platform-2026/">
+            <img src="/posts/linux/nvim-format-toolkit-cross-platform-2026/assets/nvim-format-toolkit-cross-platform-2026-cover.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-command-cheatsheet/">
+            <img src="/posts/docker/docker-command-cheatsheet/assets/docker-command-cheatsheet-cover.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/ubuntu2404-neovim-source-toolkit/">
+            <img src="/posts/linux/ubuntu2404-neovim-source-toolkit/assets/ubuntu2404-neovim-source-toolkit-cover.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -6,8 +6,43 @@
     <description>Recent content in Tags on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
-    <lastBuildDate>Mon, 18 May 2026 10:30:00 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 18 May 2026 14:30:00 +0800</lastBuildDate>
     <atom:link href="https://purodn.tk/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Linux</title>
+      <link>https://purodn.tk/tags/linux/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>https://purodn.tk/tags/linux/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Shell</title>
+      <link>https://purodn.tk/tags/shell/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>https://purodn.tk/tags/shell/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>SSH</title>
+      <link>https://purodn.tk/tags/ssh/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>https://purodn.tk/tags/ssh/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Tmux</title>
+      <link>https://purodn.tk/tags/tmux/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>https://purodn.tk/tags/tmux/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>终端</title>
+      <link>https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/</guid>
+      <description></description>
+    </item>
     <item>
       <title>Alpine</title>
       <link>https://purodn.tk/tags/alpine/</link>
@@ -34,13 +69,6 @@
       <link>https://purodn.tk/tags/https/</link>
       <pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate>
       <guid>https://purodn.tk/tags/https/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>Linux</title>
-      <link>https://purodn.tk/tags/linux/</link>
-      <pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/tags/linux/</guid>
       <description></description>
     </item>
     <item>
@@ -289,7 +317,7 @@
       <description></description>
     </item>
     <item>
-      <title>FakeIP</title>
+      <title>Fakeip</title>
       <link>https://purodn.tk/tags/fakeip/</link>
       <pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate>
       <guid>https://purodn.tk/tags/fakeip/</guid>
@@ -496,13 +524,6 @@
       <link>https://purodn.tk/tags/%E4%B8%AD%E6%96%87/</link>
       <pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate>
       <guid>https://purodn.tk/tags/%E4%B8%AD%E6%96%87/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>终端</title>
-      <link>https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/</link>
-      <pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate>
-      <guid>https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/</guid>
       <description></description>
     </item>
   </channel>
