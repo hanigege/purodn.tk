@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matrix on 电脑自习室</title><link>https://purodn.tk/tags/matrix/</link><description>Recent content in Matrix on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 23:12:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/matrix/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 &lt;code&gt;matrix&lt;/code&gt;，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。&lt;/p&gt;
+&lt;p&gt;如果你的反代入口也接在 &lt;code&gt;matrix&lt;/code&gt; 网络里，NPM 后台就可以直接用容器名 &lt;code&gt;ntfy&lt;/code&gt; 作为上游地址。&lt;/p&gt;
+&lt;h2 id="一先确认-matrix-网络"&gt;一、先确认 matrix 网络&lt;/h2&gt;
+&lt;p&gt;如果前面已经创建过 &lt;code&gt;matrix&lt;/code&gt; 网络，这一步可以跳过。否则先在宿主机终端创建：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network create matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network create matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;查看网络是否存在：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network ls | grep matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network ls | grep matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;后续需要被反代的容器，都建议统一接入这个网络。&lt;/p&gt;
+&lt;h2 id="二准备数据目录"&gt;二、准备数据目录&lt;/h2&gt;
+&lt;p&gt;这份配置把 ntfy 的缓存和配置目录挂载到宿主机：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/cache
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/data/docker_data/ntfy/data/cache\n/root/data/docker_data/ntfy/data/config"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;可以先创建目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/cache
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /root/data/docker_data/ntfy/data/cache\nmkdir -p /root/data/docker_data/ntfy/data/config"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;其中：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;cache&lt;/code&gt; 用来保存 ntfy 的缓存数据。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;config&lt;/code&gt; 对应容器内的 &lt;code&gt;/etc/ntfy&lt;/code&gt;，后续可以放置 ntfy 配置文件。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="三创建-docker-composeyml"&gt;三、创建 docker-compose.yml&lt;/h2&gt;
+&lt;p&gt;新建并编辑 &lt;code&gt;docker-compose.yml&lt;/code&gt;：&lt;/p&gt;</description></item></channel></rss>

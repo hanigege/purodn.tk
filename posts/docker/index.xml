@@ -1,4 +1,89 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Docker on 电脑自习室</title><link>https://purodn.tk/posts/docker/</link><description>Recent content in Docker on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/posts/docker/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title><link>https://purodn.tk/posts/docker/docker-command-cheatsheet/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/docker/docker-command-cheatsheet/</guid><description>&lt;p&gt;本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Docker on 电脑自习室</title><link>https://purodn.tk/posts/docker/</link><description>Recent content in Docker on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 23:12:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/docker/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 &lt;code&gt;matrix&lt;/code&gt;，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。&lt;/p&gt;
+&lt;p&gt;如果你的反代入口也接在 &lt;code&gt;matrix&lt;/code&gt; 网络里，NPM 后台就可以直接用容器名 &lt;code&gt;ntfy&lt;/code&gt; 作为上游地址。&lt;/p&gt;
+&lt;h2 id="一先确认-matrix-网络"&gt;一、先确认 matrix 网络&lt;/h2&gt;
+&lt;p&gt;如果前面已经创建过 &lt;code&gt;matrix&lt;/code&gt; 网络，这一步可以跳过。否则先在宿主机终端创建：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network create matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network create matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;查看网络是否存在：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network ls | grep matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network ls | grep matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;后续需要被反代的容器，都建议统一接入这个网络。&lt;/p&gt;
+&lt;h2 id="二准备数据目录"&gt;二、准备数据目录&lt;/h2&gt;
+&lt;p&gt;这份配置把 ntfy 的缓存和配置目录挂载到宿主机：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/cache
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/data/docker_data/ntfy/data/cache\n/root/data/docker_data/ntfy/data/config"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;可以先创建目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/cache
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /root/data/docker_data/ntfy/data/cache\nmkdir -p /root/data/docker_data/ntfy/data/config"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;其中：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;cache&lt;/code&gt; 用来保存 ntfy 的缓存数据。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;config&lt;/code&gt; 对应容器内的 &lt;code&gt;/etc/ntfy&lt;/code&gt;，后续可以放置 ntfy 配置文件。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="三创建-docker-composeyml"&gt;三、创建 docker-compose.yml&lt;/h2&gt;
+&lt;p&gt;新建并编辑 &lt;code&gt;docker-compose.yml&lt;/code&gt;：&lt;/p&gt;</description></item><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>&lt;p&gt;这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：所有相关容器统一接入同一个外部 Docker 网络 &lt;code&gt;matrix&lt;/code&gt;，NPM 再通过多个宿主机端口把请求转发到容器内部的 &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。&lt;/p&gt;
+&lt;h2 id="一先创建-matrix-网络"&gt;一、先创建 matrix 网络&lt;/h2&gt;
+&lt;p&gt;在启动任何容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network create matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network create matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 &lt;code&gt;matrix&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;可以用下面的命令确认网络是否已经存在：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network ls | grep matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network ls | grep matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果已经能看到 &lt;code&gt;matrix&lt;/code&gt;，就可以继续写 Compose 配置。&lt;/p&gt;
+&lt;h2 id="二创建-docker-composeyml"&gt;二、创建 docker-compose.yml&lt;/h2&gt;
+&lt;p&gt;新建并编辑 &lt;code&gt;docker-compose.yml&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim docker-compose.yml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"nvim docker-compose.yml"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;写入下面的配置：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;services&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;app&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#39;docker.io/jc21/nginx-proxy-manager:latest&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;container_name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;nginx-proxy-manager&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;restart&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;unless-stopped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# HTTP 端口&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;12332:80&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 管理后台&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;81:81&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# HTTPS 端口：在 Docker 层面做非对称映射&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 12335 -&amp;gt; 443，Synapse 适用&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;0.0.0.0:12335:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;[::]:12335:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 12336 -&amp;gt; 443，JWT 适用&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;0.0.0.0:12336:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;[::]:12336:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# 12337 -&amp;gt; 443，LiveKit 适用&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;0.0.0.0:12337:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#39;[::]:12337:443&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;volumes&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./data:/data&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./letsencrypt:/etc/letsencrypt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;networks&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;matrix&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;networks&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;matrix&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;external&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;matrix&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"services:\n app:\n image: 'docker.io/jc21/nginx-proxy-manager:latest'\n container_name: nginx-proxy-manager\n restart: unless-stopped\n ports:\n # HTTP 端口\n - '12332:80'\n\n # 管理后台\n - '81:81'\n\n # HTTPS 端口：在 Docker 层面做非对称映射\n # 12335 -\u003e 443，Synapse 适用\n - '0.0.0.0:12335:443'\n - '[::]:12335:443'\n\n # 12336 -\u003e 443，JWT 适用\n - '0.0.0.0:12336:443'\n - '[::]:12336:443'\n\n # 12337 -\u003e 443，LiveKit 适用\n - '0.0.0.0:12337:443'\n - '[::]:12337:443'\n\n volumes:\n - ./data:/data\n - ./letsencrypt:/etc/letsencrypt\n networks:\n - matrix\n\nnetworks:\n matrix:\n external: true\n name: matrix"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里有两个重点：&lt;/p&gt;</description></item><item><title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title><link>https://purodn.tk/posts/docker/docker-command-cheatsheet/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/docker/docker-command-cheatsheet/</guid><description>&lt;p&gt;本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。&lt;/p&gt;
 &lt;p&gt;命令中的 &lt;code&gt;容器名&lt;/code&gt;、&lt;code&gt;镜像名&lt;/code&gt;、&lt;code&gt;网络名&lt;/code&gt;、&lt;code&gt;数据卷名&lt;/code&gt; 可以替换成你的实际名称。涉及删除的命令建议先执行查看命令确认目标，避免误删正在使用的服务。&lt;/p&gt;
 &lt;h2 id="一docker-基础信息"&gt;一、Docker 基础信息&lt;/h2&gt;
 &lt;p&gt;查看 Docker 版本：&lt;/p&gt;
