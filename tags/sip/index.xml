@@ -110,16 +110,8 @@
 &lt;p&gt;网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。&lt;/p&gt;
 &lt;p&gt;FreePBX 侧先确认基础页面和 SIP 端口设置无误：&lt;/p&gt;
 &lt;p&gt;&lt;img src="assets/smg-freepbx-03.png" alt="FreePBX 网页管理界面"&gt;&lt;/p&gt;
-&lt;h2 id="升级固件"&gt;升级固件&lt;/h2&gt;
-&lt;p&gt;旧设备到手后，第一步不是接 PBX，而是确认固件版本。&lt;/p&gt;
-&lt;p&gt;建议检查：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;设备型号是否和固件完全匹配。&lt;/li&gt;
-&lt;li&gt;是否支持当前 SIM 卡运营商网络。&lt;/li&gt;
-&lt;li&gt;是否有短信 API 或短信转发相关功能。&lt;/li&gt;
-&lt;li&gt;升级前导出当前配置。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。&lt;/p&gt;</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;&lt;img src="assets/smg-freepbx-04.png" alt="开启 PJSIP UDP/TCP 监听"&gt;&lt;/p&gt;
+&lt;p&gt;如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：&lt;/p&gt;</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>&lt;blockquote&gt;
 &lt;p&gt;这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
