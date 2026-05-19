@@ -14,7 +14,7 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim /root/data/docker_data/synapse/data/homeserver.yaml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"nvim /root/data/docker_data/synapse/data/homeserver.yaml"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;在 &lt;code&gt;homeserver.yaml&lt;/code&gt; 中加入或调整下面这段配置：&lt;/p&gt;
+&lt;p&gt;在 &lt;code&gt;homeserver.yaml&lt;/code&gt; 中加入或调整下面这段配置。注意：&lt;code&gt;retention:&lt;/code&gt; 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。&lt;/p&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;retention&lt;/span&gt;:
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;enabled&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
