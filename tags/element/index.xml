@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Element on 电脑自习室</title><link>https://purodn.tk/tags/element/</link><description>Recent content in Element on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 10:25:05 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/element/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。&lt;/p&gt;
+&lt;p&gt;这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 &lt;code&gt;8008&lt;/code&gt; 端口映射到宿主机 &lt;code&gt;8008&lt;/code&gt;，方便内网客户端访问或后续接入反代。&lt;/p&gt;
+&lt;p&gt;网络方面使用统一的 &lt;code&gt;matrix&lt;/code&gt; bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="一安装基础环境"&gt;一、安装基础环境&lt;/h2&gt;
+&lt;p&gt;如果宿主机还没有 Docker，可以先更新系统并安装常用工具：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt update -y &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; apt upgrade -y
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt install -y curl wget sudo socat&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apt update -y \u0026\u0026 apt upgrade -y\napt install -y curl wget sudo socat"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;安装 Docker：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://get.docker.com -o get-docker.sh
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sh get-docker.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"curl -fsSL https://get.docker.com -o get-docker.sh\nsh get-docker.sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果你的系统还没有 &lt;code&gt;docker compose&lt;/code&gt;，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。&lt;/p&gt;</description></item></channel></rss>

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Matrix Synapse Docker Compose cover</title>
+  <desc id="desc">A Docker themed cover for Matrix Synapse with port 8008, persistent data, static files, and the matrix bridge network.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101827"/>
+      <stop offset="0.45" stop-color="#123331"/>
+      <stop offset="1" stop-color="#1f3b68"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#e0f2fe" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 488 C136 410 264 484 392 418 C548 336 686 382 832 438 C990 500 1088 452 1200 386 L1200 630 L0 630 Z" fill="#22c55e" opacity="0.16"/>
+  <path d="M0 154 C158 80 272 138 422 84 C620 14 760 130 936 74 C1034 42 1112 38 1200 56 L1200 0 L0 0 Z" fill="#60a5fa" opacity="0.14"/>
+
+  <g opacity="0.25" stroke="#d1fae5" stroke-width="3">
+    <path d="M230 420 L382 310 L548 420 L714 310 L876 420"/>
+    <path d="M382 310 L548 220 L714 310"/>
+    <path d="M548 220 V420"/>
+    <circle cx="230" cy="420" r="8" fill="#d1fae5"/>
+    <circle cx="382" cy="310" r="8" fill="#d1fae5"/>
+    <circle cx="548" cy="220" r="8" fill="#d1fae5"/>
+    <circle cx="548" cy="420" r="8" fill="#d1fae5"/>
+    <circle cx="714" cy="310" r="8" fill="#d1fae5"/>
+    <circle cx="876" cy="420" r="8" fill="#d1fae5"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="88" y="92" width="1024" height="446" rx="34" fill="url(#panel)"/>
+  </g>
+
+  <g transform="translate(132 132)">
+    <rect x="0" y="0" width="170" height="78" rx="22" fill="#111827"/>
+    <text x="32" y="50" font-family="Menlo, Consolas, monospace" font-size="30" fill="#ffffff" font-weight="700">[m]</text>
+    <text x="100" y="50" font-family="Inter, Arial, sans-serif" font-size="24" fill="#bbf7d0" font-weight="700">Matrix</text>
+
+    <text x="0" y="156" font-family="Inter, Arial, sans-serif" font-size="66" fill="#102033" font-weight="800">Synapse</text>
+    <text x="0" y="214" font-family="Inter, Arial, sans-serif" font-size="42" fill="#155e75" font-weight="700">Docker Compose on matrix</text>
+    <text x="0" y="270" font-family="Inter, Arial, sans-serif" font-size="26" fill="#3f5865">persistent /data, static html, client port 8008</text>
+  </g>
+
+  <g transform="translate(710 130)">
+    <rect x="0" y="0" width="322" height="344" rx="28" fill="#0f172a"/>
+    <rect x="34" y="34" width="254" height="62" rx="16" fill="#14532d"/>
+    <text x="58" y="73" font-family="Menlo, Consolas, monospace" font-size="23" fill="#dcfce7">matrix-synapse</text>
+    <rect x="34" y="118" width="254" height="62" rx="16" fill="#164e63"/>
+    <text x="58" y="157" font-family="Menlo, Consolas, monospace" font-size="23" fill="#cffafe">8008 -> 8008</text>
+    <rect x="34" y="202" width="254" height="62" rx="16" fill="#1d4ed8"/>
+    <text x="58" y="241" font-family="Menlo, Consolas, monospace" font-size="23" fill="#dbeafe">network: matrix</text>
+    <path d="M161 282 v28" stroke="#86efac" stroke-width="5" stroke-linecap="round"/>
+    <path d="M143 297 l18 18 l18 -18" fill="none" stroke="#86efac" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g transform="translate(160 470)">
+    <rect x="0" y="0" width="138" height="44" rx="22" fill="#0f766e"/>
+    <text x="34" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">/data</text>
+    <rect x="164" y="0" width="150" height="44" rx="22" fill="#0369a1"/>
+    <text x="202" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">static</text>
+    <rect x="340" y="0" width="172" height="44" rx="22" fill="#1e40af"/>
+    <text x="376" y="29" font-family="Inter, Arial, sans-serif" font-size="19" fill="#ffffff" font-weight="700">bridge net</text>
+  </g>
+</svg>
