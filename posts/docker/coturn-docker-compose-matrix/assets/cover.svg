@@ -51,7 +51,7 @@
     <rect x="34" y="118" width="254" height="62" rx="16" fill="#164e63"/>
     <text x="58" y="157" font-family="Menlo, Consolas, monospace" font-size="23" fill="#cffafe">5349 tls</text>
     <rect x="34" y="202" width="254" height="62" rx="16" fill="#1d4ed8"/>
-    <text x="58" y="241" font-family="Menlo, Consolas, monospace" font-size="23" fill="#dbeafe">64000-65535</text>
+    <text x="58" y="241" font-family="Menlo, Consolas, monospace" font-size="23" fill="#dbeafe">64000-64099</text>
     <path d="M161 282 v28" stroke="#86efac" stroke-width="5" stroke-linecap="round"/>
     <path d="M143 297 l18 18 l18 -18" fill="none" stroke="#86efac" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
