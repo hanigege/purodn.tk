@@ -187,19 +187,19 @@
 </span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>sysctl --system</span></span></code></pre></div><script class=code-source type=application/json>"cat \u003e /etc/sysctl.d/99-bbr.conf \u003c\u003c'EOF'\nnet.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\nEOF\n\nsysctl --system"</script></div><p>如果你的 Alpine 内核没有内置或加载 BBR，<code>sysctl</code> 会报 <code>No such file or directory</code> 或可用算法中没有 <code>bbr</code>。这种情况需要更换支持 BBR 的内核，不能只靠 Nginx 配置解决。</p><h2 id=总结>总结</h2><p>这套配置可以把 Alpine 上的一个普通目录整理成可长期使用的 HTTPS 文件浏览服务：</p><ul><li>Nginx 负责目录浏览和静态文件传输。</li><li>TLS 与安全响应头保证基础 HTTPS 安全性。</li><li>Basic Auth 防止目录裸奔。</li><li>敏感文件拦截避免 <code>.htpasswd</code>、私钥、配置文件等被访问。</li><li><code>logrotate</code> 负责日志轮转。</li><li>Gzip 和限流分别处理传输效率与带宽保护。</li><li>强制下载规则让图片、视频、PDF 等文件点击后直接下载。</li></ul><p>完成配置后，记得每次修改都先执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>nginx -t</span></span></code></pre></div><script class=code-source type=application/json>"nginx -t"</script></div><p>确认语法无误后再 reload。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/synapse-docker-compose-matrix/><img src=/posts/docker/synapse-docker-compose-matrix/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/coturn-docker-compose-matrix/><img src=/posts/docker/coturn-docker-compose-matrix/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</span></a></li><li><a href=/posts/linux/freepbx16-voip-server-setup/><img src=/posts/linux/freepbx16-voip-server-setup/assets/cover.svg alt>
+<span class=latest-title>2026 年 coturn TURN 服务器 Docker Compose 部署：接入 matrix 网络</span></a></li><li><a href=/posts/docker/synapse-docker-compose-matrix/><img src=/posts/docker/synapse-docker-compose-matrix/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>出国自建 VoIP（二）：FreePBX 16 基础配置</span></a></li><li><a href=/posts/linux/synway-smg4004-sip-gateway/><img src=/posts/linux/synway-smg4004-sip-gateway/assets/cover.svg alt>
+<span class=latest-title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</span></a></li><li><a href=/posts/linux/freepbx16-voip-server-setup/><img src=/posts/linux/freepbx16-voip-server-setup/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</span></a></li><li><a href=/posts/linux/telegram-bot-for-voip-sms/><img src=/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg alt>
+<span class=latest-title>出国自建 VoIP（二）：FreePBX 16 基础配置</span></a></li><li><a href=/posts/linux/synway-smg4004-sip-gateway/><img src=/posts/linux/synway-smg4004-sip-gateway/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</span></a></li><li><a href=/posts/linux/python-sms-bot-systemd/><img src=/posts/linux/python-sms-bot-systemd/assets/cover.svg alt>
+<span class=latest-title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</span></a></li><li><a href=/posts/linux/telegram-bot-for-voip-sms/><img src=/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</span></a></li><li><a href=/posts/linux/self-hosted-voip-overview/><img src=/posts/linux/self-hosted-voip-overview/assets/cover.svg alt>
+<span class=latest-title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</span></a></li><li><a href=/posts/linux/python-sms-bot-systemd/><img src=/posts/linux/python-sms-bot-systemd/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>出国自建 VoIP（一）：整体架构与实现路线</span></a></li><li><a href=/posts/docker/ntfy-docker-compose-matrix/><img src=/posts/docker/ntfy-docker-compose-matrix/assets/cover.svg alt>
+<span class=latest-title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</span></a></li><li><a href=/posts/linux/self-hosted-voip-overview/><img src=/posts/linux/self-hosted-voip-overview/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>出国自建 VoIP（一）：整体架构与实现路线</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
