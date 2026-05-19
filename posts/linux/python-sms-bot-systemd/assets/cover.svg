@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Python SMS bot systemd</title>
+  <desc id="desc">Python virtual environment and systemd service for an SMS bot.</desc>
+  <rect width="1280" height="720" fill="#111827"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="92" y="140" fill="#f8fafc" font-size="52" font-weight="700">Python SMS Bot 与 systemd</text>
+    <text x="96" y="188" fill="#c4b5fd" font-size="26">venv - EnvironmentFile - Restart - journald</text>
+  </g>
+  <rect x="126" y="270" width="1028" height="300" rx="22" fill="#020617" stroke="#8b5cf6" stroke-width="4"/>
+  <g font-family="Menlo, Consolas, monospace" font-size="28" fill="#e5e7eb">
+    <text x="176" y="336">[Service]</text>
+    <text x="176" y="386">EnvironmentFile=/etc/voip-sms-bot.env</text>
+    <text x="176" y="436">ExecStart=/opt/voip-sms-bot/.venv/bin/python sms.py</text>
+    <text x="176" y="486">Restart=always</text>
+    <text x="176" y="536">journalctl -u voip-sms-bot -f</text>
+  </g>
+  <g fill="none" stroke="#34d399" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M992 334 h82 v82"/>
+    <path d="M1074 334 L940 468"/>
+  </g>
+</svg>
