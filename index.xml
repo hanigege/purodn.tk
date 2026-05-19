@@ -189,9 +189,9 @@
 &lt;p&gt;安装依赖：&lt;/p&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot requests python-dotenv smpplib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip\n/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot requests python-dotenv smpplib"&lt;/script&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip\n/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;smpplib&lt;/code&gt; 只在你走 SMPP 时需要。如果网关只用 HTTP API，可以不装。&lt;/p&gt;</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 &lt;code&gt;smpplib&lt;/code&gt;。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&lt;/p&gt;</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>&lt;blockquote&gt;
 &lt;p&gt;这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
