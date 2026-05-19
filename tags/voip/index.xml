@@ -34,6 +34,8 @@
  &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&lt;/p&gt;
+&lt;p&gt;原文中的整体架构图如下：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freepbx-01.png" alt="FreePBX 自建 VoIP 架构"&gt;&lt;/p&gt;
 &lt;h2 id="固定-freepbx-ip"&gt;固定 FreePBX IP&lt;/h2&gt;
 &lt;p&gt;安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 &lt;code&gt;eth0&lt;/code&gt; 为例：&lt;/p&gt;
 &lt;div class="code-block"&gt;
@@ -70,6 +72,9 @@
 &lt;li&gt;短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。&lt;/p&gt;
+&lt;p&gt;旧文中的设备和卡槽界面截图：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smg-freepbx-01.png" alt="SMG4004 网关外观与卡槽"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smg-freepbx-02.png" alt="SMG4004 卡槽状态"&gt;&lt;/p&gt;
 &lt;h2 id="网络规划"&gt;网络规划&lt;/h2&gt;
 &lt;p&gt;示例：&lt;/p&gt;
 &lt;table&gt;
@@ -103,6 +108,8 @@
  &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。&lt;/p&gt;
+&lt;p&gt;FreePBX 侧先确认基础页面和 SIP 端口设置无误：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smg-freepbx-03.png" alt="FreePBX 网页管理界面"&gt;&lt;/p&gt;
 &lt;h2 id="升级固件"&gt;升级固件&lt;/h2&gt;
 &lt;p&gt;旧设备到手后，第一步不是接 PBX，而是确认固件版本。&lt;/p&gt;
 &lt;p&gt;建议检查：&lt;/p&gt;
@@ -112,18 +119,7 @@
 &lt;li&gt;是否有短信 API 或短信转发相关功能。&lt;/li&gt;
 &lt;li&gt;升级前导出当前配置。&lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。&lt;/p&gt;
-&lt;h2 id="sim-卡检查"&gt;SIM 卡检查&lt;/h2&gt;
-&lt;p&gt;插卡后先在网关后台确认：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;卡槽识别正常；&lt;/li&gt;
-&lt;li&gt;信号强度正常；&lt;/li&gt;
-&lt;li&gt;运营商注册成功；&lt;/li&gt;
-&lt;li&gt;能看到号码或 IMSI；&lt;/li&gt;
-&lt;li&gt;单卡手动测试呼出成功；&lt;/li&gt;
-&lt;li&gt;外部手机拨入该 SIM 卡能触发网关呼入。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;如果这一步不通，FreePBX 配再好也没用。先解决 SIM、天线、制式、信号和运营商限制。&lt;/p&gt;</description></item><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。&lt;/p&gt;</description></item><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>&lt;blockquote&gt;
 &lt;p&gt;这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;h2 id="为什么短信单独处理"&gt;为什么短信单独处理&lt;/h2&gt;

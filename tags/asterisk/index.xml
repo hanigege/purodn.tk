@@ -34,6 +34,8 @@
  &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&lt;/p&gt;
+&lt;p&gt;原文中的整体架构图如下：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freepbx-01.png" alt="FreePBX 自建 VoIP 架构"&gt;&lt;/p&gt;
 &lt;h2 id="固定-freepbx-ip"&gt;固定 FreePBX IP&lt;/h2&gt;
 &lt;p&gt;安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 &lt;code&gt;eth0&lt;/code&gt; 为例：&lt;/p&gt;
 &lt;div class="code-block"&gt;
