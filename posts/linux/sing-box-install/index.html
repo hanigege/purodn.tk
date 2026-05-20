@@ -38,17 +38,17 @@
 </span></span><span style=display:flex><span>systemctl restart nftables</span></span></code></pre></div><script class=code-source type=application/json>"nft flush ruleset\nnft -f /etc/nftables.conf\nnft list ruleset\nsystemctl enable --now nftables\nsystemctl restart nftables"</script></div><blockquote><p>默认 TCP 使用 redirect，UDP 使用 tproxy。</p></blockquote><p>切换脚本： @Ron 大佬写的 nftables 规则切换脚本</p><ul><li>选项 1：tcp-redirect、udp-tproxy</li><li>选项 2：tcp/udp 都用 tproxy</li></ul><p>使用前需修改脚本中的内网 IP 段和 fakeIP 段。</p><p>至此，sing-box 安装完毕。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
 <button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/matrix-self-destructing-messages-guide/><img src=/posts/docker/matrix-self-destructing-messages-guide/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>2026 年 Matrix 消息过期自动删除配置</span></a></li><li><a href=/posts/docker/coturn-docker-compose-matrix/><img src=/posts/docker/coturn-docker-compose-matrix/assets/cover.svg alt>
+<span class=latest-title>2026 年 Matrix 消息过期自动删除配置</span></a></li><li><a href=/posts/docker/synapse-docker-compose-matrix/><img src=/posts/docker/synapse-docker-compose-matrix/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</span></a></li><li><a href=/posts/docker/synapse-docker-compose-matrix/><img src=/posts/docker/synapse-docker-compose-matrix/assets/cover.svg alt>
-<span class=latest-rank>3</span>
 <span class=latest-title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</span></a></li><li><a href=/posts/linux/freepbx16-voip-server-setup/><img src=/posts/linux/freepbx16-voip-server-setup/assets/cover.svg alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>出国自建 VoIP（二）：FreePBX 16 基础配置</span></a></li><li><a href=/posts/linux/synway-smg4004-sip-gateway/><img src=/posts/linux/synway-smg4004-sip-gateway/assets/cover.svg alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</span></a></li><li><a href=/posts/linux/telegram-bot-for-voip-sms/><img src=/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</span></a></li><li><a href=/posts/linux/python-sms-bot-systemd/><img src=/posts/linux/python-sms-bot-systemd/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</span></a></li><li><a href=/posts/linux/self-hosted-voip-overview/><img src=/posts/linux/self-hosted-voip-overview/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>出国自建 VoIP（一）：整体架构与实现路线</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
