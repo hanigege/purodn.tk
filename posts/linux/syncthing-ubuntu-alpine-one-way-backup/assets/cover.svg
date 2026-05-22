@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Syncthing Ubuntu to Ubuntu or Alpine one way backup</title>
+  <desc id="desc">A technical cover showing one way encrypted synchronization from Ubuntu source server to Ubuntu or Alpine backup server.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12211f"/>
+      <stop offset="0.52" stop-color="#182f36"/>
+      <stop offset="1" stop-color="#21382a"/>
+    </linearGradient>
+    <linearGradient id="ubuntu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f36c21"/>
+      <stop offset="1" stop-color="#c8421b"/>
+    </linearGradient>
+    <linearGradient id="alpine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2ea6d6"/>
+      <stop offset="1" stop-color="#0d6387"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <path d="M0 560 C190 500 330 620 520 558 C715 495 822 400 1028 452 C1158 486 1220 534 1280 506 L1280 720 L0 720 Z" fill="#203b38" opacity="0.75"/>
+  <path d="M0 620 C210 578 390 665 575 610 C780 548 895 525 1082 580 C1168 605 1228 622 1280 598 L1280 720 L0 720 Z" fill="#182927" opacity="0.9"/>
+  <g filter="url(#shadow)">
+    <rect x="116" y="175" width="310" height="260" rx="18" fill="#f5f1e8"/>
+    <rect x="854" y="175" width="310" height="260" rx="18" fill="#eef7fb"/>
+  </g>
+  <g transform="translate(116 175)">
+    <rect width="310" height="64" rx="18" fill="url(#ubuntu)"/>
+    <rect y="46" width="310" height="18" fill="url(#ubuntu)"/>
+    <circle cx="48" cy="32" r="9" fill="#fff3e8"/>
+    <circle cx="78" cy="32" r="9" fill="#fff3e8" opacity="0.8"/>
+    <circle cx="108" cy="32" r="9" fill="#fff3e8" opacity="0.62"/>
+    <text x="32" y="116" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#23201e">Ubuntu</text>
+    <text x="32" y="154" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#5c5147">source node</text>
+    <rect x="32" y="188" width="246" height="22" rx="6" fill="#ded4c9"/>
+    <rect x="32" y="226" width="178" height="22" rx="6" fill="#ded4c9"/>
+  </g>
+  <g transform="translate(854 175)">
+    <rect width="310" height="64" rx="18" fill="url(#alpine)"/>
+    <rect y="46" width="310" height="18" fill="url(#alpine)"/>
+    <path d="M51 43 L75 18 L99 43 Z" fill="#effaff"/>
+    <path d="M75 18 L132 43 L96 43 Z" fill="#c9ebf6"/>
+    <text x="32" y="116" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#16272f">Ubuntu / Alpine</text>
+    <text x="32" y="154" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#45616b">backup node</text>
+    <rect x="32" y="188" width="246" height="22" rx="6" fill="#d4e7ee"/>
+    <rect x="32" y="226" width="178" height="22" rx="6" fill="#d4e7ee"/>
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M476 304 H775" stroke="#cbe8df" stroke-width="14" opacity="0.9"/>
+    <path d="M742 266 L800 304 L742 342" stroke="#cbe8df" stroke-width="14"/>
+    <path d="M514 358 H738" stroke="#72bfa9" stroke-width="6" stroke-dasharray="14 18" opacity="0.85"/>
+  </g>
+  <g transform="translate(588 246)">
+    <rect x="0" y="48" width="104" height="82" rx="16" fill="#10211f" stroke="#cbe8df" stroke-width="6"/>
+    <path d="M28 48 V32 C28 15 39 4 52 4 C65 4 76 15 76 32 V48" fill="none" stroke="#cbe8df" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="52" cy="88" r="10" fill="#cbe8df"/>
+    <path d="M52 98 V112" stroke="#cbe8df" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <text x="640" y="514" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="700" fill="#f5f7ee">Syncthing 单向安全同步</text>
+  <text x="640" y="564" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#cbe8df">/root/data/backup 仅发送 -> 仅接收</text>
+  <text x="640" y="612" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#9ebdb4">TLS encrypted device-to-device backup</text>
+</svg>

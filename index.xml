@@ -18,11 +18,11 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;retention&lt;/span&gt;:
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;enabled&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;default_policy&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;allowed_lifetime_max&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;purge_jobs&lt;/span&gt;:
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;longest_max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1h&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;shortest_max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1d&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"retention:\n enabled: true\n purge_jobs:\n - longest_max_lifetime: 3d\n interval: 1h\n - shortest_max_lifetime: 3d\n interval: 1d"&lt;/script&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1d&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"retention:\n enabled: true\n default_policy:\n max_lifetime: 3d\n allowed_lifetime_max: 3d\n purge_jobs:\n - interval: 1d"&lt;/script&gt;
 &lt;/div&gt;
 &lt;p&gt;这段配置的含义是：&lt;/p&gt;</description></item><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。&lt;/p&gt;
 &lt;p&gt;这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 &lt;code&gt;8008&lt;/code&gt; 端口映射到宿主机 &lt;code&gt;8008&lt;/code&gt;，方便内网客户端访问或后续接入反代。&lt;/p&gt;
@@ -370,7 +370,7 @@
 &lt;/div&gt;
 &lt;h2 id="alpine-ssl-证书申请脚本"&gt;Alpine SSL 证书申请脚本&lt;/h2&gt;
 &lt;p&gt;这个脚本使用 &lt;code&gt;acme.sh&lt;/code&gt; 和 Let&amp;rsquo;s Encrypt，通过 standalone 模式申请证书，并把证书安装到 &lt;code&gt;/etc/ssl/&amp;lt;domain&amp;gt;/&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>&lt;p&gt;&lt;code&gt;tmux&lt;/code&gt; 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&lt;/p&gt;
-&lt;p&gt;下面这份配置偏向日常使用：开启鼠标，窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&lt;/p&gt;
+&lt;p&gt;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&lt;/p&gt;
 &lt;h2 id="写入配置文件"&gt;写入配置文件&lt;/h2&gt;
 &lt;p&gt;编辑 &lt;code&gt;~/.tmux.conf&lt;/code&gt;：&lt;/p&gt;
 &lt;div class="code-block"&gt;
@@ -379,53 +379,41 @@
 &lt;p&gt;如果没有安装 &lt;code&gt;nvim&lt;/code&gt;，也可以使用 &lt;code&gt;vim&lt;/code&gt; 或 &lt;code&gt;nano&lt;/code&gt;。&lt;/p&gt;
 &lt;p&gt;写入下面这份配置：&lt;/p&gt;
 &lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code class="language-tmux" data-lang="tmux"&gt;# ============================================================
-# 基础设置
-# ============================================================
-set -g mouse on
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code class="language-tmux" data-lang="tmux"&gt;# --- 基础设置 ---
+set -g mouse off
 set -g base-index 1
 set -g pane-base-index 1
 set -g renumber-windows on
 
-# 降低 Esc 延迟，让 vi 模式和快捷键响应更跟手
-set-option -sg escape-time 10
-
-# 保留更多滚动历史
-set-option -g history-limit 10000
-
-# 兼容性较好的 256 色终端类型
-set-option -g default-terminal &amp;#34;screen-256color&amp;#34;
-
-# ============================================================
-# 状态栏
-# ============================================================
+# --- 状态栏美化（通用无乱码版） ---
 set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34;
 set -g status-left-length 30
 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34;
 
-# ============================================================
-# 复制模式
-# ============================================================
+# 1. 开启 vi 风格的复制模式
 setw -g mode-keys vi
 
-# tmux 3.2+ 配合支持 OSC 52 的终端，可以把复制内容同步到系统剪贴板
-set -s set-clipboard on
-
-# 在 vi 复制模式中按 y 复制选区并退出复制模式
+# 2. 绑定 y 键为复制（并同步到系统剪贴板）
+# 注意：tmux 3.2+ 版本配合 set-clipboard on 效果最佳
 bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
 
-# ============================================================
-# 前缀键与热重载
-# ============================================================
-# 将默认前缀键 Ctrl+b 改成 Ctrl+a
+# 3. 确保开启剪贴板透传支持
+set -s set-clipboard on
+
+# 颜色与转义支持（至关重要）
+set -g default-terminal &amp;#34;xterm-256color&amp;#34;
+set-option -ga terminal-overrides &amp;#34;,xterm-256color:Tc&amp;#34;
+
+# tmux 重新读取配置文件：Ctrl+a，然后按 r
+bind r source-file ~/.tmux.conf \; display-message &amp;#34;Config reloaded!&amp;#34;
+
+# --- 快捷键优化 ---
+# 把前缀键从 Ctrl+b 改成 Ctrl+a
 unbind C-b
 set -g prefix C-a
-bind C-a send-prefix
-
-# 按 Ctrl+a 后再按 r，重新读取 tmux 配置
-bind r source-file ~/.tmux.conf \; display-message &amp;#34;Config reloaded!&amp;#34;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"# ============================================================\n# 基础设置\n# ============================================================\nset -g mouse on\nset -g base-index 1\nset -g pane-base-index 1\nset -g renumber-windows on\n\n# 降低 Esc 延迟，让 vi 模式和快捷键响应更跟手\nset-option -sg escape-time 10\n\n# 保留更多滚动历史\nset-option -g history-limit 10000\n\n# 兼容性较好的 256 色终端类型\nset-option -g default-terminal \"screen-256color\"\n\n# ============================================================\n# 状态栏\n# ============================================================\nset -g status-style \"bg=#282c34,fg=#abb2bf\"\nset -g status-left-length 30\nset -g status-left \"#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] \"\n\n# ============================================================\n# 复制模式\n# ============================================================\nsetw -g mode-keys vi\n\n# tmux 3.2+ 配合支持 OSC 52 的终端，可以把复制内容同步到系统剪贴板\nset -s set-clipboard on\n\n# 在 vi 复制模式中按 y 复制选区并退出复制模式\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# ============================================================\n# 前缀键与热重载\n# ============================================================\n# 将默认前缀键 Ctrl+b 改成 Ctrl+a\nunbind C-b\nset -g prefix C-a\nbind C-a send-prefix\n\n# 按 Ctrl+a 后再按 r，重新读取 tmux 配置\nbind r source-file ~/.tmux.conf \\; display-message \"Config reloaded!\""&lt;/script&gt;
+bind C-a send-prefix&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"# --- 基础设置 ---\nset -g mouse off\nset -g base-index 1\nset -g pane-base-index 1\nset -g renumber-windows on\n\n# --- 状态栏美化（通用无乱码版） ---\nset -g status-style \"bg=#282c34,fg=#abb2bf\"\nset -g status-left-length 30\nset -g status-left \"#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] \"\n\n# 1. 开启 vi 风格的复制模式\nsetw -g mode-keys vi\n\n# 2. 绑定 y 键为复制（并同步到系统剪贴板）\n# 注意：tmux 3.2+ 版本配合 set-clipboard on 效果最佳\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# 3. 确保开启剪贴板透传支持\nset -s set-clipboard on\n\n# 颜色与转义支持（至关重要）\nset -g default-terminal \"xterm-256color\"\nset-option -ga terminal-overrides \",xterm-256color:Tc\"\n\n# tmux 重新读取配置文件：Ctrl+a，然后按 r\nbind r source-file ~/.tmux.conf \\; display-message \"Config reloaded!\"\n\n# --- 快捷键优化 ---\n# 把前缀键从 Ctrl+b 改成 Ctrl+a\nunbind C-b\nset -g prefix C-a\nbind C-a send-prefix"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果你更习惯 tmux 默认的 &lt;code&gt;Ctrl+b&lt;/code&gt;，可以删掉最后“前缀键与热重载”中的这几行：&lt;/p&gt;</description></item><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>&lt;p&gt;在 Alpine Linux 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。&lt;/p&gt;
+&lt;p&gt;如果你更习惯 tmux 默认的 &lt;code&gt;Ctrl+b&lt;/code&gt;，可以删掉“快捷键优化”中的这几行：&lt;/p&gt;</description></item><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>&lt;p&gt;在 Alpine Linux 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。&lt;/p&gt;
 &lt;p&gt;本文以 &lt;code&gt;fetch.jgaga.tk&lt;/code&gt; 为示例域名，Web 根目录为 &lt;code&gt;/var/www/fetch.jgaga.tk&lt;/code&gt;。实际使用时，把域名和目录替换成自己的即可。&lt;/p&gt;
 &lt;h2 id="准备证书"&gt;准备证书&lt;/h2&gt;
 &lt;p&gt;正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 &lt;code&gt;acme.sh&lt;/code&gt;、&lt;code&gt;lego&lt;/code&gt; 或 &lt;code&gt;certbot&lt;/code&gt;。&lt;/p&gt;
@@ -626,7 +614,24 @@ bind r source-file ~/.tmux.conf \; display-message &amp;#34;Config reloaded!&amp
 &lt;p&gt;步骤 7： 安装成功后，输入 proxytool 管理服务&lt;/p&gt;
 &lt;p&gt;&lt;img src="assets/sing-box-install-06.png" alt="安装成功提示"&gt;&lt;/p&gt;
 &lt;p&gt;步骤 8： 打开 UI 面板&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/sing-box-install-07.png" alt="管理 sing-box 服务"&gt;&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录在 FreeBSD 15 上部署现代化 Neovim 生产力环境的完整流程，包括源码编译 Neovim 0.10+、安装 Node.js 与 Prettier，以及部署一套基于 Lua 的实用配置。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/sing-box-install-07.png" alt="管理 sing-box 服务"&gt;&lt;/p&gt;</description></item><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>&lt;p&gt;这篇记录整理一个比较实用的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 &lt;code&gt;/root/data/backup&lt;/code&gt; 单向同步到 B 机器，不让备份端的改动反向影响源端。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://syncthing.net/"&gt;Syncthing&lt;/a&gt; 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。这个特性很适合自建备份链路，但 Web 管理面板仍然要谨慎暴露，公网环境下更推荐通过 SSH 隧道访问。&lt;/p&gt;
+&lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;源端目录：Ubuntu/Debian 上的 &lt;code&gt;/root/data/backup&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;备份端目录：Ubuntu/Debian 或 Alpine 上的 &lt;code&gt;/root/data/backup&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;同步模式：源端 &lt;code&gt;仅发送&lt;/code&gt;，接收端 &lt;code&gt;仅接收&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;运行用户：本文按 &lt;code&gt;root&lt;/code&gt; 管理目录来写&lt;/li&gt;
+&lt;li&gt;管理方式：优先通过 SSH 隧道访问 Syncthing Web GUI&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;如果只是每天固定时间做一次备份，&lt;code&gt;rsync + SSH&lt;/code&gt; 也很适合；如果希望目录变动后实时同步，并且希望 Syncthing 负责设备发现、传输加密和状态管理，可以使用本文方案。&lt;/p&gt;
+&lt;h2 id="一ubuntu-源端配置"&gt;一、Ubuntu 源端配置&lt;/h2&gt;
+&lt;h3 id="1-安装-syncthing"&gt;1. 安装 Syncthing&lt;/h3&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install syncthing -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install syncthing -y"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;为 &lt;code&gt;root&lt;/code&gt; 生成配置文件：&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录在 FreeBSD 15 上部署现代化 Neovim 生产力环境的完整流程，包括源码编译 Neovim 0.10+、安装 Node.js 与 Prettier，以及部署一套基于 Lua 的实用配置。&lt;/p&gt;
 &lt;p&gt;这套配置包含主题、文件树、远程复制、代码格式化和常用快捷键，适合用作 FreeBSD 服务器或桌面环境里的日常开发编辑器。&lt;/p&gt;
 &lt;h2 id="第一步安装系统依赖与源码编译-neovim-010"&gt;第一步：安装系统依赖与源码编译 Neovim 0.10+&lt;/h2&gt;
 &lt;p&gt;FreeBSD 使用 &lt;code&gt;pkg&lt;/code&gt; 管理二进制包，编译 Neovim 需要额外安装 &lt;code&gt;gmake&lt;/code&gt;。&lt;/p&gt;

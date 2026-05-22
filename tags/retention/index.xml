@@ -18,10 +18,10 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;retention&lt;/span&gt;:
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;enabled&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;default_policy&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;allowed_lifetime_max&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;purge_jobs&lt;/span&gt;:
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;longest_max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1h&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;shortest_max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1d&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"retention:\n enabled: true\n purge_jobs:\n - longest_max_lifetime: 3d\n interval: 1h\n - shortest_max_lifetime: 3d\n interval: 1d"&lt;/script&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1d&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"retention:\n enabled: true\n default_policy:\n max_lifetime: 3d\n allowed_lifetime_max: 3d\n purge_jobs:\n - interval: 1d"&lt;/script&gt;
 &lt;/div&gt;
 &lt;p&gt;这段配置的含义是：&lt;/p&gt;</description></item></channel></rss>
