@@ -1,4 +1,32 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD on 电脑自习室</title><link>https://purodn.tk/posts/freebsd/</link><description>Recent content in FreeBSD on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 17 May 2026 20:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/freebsd/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>&lt;p&gt;在 FreeBSD 15 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD on 电脑自习室</title><link>https://purodn.tk/posts/freebsd/</link><description>Recent content in FreeBSD on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/freebsd/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>&lt;p&gt;&lt;code&gt;trzsz-go&lt;/code&gt; 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/trz@latest
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/trz
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/tsz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/go/bin/trz\n/root/go/bin/tsz"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果只是 root 自己使用，可以把 &lt;code&gt;$HOME/go/bin&lt;/code&gt; 加入 &lt;code&gt;PATH&lt;/code&gt;。但在 FreeBSD 上，更推荐把这种全局命令放到 &lt;code&gt;/usr/local/bin&lt;/code&gt;，这样所有用户和脚本都更容易调用。&lt;/p&gt;
+&lt;h2 id="准备-go-环境"&gt;准备 Go 环境&lt;/h2&gt;
+&lt;p&gt;先确认 Go 已经可用：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go version"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 &lt;code&gt;/usr/local/go/bin/go&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;如果当前终端还找不到 &lt;code&gt;go&lt;/code&gt;，可以临时加入 PATH：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h2 id="方案一直接安装到-usrlocalbin"&gt;方案一：直接安装到 /usr/local/bin&lt;/h2&gt;
+&lt;p&gt;可以。&lt;code&gt;go install&lt;/code&gt; 支持通过 &lt;code&gt;GOBIN&lt;/code&gt; 指定输出目录，所以最干净的方式是直接把 &lt;code&gt;trz&lt;/code&gt; 和 &lt;code&gt;tsz&lt;/code&gt; 安装到 &lt;code&gt;/usr/local/bin&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;以 root 用户执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;确认文件已经生成：&lt;/p&gt;</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>&lt;p&gt;在 FreeBSD 15 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&lt;/p&gt;
 &lt;p&gt;本文以 &lt;code&gt;fetch.jgaga.tk&lt;/code&gt; 为示例域名，Web 根目录为 &lt;code&gt;/usr/local/www/fetch.jgaga.tk&lt;/code&gt;。实际使用时，把域名和目录替换成自己的即可。&lt;/p&gt;
 &lt;h2 id="准备证书"&gt;准备证书&lt;/h2&gt;
 &lt;p&gt;正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 &lt;code&gt;acme.sh&lt;/code&gt;、&lt;code&gt;certbot&lt;/code&gt; 等工具签发。&lt;/p&gt;
@@ -20,33 +48,36 @@
 &lt;/div&gt;
 &lt;p&gt;这里推荐让目录归属为 &lt;code&gt;root:www&lt;/code&gt;。Nginx worker 以 &lt;code&gt;www&lt;/code&gt; 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&lt;/p&gt;
 &lt;h2 id="创建认证密码文件"&gt;创建认证密码文件&lt;/h2&gt;
-&lt;p&gt;如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 &lt;code&gt;openssl&lt;/code&gt;，不需要额外安装工具。&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录在 FreeBSD 15 上部署现代化 Neovim 生产力环境的完整流程，包括源码编译 Neovim 0.10+、安装 Node.js 与 Prettier，以及部署一套基于 Lua 的实用配置。&lt;/p&gt;
-&lt;p&gt;这套配置包含主题、文件树、远程复制、代码格式化和常用快捷键，适合用作 FreeBSD 服务器或桌面环境里的日常开发编辑器。&lt;/p&gt;
-&lt;h2 id="第一步安装系统依赖与源码编译-neovim-010"&gt;第一步：安装系统依赖与源码编译 Neovim 0.10+&lt;/h2&gt;
-&lt;p&gt;FreeBSD 使用 &lt;code&gt;pkg&lt;/code&gt; 管理二进制包，编译 Neovim 需要额外安装 &lt;code&gt;gmake&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 &lt;code&gt;openssl&lt;/code&gt;，不需要额外安装工具。&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 &lt;code&gt;pkg&lt;/code&gt; 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 &lt;code&gt;lazy.nvim&lt;/code&gt; 的 Lua 配置。&lt;/p&gt;
+&lt;p&gt;这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。&lt;/p&gt;
+&lt;h2 id="一安装系统依赖并编译-neovim"&gt;一、安装系统依赖并编译 Neovim&lt;/h2&gt;
+&lt;p&gt;FreeBSD 使用 &lt;code&gt;pkg&lt;/code&gt; 管理二进制包。编译 Neovim 时建议使用 &lt;code&gt;gmake&lt;/code&gt;，不要直接用系统自带的 &lt;code&gt;make&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 &lt;code&gt;doas&lt;/code&gt; 或 &lt;code&gt;sudo&lt;/code&gt;。&lt;/p&gt;
 &lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 1. 安装编译所需的工具和依赖&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 注意：FreeBSD 下编译 Neovim 建议使用 gmake&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 强制同步并更新所有软件包，这是解决 ld-elf.so.1 错误最直接的方法，确保所有依赖库版本一致。&lt;/span&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 强制刷新仓库索引，并升级已安装软件包&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg update -f
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg upgrade -y
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 2. 拉取 Neovim 源码&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git clone https://github.com/neovim/neovim.git ~/neovim-src
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd ~/neovim-src
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git checkout stable
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 3. 编译并全局安装&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# FreeBSD 环境下必须明确使用 gmake&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;gmake CMAKE_BUILD_TYPE&lt;span style="color:#f92672"&gt;=&lt;/span&gt;Release -j&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;sysctl -n hw.ncpu&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;gmake install
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 4. 验证版本&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;hash -r
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim -v&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# 1. 安装编译所需的工具和依赖\n# 注意：FreeBSD 下编译 Neovim 建议使用 gmake\n# 强制同步并更新所有软件包，这是解决 ld-elf.so.1 错误最直接的方法，确保所有依赖库版本一致。\npkg update -f\npkg upgrade -y\npkg install -y ninja cmake gettext-tools gmake unzip curl git gcc\n\n# 2. 拉取 Neovim 源码\ngit clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable\n\n# 3. 编译并全局安装\n# FreeBSD 环境下必须明确使用 gmake\ngmake CMAKE_BUILD_TYPE=Release -j$(sysctl -n hw.ncpu)\ngmake install\n\n# 4. 验证版本\nhash -r\nnvim -v"&lt;/script&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 安装源码编译 Neovim 所需工具&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# 强制刷新仓库索引，并升级已安装软件包\npkg update -f\npkg upgrade -y\n\n# 安装源码编译 Neovim 所需工具\npkg install -y ninja cmake gettext-tools gmake unzip curl git gcc"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果系统里已经安装过旧版 Neovim，建议先确认 &lt;code&gt;nvim&lt;/code&gt; 的实际路径：&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>&lt;p&gt;这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&lt;/p&gt;
+&lt;p&gt;然后拉取 Neovim 源码并切换到稳定分支：&lt;/p&gt;</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>&lt;p&gt;这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 &lt;code&gt;authorized_keys&lt;/code&gt;，并自动调整 &lt;code&gt;sshd_config&lt;/code&gt; 里的关键认证参数。&lt;/p&gt;
+&lt;p&gt;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/CleanShot-2026-03-01-at-20.56.31-2x.png" alt="FreeBSD SSH key manager"&gt;&lt;/p&gt;
+&lt;h2 id="使用前提醒"&gt;使用前提醒&lt;/h2&gt;
+&lt;p&gt;这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&lt;/p&gt;
+&lt;p&gt;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&lt;/p&gt;
+&lt;p&gt;GitHub 公钥地址格式是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"https://github.com/\u003c你的GitHub用户名\u003e.keys"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&lt;/p&gt;
+&lt;h2 id="root-用户版本"&gt;root 用户版本&lt;/h2&gt;
+&lt;p&gt;如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; ./freebsd_ssh_key_manage.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh \u0026\u0026 chmod +x freebsd_ssh_key_manage.sh \u0026\u0026 ./freebsd_ssh_key_manage.sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这个版本配置的是 root 用户的 &lt;code&gt;authorized_keys&lt;/code&gt;。脚本执行完成后，应重点核对 &lt;code&gt;/etc/ssh/sshd_config&lt;/code&gt; 里的配置项。&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>&lt;p&gt;这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&lt;/p&gt;
 &lt;p&gt;适合下面几种场景：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;VPS 面板只提供 VNC / noVNC 控制台。&lt;/li&gt;
@@ -176,7 +207,15 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;printf &lt;span style="color:#e6db74"&gt;&amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39;&lt;/span&gt; &amp;gt;&amp;gt; ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"printf '\\nexport PATH=$PATH:/usr/local/go/bin\\n' \u003e\u003e ~/.profile"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;写入后，让变量在当前终端立即生效：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile\ngo version"&lt;/script&gt;
+&lt;/div&gt;
 &lt;h2 id="root-用户安装到自定义路径"&gt;root 用户安装到自定义路径&lt;/h2&gt;
 &lt;p&gt;如果你更喜欢把手动安装的软件统一放到 &lt;code&gt;/usr/local/opt/&lt;/code&gt; 下面，可以这样操作：&lt;/p&gt;
 &lt;div class="code-block"&gt;

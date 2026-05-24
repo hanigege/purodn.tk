@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Acme.sh on 电脑自习室</title>
+    <link>http://127.0.0.1:1313/tags/acme.sh/</link>
+    <description>Recent content in Acme.sh on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 24 May 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/acme.sh/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title>
+      <link>http://127.0.0.1:1313/posts/linux/alpine-sing-box-server-brutal/</link>
+      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/linux/alpine-sing-box-server-brutal/</guid>
+      <description>&lt;p&gt;本文整理自原 Halo 文章：在 Alpine Linux 上安装 sing-box-server、配置 Nginx 与证书，并编译加载 &lt;code&gt;tcp-brutal&lt;/code&gt; 模块。&lt;/p&gt;&#xA;&lt;h2 id=&#34;一安装基础组件&#34;&gt;一、安装基础组件&lt;/h2&gt;&#xA;&lt;p&gt;先更新软件源，并安装常用工具、&lt;code&gt;sing-box&lt;/code&gt; 和 Nginx。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk update &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; apk add socat curl bash wget vim nano&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;rc-update add sing-box default&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk add nginx&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;apk update \u0026\u0026 apk add socat curl bash wget vim nano\napk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box\nrc-update add sing-box default\n\napk add nginx&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;h2 id=&#34;二安装-acmesh-并设置默认-ca&#34;&gt;二、安装 acme.sh 并设置默认 CA&lt;/h2&gt;&#xA;&lt;p&gt;以 &lt;code&gt;root&lt;/code&gt; 用户 SSH 登录 Alpine 主机，安装 &lt;code&gt;acme.sh&lt;/code&gt;：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;wget -qO- get.acme.sh | bash&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;nano ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;wget -qO- get.acme.sh | bash\n\nnano ~/.profile&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;在 &lt;code&gt;~/.profile&lt;/code&gt; 中加入：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

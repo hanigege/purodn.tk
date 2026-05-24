@@ -43,7 +43,15 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;printf &lt;span style="color:#e6db74"&gt;&amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39;&lt;/span&gt; &amp;gt;&amp;gt; ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"printf '\\nexport PATH=$PATH:/usr/local/go/bin\\n' \u003e\u003e ~/.profile"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;写入后，让变量在当前终端立即生效：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile\ngo version"&lt;/script&gt;
+&lt;/div&gt;
 &lt;h2 id="root-用户安装到自定义路径"&gt;root 用户安装到自定义路径&lt;/h2&gt;
 &lt;p&gt;如果你更喜欢把手动安装的软件统一放到 &lt;code&gt;/usr/local/opt/&lt;/code&gt; 下面，可以这样操作：&lt;/p&gt;
 &lt;div class="code-block"&gt;

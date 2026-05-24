@@ -1,4 +1,32 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SSH on 电脑自习室</title><link>https://purodn.tk/tags/ssh/</link><description>Recent content in SSH on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 20:57:38 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ssh/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份三份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SSH on 电脑自习室</title><link>https://purodn.tk/tags/ssh/</link><description>Recent content in SSH on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ssh/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>&lt;p&gt;&lt;code&gt;trzsz-go&lt;/code&gt; 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/trz@latest
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/trz
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/tsz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/go/bin/trz\n/root/go/bin/tsz"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果只是 root 自己使用，可以把 &lt;code&gt;$HOME/go/bin&lt;/code&gt; 加入 &lt;code&gt;PATH&lt;/code&gt;。但在 FreeBSD 上，更推荐把这种全局命令放到 &lt;code&gt;/usr/local/bin&lt;/code&gt;，这样所有用户和脚本都更容易调用。&lt;/p&gt;
+&lt;h2 id="准备-go-环境"&gt;准备 Go 环境&lt;/h2&gt;
+&lt;p&gt;先确认 Go 已经可用：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go version"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 &lt;code&gt;/usr/local/go/bin/go&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;如果当前终端还找不到 &lt;code&gt;go&lt;/code&gt;，可以临时加入 PATH：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h2 id="方案一直接安装到-usrlocalbin"&gt;方案一：直接安装到 /usr/local/bin&lt;/h2&gt;
+&lt;p&gt;可以。&lt;code&gt;go install&lt;/code&gt; 支持通过 &lt;code&gt;GOBIN&lt;/code&gt; 指定输出目录，所以最干净的方式是直接把 &lt;code&gt;trz&lt;/code&gt; 和 &lt;code&gt;tsz&lt;/code&gt; 安装到 &lt;code&gt;/usr/local/bin&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;以 root 用户执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;确认文件已经生成：&lt;/p&gt;</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份三份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
 &lt;p&gt;三份原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="assets/Alpine_firewall.sh"&gt;Alpine_firewall.sh&lt;/a&gt;&lt;/li&gt;
@@ -118,4 +146,20 @@ bind C-a send-prefix
 # 绑定 Ctrl+a 后接 Ctrl+l：发送清屏指令给 Shell，并清空 tmux 当前 pane 的历史记录
 bind C-l send-keys C-l \; clear-history \; display-message &amp;#34;Screen and scrollback buffer cleared!&amp;#34;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"# --- 基础设置 ---\nset -g mouse off\nset -g base-index 1\nset -g pane-base-index 1\nset -g renumber-windows on\n\n# --- 状态栏美化（通用无乱码版） ---\nset -g status-style \"bg=#282c34,fg=#abb2bf\"\nset -g status-left-length 30\nset -g status-left \"#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] \"\n\n# 1. 开启 vi 风格的复制模式\nsetw -g mode-keys vi\n\n# 2. 绑定 y 键为复制（并同步到系统剪贴板）\n# 注意：tmux 3.2+ 版本配合 set-clipboard on 效果最佳\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# 3. 确保开启剪贴板透传支持\nset -s set-clipboard on\n\n# 颜色与转义支持（至关重要）\nset -g default-terminal \"xterm-256color\"\nset-option -ga terminal-overrides \",xterm-256color:Tc\"\n\n# tmux 重新读取配置文件：Ctrl+a，然后按 r\nbind r source-file ~/.tmux.conf \\; display-message \"Config reloaded!\"\n\n# --- 快捷键优化 ---\n# 把前缀键从 Ctrl+b 改成 Ctrl+a\nunbind C-b\nset -g prefix C-a\nbind C-a send-prefix\n\n# 绑定 Ctrl+a 后接 Ctrl+l：发送清屏指令给 Shell，并清空 tmux 当前 pane 的历史记录\nbind C-l send-keys C-l \\; clear-history \\; display-message \"Screen and scrollback buffer cleared!\""&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果你更习惯 tmux 默认的 &lt;code&gt;Ctrl+b&lt;/code&gt;，可以删掉“快捷键优化”中的这几行：&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;如果你更习惯 tmux 默认的 &lt;code&gt;Ctrl+b&lt;/code&gt;，可以删掉“快捷键优化”中的这几行：&lt;/p&gt;</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>&lt;p&gt;这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 &lt;code&gt;authorized_keys&lt;/code&gt;，并自动调整 &lt;code&gt;sshd_config&lt;/code&gt; 里的关键认证参数。&lt;/p&gt;
+&lt;p&gt;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/CleanShot-2026-03-01-at-20.56.31-2x.png" alt="FreeBSD SSH key manager"&gt;&lt;/p&gt;
+&lt;h2 id="使用前提醒"&gt;使用前提醒&lt;/h2&gt;
+&lt;p&gt;这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&lt;/p&gt;
+&lt;p&gt;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&lt;/p&gt;
+&lt;p&gt;GitHub 公钥地址格式是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"https://github.com/\u003c你的GitHub用户名\u003e.keys"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&lt;/p&gt;
+&lt;h2 id="root-用户版本"&gt;root 用户版本&lt;/h2&gt;
+&lt;p&gt;如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; ./freebsd_ssh_key_manage.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh \u0026\u0026 chmod +x freebsd_ssh_key_manage.sh \u0026\u0026 ./freebsd_ssh_key_manage.sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这个版本配置的是 root 用户的 &lt;code&gt;authorized_keys&lt;/code&gt;。脚本执行完成后，应重点核对 &lt;code&gt;/etc/ssh/sshd_config&lt;/code&gt; 里的配置项。&lt;/p&gt;</description></item></channel></rss>
