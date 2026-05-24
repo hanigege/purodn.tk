@@ -1,0 +1,273 @@
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>2026版Ubuntu&amp;Debian下iptables+mss防火墙管理一键脚本 | 电脑自习室</title><meta name=description content="软路由、Linux、FreeBSD、Docker 相关的部署记录、教程和踩坑笔记。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-02-27>2026年2月27日</time></div><h1>2026版Ubuntu&amp;Debian下iptables+mss防火墙管理一键脚本</h1></header><img class=article-cover src=/posts/linux/ubuntu-debian-iptables-mss-firewall-script/assets/cover.svg alt><div class=article-content><h3 id=说明支持ipv4ipv6自动检测有无ipv6添加mss自动检测ssh端口等很方便>说明：支持ipv4&amp;ipv6,自动检测有无ipv6，添加mss.自动检测ssh端口等，很方便</h3><h2 id=一键拉取脚本>一键拉取脚本</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/iptables_manager.sh -o iptables_manager.sh &amp;&amp; chmod +x iptables_manager.sh &amp;&amp; bash iptables_manager.sh</code></pre><script class=code-source type=application/json>"curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/iptables_manager.sh -o iptables_manager.sh \u0026\u0026 chmod +x iptables_manager.sh \u0026\u0026 bash iptables_manager.sh"</script></div><h2 id=手动安装方法可选>手动安装方法（可选）</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>nano iptables_manager.sh</code></pre><script class=code-source type=application/json>"nano iptables_manager.sh"</script></div><h2 id=直接复制并执行以下完整代码覆盖原脚本>直接复制并执行以下完整代码覆盖原脚本：</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>cat <span style=color:#e6db74>&lt;&lt; &#39;EOF&#39; &gt; iptables_manager.sh
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#e6db74># ==========================================================
+</span></span></span><span style=display:flex><span><span style=color:#e6db74># 脚本名称：高级防火墙管理工具 (Debian/Ubuntu 专属自适应版 V4.1)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74># 核心升级：基于软件和内核模块的深度智能检测，消除冗余规则
+</span></span></span><span style=display:flex><span><span style=color:#e6db74># ==========================================================
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>gl_lv=&#39;\033[32m&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>gl_huang=&#39;\033[33m&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>gl_hong=&#39;\033[31m&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>gl_bai=&#39;\033[0m&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>root_use() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ &#34;$EUID&#34; -ne 0 ] &amp;&amp; echo -e &#34;${gl_huang}提示: ${gl_bai}需 root 权限运行！&#34; &amp;&amp; exit 1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>check_deps() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    if ! dpkg -l | grep -qw iptables-persistent; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_huang}检测到未安装持久化组件，正在自动安装...${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        apt-get update
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        DEBIAN_FRONTEND=noninteractive apt-get install -y iptables iptables-persistent netfilter-persistent
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_lv}依赖安装完成！${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        sleep 1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>root_use
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>check_deps
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>if command -v ip6tables &gt;/dev/null 2&gt;&amp;1 &amp;&amp; ip addr 2&gt;/dev/null | grep -q &#34;inet6 .* global&#34;; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    CMDS=&#34;iptables ip6tables&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    HAS_IPV6=true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    CMDS=&#34;iptables&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    HAS_IPV6=false
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>save_rules() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;${gl_huang}正在持久化规则...${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    mkdir -p /etc/iptables
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    netfilter-persistent save &gt;/dev/null 2&gt;&amp;1 || {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        iptables-save &gt; /etc/iptables/rules.v4
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        [ &#34;$HAS_IPV6&#34; == true ] &amp;&amp; ip6tables-save &gt; /etc/iptables/rules.v6
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;${gl_lv}规则保存成功。${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>get_ssh_port() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    local port=$(grep -i &#34;^Port&#34; /etc/ssh/sshd_config 2&gt;/dev/null | awk &#39;{print $2}&#39; | head -n 1)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ -z &#34;$port&#34; ] &amp;&amp; port=22
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo &#34;$port&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>view_rules() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    for cmd in $CMDS; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;\n${gl_lv}=== $cmd filter 表状态 ===${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -L INPUT -n -v --line-numbers
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_huang}--- FORWARD 转发状态 ---${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -L FORWARD -n -v --line-numbers
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_huang}--- MSS 钳制状态 (mangle 表) ---${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -t mangle -L FORWARD -n -v --line-numbers
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -p &#34;按回车继续...&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>allow_port_flexible() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -e -p &#34;请输入要放行的端口号: &#34; port
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ -z &#34;$port&#34; ] &amp;&amp; return
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;1. TCP  2. UDP  3. 同时放行&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -p &#34;选择 (1-3): &#34; p_choice
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    for cmd in $CMDS; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        case $p_choice in
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            1) $cmd -I INPUT 4 -p tcp --dport &#34;$port&#34; -j ACCEPT ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            2) $cmd -I INPUT 4 -p udp --dport &#34;$port&#34; -j ACCEPT ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            3) 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               $cmd -I INPUT 4 -p tcp --dport &#34;$port&#34; -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               $cmd -I INPUT 4 -p udp --dport &#34;$port&#34; -j ACCEPT 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        esac
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    save_rules
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>block_ip() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -e -p &#34;输入要屏蔽的 IP: &#34; tip
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ -z &#34;$tip&#34; ] &amp;&amp; return
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    if [[ &#34;$tip&#34; == *&#34;:&#34;* ]]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if [ &#34;$HAS_IPV6&#34; == true ]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            ip6tables -I INPUT 1 -s &#34;$tip&#34; -j DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            echo -e &#34;${gl_hong}系统未开启 IPv6，无法添加该规则。${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            sleep 2
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            return
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        iptables -I INPUT 1 -s &#34;$tip&#34; -j DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    save_rules
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>delete_rule() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;1. IPv4 (iptables)&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ &#34;$HAS_IPV6&#34; == true ] &amp;&amp; echo &#34;2. IPv6 (ip6tables)&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -p &#34;选择协议: &#34; p_choice
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    local cmd=&#34;iptables&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    if [ &#34;$p_choice&#34; == &#34;2&#34; ] &amp;&amp; [ &#34;$HAS_IPV6&#34; == true ]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        cmd=&#34;ip6tables&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    elif [ &#34;$p_choice&#34; == &#34;2&#34; ]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_hong}系统不支持 IPv6。${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        sleep 2
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        return
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    $cmd -L INPUT -n --line-numbers
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    read -p &#34;输入要删除的 filter/INPUT 规则编号: &#34; num
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ -n &#34;$num&#34; ] &amp;&amp; $cmd -D INPUT &#34;$num&#34; &amp;&amp; save_rules
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>close_all_but_ssh() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    local ssh_p=$(get_ssh_port)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;${gl_huang}开始执行自适应深度加固...${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    sysctl -w net.ipv4.ip_forward=1 &gt;/dev/null 2&gt;&amp;1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    [ &#34;$HAS_IPV6&#34; == true ] &amp;&amp; sysctl -w net.ipv6.conf.all.forwarding=1 &gt;/dev/null 2&gt;&amp;1 || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    for cmd in $CMDS; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P INPUT ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P FORWARD ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -L INPUT --line-numbers | grep -vE &#34;ts-|DOCKER&#34; | awk &#39;/^[0-9]/ {print $1}&#39; | sort -nr | xargs -r -I{} $cmd -D INPUT {} 2&gt;/dev/null
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -F FORWARD
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -A INPUT -i lo -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if $cmd -L ts-input &gt;/dev/null 2&gt;&amp;1; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -D INPUT -j ts-input 2&gt;/dev/null || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -I INPUT 3 -j ts-input
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -A INPUT -p tcp --dport &#34;$ssh_p&#34; -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        # 规范 ICMP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if [ &#34;$cmd&#34; == &#34;iptables&#34; ]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p icmp --icmp-type 3 -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p icmp --icmp-type 11 -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p icmp -j DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        else
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            for type in 2 133 134 135 136 137; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>                $cmd -A INPUT -p ipv6-icmp --icmpv6-type $type -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p ipv6-icmp --icmpv6-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A INPUT -p ipv6-icmp -j DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if $cmd -L ts-forward &gt;/dev/null 2&gt;&amp;1; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -D FORWARD -j ts-forward 2&gt;/dev/null || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -I FORWARD 1 -j ts-forward
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        # 核心优化：智能环境检测 (检测软件安装状态而非网卡状态)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if command -v docker &gt;/dev/null 2&gt;&amp;1 || command -v dockerd &gt;/dev/null 2&gt;&amp;1; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -i docker+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -o docker+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if command -v tailscaled &gt;/dev/null 2&gt;&amp;1; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -i tailscale+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -o tailscale+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if command -v wg &gt;/dev/null 2&gt;&amp;1 || lsmod | grep -q wireguard; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -i wg+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -o wg+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if command -v openvpn &gt;/dev/null 2&gt;&amp;1 || [ -c /dev/net/tun ]; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -i tun+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -o tun+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if command -v pppd &gt;/dev/null 2&gt;&amp;1; then
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -i ppp+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            $cmd -A FORWARD -o ppp+ -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P INPUT DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P FORWARD DROP
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        # 双栈 MSS 钳制
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -t mangle -F FORWARD
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2&gt;/dev/null || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    save_rules
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;${gl_lv}深度加固及 MSS 网络优化完成！冗余规则已清理。${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    sleep 2
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>open_all_ports() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    for cmd in iptables ip6tables; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        command -v $cmd &gt;/dev/null 2&gt;&amp;1 || continue
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P INPUT ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P FORWARD ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -P OUTPUT ACCEPT
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -F
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -X 2&gt;/dev/null || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        $cmd -t mangle -F FORWARD 2&gt;/dev/null || true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    save_rules
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    echo -e &#34;${gl_lv}防火墙已重置全开模式，MSS 钳制已清除。${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    sleep 2
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>iptables_panel() {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    while true; do
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        clear
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_lv}===========================================${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;    高级防火墙管理 (Debian/Ubuntu 自适应版 V4.1)    &#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;    当前 IPv6 状态: \c&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        if [ &#34;$HAS_IPV6&#34; == true ]; then echo -e &#34;${gl_lv}已启用${gl_bai}&#34;; else echo -e &#34;${gl_huang}未启用${gl_bai}&#34;; fi
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34;${gl_lv}===========================================${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 1. 查看规则 (含 MSS 钳制状态)&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 2. 放行端口&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 3. 屏蔽地址&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 4. 删除规则&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34; 5. ${gl_hong}执行深度加固 (智能检测环境，拒绝冗余规则)${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo -e &#34; 6. ${gl_huang}紧急恢复全开 (重置所有策略)${gl_bai}&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 7. 手动持久化保存&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34; 0. 退出脚本&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        echo &#34;-------------------------------------------&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        read -e -p &#34;请选择: &#34; choice
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        case $choice in
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            1) view_rules ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            2) allow_port_flexible ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            3) block_ip ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            4) delete_rule ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            5) close_all_but_ssh ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            6) open_all_ports ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            7) save_rules; sleep 2 ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            0) exit 0 ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            *) echo &#34;无效选择&#34;; sleep 1 ;;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        esac
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    done
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>iptables_panel
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>chmod +x iptables_manager.sh
+</span></span><span style=display:flex><span>./iptables_manager.sh</span></span></code></pre></div><script class=code-source type=application/json>"cat \u003c\u003c 'EOF' \u003e iptables_manager.sh\n#!/bin/bash\n# ==========================================================\n# 脚本名称：高级防火墙管理工具 (Debian/Ubuntu 专属自适应版 V4.1)\n# 核心升级：基于软件和内核模块的深度智能检测，消除冗余规则\n# ==========================================================\n\ngl_lv='\\033[32m'\ngl_huang='\\033[33m'\ngl_hong='\\033[31m'\ngl_bai='\\033[0m'\n\nroot_use() {\n    [ \"$EUID\" -ne 0 ] \u0026\u0026 echo -e \"${gl_huang}提示: ${gl_bai}需 root 权限运行！\" \u0026\u0026 exit 1\n}\n\ncheck_deps() {\n    if ! dpkg -l | grep -qw iptables-persistent; then\n        echo -e \"${gl_huang}检测到未安装持久化组件，正在自动安装...${gl_bai}\"\n        apt-get update\n        DEBIAN_FRONTEND=noninteractive apt-get install -y iptables iptables-persistent netfilter-persistent\n        echo -e \"${gl_lv}依赖安装完成！${gl_bai}\"\n        sleep 1\n    fi\n}\n\nroot_use\ncheck_deps\n\nif command -v ip6tables \u003e/dev/null 2\u003e\u00261 \u0026\u0026 ip addr 2\u003e/dev/null | grep -q \"inet6 .* global\"; then\n    CMDS=\"iptables ip6tables\"\n    HAS_IPV6=true\nelse\n    CMDS=\"iptables\"\n    HAS_IPV6=false\nfi\n\nsave_rules() {\n    echo -e \"${gl_huang}正在持久化规则...${gl_bai}\"\n    mkdir -p /etc/iptables\n    netfilter-persistent save \u003e/dev/null 2\u003e\u00261 || {\n        iptables-save \u003e /etc/iptables/rules.v4\n        [ \"$HAS_IPV6\" == true ] \u0026\u0026 ip6tables-save \u003e /etc/iptables/rules.v6\n    }\n    echo -e \"${gl_lv}规则保存成功。${gl_bai}\"\n}\n\nget_ssh_port() {\n    local port=$(grep -i \"^Port\" /etc/ssh/sshd_config 2\u003e/dev/null | awk '{print $2}' | head -n 1)\n    [ -z \"$port\" ] \u0026\u0026 port=22\n    echo \"$port\"\n}\n\nview_rules() {\n    for cmd in $CMDS; do\n        echo -e \"\\n${gl_lv}=== $cmd filter 表状态 ===${gl_bai}\"\n        $cmd -L INPUT -n -v --line-numbers\n        echo -e \"${gl_huang}--- FORWARD 转发状态 ---${gl_bai}\"\n        $cmd -L FORWARD -n -v --line-numbers\n        echo -e \"${gl_huang}--- MSS 钳制状态 (mangle 表) ---${gl_bai}\"\n        $cmd -t mangle -L FORWARD -n -v --line-numbers\n    done\n    read -p \"按回车继续...\"\n}\n\nallow_port_flexible() {\n    read -e -p \"请输入要放行的端口号: \" port\n    [ -z \"$port\" ] \u0026\u0026 return\n    echo -e \"1. TCP  2. UDP  3. 同时放行\"\n    read -p \"选择 (1-3): \" p_choice\n    for cmd in $CMDS; do\n        case $p_choice in\n            1) $cmd -I INPUT 4 -p tcp --dport \"$port\" -j ACCEPT ;;\n            2) $cmd -I INPUT 4 -p udp --dport \"$port\" -j ACCEPT ;;\n            3) \n               $cmd -I INPUT 4 -p tcp --dport \"$port\" -j ACCEPT\n               $cmd -I INPUT 4 -p udp --dport \"$port\" -j ACCEPT \n               ;;\n        esac\n    done\n    save_rules\n}\n\nblock_ip() {\n    read -e -p \"输入要屏蔽的 IP: \" tip\n    [ -z \"$tip\" ] \u0026\u0026 return\n    if [[ \"$tip\" == *\":\"* ]]; then\n        if [ \"$HAS_IPV6\" == true ]; then\n            ip6tables -I INPUT 1 -s \"$tip\" -j DROP\n        else\n            echo -e \"${gl_hong}系统未开启 IPv6，无法添加该规则。${gl_bai}\"\n            sleep 2\n            return\n        fi\n    else\n        iptables -I INPUT 1 -s \"$tip\" -j DROP\n    fi\n    save_rules\n}\n\ndelete_rule() {\n    echo -e \"1. IPv4 (iptables)\"\n    [ \"$HAS_IPV6\" == true ] \u0026\u0026 echo \"2. IPv6 (ip6tables)\"\n    read -p \"选择协议: \" p_choice\n    local cmd=\"iptables\"\n    if [ \"$p_choice\" == \"2\" ] \u0026\u0026 [ \"$HAS_IPV6\" == true ]; then\n        cmd=\"ip6tables\"\n    elif [ \"$p_choice\" == \"2\" ]; then\n        echo -e \"${gl_hong}系统不支持 IPv6。${gl_bai}\"\n        sleep 2\n        return\n    fi\n    $cmd -L INPUT -n --line-numbers\n    read -p \"输入要删除的 filter/INPUT 规则编号: \" num\n    [ -n \"$num\" ] \u0026\u0026 $cmd -D INPUT \"$num\" \u0026\u0026 save_rules\n}\n\nclose_all_but_ssh() {\n    local ssh_p=$(get_ssh_port)\n    echo -e \"${gl_huang}开始执行自适应深度加固...${gl_bai}\"\n\n    sysctl -w net.ipv4.ip_forward=1 \u003e/dev/null 2\u003e\u00261\n    [ \"$HAS_IPV6\" == true ] \u0026\u0026 sysctl -w net.ipv6.conf.all.forwarding=1 \u003e/dev/null 2\u003e\u00261 || true\n\n    for cmd in $CMDS; do\n        $cmd -P INPUT ACCEPT\n        $cmd -P FORWARD ACCEPT\n\n        $cmd -L INPUT --line-numbers | grep -vE \"ts-|DOCKER\" | awk '/^[0-9]/ {print $1}' | sort -nr | xargs -r -I{} $cmd -D INPUT {} 2\u003e/dev/null\n        $cmd -F FORWARD\n\n        $cmd -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n        $cmd -A INPUT -i lo -j ACCEPT\n        \n        if $cmd -L ts-input \u003e/dev/null 2\u003e\u00261; then\n            $cmd -D INPUT -j ts-input 2\u003e/dev/null || true\n            $cmd -I INPUT 3 -j ts-input\n        fi\n        \n        $cmd -A INPUT -p tcp --dport \"$ssh_p\" -j ACCEPT\n\n        # 规范 ICMP\n        if [ \"$cmd\" == \"iptables\" ]; then\n            $cmd -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT\n            $cmd -A INPUT -p icmp --icmp-type 3 -j ACCEPT\n            $cmd -A INPUT -p icmp --icmp-type 11 -j ACCEPT\n            $cmd -A INPUT -p icmp -j DROP\n        else\n            for type in 2 133 134 135 136 137; do\n                $cmd -A INPUT -p ipv6-icmp --icmpv6-type $type -j ACCEPT\n            done\n            $cmd -A INPUT -p ipv6-icmp --icmpv6-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT\n            $cmd -A INPUT -p ipv6-icmp -j DROP\n        fi\n\n        if $cmd -L ts-forward \u003e/dev/null 2\u003e\u00261; then\n            $cmd -D FORWARD -j ts-forward 2\u003e/dev/null || true\n            $cmd -I FORWARD 1 -j ts-forward\n        fi\n        \n        # 核心优化：智能环境检测 (检测软件安装状态而非网卡状态)\n        if command -v docker \u003e/dev/null 2\u003e\u00261 || command -v dockerd \u003e/dev/null 2\u003e\u00261; then\n            $cmd -A FORWARD -i docker+ -j ACCEPT\n            $cmd -A FORWARD -o docker+ -j ACCEPT\n        fi\n        \n        if command -v tailscaled \u003e/dev/null 2\u003e\u00261; then\n            $cmd -A FORWARD -i tailscale+ -j ACCEPT\n            $cmd -A FORWARD -o tailscale+ -j ACCEPT\n        fi\n        \n        if command -v wg \u003e/dev/null 2\u003e\u00261 || lsmod | grep -q wireguard; then\n            $cmd -A FORWARD -i wg+ -j ACCEPT\n            $cmd -A FORWARD -o wg+ -j ACCEPT\n        fi\n        \n        if command -v openvpn \u003e/dev/null 2\u003e\u00261 || [ -c /dev/net/tun ]; then\n            $cmd -A FORWARD -i tun+ -j ACCEPT\n            $cmd -A FORWARD -o tun+ -j ACCEPT\n        fi\n\n        if command -v pppd \u003e/dev/null 2\u003e\u00261; then\n            $cmd -A FORWARD -i ppp+ -j ACCEPT\n            $cmd -A FORWARD -o ppp+ -j ACCEPT\n        fi\n        \n        $cmd -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT\n\n        $cmd -P INPUT DROP\n        $cmd -P FORWARD DROP\n\n        # 双栈 MSS 钳制\n        $cmd -t mangle -F FORWARD\n        $cmd -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2\u003e/dev/null || true\n    done\n\n    save_rules\n    echo -e \"${gl_lv}深度加固及 MSS 网络优化完成！冗余规则已清理。${gl_bai}\"\n    sleep 2\n}\n\nopen_all_ports() {\n    for cmd in iptables ip6tables; do\n        command -v $cmd \u003e/dev/null 2\u003e\u00261 || continue\n        $cmd -P INPUT ACCEPT\n        $cmd -P FORWARD ACCEPT\n        $cmd -P OUTPUT ACCEPT\n        $cmd -F\n        $cmd -X 2\u003e/dev/null || true\n        $cmd -t mangle -F FORWARD 2\u003e/dev/null || true\n    done\n    save_rules\n    echo -e \"${gl_lv}防火墙已重置全开模式，MSS 钳制已清除。${gl_bai}\"\n    sleep 2\n}\n\niptables_panel() {\n    while true; do\n        clear\n        echo -e \"${gl_lv}===========================================${gl_bai}\"\n        echo -e \"    高级防火墙管理 (Debian/Ubuntu 自适应版 V4.1)    \"\n        echo -e \"    当前 IPv6 状态: \\c\"\n        if [ \"$HAS_IPV6\" == true ]; then echo -e \"${gl_lv}已启用${gl_bai}\"; else echo -e \"${gl_huang}未启用${gl_bai}\"; fi\n        echo -e \"${gl_lv}===========================================${gl_bai}\"\n        echo \" 1. 查看规则 (含 MSS 钳制状态)\"\n        echo \" 2. 放行端口\"\n        echo \" 3. 屏蔽地址\"\n        echo \" 4. 删除规则\"\n        echo -e \" 5. ${gl_hong}执行深度加固 (智能检测环境，拒绝冗余规则)${gl_bai}\"\n        echo -e \" 6. ${gl_huang}紧急恢复全开 (重置所有策略)${gl_bai}\"\n        echo \" 7. 手动持久化保存\"\n        echo \" 0. 退出脚本\"\n        echo \"-------------------------------------------\"\n        read -e -p \"请选择: \" choice\n        case $choice in\n            1) view_rules ;;\n            2) allow_port_flexible ;;\n            3) block_ip ;;\n            4) delete_rule ;;\n            5) close_all_but_ssh ;;\n            6) open_all_ports ;;\n            7) save_rules; sleep 2 ;;\n            0) exit 0 ;;\n            *) echo \"无效选择\"; sleep 1 ;;\n        esac\n    done\n}\n\niptables_panel\nEOF\nchmod +x iptables_manager.sh\n./iptables_manager.sh"</script></div><h2 id=使用注意>使用注意</h2><h4 id=执行后选择-5系统将只根据你真实安装的组件写入必需的转发规则>执行后选择 5，系统将只根据你真实安装的组件写入必需的转发规则。</h4></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/docker-headscale-derp-tailscale-npm-proxy/><img src=/posts/linux/docker-headscale-derp-tailscale-npm-proxy/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</span></a></li><li><a href=/posts/linux/manual-domain-ssl-cert/><img src=/posts/linux/manual-domain-ssl-cert/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>手动申请域名ssl证书acme.sh脚本申请cloudflare的证书 支持泛域名</span></a></li><li><a href=/posts/docker/matrix-self-destructing-messages-guide/><img src=/posts/docker/matrix-self-destructing-messages-guide/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>2026 年 Matrix 消息过期自动删除配置</span></a></li><li><a href=/posts/docker/synapse-docker-compose-matrix/><img src=/posts/docker/synapse-docker-compose-matrix/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</span></a></li><li><a href=/posts/linux/freepbx16-voip-server-setup/><img src=/posts/linux/freepbx16-voip-server-setup/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>出国自建 VoIP（二）：FreePBX 16 基础配置</span></a></li><li><a href=/posts/linux/synway-smg4004-sip-gateway/><img src=/posts/linux/synway-smg4004-sip-gateway/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</span></a></li><li><a href=/posts/linux/telegram-bot-for-voip-sms/><img src=/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
