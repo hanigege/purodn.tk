@@ -3,8 +3,8 @@
   <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Matrix Synapse media_store 阶梯式清理：保留小文件，定期删除大媒体 | 电脑自习室</title>
-    <meta name="description" content="解释为什么 Element 里删除消息后 Synapse 服务端 media_store 仍会占用空间，并整理一套适合 Docker / Alpine 生产环境的阶梯式媒体仓库清理方案：5MiB 以内小文件长期保留，中等文件 365 天后清理，大文件 7 天后清理。">
+    <title>Matrix Synapse media_store 分层清理：保留小文件，自动清大文件 | 电脑自习室</title>
+    <meta name="description" content="解释 Synapse 媒体仓库为什么会长期增长，并整理一套适合 Docker / Alpine 生产环境的分层清理方案：5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理，远程缓存 7 天清理。">
       <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
   </head>
   <body>
@@ -37,8 +37,8 @@
         <div class="post-meta"><span>Docker</span>
           <time datetime="2026-05-21">2026年5月21日</time>
         </div>
-        <h1>Matrix Synapse media_store 阶梯式清理：保留小文件，定期删除大媒体</h1>
-          <p>解释为什么 Element 里删除消息后 Synapse 服务端 media_store 仍会占用空间，并整理一套适合 Docker / Alpine 生产环境的阶梯式媒体仓库清理方案：5MiB 以内小文件长期保留，中等文件 365 天后清理，大文件 7 天后清理。</p>
+        <h1>Matrix Synapse media_store 分层清理：保留小文件，自动清大文件</h1>
+          <p>解释 Synapse 媒体仓库为什么会长期增长，并整理一套适合 Docker / Alpine 生产环境的分层清理方案：5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理，远程缓存 7 天清理。</p>
       </header>
           <img class="article-cover" src="/posts/docker/synapse-media-store-cleanup-admin-api/assets/cover.svg" alt="">
 
@@ -48,8 +48,10 @@
 <p>本文整理一套适合个人或小团队 Synapse 的生产策略：</p>
 <ul>
 <li>限制以后单个上传大小，避免再出现几百 MB 甚至 1GB 的媒体文件。</li>
-<li>本机媒体文件采用阶梯式清理：小文件长期保留，中等文件一年后清理，大文件一周后清理。</li>
-<li>第一版只部署阶梯式 Admin API 清理；远程缓存、孤立文件检测和上传通知都作为后续增强。</li>
+<li>5MiB 以内文件长期保留，尽量保护语音、小图和普通小文件。</li>
+<li>超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理。</li>
+<li>远程媒体缓存 7 天后自动清理。</li>
+<li>加密房间里的过期大文件被清理后，旧消息点开可能显示不可用；需要提前告知用户清理规则。</li>
 <li>孤立文件不做即时硬删；需要做时先报告、再隔离、最后延迟删除。</li>
 </ul>
 <p>官方参考：</p>
@@ -113,8 +115,8 @@
 <p>如果里面出现很多 <code>300M</code>、<code>500M</code>、<code>1.2G</code> 的 <code>local_content/...</code> 文件，通常就是用户在 Matrix 里发过大视频、大压缩包或误把 Matrix 当文件传输用了。</p>
 <p>数据库大小可以这样看：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec postgres16 psql -U synapse -d synapse -c <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;SELECT pg_size_pretty(pg_database_size(current_database())) AS synapse_db_size;&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker exec postgres16 psql -U synapse -d synapse -c \\\n  \"SELECT pg_size_pretty(pg_database_size(current_database())) AS synapse_db_size;\""</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec postgres16 psql -U synapse_user -d synapse -c <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;SELECT pg_size_pretty(pg_database_size(current_database())) AS synapse_db_size;&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker exec postgres16 psql -U synapse_user -d synapse -c \\\n  \"SELECT pg_size_pretty(pg_database_size(current_database())) AS synapse_db_size;\""</script>
 </div>
 <p>如果数据库只有几十 MB，而 media store 几个 GB，清理重点就是媒体，不是 PostgreSQL。</p>
 <h2 id="二为什么客户端删了服务端还在">二、为什么客户端删了服务端还在</h2>
@@ -157,7 +159,7 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>retention      -&gt; 清消息事件
 </span></span><span style="display:flex;"><span>media_retention/Admin API -&gt; 清媒体文件</span></span></code></pre></div><script class="code-source" type="application/json">"retention      -\u003e 清消息事件\nmedia_retention/Admin API -\u003e 清媒体文件"</script>
 </div>
-<p>如果你的目标是“90 天后聊天记录不保留，同时媒体文件按大小分层清理”，可以这样组合：</p>
+<p>如果你的目标是“90 天后聊天记录不保留，同时避免媒体文件无限增长”，可以这样组合：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">retention</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
@@ -167,18 +169,18 @@
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">purge_jobs</span>:
 </span></span><span style="display:flex;"><span>    - <span style="color:#f92672">interval</span>: <span style="color:#ae81ff">1d</span></span></span></code></pre></div><script class="code-source" type="application/json">"retention:\n  enabled: true\n  default_policy:\n    max_lifetime: 90d\n  allowed_lifetime_max: 90d\n  purge_jobs:\n    - interval: 1d"</script>
 </div>
-<p>再配合后文的 Admin API 脚本：</p>
+<p>再配合后文的安全脚本：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>&lt;= 5MiB：不主动按大小清理
-</span></span><span style="display:flex;"><span>&gt; 5MiB 且 &lt;= 25MiB：365 天后清理
-</span></span><span style="display:flex;"><span>&gt; 25MiB：7 天后清理</span></span></code></pre></div><script class="code-source" type="application/json">"\u003c= 5MiB：不主动按大小清理\n\u003e 5MiB 且 \u003c= 25MiB：365 天后清理\n\u003e 25MiB：7 天后清理"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>本地上传媒体：5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理
+</span></span><span style="display:flex;"><span>远程媒体缓存：按 7 天清理
+</span></span><span style="display:flex;"><span>URL 预览缓存：按 Synapse 配置或单独维护</span></span></code></pre></div><script class="code-source" type="application/json">"本地上传媒体：5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理\n远程媒体缓存：按 7 天清理\nURL 预览缓存：按 Synapse 配置或单独维护"</script>
 </div>
 <p>这样含义才是：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>90 天后清消息事件
-</span></span><span style="display:flex;"><span>每天按大小和最后访问时间清理本地媒体文件</span></span></code></pre></div><script class="code-source" type="application/json">"90 天后清消息事件\n每天按大小和最后访问时间清理本地媒体文件"</script>
+</span></span><span style="display:flex;"><span>每天按分层规则清理本地大媒体和可重新拉取的远程缓存</span></span></code></pre></div><script class="code-source" type="application/json">"90 天后清消息事件\n每天按分层规则清理本地大媒体和可重新拉取的远程缓存"</script>
 </div>
-<p>这里刻意保留 <code>&lt;= 5MiB</code> 的小文件，是为了照顾语音、图片、小附件和常见头像。不要把本地媒体简单改成“所有文件 3 天后删除”，那会比聊天服务器用户直觉更激进。</p>
+<p>这里要接受一个取舍：如果房间事件里还写着 <code>mxc://116160.xyz/abc123</code>，而 <code>abc123</code> 的文件已经按规则到期清理，客户端以后打开旧文件时可能遇到 404。Element X Android 对这类 404 有时会显示成视频播放错误。所以规则必须提前告知用户：5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理。</p>
 <h2 id="四限制以后单个上传大小">四、限制以后单个上传大小</h2>
 <p>编辑：</p>
 <div class="code-block">
@@ -226,69 +228,49 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
 </span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose up -d"</script>
 </div>
-<h2 id="五本地媒体不要用统一-lifetime">五、本地媒体不要用统一 lifetime</h2>
+<h2 id="五本地媒体用脚本做分层清理">五、本地媒体用脚本做分层清理</h2>
 <p>Synapse 的 <code>media_retention</code> 按“最后访问时间”清理媒体。注意是最后访问时间，不是创建时间；如果媒体从来没有被访问过，才会使用创建时间。</p>
-<p>它适合清远程缓存，但不适合直接表达这次要的本地阶梯策略：</p>
+<p>它适合清远程缓存，但不适合直接拿来表达本服用户上传附件的分层策略。本文最终使用 Admin API 脚本实现：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>0~5MiB 不动
-</span></span><span style="display:flex;"><span>5~25MiB 365 天
-</span></span><span style="display:flex;"><span>&gt;25MiB 7 天</span></span></code></pre></div><script class="code-source" type="application/json">"0~5MiB 不动\n5~25MiB 365 天\n\u003e25MiB 7 天"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>&lt;=5MiB：长期保留
+</span></span><span style="display:flex;"><span>&gt;5MiB：90 天后清理
+</span></span><span style="display:flex;"><span>&gt;100MiB：7 天后清理
+</span></span><span style="display:flex;"><span>远程缓存：7 天后清理</span></span></code></pre></div><script class="code-source" type="application/json">"\u003c=5MiB：长期保留\n\u003e5MiB：90 天后清理\n\u003e100MiB：7 天后清理\n远程缓存：7 天后清理"</script>
 </div>
-<p>因为 <code>media_retention.local_media_lifetime</code> 只能按时间清本地媒体，不能按单个文件大小分层。比如你设置：</p>
+<p><code>media_retention.local_media_lifetime</code> 只能按时间清本地媒体，不能按单个文件大小分层。比如你设置：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">media_retention</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">local_media_lifetime</span>: <span style="color:#ae81ff">30d</span></span></span></code></pre></div><script class="code-source" type="application/json">"media_retention:\n  local_media_lifetime: 30d"</script>
 </div>
-<p>那么 30 天没访问的小语音、小图片也会一起进入清理范围，这和“小文件长期存在”的目标冲突。</p>
-<p>所以第一版推荐做法是：不要给本地媒体配置统一的 <code>local_media_lifetime</code>，本服用户上传的 <code>local_content/</code> 主要交给后文 Admin API 脚本按大小阶梯清理。</p>
+<p>那么 30 天没访问的小语音、小图片也会一起进入清理范围，这和“5MiB 以内长期保留”的目标冲突。</p>
+<p>所以推荐做法是：不要给本地媒体配置统一的 <code>local_media_lifetime</code>，本服用户上传的 <code>local_content/</code> 交给后文脚本按大小和时间分层清理。</p>
 <p>远程缓存可以以后再单独配置，例如：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">media_retention</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">remote_media_lifetime</span>: <span style="color:#ae81ff">30d</span></span></span></code></pre></div><script class="code-source" type="application/json">"media_retention:\n  remote_media_lifetime: 30d"</script>
 </div>
-<p>远程缓存可以按 30 天清；如果服务器空间更紧，可以改成 7 天；如果加入的远程房间很多，又不想频繁重新拉取图片，可以改成 60~90 天。</p>
+<p>远程缓存可以按 7 天清；如果加入的远程房间很多，又不想频繁重新拉取图片，可以改成 30 天或 60 天。</p>
 <p>如果你修改了 <code>homeserver.yaml</code>，改完重启 Synapse：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
 </span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose up -d"</script>
 </div>
-<h2 id="六admin-api-阶梯清理的思路">六、Admin API 阶梯清理的思路</h2>
-<p>自动保留适合长期运行，但遇到 <code>media_store</code> 已经膨胀到几个 GB 时，最好用 Admin API 主动清一轮。</p>
-<p>当前推荐接口是：</p>
+<h2 id="六为什么不能只按大小删除本地媒体">六、为什么不能只按大小删除本地媒体</h2>
+<p>Synapse 的媒体删除接口很方便，但它只知道媒体仓库，不知道客户端会怎样解释旧消息。对本服用户上传的 <code>local_content/</code>，最危险的做法是按大小和时间直接调用：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>POST /_synapse/admin/v1/media/delete?before_ts=&lt;before_ts&gt;&amp;size_gt=&lt;size_gt&gt;&amp;keep_profiles=true</span></span></code></pre></div><script class="code-source" type="application/json">"POST /_synapse/admin/v1/media/delete?before_ts=\u003cbefore_ts\u003e\u0026size_gt=\u003csize_gt\u003e\u0026keep_profiles=true"</script>
 </div>
-<p>参数含义：</p>
-<table>
-  <thead>
-      <tr>
-          <th>参数</th>
-          <th>含义</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td><code>before_ts</code></td>
-          <td>Unix 毫秒时间戳；删除最后访问时间早于它的媒体</td>
-      </tr>
-      <tr>
-          <td><code>size_gt</code></td>
-          <td>只删除大于这个字节数的媒体；默认 <code>0</code></td>
-      </tr>
-      <tr>
-          <td><code>keep_profiles</code></td>
-          <td>是否保留头像、房间头像等 profile 图片；建议 <code>true</code></td>
-      </tr>
-  </tbody>
-</table>
-<p>这里有个容易误解的点：<code>keep_profiles=true</code> 会尽量保留仍被用户头像、房间头像等 profile image 使用的媒体，但不要把它当成头像大文件的长期保险。为了避免头像和房间头像进入清理范围，建议头像文件也控制在 5MiB 以内。</p>
-<p>中等文件阈值设为 5MiB，可以更早处理较大的截图、动图、视频片段和压缩包。用户告知里也应同步建议“头像和房间头像不要超过 5MiB”，既能减少客户端加载压力，也能避免头像文件变成长期的大媒体负担。</p>
-<p>旧接口：</p>
+<p>这个接口会删除命中的本地媒体文件和对应缩略图。问题在于：房间里的消息事件可能仍然存在，而且消息内容里还引用着同一个 <code>mxc://</code>。对于未加密房间，服务端可以从事件 JSON 里搜索 <code>mxc://server/media_id</code>；对于加密房间，服务端只能看到 <code>m.room.encrypted</code>，不能直接理解附件内容。客户端却能解密消息，所以它以后仍会尝试加载那个 MXC。</p>
+<p>结果就是：媒体文件删得很干净，但 Element X Android 打开时间线或视频时会看到 404，并可能弹出“视频播放错误”。这不是删除调度不够精确，而是删除对象不完整：只删了媒体，没有处理引用它的消息。</p>
+<p>如果要做到“旧消息也不留下不可用附件”的最好体验，安全删除顺序应该是：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>POST /_synapse/admin/v1/media/&lt;server_name&gt;/delete?before_ts=&lt;before_ts&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"POST /_synapse/admin/v1/media/\u003cserver_name\u003e/delete?before_ts=\u003cbefore_ts\u003e"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>1. 找到或确认引用该 mxc:// 的消息事件。
+</span></span><span style="display:flex;"><span>2. 先撤回消息，或确认 retention 已经清掉对应房间事件。
+</span></span><span style="display:flex;"><span>3. 再删除媒体文件和缩略图。
+</span></span><span style="display:flex;"><span>4. 再删除媒体文件和缩略图。</span></span></code></pre></div><script class="code-source" type="application/json">"1. 找到或确认引用该 mxc:// 的消息事件。\n2. 先撤回消息，或确认 retention 已经清掉对应房间事件。\n3. 再删除媒体文件和缩略图。\n4. 再删除媒体文件和缩略图。"</script>
 </div>
-<p>已经在 Synapse <code>v1.78.0</code> 以后标为 deprecated。新脚本优先用不带 <code>server_name</code> 的路径。</p>
-<p>这个 API 会删除本机磁盘上的媒体文件以及对应缩略图，也会处理本机缓存的远程媒体副本。它不影响外部独立媒体仓库，例如单独部署的 matrix-media-repo。</p>
+<p>朋友提到的“上传成功后按 mxcid 记录元数据，生成到期时间，到点再触发删除”适合解决调度问题，误差可以做到很小。但加密房间里服务端无法可靠反查消息引用，所以本文最终选择更容易落地的规则：按大小和时间到期清理，并提前告知用户清理规则。</p>
+<p>远程媒体缓存不同。<code>remote_content/</code> 是从其他 homeserver 拉下来的缓存，通常可以重新获取，更适合按 30 天或 60 天自动清。URL 预览缓存也更接近缓存，可以单独维护。本地上传媒体则应更保守。</p>
 <h2 id="七准备管理员-token">七、准备管理员 token</h2>
 <p>Admin API 需要一个 Synapse 管理员用户的 access token。</p>
 <p>临时测试时，可以直接用现有管理员账号的 token。常见获取方式：</p>
@@ -383,57 +365,63 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http_code=403</span></span></code></pre></div><script class="code-source" type="application/json">"http_code=403"</script>
 </div>
 <p>通常说明 token 本身能识别，但这个用户不是 Synapse 管理员，不能调用 Admin API。</p>
-<h2 id="八手动执行一次阶梯清理">八、手动执行一次阶梯清理</h2>
-<p>先手动跑一遍，确认 Admin API、token 和本机地址都正常。</p>
-<p>第一层：删除 7 天前最后访问、且大于 25MiB 的媒体：</p>
+<h2 id="八手动预演一次分层清理">八、手动预演一次分层清理</h2>
+<p>先手动跑一遍，确认 Admin API、token、本机地址和分层规则都正常。本文最终规则是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>5MiB 以内文件长期保留。
+</span></span><span style="display:flex;"><span>超过 5MiB 的文件，90 天后清理。
+</span></span><span style="display:flex;"><span>超过 100MiB 的超大文件 7 天后清理。
+</span></span><span style="display:flex;"><span>远程媒体缓存 7 天后清理。</span></span></code></pre></div><script class="code-source" type="application/json">"5MiB 以内文件长期保留。\n超过 5MiB 的文件，90 天后清理。\n超过 100MiB 的超大文件 7 天后清理。\n远程媒体缓存 7 天后清理。"</script>
+</div>
+<p>先查看会进入分层清理范围的本地媒体：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec postgres16 psql -U synapse_user -d synapse -P pager<span style="color:#f92672">=</span>off -c <span style="color:#e6db74">&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  select media_id,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         user_id,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         pg_size_pretty(media_length::bigint) as size,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         media_length,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         media_type,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         to_timestamp(created_ts/1000) as created,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">         to_timestamp(last_access_ts/1000) as last_access
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    from local_media_repository
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   where media_length &gt; 5242880
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   order by media_length desc
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   limit 30;&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker exec postgres16 psql -U synapse_user -d synapse -P pager=off -c \"\n  select media_id,\n         user_id,\n         pg_size_pretty(media_length::bigint) as size,\n         media_length,\n         media_type,\n         to_timestamp(created_ts/1000) as created,\n         to_timestamp(last_access_ts/1000) as last_access\n    from local_media_repository\n   where media_length \u003e 5242880\n   order by media_length desc\n   limit 30;\""</script>
+</div>
+<p>这张表能让你预览哪些媒体超过 5MiB。加密房间里的视频、语音或文件在 Synapse 里通常都会显示为 <code>application/octet-stream</code>，服务端无法直接判断它原本是什么类型，所以规则只能按大小和时间执行。</p>
+<p>手动执行三条清理规则：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
+</span></span><span style="display:flex;"><span>LARGE_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import time
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">days = 7
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - days * 86400) * 1000))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - 7 * 86400) * 1000))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>MEDIUM_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import time
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - 90 * 86400) * 1000))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>REMOTE_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import time
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - 7 * 86400) * 1000))
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>curl -sS -X POST <span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=26214400&amp;keep_profiles=true&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\"\nBEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\ndays = 7\nprint(int((time.time() - days * 86400) * 1000))\nPY\n)\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=${BEFORE_TS}\u0026size_gt=26214400\u0026keep_profiles=true\""</script>
-</div>
-<p>第二层：删除 365 天前最后访问、且大于 5MiB 的媒体：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import time
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">days = 365
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - days * 86400) * 1000))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>LARGE_BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=104857600&amp;keep_profiles=true&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>curl -sS -X POST <span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=5242880&amp;keep_profiles=true&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\"\nBEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\ndays = 365\nprint(int((time.time() - days * 86400) * 1000))\nPY\n)\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=${BEFORE_TS}\u0026size_gt=5242880\u0026keep_profiles=true\""</script>
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>MEDIUM_BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=5242880&amp;keep_profiles=true&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS -X POST <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/purge_media_cache?before_ts=</span><span style="color:#e6db74">${</span>REMOTE_BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\"\nLARGE_BEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\nprint(int((time.time() - 7 * 86400) * 1000))\nPY\n)\"\nMEDIUM_BEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\nprint(int((time.time() - 90 * 86400) * 1000))\nPY\n)\"\nREMOTE_BEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\nprint(int((time.time() - 7 * 86400) * 1000))\nPY\n)\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=${LARGE_BEFORE_TS}\u0026size_gt=104857600\u0026keep_profiles=true\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=${MEDIUM_BEFORE_TS}\u0026size_gt=5242880\u0026keep_profiles=true\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/purge_media_cache?before_ts=${REMOTE_BEFORE_TS}\""</script>
 </div>
-<p>第二条会覆盖 <code>&gt;25MiB</code> 的大文件范围，但大文件正常已经在第一条规则里 7 天后清理了，所以逻辑不冲突。这里使用 <code>keep_profiles=true</code>，让仍被头像、房间头像等 profile image 使用的媒体尽量保留。</p>
-<p>返回示例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;deleted_media&#34;</span>: [
-</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;abcdefghijklmnopqrstuvwx&#34;</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;abcdefghijklmnopqrstuvwz&#34;</span>
-</span></span><span style="display:flex;"><span>  ],
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;total&#34;</span>: <span style="color:#ae81ff">2</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"deleted_media\": [\n    \"abcdefghijklmnopqrstuvwx\",\n    \"abcdefghijklmnopqrstuvwz\"\n  ],\n  \"total\": 2\n}"</script>
-</div>
-<p>如果返回 <code>M_UNKNOWN_TOKEN</code>，说明 token 不对或用户不是管理员。</p>
-<p>如果返回 <code>404</code>，先确认 Synapse 版本和访问路径。新版本使用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/_synapse/admin/v1/media/delete</span></span></code></pre></div><script class="code-source" type="application/json">"/_synapse/admin/v1/media/delete"</script>
-</div>
-<p>不要优先使用旧的：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/_synapse/admin/v1/media/&lt;server_name&gt;/delete</span></span></code></pre></div><script class="code-source" type="application/json">"/_synapse/admin/v1/media/\u003cserver_name\u003e/delete"</script>
-</div>
-<h2 id="九写成定期脚本">九、写成定期脚本</h2>
+<p>普通聊天文件命中规则后会清理。<code>keep_profiles=true</code> 是为了尽量保护仍被用户头像、房间头像等 profile image 使用的媒体，不是为了保护普通大文件。</p>
+<h2 id="九写成分层定期脚本">九、写成分层定期脚本</h2>
 <p>创建脚本目录：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/synapse/scripts
@@ -444,20 +432,19 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/sh
 </span></span></span><span style="display:flex;"><span>set -eu
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>SYNAPSE_URL<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://127.0.0.1:8008&#34;</span>
-</span></span><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>SYNAPSE_URL<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>SYNAPSE_URL<span style="color:#66d9ef">:-</span>http://127.0.0.1:8008<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>TOKEN_FILE<span style="color:#66d9ef">:-</span>/root/.config/synapse-admin/access_token<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>REMOTE_DAYS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>REMOTE_DAYS<span style="color:#66d9ef">:-</span>7<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>KEEP_PROFILES<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>KEEP_PROFILES<span style="color:#66d9ef">:-</span>true<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 本机媒体文件阶梯式清理：</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># &lt;= 5MiB：不主动按大小清理</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># &gt; 5MiB 且 &lt;= 25MiB：365 天后清理</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># &gt; 25MiB：7 天后清理</span>
-</span></span><span style="display:flex;"><span>BIG_DAYS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>BIG_DAYS<span style="color:#66d9ef">:-</span>7<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>BIG_SIZE_GT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>BIG_SIZE_GT<span style="color:#66d9ef">:-</span>26214400<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>MID_DAYS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>MID_DAYS<span style="color:#66d9ef">:-</span>365<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>MID_SIZE_GT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>MID_SIZE_GT<span style="color:#66d9ef">:-</span>5242880<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>REPORT_LIMIT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>REPORT_LIMIT<span style="color:#66d9ef">:-</span>30<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>SMALL_KEEP_SIZE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>SMALL_KEEP_SIZE<span style="color:#66d9ef">:-</span>5242880<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>MEDIUM_DAYS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>MEDIUM_DAYS<span style="color:#66d9ef">:-</span>90<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>MEDIUM_SIZE_GT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>MEDIUM_SIZE_GT<span style="color:#66d9ef">:-</span>5242880<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>LARGE_DAYS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>LARGE_DAYS<span style="color:#66d9ef">:-</span>7<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>LARGE_SIZE_GT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>LARGE_SIZE_GT<span style="color:#66d9ef">:-</span>104857600<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>TMP<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/tmp/synapse-media-tiered-purge-response.json&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>before_ms<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
 </span></span><span style="display:flex;"><span>  python3 - <span style="color:#e6db74">&#34;</span>$1<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
@@ -468,46 +455,57 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>BIG_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>before_ms <span style="color:#e6db74">&#34;</span>$BIG_DAYS<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>MID_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>before_ms <span style="color:#e6db74">&#34;</span>$MID_DAYS<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>purge_media<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>api_post<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
 </span></span><span style="display:flex;"><span>  label<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$1<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  before_ts<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$2<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  size_gt<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$3<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;[</span><span style="color:#66d9ef">$(</span>date <span style="color:#e6db74">&#39;+%Y-%m-%dT%H:%M:%S%z&#39;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">] </span><span style="color:#e6db74">${</span>label<span style="color:#e6db74">}</span><span style="color:#e6db74">: size_gt=</span><span style="color:#e6db74">${</span>size_gt<span style="color:#e6db74">}</span><span style="color:#e6db74"> keep_profiles=</span><span style="color:#e6db74">${</span>KEEP_PROFILES<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  http_code<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>curl -sS -o /tmp/synapse-media-purge-response.json -w <span style="color:#e6db74">&#39;%{http_code}&#39;</span> -X POST <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>    -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>SYNAPSE_URL<span style="color:#e6db74">}</span><span style="color:#e6db74">/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>before_ts<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=</span><span style="color:#e6db74">${</span>size_gt<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;keep_profiles=</span><span style="color:#e6db74">${</span>KEEP_PROFILES<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  cat /tmp/synapse-media-purge-response.json
+</span></span><span style="display:flex;"><span>  url<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$2<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;[</span><span style="color:#66d9ef">$(</span>date <span style="color:#e6db74">&#39;+%Y-%m-%dT%H:%M:%S%z&#39;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">] </span><span style="color:#e6db74">${</span>label<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  http_code<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>curl -sS -o <span style="color:#e6db74">&#34;</span>$TMP<span style="color:#e6db74">&#34;</span> -w <span style="color:#e6db74">&#39;%{http_code}&#39;</span> -X POST -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$url<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  cat <span style="color:#e6db74">&#34;</span>$TMP<span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>  echo
-</span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> <span style="color:#e6db74">&#34;</span>$http_code<span style="color:#e6db74">&#34;</span> -lt <span style="color:#ae81ff">200</span> <span style="color:#f92672">]</span> <span style="color:#f92672">||</span> <span style="color:#f92672">[</span> <span style="color:#e6db74">&#34;</span>$http_code<span style="color:#e6db74">&#34;</span> -ge <span style="color:#ae81ff">300</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
 </span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>label<span style="color:#e6db74">}</span><span style="color:#e6db74">: Admin API failed with HTTP </span><span style="color:#e6db74">${</span>http_code<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> &gt;&amp;<span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>    rm -f <span style="color:#e6db74">&#34;</span>$TMP<span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>    exit <span style="color:#ae81ff">1</span>
 </span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>  rm -f <span style="color:#e6db74">&#34;</span>$TMP<span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>purge_media <span style="color:#e6db74">&#34;purge big media older_than=</span><span style="color:#e6db74">${</span>BIG_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d&#34;</span> <span style="color:#e6db74">&#34;</span>$BIG_BEFORE_TS<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$BIG_SIZE_GT<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>purge_media <span style="color:#e6db74">&#34;purge medium media older_than=</span><span style="color:#e6db74">${</span>MID_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d&#34;</span> <span style="color:#e6db74">&#34;</span>$MID_BEFORE_TS<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$MID_SIZE_GT<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>report_local_candidates<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;[</span><span style="color:#66d9ef">$(</span>date <span style="color:#e6db74">&#39;+%Y-%m-%dT%H:%M:%S%z&#39;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">] local media policy report&#34;</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;Policy: &lt;=5MiB kept long-term; &gt;5MiB deleted after </span><span style="color:#e6db74">${</span>MEDIUM_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d; &gt;100MiB deleted after </span><span style="color:#e6db74">${</span>LARGE_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d; remote cache deleted after </span><span style="color:#e6db74">${</span>REMOTE_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d.&#34;</span>
+</span></span><span style="display:flex;"><span>  docker exec postgres16 psql -U synapse_user -d synapse -P pager<span style="color:#f92672">=</span>off -c <span style="color:#e6db74">&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    select media_id,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           user_id,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           pg_size_pretty(media_length::bigint) as size,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           media_length,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           media_type,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           to_timestamp(created_ts/1000) as created,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">           to_timestamp(last_access_ts/1000) as last_access
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      from local_media_repository
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">     where media_length &gt; </span><span style="color:#e6db74">${</span>SMALL_KEEP_SIZE<span style="color:#e6db74">}</span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">     order by media_length desc
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">     limit </span><span style="color:#e6db74">${</span>REPORT_LIMIT<span style="color:#e6db74">}</span><span style="color:#e6db74">;&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>rm -f /tmp/synapse-media-purge-response.json</span></span></code></pre></div><script class="code-source" type="application/json">"#!/bin/sh\nset -eu\n\nSYNAPSE_URL=\"http://127.0.0.1:8008\"\nTOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nKEEP_PROFILES=\"${KEEP_PROFILES:-true}\"\n\n# 本机媒体文件阶梯式清理：\n# \u003c= 5MiB：不主动按大小清理\n# \u003e 5MiB 且 \u003c= 25MiB：365 天后清理\n# \u003e 25MiB：7 天后清理\nBIG_DAYS=\"${BIG_DAYS:-7}\"\nBIG_SIZE_GT=\"${BIG_SIZE_GT:-26214400}\"\nMID_DAYS=\"${MID_DAYS:-365}\"\nMID_SIZE_GT=\"${MID_SIZE_GT:-5242880}\"\n\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\nbefore_ms() {\n  python3 - \"$1\" \u003c\u003c'PY'\nimport sys\nimport time\ndays = int(sys.argv[1])\nprint(int((time.time() - days * 86400) * 1000))\nPY\n}\n\nBIG_BEFORE_TS=\"$(before_ms \"$BIG_DAYS\")\"\nMID_BEFORE_TS=\"$(before_ms \"$MID_DAYS\")\"\n\npurge_media() {\n  label=\"$1\"\n  before_ts=\"$2\"\n  size_gt=\"$3\"\n\n  echo \"[$(date '+%Y-%m-%dT%H:%M:%S%z')] ${label}: size_gt=${size_gt} keep_profiles=${KEEP_PROFILES}\"\n  http_code=\"$(curl -sS -o /tmp/synapse-media-purge-response.json -w '%{http_code}' -X POST \\\n    -H \"Authorization: Bearer ${TOKEN}\" \\\n    \"${SYNAPSE_URL}/_synapse/admin/v1/media/delete?before_ts=${before_ts}\u0026size_gt=${size_gt}\u0026keep_profiles=${KEEP_PROFILES}\")\"\n  cat /tmp/synapse-media-purge-response.json\n  echo\n\n  if [ \"$http_code\" -lt 200 ] || [ \"$http_code\" -ge 300 ]; then\n    echo \"${label}: Admin API failed with HTTP ${http_code}\" \u003e\u00262\n    exit 1\n  fi\n}\n\npurge_media \"purge big media older_than=${BIG_DAYS}d\" \"$BIG_BEFORE_TS\" \"$BIG_SIZE_GT\"\npurge_media \"purge medium media older_than=${MID_DAYS}d\" \"$MID_BEFORE_TS\" \"$MID_SIZE_GT\"\n\nrm -f /tmp/synapse-media-purge-response.json"</script>
-</div>
-<p>这就是生产第一版部署的脚本。它只做两档阶梯式清理，不包含下载通知、不包含孤立文件扫描，也不额外调用远程缓存清理接口。</p>
-<p>如果以后要清理远程媒体缓存，可以单独加一个脚本或手动执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>REMOTE_BEFORE_TS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import time
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">days = 30
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(int((time.time() - days * 86400) * 1000))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>purge_local_media<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>  label<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$1<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  days<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$2<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  size_gt<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$3<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  before_ts<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>before_ms <span style="color:#e6db74">&#34;</span>$days<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  api_post <span style="color:#e6db74">&#34;</span>$label<span style="color:#e6db74"> older_than=</span><span style="color:#e6db74">${</span>days<span style="color:#e6db74">}</span><span style="color:#e6db74">d size_gt=</span><span style="color:#e6db74">${</span>size_gt<span style="color:#e6db74">}</span><span style="color:#e6db74"> keep_profiles=</span><span style="color:#e6db74">${</span>KEEP_PROFILES<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>SYNAPSE_URL<span style="color:#e6db74">}</span><span style="color:#e6db74">/_synapse/admin/v1/media/delete?before_ts=</span><span style="color:#e6db74">${</span>before_ts<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;size_gt=</span><span style="color:#e6db74">${</span>size_gt<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;keep_profiles=</span><span style="color:#e6db74">${</span>KEEP_PROFILES<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>curl -sS -X POST <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/purge_media_cache?before_ts=</span><span style="color:#e6db74">${</span>REMOTE_BEFORE_TS<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\"\nREMOTE_BEFORE_TS=\"$(python3 - \u003c\u003c'PY'\nimport time\ndays = 30\nprint(int((time.time() - days * 86400) * 1000))\nPY\n)\"\n\ncurl -sS -X POST \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/purge_media_cache?before_ts=${REMOTE_BEFORE_TS}\""</script>
+</span></span><span style="display:flex;"><span>purge_remote_cache<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>  before_ts<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>before_ms <span style="color:#e6db74">&#34;</span>$REMOTE_DAYS<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  api_post <span style="color:#e6db74">&#34;purge remote media cache older_than=</span><span style="color:#e6db74">${</span>REMOTE_DAYS<span style="color:#e6db74">}</span><span style="color:#e6db74">d&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>SYNAPSE_URL<span style="color:#e6db74">}</span><span style="color:#e6db74">/_synapse/admin/v1/purge_media_cache?before_ts=</span><span style="color:#e6db74">${</span>before_ts<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>report_local_candidates
+</span></span><span style="display:flex;"><span>purge_local_media <span style="color:#e6db74">&#34;purge local large media&#34;</span> <span style="color:#e6db74">&#34;</span>$LARGE_DAYS<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$LARGE_SIZE_GT<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>purge_local_media <span style="color:#e6db74">&#34;purge local medium media&#34;</span> <span style="color:#e6db74">&#34;</span>$MEDIUM_DAYS<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$MEDIUM_SIZE_GT<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>purge_remote_cache</span></span></code></pre></div><script class="code-source" type="application/json">"#!/bin/sh\nset -eu\n\nSYNAPSE_URL=\"${SYNAPSE_URL:-http://127.0.0.1:8008}\"\nTOKEN_FILE=\"${TOKEN_FILE:-/root/.config/synapse-admin/access_token}\"\nREMOTE_DAYS=\"${REMOTE_DAYS:-7}\"\nKEEP_PROFILES=\"${KEEP_PROFILES:-true}\"\nREPORT_LIMIT=\"${REPORT_LIMIT:-30}\"\nSMALL_KEEP_SIZE=\"${SMALL_KEEP_SIZE:-5242880}\"\nMEDIUM_DAYS=\"${MEDIUM_DAYS:-90}\"\nMEDIUM_SIZE_GT=\"${MEDIUM_SIZE_GT:-5242880}\"\nLARGE_DAYS=\"${LARGE_DAYS:-7}\"\nLARGE_SIZE_GT=\"${LARGE_SIZE_GT:-104857600}\"\n\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\nTMP=\"/tmp/synapse-media-tiered-purge-response.json\"\n\nbefore_ms() {\n  python3 - \"$1\" \u003c\u003c'PY'\nimport sys\nimport time\ndays = int(sys.argv[1])\nprint(int((time.time() - days * 86400) * 1000))\nPY\n}\n\napi_post() {\n  label=\"$1\"\n  url=\"$2\"\n  echo \"[$(date '+%Y-%m-%dT%H:%M:%S%z')] ${label}\"\n  http_code=\"$(curl -sS -o \"$TMP\" -w '%{http_code}' -X POST -H \"Authorization: Bearer ${TOKEN}\" \"$url\")\"\n  cat \"$TMP\"\n  echo\n  if [ \"$http_code\" -lt 200 ] || [ \"$http_code\" -ge 300 ]; then\n    echo \"${label}: Admin API failed with HTTP ${http_code}\" \u003e\u00262\n    rm -f \"$TMP\"\n    exit 1\n  fi\n  rm -f \"$TMP\"\n}\n\nreport_local_candidates() {\n  echo \"[$(date '+%Y-%m-%dT%H:%M:%S%z')] local media policy report\"\n  echo \"Policy: \u003c=5MiB kept long-term; \u003e5MiB deleted after ${MEDIUM_DAYS}d; \u003e100MiB deleted after ${LARGE_DAYS}d; remote cache deleted after ${REMOTE_DAYS}d.\"\n  docker exec postgres16 psql -U synapse_user -d synapse -P pager=off -c \"\n    select media_id,\n           user_id,\n           pg_size_pretty(media_length::bigint) as size,\n           media_length,\n           media_type,\n           to_timestamp(created_ts/1000) as created,\n           to_timestamp(last_access_ts/1000) as last_access\n      from local_media_repository\n     where media_length \u003e ${SMALL_KEEP_SIZE}\n     order by media_length desc\n     limit ${REPORT_LIMIT};\"\n}\n\npurge_local_media() {\n  label=\"$1\"\n  days=\"$2\"\n  size_gt=\"$3\"\n  before_ts=\"$(before_ms \"$days\")\"\n  api_post \"$label older_than=${days}d size_gt=${size_gt} keep_profiles=${KEEP_PROFILES}\" \\\n    \"${SYNAPSE_URL}/_synapse/admin/v1/media/delete?before_ts=${before_ts}\u0026size_gt=${size_gt}\u0026keep_profiles=${KEEP_PROFILES}\"\n}\n\npurge_remote_cache() {\n  before_ts=\"$(before_ms \"$REMOTE_DAYS\")\"\n  api_post \"purge remote media cache older_than=${REMOTE_DAYS}d\" \\\n    \"${SYNAPSE_URL}/_synapse/admin/v1/purge_media_cache?before_ts=${before_ts}\"\n}\n\nreport_local_candidates\npurge_local_media \"purge local large media\" \"$LARGE_DAYS\" \"$LARGE_SIZE_GT\"\npurge_local_media \"purge local medium media\" \"$MEDIUM_DAYS\" \"$MEDIUM_SIZE_GT\"\npurge_remote_cache"</script>
 </div>
 <p>授权：</p>
 <div class="code-block">
@@ -516,6 +514,15 @@
 <p>先手动跑一次：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/purge-staged-media.sh</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/purge-staged-media.sh"</script>
+</div>
+<p>正常输出会包含本地大媒体列表、本地媒体删除结果、远程缓存删除结果，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>purge local large media older_than=7d size_gt=104857600 keep_profiles=true
+</span></span><span style="display:flex;"><span>{&#34;deleted_media&#34;:[],&#34;total&#34;:0}
+</span></span><span style="display:flex;"><span>purge local medium media older_than=90d size_gt=5242880 keep_profiles=true
+</span></span><span style="display:flex;"><span>{&#34;deleted_media&#34;:[],&#34;total&#34;:0}
+</span></span><span style="display:flex;"><span>purge remote media cache older_than=7d
+</span></span><span style="display:flex;"><span>{&#34;deleted&#34;:0}</span></span></code></pre></div><script class="code-source" type="application/json">"purge local large media older_than=7d size_gt=104857600 keep_profiles=true\n{\"deleted_media\":[],\"total\":0}\npurge local medium media older_than=90d size_gt=5242880 keep_profiles=true\n{\"deleted_media\":[],\"total\":0}\npurge remote media cache older_than=7d\n{\"deleted\":0}"</script>
 </div>
 <p>再看体积：</p>
 <div class="code-block">
@@ -542,7 +549,7 @@
 </div>
 <p>如果系统没有 <code>logread</code>，可以临时把 cron 输出写到文件，但要配合日志轮转，避免这个日志文件反过来变成新问题。</p>
 <h2 id="十一按用户定位媒体占用">十一、按用户定位媒体占用</h2>
-<p>如果 <code>media_store</code> 突然变大，除了按时间和大小清理，也可以先查每个本地用户的媒体占用。这个接口适合回答“到底是谁上传了大文件”。</p>
+<p>如果 <code>media_store</code> 突然变大，先查每个本地用户的媒体占用。这个接口适合回答“到底是谁上传了大文件”，不等于查出来就可以自动删除。</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
 </span></span><span style="display:flex;"><span>
@@ -565,20 +572,20 @@
 </span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/users/</span><span style="color:#e6db74">${</span>ENCODED_USER_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">/media?limit=20&amp;order_by=media_length&amp;dir=b&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"USER_ID='@alice:666666.xyz'\nENCODED_USER_ID=\"$(USER_ID=\"$USER_ID\" python3 - \u003c\u003c'PY'\nimport os\nimport urllib.parse\nprint(urllib.parse.quote(os.environ[\"USER_ID\"], safe=\"\"))\nPY\n)\"\n\ncurl -sS \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/users/${ENCODED_USER_ID}/media?limit=20\u0026order_by=media_length\u0026dir=b\""</script>
 </div>
-<p>如果你明确知道某个测试账号上传的媒体都可以删，可以按用户删除。先谨慎限制数量，例如每次 50 个：</p>
+<p>如果你明确知道某个临时测试账号上传的媒体都可以删，可以按用户删除。先谨慎限制数量，例如每次 50 个：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -sS -X DELETE <span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
 </span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_synapse/admin/v1/users/</span><span style="color:#e6db74">${</span>ENCODED_USER_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">/media?limit=50&amp;order_by=media_length&amp;dir=b&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -sS -X DELETE \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  \"http://127.0.0.1:8008/_synapse/admin/v1/users/${ENCODED_USER_ID}/media?limit=50\u0026order_by=media_length\u0026dir=b\""</script>
 </div>
-<p>这个按用户删除的接口适合清理测试账号或误传文件账号。日常自动维护仍建议使用前面的 <code>/media/delete</code>，因为它能按最后访问时间和文件大小做全局策略。</p>
+<p>这个按用户删除的接口只适合清理测试账号、临时导入账号或你已经确认消息引用都可以失效的误传账号。它不适合直接套到正常聊天用户上，也不应该放进 cron。正常聊天里的本地上传媒体，仍然要先确认对应消息已经撤回或不再可见。</p>
 <h2 id="十二分阶段上线">十二、分阶段上线</h2>
 <p>第一次上线不要直接交给 cron 长期跑。推荐分三步：</p>
 <h3 id="第一阶段只手动执行">第一阶段：只手动执行</h3>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/purge-staged-media.sh</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/purge-staged-media.sh"</script>
 </div>
-<p>看返回的 <code>total</code> 和 <code>deleted_media</code> 数量，再看目录体积：</p>
+<p>看本地大媒体列表、本地媒体删除结果和远程缓存清理结果，再看目录体积：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>du -h -d <span style="color:#ae81ff">1</span> /root/data/docker_data/synapse/data/media_store | sort -h</span></span></code></pre></div><script class="code-source" type="application/json">"du -h -d 1 /root/data/docker_data/synapse/data/media_store | sort -h"</script>
 </div>
@@ -591,41 +598,52 @@
 <h3 id="第三阶段作为常态维护">第三阶段：作为常态维护</h3>
 <p>确认没有异常后，长期保留这组默认值：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>BIG_DAYS=7
-</span></span><span style="display:flex;"><span>BIG_SIZE_GT=26214400
-</span></span><span style="display:flex;"><span>MID_DAYS=365
-</span></span><span style="display:flex;"><span>MID_SIZE_GT=5242880
-</span></span><span style="display:flex;"><span>keep_profiles=true</span></span></code></pre></div><script class="code-source" type="application/json">"BIG_DAYS=7\nBIG_SIZE_GT=26214400\nMID_DAYS=365\nMID_SIZE_GT=5242880\nkeep_profiles=true"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>REMOTE_DAYS=7
+</span></span><span style="display:flex;"><span>REPORT_LIMIT=30
+</span></span><span style="display:flex;"><span>SMALL_KEEP_SIZE=5242880
+</span></span><span style="display:flex;"><span>MEDIUM_DAYS=90
+</span></span><span style="display:flex;"><span>MEDIUM_SIZE_GT=5242880
+</span></span><span style="display:flex;"><span>LARGE_DAYS=7
+</span></span><span style="display:flex;"><span>LARGE_SIZE_GT=104857600
+</span></span><span style="display:flex;"><span>KEEP_PROFILES=true</span></span></code></pre></div><script class="code-source" type="application/json">"REMOTE_DAYS=7\nREPORT_LIMIT=30\nSMALL_KEEP_SIZE=5242880\nMEDIUM_DAYS=90\nMEDIUM_SIZE_GT=5242880\nLARGE_DAYS=7\nLARGE_SIZE_GT=104857600\nKEEP_PROFILES=true"</script>
 </div>
 <p>也就是：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>&lt;= 5MiB：不主动按大小清理
-</span></span><span style="display:flex;"><span>&gt; 5MiB 且 &lt;= 25MiB：365 天后清理
-</span></span><span style="display:flex;"><span>&gt; 25MiB：7 天后清理</span></span></code></pre></div><script class="code-source" type="application/json">"\u003c= 5MiB：不主动按大小清理\n\u003e 5MiB 且 \u003c= 25MiB：365 天后清理\n\u003e 25MiB：7 天后清理"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>&lt;=5MiB：长期保留
+</span></span><span style="display:flex;"><span>&gt;5MiB：90 天后清理
+</span></span><span style="display:flex;"><span>&gt;100MiB：7 天后清理
+</span></span><span style="display:flex;"><span>远程缓存：7 天后清理</span></span></code></pre></div><script class="code-source" type="application/json">"\u003c=5MiB：长期保留\n\u003e5MiB：90 天后清理\n\u003e100MiB：7 天后清理\n远程缓存：7 天后清理"</script>
 </div>
-<p>这样能保留语音、小图和小文件，又能避免视频、压缩包和大附件长期堆积。</p>
+<p>这样能保护语音、小图和普通小文件，同时让大视频、大压缩包和其他大文件按确定规则到期清理。加密房间里的过期大文件清理后，旧消息点开可能不可用，这是控制硬盘长期增长需要提前告知用户的取舍。</p>
 <p>一次生产环境实测结果类似：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>media_store 磁盘占用：48K
-</span></span><span style="display:flex;"><span>&gt;25MiB / 7 天档：删除 0 个
-</span></span><span style="display:flex;"><span>&gt;5MiB / 365 天档：按条件清理命中的历史媒体记录
-</span></span><span style="display:flex;"><span>crond 状态：started</span></span></code></pre></div><script class="code-source" type="application/json">"media_store 磁盘占用：48K\n\u003e25MiB / 7 天档：删除 0 个\n\u003e5MiB / 365 天档：按条件清理命中的历史媒体记录\ncrond 状态：started"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Policy: &lt;=5MiB kept long-term; &gt;5MiB deleted after 90d; &gt;100MiB deleted after 7d; remote cache deleted after 7d.
+</span></span><span style="display:flex;"><span>purge local large media older_than=7d size_gt=104857600 keep_profiles=true
+</span></span><span style="display:flex;"><span>{&#34;deleted_media&#34;:[],&#34;total&#34;:0}
+</span></span><span style="display:flex;"><span>purge local medium media older_than=90d size_gt=5242880 keep_profiles=true
+</span></span><span style="display:flex;"><span>{&#34;deleted_media&#34;:[],&#34;total&#34;:0}
+</span></span><span style="display:flex;"><span>purge remote media cache older_than=7d
+</span></span><span style="display:flex;"><span>{&#34;deleted&#34;:0}
+</span></span><span style="display:flex;"><span>crond 状态：started</span></span></code></pre></div><script class="code-source" type="application/json">"Policy: \u003c=5MiB kept long-term; \u003e5MiB deleted after 90d; \u003e100MiB deleted after 7d; remote cache deleted after 7d.\npurge local large media older_than=7d size_gt=104857600 keep_profiles=true\n{\"deleted_media\":[],\"total\":0}\npurge local medium media older_than=90d size_gt=5242880 keep_profiles=true\n{\"deleted_media\":[],\"total\":0}\npurge remote media cache older_than=7d\n{\"deleted\":0}\ncrond 状态：started"</script>
 </div>
 <p>这里要注意：Admin API 的用户媒体统计和当前磁盘目录大小不一定完全相等。比如之前手动清过文件、迁移过目录，或者数据库里还有历史媒体记录时，你可能会看到 <code>statistics/users/media</code> 里仍有几百 MB 的 <code>media_length</code>，但 <code>du</code> 查看 <code>media_store</code> 已经很小。判断当前磁盘压力时，还是以 <code>du -h -d 1 /root/data/docker_data/synapse/data/media_store</code> 为准。</p>
-<h2 id="十三什么时候可以直接清空-media_store">十三、什么时候可以直接清空 media_store</h2>
-<p>Admin API 是更温和的方式，因为它会同步处理数据库中的媒体记录和缩略图关系。但如果你明确接受“所有旧聊天附件、图片、视频都不要了”，并且只是个人小服务，紧急瘦身时可以直接清空媒体文件。</p>
+<h2 id="十三不要把清空-media_store-当维护手段">十三、不要把清空 media_store 当维护手段</h2>
+<p>直接清空 <code>media_store</code> 会制造大量旧附件 404，也可能影响头像和房间头像。它只能作为“磁盘马上写满、服务已经受影响、并且你明确接受所有旧聊天附件都可能打不开”的最后救急方案，不是日常维护方式。</p>
+<p>真正生产维护时，不要直接 <code>rm -rf</code> 本地媒体目录。这个动作不会替你处理房间里的旧消息引用，只会让客户端以后在打开旧附件时遇到缺失文件。</p>
+<p>如果已经到了必须救急的程度，至少先停 Synapse、做快照或备份、把要清理的目录移动到 quarantine，观察一段时间后再删除。流程示例：</p>
 <p>先停 Synapse：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
 </span></span><span style="display:flex;"><span>docker compose stop synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose stop synapse"</script>
 </div>
-<p>清空媒体内容，保留目录结构：</p>
+<p>移动高风险目录到 quarantine，而不是直接硬删：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rm -rf /root/data/docker_data/synapse/data/media_store/local_content/* <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>       /root/data/docker_data/synapse/data/media_store/local_thumbnails/* <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>       /root/data/docker_data/synapse/data/media_store/remote_content/* <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>       /root/data/docker_data/synapse/data/media_store/url_cache/* <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span>       /root/data/docker_data/synapse/data/media_store/url_cache_thumbnails/*</span></span></code></pre></div><script class="code-source" type="application/json">"rm -rf /root/data/docker_data/synapse/data/media_store/local_content/* \\\n       /root/data/docker_data/synapse/data/media_store/local_thumbnails/* \\\n       /root/data/docker_data/synapse/data/media_store/remote_content/* \\\n       /root/data/docker_data/synapse/data/media_store/url_cache/* \\\n       /root/data/docker_data/synapse/data/media_store/url_cache_thumbnails/*"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/synapse/data/media_store_quarantine
+</span></span><span style="display:flex;"><span>mv /root/data/docker_data/synapse/data/media_store/local_content <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>   /root/data/docker_data/synapse/data/media_store/local_thumbnails <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>   /root/data/docker_data/synapse/data/media_store_quarantine/
+</span></span><span style="display:flex;"><span>mkdir -p /root/data/docker_data/synapse/data/media_store/local_content <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>         /root/data/docker_data/synapse/data/media_store/local_thumbnails</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/synapse/data/media_store_quarantine\nmv /root/data/docker_data/synapse/data/media_store/local_content \\\n   /root/data/docker_data/synapse/data/media_store/local_thumbnails \\\n   /root/data/docker_data/synapse/data/media_store_quarantine/\nmkdir -p /root/data/docker_data/synapse/data/media_store/local_content \\\n         /root/data/docker_data/synapse/data/media_store/local_thumbnails"</script>
 </div>
 <p>确认目录权限：</p>
 <div class="code-block">
@@ -640,13 +658,13 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d synapse
 </span></span><span style="display:flex;"><span>curl -i http://127.0.0.1:8008/_matrix/client/versions</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d synapse\ncurl -i http://127.0.0.1:8008/_matrix/client/versions"</script>
 </div>
-<p>这种做法的代价：</p>
+<p>这种做法的代价仍然很大：</p>
 <ul>
 <li>旧消息里的图片、视频、文件可能打不开。</li>
 <li>头像或房间头像如果刚好在本地媒体里，可能需要重新设置。</li>
 <li>数据库里可能仍有旧媒体记录，但文件已经不存在。</li>
 </ul>
-<p>所以它适合一次性救急，不适合作为日常维护手段。日常维护还是用 <code>media_retention</code> 和 Admin API。</p>
+<p>所以它只适合一次性救急，不适合作为日常维护手段。日常维护应优先限制上传大小，并使用前面的分层脚本自动清理到期大文件和远程缓存。</p>
 <h2 id="十四孤立文件先不做硬删">十四、孤立文件先不做硬删</h2>
 <p>孤立文件指的是：磁盘上还有文件，但数据库里已经找不到对应媒体记录。它确实可以清理，但第一版不建议“检测到就即时删除”。</p>
 <p>更稳的节奏是：</p>
@@ -656,7 +674,7 @@
 </span></span><span style="display:flex;"><span>第三阶段：quarantine 保留 7 天后再删除</span></span></code></pre></div><script class="code-source" type="application/json">"第一阶段：只生成报告，不移动、不删除\n第二阶段：确认报告合理后，移动到 quarantine\n第三阶段：quarantine 保留 7 天后再删除"</script>
 </div>
 <p>原因很简单：孤立文件判断依赖脚本对 Synapse 数据库、缩略图、远程缓存、URL 预览目录的理解。一旦脚本误判，硬删以后不好恢复。隔离不是为了等用户报错，而是为了让管理员能看到脚本动了哪些文件、多少体积，并且还有回滚空间。</p>
-<p>如果只是当前这个不到 3GB 的 <code>media_store</code>，优先实施阶梯式 Admin API 清理就够了。孤立文件检测可以以后作为独立维护脚本再加，不需要和第一版混在一起。</p>
+<p>如果只是当前这个不到 3GB 的 <code>media_store</code>，优先实施分层脚本就够了。孤立文件检测可以以后作为独立维护脚本再加，不需要和第一版混在一起。</p>
 <h2 id="十五推荐最终配置">十五、推荐最终配置</h2>
 <p>对个人 Synapse，我会这样配置：</p>
 <div class="code-block">
@@ -666,21 +684,24 @@
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">client_max_body_size</span> <span style="color:#e6db74">20M</span>;</span></span></code></pre></div><script class="code-source" type="application/json">"client_max_body_size 20M;"</script>
 </div>
-<p>如果你的需求是“允许用户继续发语音、小图、小附件，但不让大文件长期堆积”，脚本默认值保持：</p>
+<p>如果你的需求是“允许用户继续发语音、小图、小文件，同时控制大文件长期占用”，脚本默认值保持：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>BIG_DAYS=7
-</span></span><span style="display:flex;"><span>BIG_SIZE_GT=26214400
-</span></span><span style="display:flex;"><span>MID_DAYS=365
-</span></span><span style="display:flex;"><span>MID_SIZE_GT=5242880
-</span></span><span style="display:flex;"><span>keep_profiles=true</span></span></code></pre></div><script class="code-source" type="application/json">"BIG_DAYS=7\nBIG_SIZE_GT=26214400\nMID_DAYS=365\nMID_SIZE_GT=5242880\nkeep_profiles=true"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>REMOTE_DAYS=7
+</span></span><span style="display:flex;"><span>REPORT_LIMIT=30
+</span></span><span style="display:flex;"><span>SMALL_KEEP_SIZE=5242880
+</span></span><span style="display:flex;"><span>MEDIUM_DAYS=90
+</span></span><span style="display:flex;"><span>MEDIUM_SIZE_GT=5242880
+</span></span><span style="display:flex;"><span>LARGE_DAYS=7
+</span></span><span style="display:flex;"><span>LARGE_SIZE_GT=104857600
+</span></span><span style="display:flex;"><span>KEEP_PROFILES=true</span></span></code></pre></div><script class="code-source" type="application/json">"REMOTE_DAYS=7\nREPORT_LIMIT=30\nSMALL_KEEP_SIZE=5242880\nMEDIUM_DAYS=90\nMEDIUM_SIZE_GT=5242880\nLARGE_DAYS=7\nLARGE_SIZE_GT=104857600\nKEEP_PROFILES=true"</script>
 </div>
 <p>然后每天跑一次 cron：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-cron" data-lang="cron">23 4 * * * /root/data/docker_data/synapse/scripts/purge-staged-media.sh 2&gt;&amp;1 | logger -t synapse-media-purge</code></pre><script class="code-source" type="application/json">"23 4 * * * /root/data/docker_data/synapse/scripts/purge-staged-media.sh 2\u003e\u00261 | logger -t synapse-media-purge"</script>
 </div>
-<p>这样既不会暴力删除语音和小图片，也不会让 <code>media_store</code> 靠几个误传视频一路长到几个 GB。</p>
+<p>这样会长期保留 5MiB 以内文件；超过 5MiB 的文件 90 天后清理；超过 100MiB 的超大文件 7 天后清理；远程缓存 7 天后清理。</p>
 <h2 id="十六用户告知单独处理">十六、用户告知单独处理</h2>
-<p>阶梯式清理上线后，最好主动告诉用户：Matrix 不是长期网盘，大文件会按规则过期清理。</p>
+<p>分层清理上线后，最好主动告诉用户：5MiB 以内文件长期保留；超过 5MiB 的文件，90 天后清理；超过 100MiB 的超大文件 7 天后清理；请自行保存重要大文件。</p>
 <p>用户告知建议用 Synapse Server Notices 单独做。完整教程已经拆到另一篇：</p>
 <p><a href="/posts/docker/synapse-server-notices-media-policy/">Matrix Synapse Server Notices：给用户发送媒体清理规则通知</a></p>
 
@@ -704,9 +725,17 @@
       
       
         <li>
+          <a href="/posts/docker/synapse-disable-room-encryption/">
+            <img src="/posts/docker/synapse-disable-room-encryption/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Synapse 禁止新建加密房间的服务端整改</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/docker/synapse-server-notices-media-policy/">
             <img src="/posts/docker/synapse-server-notices-media-policy/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">2</span>
             <span class="latest-title">Matrix Synapse Server Notices：给用户发送媒体清理规则通知</span>
           </a>
         </li>
@@ -714,7 +743,7 @@
         <li>
           <a href="/posts/docker/matrix-element-web-npm-intranet/">
             <img src="/posts/docker/matrix-element-web-npm-intranet/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">3</span>
             <span class="latest-title">Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</span>
           </a>
         </li>
@@ -722,15 +751,15 @@
         <li>
           <a href="/posts/docker/synapse-media-store-cleanup-admin-api/">
             <img src="/posts/docker/synapse-media-store-cleanup-admin-api/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Matrix Synapse media_store 阶梯式清理：保留小文件，定期删除大媒体</span>
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Matrix Synapse media_store 分层清理：保留小文件，自动清大文件</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/docker/matrix-livekit-jwt-public-443/">
             <img src="/posts/docker/matrix-livekit-jwt-public-443/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</span>
           </a>
         </li>
@@ -738,7 +767,7 @@
         <li>
           <a href="/posts/docker/matrix-livekit-jwt-npm-worker/">
             <img src="/posts/docker/matrix-livekit-jwt-npm-worker/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">Matrix Synapse 接入 LiveKit：Cloudflare Worker 与 NPM 部署方案</span>
           </a>
         </li>
@@ -746,16 +775,8 @@
         <li>
           <a href="/posts/docker/matrix-livekit-jwt-docker-compose/">
             <img src="/posts/docker/matrix-livekit-jwt-docker-compose/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Matrix Synapse 接入 LiveKit：Cloudflare Tunnel 免 NPM Docker Compose 部署</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/matrix-self-destructing-messages-guide/">
-            <img src="/posts/docker/matrix-self-destructing-messages-guide/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">2026 年 Matrix 消息过期自动删除配置</span>
+            <span class="latest-title">Matrix Synapse 接入 LiveKit：Cloudflare Tunnel 免 NPM Docker Compose 部署</span>
           </a>
         </li>
       

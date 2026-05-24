@@ -367,7 +367,19 @@
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\""</script>
 </div>
-<h2 id="十一常见问题">十一、常见问题</h2>
+<h2 id="十一老客户端的会话和密钥问题">十一、老客户端的会话和密钥问题</h2>
+<p>如果这个 Element Web 只是临时管理客户端，用完以后不要简单地清浏览器数据就算退出。</p>
+<p>Matrix 的端到端加密会把每次登录看成一个设备会话。老版本 Element Web 的“设置 -&gt; 安全与隐私 -&gt; 管理会话”里，有时只能看到其它会话，却无法正常登出其它会话。这样会留下很多旧设备。下次清除浏览器数据、重新登录后，客户端又会把自己当成新设备，并要求重新验证原来的加密密钥或交叉签名。</p>
+<p>比较稳妥的做法是：</p>
+<ol>
+<li>临时管理账号尽量只用来拿 Admin API token，不参与加密房间聊天。</li>
+<li>清浏览器数据或重装客户端之前，先在当前仍可用的客户端里确认密钥备份、恢复密钥或安全密钥可用。</li>
+<li>如果老 Element Web 不能删除其它会话，换一个较新的 Element Web、Element Desktop 或 Element X 登录同一账号，在可用的“会话管理”里清理旧设备。</li>
+<li>清理旧设备后，再清除这个临时 Element Web 的浏览器数据。</li>
+</ol>
+<p>如果已经清了浏览器数据，又被要求验证旧密钥，就需要从仍然可信的已登录设备验证新会话，或者使用之前保存的恢复密钥/安全密钥恢复。没有可信设备，也没有恢复密钥时，加密房间的旧消息可能无法再解密。</p>
+<p>所以这类管理用 Element Web 更适合作为“临时拿 token 的工具”，不要把它当成长期主力加密聊天客户端。</p>
+<h2 id="十二常见问题">十二、常见问题</h2>
 <h3 id="打开-ip-提示浏览器不支持">打开 IP 提示浏览器不支持</h3>
 <p>不要用：</p>
 <div class="code-block">
@@ -393,7 +405,7 @@
 <p>不要手写 <code>/data/nginx/proxy_host/*.conf</code> 来长期管理。应该在 NPM UI 里添加 Proxy Host。这样证书、WebSocket、状态、日志和后续修改都能在 UI 里看到。</p>
 <h3 id="证书申请失败">证书申请失败</h3>
 <p>公网 <code>80/443</code> 被封时，HTTP-01 验证经常失败。建议使用 Cloudflare DNS Challenge 申请通配符证书，然后所有内网子域名复用这张证书。</p>
-<h2 id="十二最后的推荐形态">十二、最后的推荐形态</h2>
+<h2 id="十三最后的推荐形态">十三、最后的推荐形态</h2>
 <p>最终推荐保持这样：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/web-call/
@@ -453,7 +465,7 @@
           <a href="/posts/docker/synapse-media-store-cleanup-admin-api/">
             <img src="/posts/docker/synapse-media-store-cleanup-admin-api/assets/cover.svg" alt="">
             <span class="latest-rank">3</span>
-            <span class="latest-title">Matrix Synapse media_store 阶梯式清理：保留小文件，定期删除大媒体</span>
+            <span class="latest-title">Matrix Synapse media_store 分层清理：保留小文件，自动清大文件</span>
           </a>
         </li>
       
