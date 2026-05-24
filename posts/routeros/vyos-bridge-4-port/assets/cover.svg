@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1720"/>
+      <stop offset="0.5" stop-color="#24506b"/>
+      <stop offset="1" stop-color="#70b77e"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g opacity="0.2" stroke="#fff" stroke-width="3" fill="none">
+    <path d="M132 214h1016v276H132z"/>
+    <path d="M296 214v276M492 214v276M688 214v276M884 214v276"/>
+    <path d="M220 490v72h840v-72M640 562v78"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="94" y="86" width="256" height="78" rx="14" fill="#091014" stroke="#a7f3d0"/>
+    <text x="132" y="137" fill="#eafff6" font-family="Menlo, monospace" font-size="32">VyOS</text>
+    <text x="232" y="137" fill="#b7c8ff" font-family="Menlo, monospace" font-size="24">router</text>
+  </g>
+  <text x="92" y="410" fill="#ffffff" font-family="Arial, 'Noto Sans CJK SC', sans-serif" font-size="58" font-weight="700">vyos多网口小主机桥接配置(完整)</text>
+  <text x="96" y="474" fill="#e6fff4" font-family="Menlo, monospace" font-size="28">soft-router / vyos-bridge-4-port</text>
+</svg>
