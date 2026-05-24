@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Root on 电脑自习室</title><link>https://purodn.tk/tags/root/</link><description>Recent content in Root on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 11 May 2025 17:44:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/root/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title><link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link><pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid><description>&lt;p&gt;我个人不太建议在所有环境里都直接开启 &lt;code&gt;sudo&lt;/code&gt;。如果只是自己的服务器，很多时候使用 &lt;code&gt;su -&lt;/code&gt; 切换到 &lt;code&gt;root&lt;/code&gt; 管理系统，权限边界会更清楚。&lt;/p&gt;
+&lt;p&gt;不过 &lt;code&gt;sudo&lt;/code&gt; 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 &lt;code&gt;sudo&lt;/code&gt; 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 &lt;code&gt;sudo&lt;/code&gt; 时验证 &lt;code&gt;root&lt;/code&gt; 密码，而不是验证普通用户自己的密码。&lt;/p&gt;
+&lt;h2 id="报错含义"&gt;报错含义&lt;/h2&gt;
+&lt;p&gt;如果普通用户执行 &lt;code&gt;sudo&lt;/code&gt; 时看到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;gary is not in the sudoers file.
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;This incident has been reported to the administrator.&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"gary is not in the sudoers file.\nThis incident has been reported to the administrator."&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;意思是当前用户 &lt;code&gt;gary&lt;/code&gt; 没有被 sudoers 授权，所以不能通过 &lt;code&gt;sudo&lt;/code&gt; 执行需要管理员权限的命令。&lt;/p&gt;
+&lt;p&gt;后续操作需要先用 &lt;code&gt;root&lt;/code&gt; 用户完成。可以直接登录 &lt;code&gt;root&lt;/code&gt;，也可以从普通用户切换：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;su -&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"su -"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里输入的是 &lt;code&gt;root&lt;/code&gt; 密码，不是普通用户密码。&lt;/p&gt;
+&lt;h2 id="安装-sudo"&gt;安装 sudo&lt;/h2&gt;
+&lt;p&gt;如果系统还没有安装 &lt;code&gt;sudo&lt;/code&gt;，先安装：&lt;/p&gt;</description></item></channel></rss>

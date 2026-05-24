@@ -1,18 +1,27 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Alpine Linux on 电脑自习室</title><link>https://purodn.tk/tags/alpine-linux/</link><description>Recent content in Alpine Linux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 04 Mar 2026 13:24:03 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/alpine-linux/index.xml" rel="self" type="application/rss+xml"/><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>&lt;p&gt;这篇记录整理一个比较实用的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 &lt;code&gt;/root/data/backup&lt;/code&gt; 单向同步到 B 机器，不让备份端的改动反向影响源端。&lt;/p&gt;
-&lt;p&gt;&lt;a href="https://syncthing.net/"&gt;Syncthing&lt;/a&gt; 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。这个特性很适合自建备份链路，但 Web 管理面板仍然要谨慎暴露，公网环境下更推荐通过 SSH 隧道访问。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Alpine Linux on 电脑自习室</title><link>https://purodn.tk/tags/alpine-linux/</link><description>Recent content in Alpine Linux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 04 Mar 2026 13:24:03 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/alpine-linux/index.xml" rel="self" type="application/rss+xml"/><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>&lt;p&gt;这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 &lt;code&gt;/srv/backup&lt;/code&gt; 单向同步到 B 机器，不让备份端的改动反向影响源端。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://syncthing.net/"&gt;Syncthing&lt;/a&gt; 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。&lt;/p&gt;
 &lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
 &lt;ul&gt;
-&lt;li&gt;源端目录：Ubuntu/Debian 上的 &lt;code&gt;/root/data/backup&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;备份端目录：Ubuntu/Debian 或 Alpine 上的 &lt;code&gt;/root/data/backup&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;同步模式：源端 &lt;code&gt;仅发送&lt;/code&gt;，接收端 &lt;code&gt;仅接收&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;运行用户：本文按 &lt;code&gt;root&lt;/code&gt; 管理目录来写&lt;/li&gt;
-&lt;li&gt;管理方式：优先通过 SSH 隧道访问 Syncthing Web GUI&lt;/li&gt;
+&lt;li&gt;源端目录：&lt;code&gt;/srv/backup&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;备份端目录：&lt;code&gt;/srv/backup&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;目录属主：&lt;code&gt;syncthing:syncthing&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;同步模式：源端 &lt;code&gt;仅发送&lt;/code&gt;，备份端 &lt;code&gt;仅接收&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;运行用户：专门创建的 &lt;code&gt;syncthing&lt;/code&gt; 普通服务用户&lt;/li&gt;
+&lt;li&gt;管理方式：通过 SSH 隧道访问 Syncthing Web GUI&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;如果只是每天固定时间做一次备份，&lt;code&gt;rsync + SSH&lt;/code&gt; 也很适合；如果希望目录变动后实时同步，并且希望 Syncthing 负责设备发现、传输加密和状态管理，可以使用本文方案。&lt;/p&gt;
+&lt;p&gt;本文从安装开始就把服务、配置目录和同步目录都交给 &lt;code&gt;syncthing:syncthing&lt;/code&gt;，符合 Syncthing 对运行用户的建议。&lt;/p&gt;
 &lt;h2 id="一ubuntu-源端配置"&gt;一、Ubuntu 源端配置&lt;/h2&gt;
 &lt;h3 id="1-安装-syncthing"&gt;1. 安装 Syncthing&lt;/h3&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install syncthing -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install syncthing -y"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;为 &lt;code&gt;root&lt;/code&gt; 生成配置文件：&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;创建服务用户、配置目录和同步目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo useradd --system --home /var/lib/syncthing --create-home --shell /usr/sbin/nologin syncthing
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing/.config
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing/.local/state/syncthing
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /srv/backup&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo useradd --system --home /var/lib/syncthing --create-home --shell /usr/sbin/nologin syncthing\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing/.config\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing/.local/state/syncthing\nsudo install -d -o syncthing -g syncthing /srv/backup"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;生成 Syncthing 配置：&lt;/p&gt;</description></item></channel></rss>

@@ -325,7 +325,11 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>~/bin/hctl restart
 </span></span><span style="display:flex;"><span>~/bin/hctl log</span></span></code></pre></div><script class="code-source" type="application/json">"~/bin/hctl restart\n~/bin/hctl log"</script>
 </div>
-<h2 id="13-升级-hysteria2">13. 升级 Hysteria2</h2>
+<h2 id="13-系统参数优化">13. 系统参数优化</h2>
+<p>普通用户版也可以受益于 FreeBSD 的 UDP/QUIC 系统参数优化，但普通用户通常没有权限修改 <code>/etc/sysctl.conf</code> 和 <code>/boot/loader.conf</code>。</p>
+<p>这一节推荐但非必需。如果只是先跑通服务，可以先跳过；如果是长期运行、追求速度，或者服务器带宽比较高，建议让 root 或管理员按 root 版文章里的系统参数优化执行。</p>
+<p>它的作用不是凭空提速，而是减少高吞吐 UDP/QUIC 场景下因为系统缓冲区偏小造成的丢包、抖动和不稳定。Hysteria2 应用层的 QUIC 窗口先保持默认即可，不建议一上来就乱调。</p>
+<h2 id="14-升级-hysteria2">14. 升级 Hysteria2</h2>
 <p>后续想升级时，先打开 Hysteria2 官方 Releases 页面，确认最新 tag。例如当前版本是 <code>app/v2.9.2</code>，如果以后看到 <code>app/v2.9.3</code> 或更高版本，就把下面的 <code>HY2_VERSION</code> 改掉。</p>
 <p>先备份当前二进制和配置：</p>
 <div class="code-block">
@@ -360,7 +364,7 @@
 </span></span><span style="display:flex;"><span>cp ~/.usr/local/bin/hysteria.bak.时间戳 ~/.usr/local/bin/hysteria
 </span></span><span style="display:flex;"><span>~/bin/hctl start</span></span></code></pre></div><script class="code-source" type="application/json">"~/bin/hctl stop\ncp ~/.usr/local/bin/hysteria.bak.时间戳 ~/.usr/local/bin/hysteria\n~/bin/hctl start"</script>
 </div>
-<h2 id="14-清理环境并重启">14. 清理环境并重启</h2>
+<h2 id="15-清理环境并重启">15. 清理环境并重启</h2>
 <p>如果之前配置错过 DNS 或证书路径，可以先清理旧进程和旧日志：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>~/bin/hctl stop

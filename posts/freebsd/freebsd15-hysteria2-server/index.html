@@ -248,8 +248,9 @@
 <p>如果使用云服务器安全组，也要在控制台放行 UDP <code>443</code>，不要只放行 TCP <code>443</code>。</p>
 <p>本文前面的服务端和 sing-box 客户端示例都使用 <code>443</code>，所以这里也只放行 UDP <code>443</code>，上下文保持一致。</p>
 <h2 id="9-系统参数优化">9. 系统参数优化</h2>
-<p>如果你直接使用第 4 节的基础配置，可以先不做这一节。Hysteria2 会照常运行，系统参数优化不是启动服务的前置条件。</p>
-<p>这一节属于可选增强：当你的线路带宽比较高、连接数比较多，或者日志里出现 UDP buffer 相关提示时，再适当调大 FreeBSD 的 UDP socket buffer。不要一上来就乱调 Hysteria2 的 QUIC 窗口，先让应用使用默认值，把系统层的缓冲区准备好即可。</p>
+<p>这一节推荐但非必需。如果你直接使用第 4 节的基础配置，可以先跳过这一节，Hysteria2 会照常运行，系统参数优化不是启动服务的前置条件。</p>
+<p>如果你是长期运行、追求速度，或者服务器带宽比较高，这一节建议做。它的作用不是凭空提速，而是减少高吞吐 UDP/QUIC 场景下因为系统缓冲区偏小造成的丢包、抖动和不稳定。</p>
+<p>不要一上来就乱调 Hysteria2 的 QUIC 窗口。先让应用使用默认值，把 FreeBSD 系统层的 UDP socket buffer 准备好即可。</p>
 <p>追加到 <code>/etc/sysctl.conf</code>：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>cat <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39; &gt;&gt; /etc/sysctl.conf
@@ -388,9 +389,25 @@
       
       
         <li>
+          <a href="/posts/linux/docker-data-backup-upload-syncthing-script/">
+            <img src="/posts/linux/docker-data-backup-upload-syncthing-script/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Docker 数据打包上传到 Syncthing 源目录的备份脚本</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/freebsd/freebsd-pf-firewall-manager/">
+            <img src="/posts/freebsd/freebsd-pf-firewall-manager/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">FreeBSD PF 防火墙端口管理与自动黑名单脚本</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/freebsd/freebsd-install-trzsz-go/">
             <img src="/posts/freebsd/freebsd-install-trzsz-go/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">3</span>
             <span class="latest-title">FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</span>
           </a>
         </li>
@@ -398,7 +415,7 @@
         <li>
           <a href="/posts/linux/alpine-sing-box-server-brutal/">
             <img src="/posts/linux/alpine-sing-box-server-brutal/assets/cover-reality.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">Alpine 安装 sing-box-server 并支持 tcp-brutal</span>
           </a>
         </li>
@@ -406,7 +423,7 @@
         <li>
           <a href="/posts/linux/docker-headscale-derp-tailscale-npm-proxy/">
             <img src="/posts/linux/docker-headscale-derp-tailscale-npm-proxy/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</span>
           </a>
         </li>
@@ -414,7 +431,7 @@
         <li>
           <a href="/posts/freebsd/freebsd15-hysteria2-server/">
             <img src="/posts/freebsd/freebsd15-hysteria2-server/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">FreeBSD 15 下配置 Hysteria2 服务器端</span>
           </a>
         </li>
@@ -422,24 +439,8 @@
         <li>
           <a href="/posts/linux/manual-domain-ssl-cert/">
             <img src="/posts/linux/manual-domain-ssl-cert/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">手动申请域名ssl证书acme.sh脚本申请cloudflare的证书 支持泛域名</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/synapse-server-notices-media-policy/">
-            <img src="/posts/docker/synapse-server-notices-media-policy/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Matrix Synapse Server Notices：给用户发送媒体清理规则通知</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/matrix-element-web-npm-intranet/">
-            <img src="/posts/docker/matrix-element-web-npm-intranet/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</span>
+            <span class="latest-title">手动申请域名ssl证书acme.sh脚本申请cloudflare的证书 支持泛域名</span>
           </a>
         </li>
       
