@@ -247,30 +247,91 @@
 <p>Hysteria2 主要使用 UDP。如果服务器启用了防火墙，需要放行 UDP <code>443</code>。</p>
 <p>如果使用云服务器安全组，也要在控制台放行 UDP <code>443</code>，不要只放行 TCP <code>443</code>。</p>
 <p>本文前面的服务端和 sing-box 客户端示例都使用 <code>443</code>，所以这里也只放行 UDP <code>443</code>，上下文保持一致。</p>
-<h2 id="9-系统参数优化">9. 系统参数优化</h2>
-<p>这一节推荐但非必需。如果你直接使用第 4 节的基础配置，可以先跳过这一节，Hysteria2 会照常运行，系统参数优化不是启动服务的前置条件。</p>
-<p>如果你是长期运行、追求速度，或者服务器带宽比较高，这一节建议做。它的作用不是凭空提速，而是减少高吞吐 UDP/QUIC 场景下因为系统缓冲区偏小造成的丢包、抖动和不稳定。</p>
-<p>不要一上来就乱调 Hysteria2 的 QUIC 窗口。先让应用使用默认值，把 FreeBSD 系统层的 UDP socket buffer 准备好即可。</p>
-<p>追加到 <code>/etc/sysctl.conf</code>：</p>
+<h2 id="9-freebsd-udp-缓冲优化">9. FreeBSD UDP 缓冲优化</h2>
+<p>这一节建议安装后就做。Hysteria2 基于 QUIC/UDP，刚装好的 FreeBSD 可以正常连通，但默认 UDP 接收缓冲可能只有几十 KB。比如实机遇到过：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>cat <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39; &gt;&gt; /etc/sysctl.conf
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.inet.udp.recvspace: 42080</span></span></code></pre></div><script class="code-source" type="application/json">"net.inet.udp.recvspace: 42080"</script>
+</div>
+<p>这个值对网页、聊天这类轻量请求可能够用，但不适合作为高吞吐 HY2 服务端。跨国、高延迟链路下，YouTube 4K、测速、下载、多设备共享都可能因为 UDP socket buffer 太小而跑不满。先不要乱调 Hysteria2 的 QUIC 窗口，把 FreeBSD 系统层 UDP 缓冲准备好即可。</p>
+<h3 id="91-先查看当前值">9.1 先查看当前值</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sysctl kern.ipc.maxsockbuf net.inet.udp.recvspace net.inet.ip.intr_queue_maxlen</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl kern.ipc.maxsockbuf net.inet.udp.recvspace net.inet.ip.intr_queue_maxlen"</script>
+</div>
+<p>如果 <code>net.inet.udp.recvspace</code> 还是 <code>42080</code> 或类似几十 KB 的值，建议继续按下面步骤修改。</p>
+<h3 id="92-备份-sysctlconf">9.2 备份 sysctl.conf</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>cp -a /etc/sysctl.conf /etc/sysctl.conf.bak.hy2-<span style="color:#66d9ef">$(</span>date +%Y%m%d%H%M%S<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"cp -a /etc/sysctl.conf /etc/sysctl.conf.bak.hy2-$(date +%Y%m%d%H%M%S)"</script>
+</div>
+<h3 id="93-写入推荐参数">9.3 写入推荐参数</h3>
+<p>下面命令会先移除旧的同名配置，再写入新的 HY2 UDP 参数，避免重复追加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>grep -v -E <span style="color:#e6db74">&#39;^(kern\.ipc\.maxsockbuf|net\.inet\.udp\.recvspace|net\.inet\.ip\.intr_queue_maxlen)=&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  /etc/sysctl.conf &gt; /tmp/sysctl.conf.hy2
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cat &gt;&gt; /tmp/sysctl.conf.hy2 <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"># Hysteria2 / QUIC UDP tuning
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">kern.ipc.maxsockbuf=33554432
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.inet.udp.recvspace=8388608
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.inet.udp.maxdgram=65535
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.route.netisr_maxqlen=2048
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.inet.udp.blackhole=1
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span></span></span></code></pre></div><script class="code-source" type="application/json">"cat \u003c\u003c'EOF' \u003e\u003e /etc/sysctl.conf\nkern.ipc.maxsockbuf=33554432\nnet.inet.udp.recvspace=8388608\nnet.inet.udp.maxdgram=65535\nnet.route.netisr_maxqlen=2048\nnet.inet.udp.blackhole=1\nEOF"</script>
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.inet.udp.recvspace=4194304
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.inet.ip.intr_queue_maxlen=4096
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>install -m <span style="color:#ae81ff">0644</span> /tmp/sysctl.conf.hy2 /etc/sysctl.conf
+</span></span><span style="display:flex;"><span>rm -f /tmp/sysctl.conf.hy2</span></span></code></pre></div><script class="code-source" type="application/json">"grep -v -E '^(kern\\.ipc\\.maxsockbuf|net\\.inet\\.udp\\.recvspace|net\\.inet\\.ip\\.intr_queue_maxlen)=' \\\n  /etc/sysctl.conf \u003e /tmp/sysctl.conf.hy2\n\ncat \u003e\u003e /tmp/sysctl.conf.hy2 \u003c\u003c'EOF'\n\n# Hysteria2 / QUIC UDP tuning\nkern.ipc.maxsockbuf=33554432\nnet.inet.udp.recvspace=4194304\nnet.inet.ip.intr_queue_maxlen=4096\nEOF\n\ninstall -m 0644 /tmp/sysctl.conf.hy2 /etc/sysctl.conf\nrm -f /tmp/sysctl.conf.hy2"</script>
 </div>
-<p>把启动期参数写入 <code>/boot/loader.conf</code>：</p>
+<p>参数含义：</p>
+<ul>
+<li><code>kern.ipc.maxsockbuf=33554432</code>：允许 socket buffer 放大到 32 MB。</li>
+<li><code>net.inet.udp.recvspace=4194304</code>：把 UDP 默认接收缓冲提高到 4 MB。</li>
+<li><code>net.inet.ip.intr_queue_maxlen=4096</code>：提高 IP 输入队列长度，减少突发流量下的队列压力。</li>
+</ul>
+<h3 id="94-立即生效">9.4 立即生效</h3>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#39;net.link.ifqmaxlen=&#34;2048&#34;&#39;</span> &gt;&gt; /boot/loader.conf</span></span></code></pre></div><script class="code-source" type="application/json">"echo 'net.link.ifqmaxlen=\"2048\"' \u003e\u003e /boot/loader.conf"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sysctl kern.ipc.maxsockbuf<span style="color:#f92672">=</span><span style="color:#ae81ff">33554432</span>
+</span></span><span style="display:flex;"><span>sysctl net.inet.udp.recvspace<span style="color:#f92672">=</span><span style="color:#ae81ff">4194304</span>
+</span></span><span style="display:flex;"><span>sysctl net.inet.ip.intr_queue_maxlen<span style="color:#f92672">=</span><span style="color:#ae81ff">4096</span></span></span></code></pre></div><script class="code-source" type="application/json">"sysctl kern.ipc.maxsockbuf=33554432\nsysctl net.inet.udp.recvspace=4194304\nsysctl net.inet.ip.intr_queue_maxlen=4096"</script>
 </div>
-<p>热加载 <code>sysctl</code> 并重启 Hysteria2：</p>
+<p>再次确认：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sysctl -f /etc/sysctl.conf
-</span></span><span style="display:flex;"><span>service hysteria restart</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl -f /etc/sysctl.conf\nservice hysteria restart"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sysctl kern.ipc.maxsockbuf net.inet.udp.recvspace net.inet.ip.intr_queue_maxlen</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl kern.ipc.maxsockbuf net.inet.udp.recvspace net.inet.ip.intr_queue_maxlen"</script>
 </div>
-<p><code>net.link.ifqmaxlen</code> 属于启动期参数，写入后建议在方便维护时重启系统，让它完整生效。</p>
+<p>应该看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>kern.ipc.maxsockbuf: 33554432
+</span></span><span style="display:flex;"><span>net.inet.udp.recvspace: 4194304
+</span></span><span style="display:flex;"><span>net.inet.ip.intr_queue_maxlen: 4096</span></span></code></pre></div><script class="code-source" type="application/json">"kern.ipc.maxsockbuf: 33554432\nnet.inet.udp.recvspace: 4194304\nnet.inet.ip.intr_queue_maxlen: 4096"</script>
+</div>
+<h3 id="95-重启-hysteria2">9.5 重启 Hysteria2</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>service hysteria restart</span></span></code></pre></div><script class="code-source" type="application/json">"service hysteria restart"</script>
+</div>
+<p>确认 UDP <code>443</code> 仍在监听：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sockstat -4 -6 -l | grep hysteria</span></span></code></pre></div><script class="code-source" type="application/json">"sockstat -4 -6 -l | grep hysteria"</script>
+</div>
+<p>正常应看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>root hysteria  12345  4  udp46  *:443  *:*</span></span></code></pre></div><script class="code-source" type="application/json">"root hysteria  12345  4  udp46  *:443  *:*"</script>
+</div>
+<h3 id="96-常见避坑">9.6 常见避坑</h3>
+<p>不要把下面这类 <code>net.isr.*</code> 参数直接写进 <code>/etc/sysctl.conf</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.isr.defaultqlimit
+</span></span><span style="display:flex;"><span>net.isr.maxqlimit</span></span></code></pre></div><script class="code-source" type="application/json">"net.isr.defaultqlimit\nnet.isr.maxqlimit"</script>
+</div>
+<p>在 FreeBSD 15 上，它们属于启动期 tunable，运行时用 <code>sysctl -f /etc/sysctl.conf</code> 会报 <code>read only tunable</code>。普通 HY2 服务端先不用碰它们，前面的 UDP 缓冲参数已经能解决最常见的默认值过小问题。</p>
+<p>如果重启时日志里出现 <code>listen udp :443: bind: address already in use</code>，说明旧进程或旧 <code>daemon</code> 监控进程还占着端口。先看进程：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ps auxww | egrep <span style="color:#e6db74">&#39;daemon: /usr/local/bin/hysteria|/usr/local/bin/hysteria server&#39;</span>
+</span></span><span style="display:flex;"><span>sockstat -4 -6 -l | grep <span style="color:#e6db74">&#39;:443&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ps auxww | egrep 'daemon: /usr/local/bin/hysteria|/usr/local/bin/hysteria server'\nsockstat -4 -6 -l | grep ':443'"</script>
+</div>
+<p>确认只有旧的 Hysteria2 占用端口后，再停掉旧进程并重新启动服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>service hysteria stop
+</span></span><span style="display:flex;"><span>pkill -TERM -f <span style="color:#e6db74">&#39;/usr/local/bin/hysteria server&#39;</span>
+</span></span><span style="display:flex;"><span>rm -f /var/run/hysteria.pid
+</span></span><span style="display:flex;"><span>service hysteria start</span></span></code></pre></div><script class="code-source" type="application/json">"service hysteria stop\npkill -TERM -f '/usr/local/bin/hysteria server'\nrm -f /var/run/hysteria.pid\nservice hysteria start"</script>
+</div>
 <h2 id="10-sing-box-客户端配置">10. sing-box 客户端配置</h2>
 <p>下面给一份 sing-box 客户端 outbound 示例。把 <code>你的服务器IP或域名</code>、密码和带宽改成自己的即可。</p>
 <p>如果服务端使用上面的自签证书，并且证书 CN 是 <code>www.cloudflarestatus.com</code>，客户端的 <code>server_name</code> 也写这个：</p>
@@ -389,9 +450,17 @@
       
       
         <li>
+          <a href="/posts/linux/enable-root-ssh-password-login/">
+            <img src="/posts/linux/enable-root-ssh-password-login/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Linux 临时开启 root 密码 SSH 登录</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/docker/matrix-weatherbot-daily-shanghai/">
             <img src="/posts/docker/matrix-weatherbot-daily-shanghai/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">2</span>
             <span class="latest-title">Matrix Synapse 机器人：天气推送与服务器监控提醒</span>
           </a>
         </li>
@@ -399,7 +468,7 @@
         <li>
           <a href="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/">
             <img src="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">3</span>
             <span class="latest-title">FreeBSD 15 下 Nginx 前置 Gost MWSS 与 sing-box 客户端配置</span>
           </a>
         </li>
@@ -407,7 +476,7 @@
         <li>
           <a href="/posts/linux/gost-mwss-nginx-sing-box/">
             <img src="/posts/linux/gost-mwss-nginx-sing-box/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</span>
           </a>
         </li>
@@ -415,7 +484,7 @@
         <li>
           <a href="/posts/linux/docker-data-backup-upload-syncthing-script/">
             <img src="/posts/linux/docker-data-backup-upload-syncthing-script/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Docker 数据打包上传到 Syncthing 源目录的备份脚本</span>
           </a>
         </li>
@@ -423,7 +492,7 @@
         <li>
           <a href="/posts/freebsd/freebsd-pf-firewall-manager/">
             <img src="/posts/freebsd/freebsd-pf-firewall-manager/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">FreeBSD PF 防火墙端口管理与自动黑名单脚本</span>
           </a>
         </li>
@@ -431,16 +500,8 @@
         <li>
           <a href="/posts/freebsd/freebsd-install-trzsz-go/">
             <img src="/posts/freebsd/freebsd-install-trzsz-go/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/alpine-sing-box-server-brutal/">
-            <img src="/posts/linux/alpine-sing-box-server-brutal/assets/cover-reality.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Alpine 安装 sing-box-server 并支持 tcp-brutal</span>
+            <span class="latest-title">FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</span>
           </a>
         </li>
       
