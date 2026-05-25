@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Gost MWSS with Nginx and sing-box</title>
+  <desc id="desc">A network diagram showing sing-box, local Gost SOCKS, Nginx TLS and Gost MWS backend.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101820"/>
+      <stop offset="0.55" stop-color="#20313a"/>
+      <stop offset="1" stop-color="#143d3a"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6ee7b7"/>
+      <stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.16" stroke="#c7f9ee" stroke-width="1">
+    <path d="M0 110h1200M0 210h1200M0 310h1200M0 410h1200M0 510h1200"/>
+    <path d="M110 0v630M260 0v630M410 0v630M560 0v630M710 0v630M860 0v630M1010 0v630"/>
+  </g>
+  <g fill="none" stroke="url(#line)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+    <path d="M210 328 C340 225 445 225 575 328 S810 431 940 328"/>
+    <path d="M908 295 L948 328 L908 361"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="92" y="184" width="244" height="288" rx="28" fill="#f7faf8"/>
+    <rect x="478" y="184" width="244" height="288" rx="28" fill="#f7faf8"/>
+    <rect x="864" y="184" width="244" height="288" rx="28" fill="#f7faf8"/>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" text-anchor="middle">
+    <text x="214" y="250" font-size="30" font-weight="800" fill="#12312f">sing-box</text>
+    <text x="214" y="295" font-size="24" font-weight="700" fill="#24524c">SOCKS5</text>
+    <text x="214" y="337" font-size="22" fill="#395b57">127.0.0.1:1080</text>
+    <text x="214" y="386" font-size="20" fill="#526b67">local Gost client</text>
+    <text x="600" y="250" font-size="30" font-weight="800" fill="#12312f">Nginx 443</text>
+    <text x="600" y="295" font-size="24" font-weight="700" fill="#24524c">TLS + WebSocket</text>
+    <text x="600" y="337" font-size="22" fill="#395b57">/secret-gost-path</text>
+    <text x="600" y="386" font-size="20" fill="#526b67">public camouflage</text>
+    <text x="986" y="250" font-size="30" font-weight="800" fill="#12312f">Gost MWS</text>
+    <text x="986" y="295" font-size="24" font-weight="700" fill="#24524c">Backend</text>
+    <text x="986" y="337" font-size="22" fill="#395b57">127.0.0.1:8080</text>
+    <text x="986" y="386" font-size="20" fill="#526b67">systemd service</text>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" fill="#f7faf8">
+    <text x="80" y="86" font-size="44" font-weight="850">Gost MWSS + Nginx</text>
+    <text x="80" y="132" font-size="26" fill="#bdebdc">service setup and sing-box client routing</text>
+  </g>
+</svg>

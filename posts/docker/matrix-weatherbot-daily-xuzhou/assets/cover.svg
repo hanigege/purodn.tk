@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Matrix Synapse weatherbot daily forecast cover</title>
+  <desc id="desc">A Matrix Synapse server runs a weatherbot that pulls Xuzhou weather data and sends a daily 05:00 forecast to a Matrix user.</desc>
+  <rect width="1200" height="630" fill="#f7faf8"/>
+  <rect x="0" y="0" width="1200" height="630" fill="#e6f4f1"/>
+  <path d="M0 470 C170 405 275 525 430 455 C600 380 710 420 840 455 C990 496 1080 430 1200 382 L1200 630 L0 630 Z" fill="#d8eadf"/>
+  <path d="M0 535 C130 488 280 590 420 526 C585 452 708 510 850 535 C1010 565 1090 500 1200 470 L1200 630 L0 630 Z" fill="#c5dfd4"/>
+  <g transform="translate(78 74)">
+    <text x="0" y="0" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#11605f">Matrix Synapse</text>
+    <text x="0" y="64" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="900" fill="#14363d">每日天气机器人</text>
+    <text x="0" y="112" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#236b52">每天 05:00 推送徐州天气</text>
+  </g>
+  <g transform="translate(88 246)">
+    <rect x="0" y="0" width="270" height="170" rx="8" fill="#ffffff" stroke="#75a99d" stroke-width="3"/>
+    <rect x="22" y="24" width="68" height="68" rx="8" fill="#173f45"/>
+    <circle cx="56" cy="58" r="20" fill="#63e6be"/>
+    <text x="112" y="55" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" fill="#173f45">Synapse</text>
+    <text x="112" y="91" font-family="Menlo, Consolas, monospace" font-size="18" fill="#31636b">127.0.0.1:8008</text>
+    <text x="22" y="138" font-family="Menlo, Consolas, monospace" font-size="18" fill="#476b63">Client-Server API</text>
+  </g>
+  <g transform="translate(466 230)">
+    <rect x="0" y="0" width="282" height="202" rx="8" fill="#ffffff" stroke="#648cbd" stroke-width="3"/>
+    <circle cx="66" cy="66" r="38" fill="#f7c948"/>
+    <path d="M43 110 h92 a37 37 0 0 0 -7 -73 a50 50 0 0 0 -93 20 a28 28 0 0 0 8 53z" fill="#dbeafe" stroke="#4a74a5" stroke-width="3"/>
+    <text x="28" y="150" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900" fill="#1f3b57">weatherbot</text>
+    <text x="28" y="180" font-family="Menlo, Consolas, monospace" font-size="18" fill="#4b6578">@weatherbot</text>
+  </g>
+  <g transform="translate(846 246)">
+    <rect x="0" y="0" width="270" height="170" rx="8" fill="#ffffff" stroke="#bb8a51" stroke-width="3"/>
+    <text x="24" y="48" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="900" fill="#7a4b17">Open-Meteo</text>
+    <text x="24" y="84" font-family="Menlo, Consolas, monospace" font-size="18" fill="#8a6133">Xuzhou forecast</text>
+    <text x="24" y="124" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="800" fill="#135e52">34.2044, 117.2841</text>
+  </g>
+  <g stroke="#356b68" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M360 330 H455"/>
+    <path d="M438 314 L456 330 L438 346"/>
+    <path d="M750 330 H835"/>
+    <path d="M818 314 L836 330 L818 346"/>
+  </g>
+  <g transform="translate(198 500)">
+    <rect x="0" y="0" width="804" height="58" rx="8" fill="#173f45"/>
+    <text x="28" y="37" font-family="Menlo, Consolas, monospace" font-size="24" fill="#ecfeff">0 5 * * * run-matrix-weatherbot-xuzhou.sh</text>
+  </g>
+  <g transform="translate(893 79)">
+    <rect x="0" y="0" width="220" height="98" rx="8" fill="#ffffff" stroke="#76a99a" stroke-width="3"/>
+    <text x="28" y="39" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900" fill="#173f45">target user</text>
+    <text x="28" y="72" font-family="Menlo, Consolas, monospace" font-size="18" fill="#366560">@honey</text>
+  </g>
+</svg>

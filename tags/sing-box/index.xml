@@ -1,4 +1,61 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sing-Box on 电脑自习室</title><link>https://purodn.tk/tags/sing-box/</link><description>Recent content in Sing-Box on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 01 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml"/><item><title>sing-box 安装教程</title><link>https://purodn.tk/posts/linux/sing-box-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/sing-box-install/</guid><description>&lt;blockquote&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sing-Box on 电脑自习室</title><link>https://purodn.tk/tags/sing-box/</link><description>Recent content in Sing-Box on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 与 sing-box 客户端配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这篇是 FreeBSD 15 实机验证后的最终流程。目标是从一台干净的 FreeBSD 15 服务器开始，完成域名解析、证书签发、Nginx 伪装站点、Gost v3 MWSS 后端、低权限服务、日志轮转、证书续期和 sing-box 客户端接入。&lt;/p&gt;
+&lt;p&gt;整体结构如下：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; mwss://proxy.example.com:443/secret-gost-path
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Nginx 443
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 客户端 Gost\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e FreeBSD Nginx 443\n -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost v3 MWS"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里有一个关键点：普通用户不能监听 &lt;code&gt;443&lt;/code&gt; 这种低端口，但本方案监听 &lt;code&gt;443/tcp&lt;/code&gt; 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 &lt;code&gt;www&lt;/code&gt; 用户处理请求；Gost 只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，所以可以安全地用专用低权限用户运行。&lt;/p&gt;
+&lt;h2 id="示例信息"&gt;示例信息&lt;/h2&gt;
+&lt;p&gt;本文统一使用公版示例值，部署时替换成自己的真实信息：&lt;/p&gt;</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&lt;/p&gt;
+&lt;h2 id="架构说明"&gt;架构说明&lt;/h2&gt;
+&lt;p&gt;访问链路如下：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; mwss://proxy.example.com:443/secret-gost-path
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 本地 Gost 客户端\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e Nginx 443 -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost MWS"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;本文使用下面这些占位值，部署时请替换成自己的信息：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;项目&lt;/th&gt;
+ &lt;th&gt;示例值&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;proxy.example.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务器公网 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;203.0.113.10&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;WebSocket 路径&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/secret-gost-path&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Gost 用户名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;GOST_USER&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Gost 密码&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;GOST_PASS&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务端后端端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;127.0.0.1:18080&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;客户端本地 SOCKS&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;127.0.0.1:1080&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;本文示例可以按下面这样替换：&lt;/p&gt;</description></item><item><title>sing-box 安装教程</title><link>https://purodn.tk/posts/linux/sing-box-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/sing-box-install/</guid><description>&lt;blockquote&gt;
 &lt;p&gt;本文介绍 sing-box 作为透明网关的安装方法&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;[TOC]&lt;/p&gt;
