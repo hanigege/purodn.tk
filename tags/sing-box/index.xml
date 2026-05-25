@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sing-Box on 电脑自习室</title><link>https://purodn.tk/tags/sing-box/</link><description>Recent content in Sing-Box on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 与 sing-box 客户端配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这篇是 FreeBSD 15 实机验证后的最终流程。目标是从一台干净的 FreeBSD 15 服务器开始，完成域名解析、证书签发、Nginx 伪装站点、Gost v3 MWSS 后端、低权限服务、日志轮转、证书续期和 sing-box 客户端接入。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sing-Box on 电脑自习室</title><link>https://purodn.tk/tags/sing-box/</link><description>Recent content in Sing-Box on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 实验留存</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>&lt;p&gt;这篇保留 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，方便以后换 VPS 商家、换虚拟化环境或换线路时复现实验。&lt;/p&gt;
+&lt;p&gt;先说结论：这套配置结构本身可以跑通，但在我当前测试的 FreeBSD 15 VPS 上，Gost MWSS 和 Xray Reality 这类 TCP 代理转发都出现了大流量吞吐异常；同一台机器上的 Hysteria2 UDP 和服务端本机直连下载速度正常。因此，这篇不作为当前 FreeBSD 生产首推方案，而是作为完整实验流程留存。&lt;/p&gt;
+&lt;p&gt;如果你的 VPS 虚拟化、网卡驱动、线路或 FreeBSD TCP 栈表现不同，可以按本文复现，再用最后的验收命令对比速度。&lt;/p&gt;
 &lt;p&gt;整体结构如下：&lt;/p&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost
@@ -6,9 +8,59 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Nginx 443
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 客户端 Gost\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e FreeBSD Nginx 443\n -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost v3 MWS"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;这里有一个关键点：普通用户不能监听 &lt;code&gt;443&lt;/code&gt; 这种低端口，但本方案监听 &lt;code&gt;443/tcp&lt;/code&gt; 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 &lt;code&gt;www&lt;/code&gt; 用户处理请求；Gost 只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，所以可以安全地用专用低权限用户运行。&lt;/p&gt;
+&lt;p&gt;这里有一个关键点：普通用户不能监听 &lt;code&gt;443&lt;/code&gt; 这种低端口，但本方案监听 &lt;code&gt;443/tcp&lt;/code&gt; 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 &lt;code&gt;www&lt;/code&gt; 用户处理请求；Gost 只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，所以可以安全地用专用低权限用户运行。&lt;/p&gt;</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 节点配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>&lt;p&gt;这篇是 FreeBSD 15 上实机验证后的 TCP 代理方案。最终采用：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box 客户端
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; Xray VLESS Reality Vision
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Xray 443/tcp
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 目标网站&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box 客户端\n -\u003e Xray VLESS Reality Vision\n -\u003e FreeBSD Xray 443/tcp\n -\u003e 目标网站"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 &lt;code&gt;443/tcp&lt;/code&gt;；如果同机还跑 Hysteria2，它可以继续监听 &lt;code&gt;443/udp&lt;/code&gt;，二者不冲突。&lt;/p&gt;
 &lt;h2 id="示例信息"&gt;示例信息&lt;/h2&gt;
-&lt;p&gt;本文统一使用公版示例值，部署时替换成自己的真实信息：&lt;/p&gt;</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&lt;/p&gt;
+&lt;p&gt;本文统一使用公版示例值，部署时替换成你自己的真实信息：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;项目&lt;/th&gt;
+ &lt;th&gt;示例值&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;节点域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;proxy.example.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务器公网 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;203.0.113.10&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Xray 入口端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;443/tcp&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY 伪装域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;www.microsoft.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;VLESS 用户 ID&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;00000000-0000-4000-8000-000000000000&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY public key&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;PUBLIC_KEY_HERE&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY short id&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;0123456789abcdef&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;sing-box 节点 tag&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;xray-reality-freebsd&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;命令默认使用 &lt;code&gt;root&lt;/code&gt; 执行。&lt;/p&gt;</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&lt;/p&gt;
 &lt;h2 id="架构说明"&gt;架构说明&lt;/h2&gt;
 &lt;p&gt;访问链路如下：&lt;/p&gt;
 &lt;div class="code-block"&gt;

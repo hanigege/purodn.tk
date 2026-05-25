@@ -1,19 +1,53 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Reality on 电脑自习室</title>
-    <link>http://127.0.0.1:1313/tags/reality/</link>
-    <description>Recent content in Reality on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 24 May 2026 00:00:00 +0800</lastBuildDate>
-    <atom:link href="http://127.0.0.1:1313/tags/reality/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title>
-      <link>http://127.0.0.1:1313/posts/linux/alpine-sing-box-server-brutal/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>http://127.0.0.1:1313/posts/linux/alpine-sing-box-server-brutal/</guid>
-      <description>&lt;p&gt;本文记录在 Alpine Linux 上搭建 &lt;code&gt;sing-box&lt;/code&gt; 服务端的完整流程：从 Edge community 临时安装 &lt;code&gt;sing-box&lt;/code&gt;，编译并加载 &lt;code&gt;tcp-brutal&lt;/code&gt; 内核模块，然后配置 VLESS Reality 入站。&lt;/p&gt;&#xA;&lt;p&gt;本文不需要申请域名证书，Reality 会伪装到指定的 TLS 站点，例如 &lt;code&gt;mirrors.kernel.org&lt;/code&gt;。&lt;/p&gt;&#xA;&lt;h2 id=&#34;一准备系统和组件&#34;&gt;一、准备系统和组件&lt;/h2&gt;&#xA;&lt;p&gt;建议使用 Alpine virt 内核环境，并以 &lt;code&gt;root&lt;/code&gt; 用户执行下面的命令。&lt;/p&gt;&#xA;&lt;p&gt;先安装基础工具：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk update&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk add curl wget bash vim nano jq openssl ca-certificates iproute2&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;apk update\napk add curl wget bash vim nano jq openssl ca-certificates iproute2&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;从 Edge community 临时安装 &lt;code&gt;sing-box&lt;/code&gt;。这种方式只对本次安装使用 Edge community，避免把系统仓库永久混用。&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk update&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;apk update\napk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;设置 &lt;code&gt;sing-box&lt;/code&gt; 开机自启：&lt;/p&gt;</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Reality on 电脑自习室</title><link>https://purodn.tk/tags/reality/</link><description>Recent content in Reality on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/reality/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 节点配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>&lt;p&gt;这篇是 FreeBSD 15 上实机验证后的 TCP 代理方案。最终采用：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box 客户端
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; Xray VLESS Reality Vision
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Xray 443/tcp
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 目标网站&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box 客户端\n -\u003e Xray VLESS Reality Vision\n -\u003e FreeBSD Xray 443/tcp\n -\u003e 目标网站"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 &lt;code&gt;443/tcp&lt;/code&gt;；如果同机还跑 Hysteria2，它可以继续监听 &lt;code&gt;443/udp&lt;/code&gt;，二者不冲突。&lt;/p&gt;
+&lt;h2 id="示例信息"&gt;示例信息&lt;/h2&gt;
+&lt;p&gt;本文统一使用公版示例值，部署时替换成你自己的真实信息：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;项目&lt;/th&gt;
+ &lt;th&gt;示例值&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;节点域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;proxy.example.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务器公网 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;203.0.113.10&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Xray 入口端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;443/tcp&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY 伪装域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;www.microsoft.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;VLESS 用户 ID&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;00000000-0000-4000-8000-000000000000&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY public key&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;PUBLIC_KEY_HERE&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;REALITY short id&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;0123456789abcdef&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;sing-box 节点 tag&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;xray-reality-freebsd&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;命令默认使用 &lt;code&gt;root&lt;/code&gt; 执行。&lt;/p&gt;</description></item></channel></rss>

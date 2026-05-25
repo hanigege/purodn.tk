@@ -212,6 +212,13 @@
 </span></span><span style="display:flex;"><span>  }
 </span></span><span style="display:flex;"><span>};</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.example.com:12335\";\nconst jwtUrl = \"https://matrix-jwt.example.com:12336\";\nconst federationServer = \"matrix.example.com:12335\";\n\nfunction json(data) {\n  return new Response(JSON.stringify(data), {\n    headers: {\n      \"content-type\": \"application/json; charset=utf-8\",\n      \"access-control-allow-origin\": \"*\",\n      \"access-control-allow-methods\": \"GET, OPTIONS\",\n      \"cache-control\": \"no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0\",\n      \"pragma\": \"no-cache\",\n      \"expires\": \"0\"\n    }\n  });\n}\n\nexport default {\n  async fetch(request) {\n    const url = new URL(request.url);\n\n    if (request.method === \"OPTIONS\") {\n      return new Response(null, {\n        status: 204,\n        headers: {\n          \"access-control-allow-origin\": \"*\",\n          \"access-control-allow-methods\": \"GET, OPTIONS\"\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/client\") {\n      return json({\n        \"m.homeserver\": {\n          \"base_url\": homeserverUrl\n        },\n        \"org.matrix.msc4143.rtc_foci\": [\n          {\n            \"type\": \"livekit\",\n            \"livekit_service_url\": jwtUrl\n          }\n        ],\n        \"io.element.rtc\": {\n          \"livekit\": {\n            \"service_url\": jwtUrl\n          }\n        },\n        \"io.element.e2ee\": {\n          \"default\": false,\n          \"force_disable\": true,\n          \"secure_backup_required\": false\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/server\") {\n      return json({\n        \"m.server\": federationServer\n      });\n    }\n\n    return new Response(\"Not Found\", { status: 404 });\n  }\n};"</script>
 </div>
+<p>实际使用时，通常只需要改最上面的三行常量：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">homeserverUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">jwtUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix-jwt.example.com:12336&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">federationServer</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;matrix.example.com:12335&#34;</span>;</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.example.com:12335\";\nconst jwtUrl = \"https://matrix-jwt.example.com:12336\";\nconst federationServer = \"matrix.example.com:12335\";"</script>
+</div>
+<p>把 <code>matrix.example.com</code>、<code>matrix-jwt.example.com</code> 和端口替换成自己的真实地址即可。后面的 <code>m.homeserver</code>、<code>io.element.e2ee</code>、<code>org.matrix.msc4143.rtc_foci</code> 这些字段名不要改，客户端识别的就是这些固定字段。</p>
 <p>如果没有部署 LiveKit，可以删除 <code>jwtUrl</code>、<code>org.matrix.msc4143.rtc_foci</code> 和 <code>io.element.rtc</code> 相关内容，只保留 <code>m.homeserver</code> 与 <code>io.element.e2ee</code>。</p>
 <h2 id="只保留登录与禁用加密的精简版">只保留登录与禁用加密的精简版</h2>
 <p>不使用 LiveKit 时，精简版如下：</p>
@@ -421,9 +428,17 @@
       
       
         <li>
+          <a href="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/">
+            <img src="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">FreeBSD 15 下 Nginx 前置 Gost MWSS 实验留存</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/docker/matrix-worker-well-known-disable-e2ee/">
             <img src="/posts/docker/matrix-worker-well-known-disable-e2ee/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">2</span>
             <span class="latest-title">Matrix 非标准端口用 Cloudflare Worker 让 Element 默认不加密房间</span>
           </a>
         </li>
@@ -431,7 +446,7 @@
         <li>
           <a href="/posts/linux/enable-root-ssh-password-login/">
             <img src="/posts/linux/enable-root-ssh-password-login/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">3</span>
             <span class="latest-title">Linux 临时开启 root 密码 SSH 登录</span>
           </a>
         </li>
@@ -439,7 +454,7 @@
         <li>
           <a href="/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/">
             <img src="/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">Synapse 非 443 端口下禁止用户创建加密房间</span>
           </a>
         </li>
@@ -447,32 +462,24 @@
         <li>
           <a href="/posts/docker/matrix-weatherbot-daily-shanghai/">
             <img src="/posts/docker/matrix-weatherbot-daily-shanghai/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Matrix Synapse 机器人：天气推送与服务器监控提醒</span>
           </a>
         </li>
       
         <li>
-          <a href="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/">
-            <img src="/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">FreeBSD 15 下 Nginx 前置 Gost MWSS 与 sing-box 客户端配置</span>
+          <a href="/posts/freebsd/freebsd15-xray-reality-sing-box/">
+            <img src="/posts/freebsd/freebsd15-xray-reality-sing-box/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">FreeBSD 15 下 Xray VLESS Reality Vision TCP 节点配置</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/linux/gost-mwss-nginx-sing-box/">
             <img src="/posts/linux/gost-mwss-nginx-sing-box/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/docker-data-backup-upload-syncthing-script/">
-            <img src="/posts/linux/docker-data-backup-upload-syncthing-script/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Docker 数据打包上传到 Syncthing 源目录的备份脚本</span>
+            <span class="latest-title">Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</span>
           </a>
         </li>
       
