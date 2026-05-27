@@ -1,36 +1,24 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Linux on 电脑自习室</title><link>https://purodn.tk/categories/linux/</link><description>Recent content in Linux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 26 May 2026 16:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/categories/linux/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title><link>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</link><pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</guid><description>&lt;p&gt;这篇是 Alpine 版的保姆教程。目标很简单：&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Linux on 电脑自习室</title><link>https://purodn.tk/categories/linux/</link><description>Recent content in Linux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 27 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/categories/linux/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
+&lt;p&gt;适用场景：&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;服务端只跑 Hysteria2，监听 &lt;code&gt;443/udp&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;证书、自启动、日志、内核参数一次配好&lt;/li&gt;
-&lt;li&gt;客户端只补一个 outbound，不改现有 TUN 结构&lt;/li&gt;
-&lt;li&gt;节点域名和节点 IP 永远走直连，避免回环&lt;/li&gt;
+&lt;li&gt;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。&lt;/li&gt;
+&lt;li&gt;需要配置 Cloud-Init、SSH、qemu-guest-agent。&lt;/li&gt;
+&lt;li&gt;需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。&lt;/p&gt;
-&lt;h2 id="先说结论"&gt;先说结论&lt;/h2&gt;
-&lt;p&gt;Alpine 很适合这类节点：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;提醒&lt;/strong&gt;：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="一使用-community-scripts-创建-ubuntu-2504-vm"&gt;一、使用 community-scripts 创建 Ubuntu 25.04 VM&lt;/h2&gt;
+&lt;p&gt;项目页面：&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;系统轻&lt;/li&gt;
-&lt;li&gt;OpenRC 简单&lt;/li&gt;
-&lt;li&gt;重装干净&lt;/li&gt;
-&lt;li&gt;资源占用小&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://community-scripts.org/categories?category=operating-systems&amp;amp;preview=ubuntu2504-vm"&gt;Ubuntu 25.04 VM 脚本页面&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/community-scripts/ProxmoxVE"&gt;ProxmoxVE community-scripts 仓库&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;code&gt;443/udp&lt;/code&gt; 是否真放通&lt;/li&gt;
-&lt;li&gt;域名是否正确解析到服务器公网 IP&lt;/li&gt;
-&lt;li&gt;客户端的带宽参数是否和实际家宽大致匹配&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id="1-检查新系统"&gt;1. 检查新系统&lt;/h2&gt;
-&lt;p&gt;先确认系统和基础状态：&lt;/p&gt;
+&lt;p&gt;在 Proxmox VE 节点 Shell 中执行：&lt;/p&gt;
 &lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cat /etc/os-release
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;uname -a
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cat /etc/alpine-release
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ps -ef | grep -i &lt;span style="color:#e6db74"&gt;&amp;#39;[h]ysteria&amp;#39;&lt;/span&gt; &lt;span style="color:#f92672"&gt;||&lt;/span&gt; true
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ss -lntup 2&amp;gt;/dev/null | grep -E &lt;span style="color:#e6db74"&gt;&amp;#39;:443|hysteria|hy2&amp;#39;&lt;/span&gt; &lt;span style="color:#f92672"&gt;||&lt;/span&gt; true
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk --version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cat /etc/os-release\nuname -a\ncat /etc/alpine-release\nps -ef | grep -i '[h]ysteria' || true\nss -lntup 2\u003e/dev/null | grep -E ':443|hysteria|hy2' || true\napk --version"&lt;/script&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh)\""&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;干净的新机一般不会有 Hysteria2 进程，也不会有 &lt;code&gt;443/udp&lt;/code&gt; 监听。&lt;/p&gt;</description></item><item><title>Linux 临时开启 root 密码 SSH 登录</title><link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link><pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid><description>&lt;p&gt;有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 &lt;code&gt;sudo&lt;/code&gt; 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。&lt;/p&gt;
+&lt;p&gt;脚本会交互式创建 Ubuntu 25.04 虚拟机。创建完成后，不要急着启动，先进入虚拟机的 Cloud-Init 页面完成初始化配置。&lt;/p&gt;</description></item><item><title>Linux 临时开启 root 密码 SSH 登录</title><link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link><pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid><description>&lt;p&gt;有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 &lt;code&gt;sudo&lt;/code&gt; 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。&lt;/p&gt;
 &lt;p&gt;本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。&lt;/p&gt;
 &lt;h2 id="1-设置-root-密码"&gt;1. 设置 root 密码&lt;/h2&gt;
 &lt;p&gt;先把 root 密码写入系统。把 &lt;code&gt;YOUR_STRONG_PASSWORD&lt;/code&gt; 换成自己的强密码：&lt;/p&gt;

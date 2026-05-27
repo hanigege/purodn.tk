@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Proxmox Ubuntu VM Docker guide cover</title>
+  <desc id="desc">A Proxmox host creating an Ubuntu virtual machine with Cloud-Init, Docker, Dockge, and Portainer.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141923"/>
+      <stop offset="0.5" stop-color="#21304a"/>
+      <stop offset="1" stop-color="#19332f"/>
+    </linearGradient>
+    <linearGradient id="ubuntu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e95420"/>
+      <stop offset="1" stop-color="#f6a03a"/>
+    </linearGradient>
+    <linearGradient id="docker" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2496ed"/>
+      <stop offset="1" stop-color="#25d0ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 458 C196 390 290 536 492 470 C693 404 801 337 1200 412 L1200 630 L0 630 Z" fill="#0d1218" opacity="0.55"/>
+  <g filter="url(#shadow)">
+    <rect x="100" y="118" width="300" height="360" rx="18" fill="#202b3a" stroke="#7a8ba7" stroke-opacity="0.55"/>
+    <rect x="130" y="152" width="240" height="52" rx="8" fill="#111827"/>
+    <text x="154" y="187" fill="#f6f8fb" font-family="Menlo, monospace" font-size="26">Proxmox VE</text>
+    <rect x="144" y="245" width="72" height="72" rx="12" fill="#2e3b4d"/>
+    <rect x="236" y="245" width="72" height="72" rx="12" fill="#2e3b4d"/>
+    <rect x="144" y="342" width="164" height="58" rx="10" fill="#2e3b4d"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="470" y="96" width="360" height="416" rx="24" fill="#f5f7fb"/>
+    <rect x="500" y="132" width="300" height="58" rx="14" fill="url(#ubuntu)"/>
+    <text x="532" y="170" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Ubuntu 25.04 VM</text>
+    <rect x="522" y="242" width="96" height="78" rx="12" fill="#e8edf5"/>
+    <rect x="638" y="242" width="96" height="78" rx="12" fill="#e8edf5"/>
+    <rect x="522" y="352" width="212" height="78" rx="12" fill="#e8edf5"/>
+    <text x="544" y="290" fill="#273244" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700">Cloud</text>
+    <text x="662" y="290" fill="#273244" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700">Disk</text>
+    <text x="552" y="400" fill="#273244" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">qemu-agent</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="896" y="160" width="220" height="292" rx="18" fill="#172536" stroke="#35bdf8" stroke-opacity="0.45"/>
+    <rect x="930" y="205" width="152" height="62" rx="12" fill="url(#docker)"/>
+    <text x="955" y="244" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="700">Docker</text>
+    <rect x="930" y="306" width="152" height="38" rx="8" fill="#223247"/>
+    <rect x="930" y="364" width="152" height="38" rx="8" fill="#223247"/>
+    <text x="958" y="332" fill="#dff8ff" font-family="Inter, Arial, sans-serif" font-size="18">Dockge</text>
+    <text x="949" y="390" fill="#dff8ff" font-family="Inter, Arial, sans-serif" font-size="18">Portainer</text>
+  </g>
+  <g stroke="#7ce7d0" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.8">
+    <path d="M400 285 H470"/>
+    <path d="M830 285 H896"/>
+    <path d="M650 512 V558 H1006 V452"/>
+  </g>
+  <g fill="#7ce7d0">
+    <circle cx="400" cy="285" r="7"/>
+    <circle cx="470" cy="285" r="7"/>
+    <circle cx="830" cy="285" r="7"/>
+    <circle cx="896" cy="285" r="7"/>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" fill="#f3fbff">
+    <text x="80" y="560" font-size="32" font-weight="800">Proxmox VE Ubuntu VM</text>
+    <text x="80" y="596" font-size="22" fill="#bfd2df">Cloud-Init · Disk Resize · SSH · Docker · Dockge · Portainer</text>
+  </g>
+</svg>
