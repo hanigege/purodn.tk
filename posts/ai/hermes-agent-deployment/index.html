@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway | 电脑自习室</title>
+    <meta name="description" content="介绍 Hermes Agent 的核心能力，并给出 Linux、macOS、WSL、NAS 和服务器环境下的一键安装、Docker Compose、Dashboard、Gateway、systemd 与维护方法。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-05-27">2026年5月27日</time>
+        </div>
+        <h1>Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway</h1>
+          <p>介绍 Hermes Agent 的核心能力，并给出 Linux、macOS、WSL、NAS 和服务器环境下的一键安装、Docker Compose、Dashboard、Gateway、systemd 与维护方法。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-agent-deployment/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Hermes Agent 是 Nous Research 推出的开源 AI Agent 项目，重点能力包括跨会话记忆、技能沉淀、多平台消息网关、模型路由、定时任务和子代理协作。它更适合被部署成长期运行的个人或团队助手，而不是只在一次命令行会话中临时使用。</p>
+<p>本教程整理 Hermes Agent 的常见部署方式：本机一键安装、Dashboard 图形界面、Gateway 后台服务、NAS 或服务器 Docker Compose、源码安装，以及 systemd 托管和卸载维护。</p>
+<blockquote>
+<p><strong>安全提示</strong>：Dashboard 示例使用 <code>--insecure</code>，该模式没有身份验证，可能暴露 API Key 和本机能力。只建议在可信内网或本机临时调试时使用；如果需要公网访问，应先放到具备认证、TLS 和访问控制的反向代理之后。</p>
+</blockquote>
+<h2 id="适用环境">适用环境</h2>
+<p>推荐环境如下：</p>
+<ul>
+<li>Linux 服务器、NAS、macOS 或 WSL2。</li>
+<li>Python 3.11 或可由安装脚本自动准备的 Python 环境。</li>
+<li>可访问模型供应商 API，例如 OpenRouter、NVIDIA API、OpenAI 兼容接口等。</li>
+<li>如果使用 Docker 部署，需要 Docker Engine 和 Compose。</li>
+</ul>
+<p>首次部署前建议准备一个普通用户账号，不要直接使用 <code>root</code> 运行长期 Agent 服务。只有安装 systemd 服务、调整防火墙或管理 Docker 时才使用 <code>sudo</code>。</p>
+<h2 id="hermes-agent-的核心能力">Hermes Agent 的核心能力</h2>
+<p>Hermes Agent 与传统“安装一组固定技能的 Agent”不同，它强调使用过程中的持续学习：</p>
+<table>
+  <thead>
+      <tr>
+          <th>能力</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>持久化记忆</td>
+          <td>可跨会话保存偏好、稳定事实和工作习惯</td>
+      </tr>
+      <tr>
+          <td>Skills</td>
+          <td>将可重复流程沉淀成技能，便于后续复用</td>
+      </tr>
+      <tr>
+          <td>多模型路由</td>
+          <td>可按任务切换或配置不同模型</td>
+      </tr>
+      <tr>
+          <td>消息网关</td>
+          <td>支持 Telegram、Discord、Slack、WhatsApp、Signal、钉钉、飞书、企业微信等入口</td>
+      </tr>
+      <tr>
+          <td>定时任务</td>
+          <td>可通过 Cron 方式执行周期任务</td>
+      </tr>
+      <tr>
+          <td>子代理并行</td>
+          <td>复杂任务可拆分后并行处理，再汇总结果</td>
+      </tr>
+      <tr>
+          <td>Dashboard</td>
+          <td>提供浏览器中的配置和聊天入口</td>
+      </tr>
+  </tbody>
+</table>
+<p>如果与 OpenClaw 这类技能驱动工具比较，可以粗略理解为：OpenClaw 更像“给 Agent 安装技能”，Hermes Agent 更像“让 Agent 在使用中积累记忆和技能”。实际部署时，记忆、Skills 和权限策略需要谨慎维护，避免让临时信息长期影响后续行为。</p>
+<h2 id="方式一一键安装">方式一：一键安装</h2>
+<p>一键安装适合 Linux、macOS 和 WSL2。建议使用普通用户执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"</script>
+</div>
+<p>安装脚本通常会准备 <code>uv</code>、虚拟环境和 Hermes Agent 所需依赖。安装完成后，重新加载 Shell 配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>source ~/.bashrc</span></span></code></pre></div><script class="code-source" type="application/json">"source ~/.bashrc"</script>
+</div>
+<p>如果使用 zsh，也可以根据安装脚本提示加载对应的 <code>~/.zshrc</code>。</p>
+<p>安装完成后还要留意终端提示。如果看到 <code>ripgrep (rg) was not found</code>，说明系统缺少 <code>rg</code>。Hermes/Codebot 在大代码库里搜索文件时会优先使用 <code>ripgrep</code>，没有它也能 fallback 到 <code>grep</code>，但速度和体验都会差很多。</p>
+<p><img src="assets/ripgrep-missing-prompt.png" alt="Hermes 安装后提示缺少 ripgrep"></p>
+<p>Debian、Ubuntu 和 Proxmox LXC 常用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt install ripgrep -y</span></span></code></pre></div><script class="code-source" type="application/json">"sudo apt install ripgrep -y"</script>
+</div>
+<p>macOS 常用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>brew install ripgrep</span></span></code></pre></div><script class="code-source" type="application/json">"brew install ripgrep"</script>
+</div>
+<p>Alpine 常用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apk add ripgrep</span></span></code></pre></div><script class="code-source" type="application/json">"sudo apk add ripgrep"</script>
+</div>
+<p>装完后确认：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rg --version</span></span></code></pre></div><script class="code-source" type="application/json">"rg --version"</script>
+</div>
+<h2 id="首次启动与-api-key-配置">首次启动与 API Key 配置</h2>
+<p>命令行交互模式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes</span></span></code></pre></div><script class="code-source" type="application/json">"hermes"</script>
+</div>
+<p>首次启动时会进入初始化流程，引导填写模型供应商、API Key 和默认模型。也可以显式执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes setup</span></span></code></pre></div><script class="code-source" type="application/json">"hermes setup"</script>
+</div>
+<p>API Key 通常会写入：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/.env</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/.env"</script>
+</div>
+<p>配置文件通常位于：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/config.yaml"</script>
+</div>
+<p>数据目录通常包含：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/cron/
+</span></span><span style="display:flex;"><span>~/.hermes/sessions/
+</span></span><span style="display:flex;"><span>~/.hermes/logs/</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/cron/\n~/.hermes/sessions/\n~/.hermes/logs/"</script>
+</div>
+<h2 id="dashboard-图形界面">Dashboard 图形界面</h2>
+<p>如果希望通过浏览器完成配置和聊天，可以启动 Dashboard：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes dashboard --host 0.0.0.0 --port <span style="color:#ae81ff">9119</span> --tui --insecure</span></span></code></pre></div><script class="code-source" type="application/json">"hermes dashboard --host 0.0.0.0 --port 9119 --tui --insecure"</script>
+</div>
+<p>随后访问：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://服务器IP:9119</span></span></code></pre></div><script class="code-source" type="application/json">"http://服务器IP:9119"</script>
+</div>
+<p>常见配置流程：</p>
+<ol>
+<li>打开 Dashboard。</li>
+<li>进入 <code>Settings</code> 或 <code>Model</code>。</li>
+<li>在 API Keys 区域填入模型供应商密钥，例如 NVIDIA API Key。</li>
+<li>在 Model 区域选择默认模型，例如 <code>minimaxai/minimax-m2.7</code> 或其他可用模型。</li>
+<li>回到 Chat 页面测试一次普通对话。</li>
+</ol>
+<p>Dashboard 只适合在可信网络中使用。需要远程访问时，应优先使用 VPN、SSH 隧道或带认证的反向代理。</p>
+<h2 id="gateway-后台服务">Gateway 后台服务</h2>
+<p>Gateway 适合长期运行，用来接入 Telegram、Discord、Slack 等消息平台，也可以承载后台任务。安装为系统服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway install
+</span></span><span style="display:flex;"><span>hermes gateway start
+</span></span><span style="display:flex;"><span>hermes gateway status</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway install\nhermes gateway start\nhermes gateway status"</script>
+</div>
+<p>常用命令：</p>
+<table>
+  <thead>
+      <tr>
+          <th>命令</th>
+          <th>作用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>hermes gateway start</code></td>
+          <td>启动后台服务</td>
+      </tr>
+      <tr>
+          <td><code>hermes gateway stop</code></td>
+          <td>停止后台服务</td>
+      </tr>
+      <tr>
+          <td><code>hermes gateway restart</code></td>
+          <td>重启后台服务</td>
+      </tr>
+      <tr>
+          <td><code>hermes gateway status</code></td>
+          <td>查看服务状态</td>
+      </tr>
+      <tr>
+          <td><code>hermes gateway uninstall</code></td>
+          <td>移除后台服务</td>
+      </tr>
+  </tbody>
+</table>
+<p>WSL 的 systemd 支持可能不稳定，如果 Gateway 服务无法正常托管，可以临时使用 tmux：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux new -s hermes <span style="color:#e6db74">&#39;hermes gateway run&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"tmux new -s hermes 'hermes gateway run'"</script>
+</div>
+<h2 id="方式二docker-compose-部署">方式二：Docker Compose 部署</h2>
+<p>NAS 或服务器环境可以使用 Docker Compose。先创建目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p ~/docker/hermes
+</span></span><span style="display:flex;"><span>cd ~/docker/hermes</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p ~/docker/hermes\ncd ~/docker/hermes"</script>
+</div>
+<p>创建 <code>docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">x-common</span>: <span style="color:#75715e">&amp;common</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nousresearch/hermes-agent:latest</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">./hermes:/opt/data</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">HERMES_UID=1000</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">HERMES_GID=1000</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">GATEWAY_ALLOW_ALL_USERS=true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">gateway</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;&lt;</span>: <span style="color:#75715e">*common</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">hermes-gateway</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;hermes&#34;</span>, <span style="color:#e6db74">&#34;gateway&#34;</span>, <span style="color:#e6db74">&#34;run&#34;</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">dashboard</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;&lt;</span>: <span style="color:#75715e">*common</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">hermes-dashboard</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;9119:9119&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;hermes&#34;</span>, <span style="color:#e6db74">&#34;dashboard&#34;</span>, <span style="color:#e6db74">&#34;--host&#34;</span>, <span style="color:#e6db74">&#34;0.0.0.0&#34;</span>, <span style="color:#e6db74">&#34;--port&#34;</span>, <span style="color:#e6db74">&#34;9119&#34;</span>, <span style="color:#e6db74">&#34;--tui&#34;</span>, <span style="color:#e6db74">&#34;--no-open&#34;</span>, <span style="color:#e6db74">&#34;--insecure&#34;</span>]</span></span></code></pre></div><script class="code-source" type="application/json">"x-common: \u0026common\n  image: nousresearch/hermes-agent:latest\n  volumes:\n    - ./hermes:/opt/data\n  environment:\n    - HERMES_UID=1000\n    - HERMES_GID=1000\n    - GATEWAY_ALLOW_ALL_USERS=true\n  restart: unless-stopped\n\nservices:\n  gateway:\n    \u003c\u003c: *common\n    container_name: hermes-gateway\n    network_mode: host\n    command: [\"hermes\", \"gateway\", \"run\"]\n\n  dashboard:\n    \u003c\u003c: *common\n    container_name: hermes-dashboard\n    ports:\n      - \"9119:9119\"\n    command: [\"hermes\", \"dashboard\", \"--host\", \"0.0.0.0\", \"--port\", \"9119\", \"--tui\", \"--no-open\", \"--insecure\"]"</script>
+</div>
+<p>启动服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<p>查看日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose logs -f</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose logs -f"</script>
+</div>
+<p>停止服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose down</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose down"</script>
+</div>
+<p>该 Compose 会把 Hermes 数据持久化到当前目录下的 <code>./hermes</code>。迁移或备份时，应优先备份这个目录。</p>
+<h2 id="方式三源码安装">方式三：源码安装</h2>
+<p>需要开发、调试或使用最新代码时，可以从源码安装：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -LsSf https://astral.sh/uv/install.sh | sh
+</span></span><span style="display:flex;"><span>source ~/.bashrc
+</span></span><span style="display:flex;"><span>git clone --recurse-submodules https://github.com/NousResearch/hermes-agent.git
+</span></span><span style="display:flex;"><span>cd hermes-agent
+</span></span><span style="display:flex;"><span>uv venv --python 3.11
+</span></span><span style="display:flex;"><span>source .venv/bin/activate
+</span></span><span style="display:flex;"><span>uv pip install -e <span style="color:#e6db74">&#34;.[all,dev]&#34;</span>
+</span></span><span style="display:flex;"><span>mkdir -p ~/.hermes
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#39;NVIDIA_API_KEY=&lt;替换为你的Nvidia API Key&gt;&#39;</span> &gt; ~/.hermes/.env
+</span></span><span style="display:flex;"><span>hermes setup
+</span></span><span style="display:flex;"><span>hermes</span></span></code></pre></div><script class="code-source" type="application/json">"curl -LsSf https://astral.sh/uv/install.sh | sh\nsource ~/.bashrc\ngit clone --recurse-submodules https://github.com/NousResearch/hermes-agent.git\ncd hermes-agent\nuv venv --python 3.11\nsource .venv/bin/activate\nuv pip install -e \".[all,dev]\"\nmkdir -p ~/.hermes\necho 'NVIDIA_API_KEY=\u003c替换为你的Nvidia API Key\u003e' \u003e ~/.hermes/.env\nhermes setup\nhermes"</script>
+</div>
+<p>如果是 zsh，请按 <code>uv</code> 安装后的提示加载对应配置文件。</p>
+<h2 id="使用独立普通用户运行">使用独立普通用户运行</h2>
+<p>服务器长期运行时，建议创建独立用户：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo useradd -m -s /bin/bash hermesuser
+</span></span><span style="display:flex;"><span>sudo passwd hermesuser
+</span></span><span style="display:flex;"><span>sudo su - hermesuser</span></span></code></pre></div><script class="code-source" type="application/json">"sudo useradd -m -s /bin/bash hermesuser\nsudo passwd hermesuser\nsudo su - hermesuser"</script>
+</div>
+<p>之后在 <code>hermesuser</code> 账号中安装和配置 Hermes Agent。这样可以降低 Agent 服务对系统其他目录的访问范围。</p>
+<p>后面执行 <code>hermes gateway install</code> 时，如果出现安装方式选择，要按运行身份来选：</p>
+<table>
+  <thead>
+      <tr>
+          <th>选项</th>
+          <th>适合场景</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>第一个：当前用户级 Gateway</td>
+          <td>推荐给 <code>hermesuser</code> 这类普通用户</td>
+          <td>生成 <code>systemd --user</code> 服务，只在当前用户权限内运行，最适合长期自用和独立普通用户部署。</td>
+      </tr>
+      <tr>
+          <td>第二个：系统级 Gateway</td>
+          <td>只建议 root 或明确需要系统级守护进程时使用</td>
+          <td>通常会写入 <code>/etc/systemd/system/</code>，服务以系统服务方式运行，权限范围更大，不适合普通用户随手选择。</td>
+      </tr>
+      <tr>
+          <td>第三个：手动或非 systemd 托管模式</td>
+          <td>没有 systemd、临时调试、WSL 或想放到 tmux/supervisor 里时使用</td>
+          <td>这类模式一般不会自动安装随用户登录启动的服务，需要自己用 <code>hermes gateway run</code>、tmux 或其他进程管理器保持运行。</td>
+      </tr>
+  </tbody>
+</table>
+<p>所以如果已经切到 <code>hermesuser</code>，并且目标是让 Telegram Gateway 在这个普通用户下面长期运行，优先选择第一个用户级服务。不要因为第二个看起来更“系统化”就选它；那是给 root 或系统级部署准备的。</p>
+<h2 id="systemd-托管-dashboard">systemd 托管 Dashboard</h2>
+<p>如果需要让 Dashboard 随系统启动，可以创建 systemd 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nano /etc/systemd/system/hermes-dashboard.service</span></span></code></pre></div><script class="code-source" type="application/json">"sudo nano /etc/systemd/system/hermes-dashboard.service"</script>
+</div>
+<p>写入以下内容，并把 <code>User</code> 和 <code>ExecStart</code> 路径替换为实际用户名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#66d9ef">[Unit]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Description</span><span style="color:#f92672">=</span><span style="color:#e6db74">Hermes Dashboard</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">After</span><span style="color:#f92672">=</span><span style="color:#e6db74">network.target</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Service]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Type</span><span style="color:#f92672">=</span><span style="color:#e6db74">simple</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">User</span><span style="color:#f92672">=</span><span style="color:#e6db74">你的用户名</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/你的用户名/.local/bin/hermes dashboard --port 9119 --tui --insecure</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Restart</span><span style="color:#f92672">=</span><span style="color:#e6db74">always</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Install]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">WantedBy</span><span style="color:#f92672">=</span><span style="color:#e6db74">multi-user.target</span></span></span></code></pre></div><script class="code-source" type="application/json">"[Unit]\nDescription=Hermes Dashboard\nAfter=network.target\n\n[Service]\nType=simple\nUser=你的用户名\nExecStart=/home/你的用户名/.local/bin/hermes dashboard --port 9119 --tui --insecure\nRestart=always\n\n[Install]\nWantedBy=multi-user.target"</script>
+</div>
+<p>启用并启动服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl daemon-reload
+</span></span><span style="display:flex;"><span>sudo systemctl enable hermes-dashboard
+</span></span><span style="display:flex;"><span>sudo systemctl start hermes-dashboard
+</span></span><span style="display:flex;"><span>sudo systemctl status hermes-dashboard</span></span></code></pre></div><script class="code-source" type="application/json">"sudo systemctl daemon-reload\nsudo systemctl enable hermes-dashboard\nsudo systemctl start hermes-dashboard\nsudo systemctl status hermes-dashboard"</script>
+</div>
+<p>如果希望监听所有网卡，可在 <code>ExecStart</code> 中增加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--host 0.0.0.0</span></span></code></pre></div><script class="code-source" type="application/json">"--host 0.0.0.0"</script>
+</div>
+<p>同样需要注意，<code>--insecure</code> 不应直接暴露到公网。</p>
+<h2 id="更新诊断与卸载">更新、诊断与卸载</h2>
+<p>查看版本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --version</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --version"</script>
+</div>
+<p>诊断常见问题：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes doctor</span></span></code></pre></div><script class="code-source" type="application/json">"hermes doctor"</script>
+</div>
+<p>普通卸载：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes uninstall</span></span></code></pre></div><script class="code-source" type="application/json">"hermes uninstall"</script>
+</div>
+<p>完整卸载：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes uninstall --full --yes</span></span></code></pre></div><script class="code-source" type="application/json">"hermes uninstall --full --yes"</script>
+</div>
+<p>完整卸载前应备份 <code>~/.hermes/</code>，尤其是配置文件、API Key、记忆、Skills、sessions 和 logs。</p>
+<h2 id="部署检查清单">部署检查清单</h2>
+<p>完成部署后建议逐项确认：</p>
+<ol>
+<li><code>hermes --version</code> 能正常输出版本。</li>
+<li><code>hermes doctor</code> 没有关键错误。</li>
+<li>Dashboard 能在预期地址打开。</li>
+<li>默认模型能完成一次普通对话。</li>
+<li>Gateway 状态正常。</li>
+<li>如果配置了 Telegram 等消息平台，普通消息和需要确认的操作都能正常流转。</li>
+<li>API Key、配置目录和数据目录已经纳入备份策略。</li>
+<li>Dashboard 没有直接暴露到公网。</li>
+</ol>
+<h2 id="维护建议">维护建议</h2>
+<p>Hermes Agent 的价值来自长期使用，但长期运行也需要边界：</p>
+<ul>
+<li>Memory 只保存长期偏好、稳定事实和可复用习惯，不保存临时猜测、Token、密码或一次性任务状态。</li>
+<li>Skills 只沉淀明确、可重复、有验证步骤的流程。</li>
+<li>Telegram 等消息入口建议只显示最终回答和必要确认，调试日志保留在 CLI 或日志文件中。</li>
+<li>破坏性命令、生产环境写操作、DNS、证书、数据库和公网暴露相关操作应保留审批。</li>
+<li>多用途场景建议拆分 profiles，例如 <code>daily</code>、<code>dev</code>、<code>ops</code>，避免记忆和权限互相污染。</li>
+</ul>
+<p>这样部署出来的 Hermes Agent 更适合作为稳定、可维护的长期助手，而不是一次性实验环境。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-codebot-second-gateway-runbook/">
+            <img src="/posts/ai/hermes-codebot-second-gateway-runbook/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes Codebot 第二个 Telegram Gateway 复盘手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-telegram-quiet-mode-restore/">
+            <img src="/posts/ai/hermes-telegram-quiet-mode-restore/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Telegram 安静模式恢复手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-handmade-tuning/">
+            <img src="/posts/ai/hermes-agent-handmade-tuning/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-deployment/">
+            <img src="/posts/ai/hermes-agent-deployment/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-ubuntu2504-vm-docker/">
+            <img src="/posts/linux/proxmox-ubuntu2504-vm-docker/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/lol-riot-realip-mosdns-sing-box/">
+            <img src="/posts/linux/lol-riot-realip-mosdns-sing-box/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-hysteria2-sing-box-production/">
+            <img src="/posts/linux/alpine-hysteria2-sing-box-production/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

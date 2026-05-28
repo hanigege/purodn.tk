@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>部署 on 电脑自习室</title>
+    <link>http://127.0.0.1:1313/tags/%E9%83%A8%E7%BD%B2/</link>
+    <description>Recent content in 部署 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 27 May 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/%E9%83%A8%E7%BD%B2/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway</title>
+      <link>http://127.0.0.1:1313/posts/ai/hermes-agent-deployment/</link>
+      <pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/ai/hermes-agent-deployment/</guid>
+      <description>&lt;p&gt;Hermes Agent 是 Nous Research 推出的开源 AI Agent 项目，重点能力包括跨会话记忆、技能沉淀、多平台消息网关、模型路由、定时任务和子代理协作。它更适合被部署成长期运行的个人或团队助手，而不是只在一次命令行会话中临时使用。&lt;/p&gt;&#xA;&lt;p&gt;本教程整理 Hermes Agent 的常见部署方式：本机一键安装、Dashboard 图形界面、Gateway 后台服务、NAS 或服务器 Docker Compose、源码安装，以及 systemd 托管和卸载维护。&lt;/p&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;安全提示&lt;/strong&gt;：Dashboard 示例使用 &lt;code&gt;--insecure&lt;/code&gt;，该模式没有身份验证，可能暴露 API Key 和本机能力。只建议在可信内网或本机临时调试时使用；如果需要公网访问，应先放到具备认证、TLS 和访问控制的反向代理之后。&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;h2 id=&#34;适用环境&#34;&gt;适用环境&lt;/h2&gt;&#xA;&lt;p&gt;推荐环境如下：&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;Linux 服务器、NAS、macOS 或 WSL2。&lt;/li&gt;&#xA;&lt;li&gt;Python 3.11 或可由安装脚本自动准备的 Python 环境。&lt;/li&gt;&#xA;&lt;li&gt;可访问模型供应商 API，例如 OpenRouter、NVIDIA API、OpenAI 兼容接口等。&lt;/li&gt;&#xA;&lt;li&gt;如果使用 Docker 部署，需要 Docker Engine 和 Compose。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;首次部署前建议准备一个普通用户账号，不要直接使用 &lt;code&gt;root&lt;/code&gt; 运行长期 Agent 服务。只有安装 systemd 服务、调整防火墙或管理 Docker 时才使用 &lt;code&gt;sudo&lt;/code&gt;。&lt;/p&gt;&#xA;&lt;h2 id=&#34;hermes-agent-的核心能力&#34;&gt;Hermes Agent 的核心能力&lt;/h2&gt;&#xA;&lt;p&gt;Hermes Agent 与传统“安装一组固定技能的 Agent”不同，它强调使用过程中的持续学习：&lt;/p&gt;&#xA;&lt;table&gt;&#xA;  &lt;thead&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;th&gt;能力&lt;/th&gt;&#xA;          &lt;th&gt;说明&lt;/th&gt;&#xA;      &lt;/tr&gt;&#xA;  &lt;/thead&gt;&#xA;  &lt;tbody&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;持久化记忆&lt;/td&gt;&#xA;          &lt;td&gt;可跨会话保存偏好、稳定事实和工作习惯&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;Skills&lt;/td&gt;&#xA;          &lt;td&gt;将可重复流程沉淀成技能，便于后续复用&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;多模型路由&lt;/td&gt;&#xA;          &lt;td&gt;可按任务切换或配置不同模型&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;消息网关&lt;/td&gt;&#xA;          &lt;td&gt;支持 Telegram、Discord、Slack、WhatsApp、Signal、钉钉、飞书、企业微信等入口&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;定时任务&lt;/td&gt;&#xA;          &lt;td&gt;可通过 Cron 方式执行周期任务&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;子代理并行&lt;/td&gt;&#xA;          &lt;td&gt;复杂任务可拆分后并行处理，再汇总结果&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;td&gt;Dashboard&lt;/td&gt;&#xA;          &lt;td&gt;提供浏览器中的配置和聊天入口&lt;/td&gt;&#xA;      &lt;/tr&gt;&#xA;  &lt;/tbody&gt;&#xA;&lt;/table&gt;&#xA;&lt;p&gt;如果与 OpenClaw 这类技能驱动工具比较，可以粗略理解为：OpenClaw 更像“给 Agent 安装技能”，Hermes Agent 更像“让 Agent 在使用中积累记忆和技能”。实际部署时，记忆、Skills 和权限策略需要谨慎维护，避免让临时信息长期影响后续行为。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

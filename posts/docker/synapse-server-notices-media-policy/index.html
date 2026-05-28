@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matrix Synapse Server Notices：给用户发送媒体清理规则通知 | 电脑自习室</title>
+    <meta name="description" content="用 Synapse Server Notices 给本服用户发送媒体维护规则通知，说明 5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理，并提供单用户测试、批量发送脚本和常见错误排查。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-22">2026年5月22日</time>
+        </div>
+        <h1>Matrix Synapse Server Notices：给用户发送媒体清理规则通知</h1>
+          <p>用 Synapse Server Notices 给本服用户发送媒体维护规则通知，说明 5MiB 以内文件长期保留，超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理，并提供单用户测试、批量发送脚本和常见错误排查。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/synapse-server-notices-media-policy/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>自建 Matrix Synapse 做媒体维护之前，最好先告诉用户规则。否则用户只知道“为什么不建议发大文件”，不知道服务器正在控制媒体仓库体积。</p>
+<p>这里说的 <code>media_store</code> 不是“视频文件夹”。它是 Synapse 的媒体仓库，聊天里上传或缓存下来的媒体类内容都会放到这里。常见内容包括：</p>
+<ul>
+<li>聊天图片、截图、表情包、动图和视频。</li>
+<li>语音消息、音频文件、PDF、压缩包、文档等普通附件。</li>
+<li>用户头像和房间头像。</li>
+<li>Synapse 为图片、视频等生成的缩略图。</li>
+<li>远程服务器媒体缓存，也就是本服用户查看过的其他服务器上的图片或文件副本。</li>
+<li>URL 预览缓存，例如链接预览抓取到的图片和缩略图。</li>
+</ul>
+<p>所以媒体维护规则影响的不是某一种文件，而是整个 Synapse 媒体仓库。本地上传的大图片、动图、视频、语音、文档和压缩包都会按大小和时间进入清理规则；远程服务器媒体缓存会定期清理；头像和房间头像也建议控制在 5MiB 以内，避免变成长期的大媒体负担。</p>
+<p>本文目标是用 Synapse 官方的 Server Notices 给本服用户发送一条系统通知，内容类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>5MiB 以内文件长期保留
+</span></span><span style="display:flex;"><span>超过 5MiB 的文件，90 天后清理
+</span></span><span style="display:flex;"><span>超过 100MiB 的超大文件 7 天后清理
+</span></span><span style="display:flex;"><span>重要文件请自行保存</span></span></code></pre></div><script class="code-source" type="application/json">"5MiB 以内文件长期保留\n超过 5MiB 的文件，90 天后清理\n超过 100MiB 的超大文件 7 天后清理\n重要文件请自行保存"</script>
+</div>
+<p>这里不是做“每次上传都实时提醒”。实时拦截上传需要额外模块或反代日志分析，复杂度更高。Server Notices 更适合做上线公告、规则变更通知和新用户补发。</p>
+<p>关于头像这条规则要先说清楚：清理脚本使用 <code>keep_profiles=true</code>，会尽量保留仍被用户头像、房间头像等 profile image 使用的媒体。通知里写“头像和房间头像建议不要超过 5MiB”，主要是为了减少客户端加载压力和长期存储负担。</p>
+<p>官方参考：</p>
+<ul>
+<li>Server Notices 配置说明：<a href="https://element-hq.github.io/synapse/latest/server_notices.html">https://element-hq.github.io/synapse/latest/server_notices.html</a></li>
+<li>Server Notices Admin API：<a href="https://element-hq.github.io/synapse/latest/admin_api/server_notices.html">https://element-hq.github.io/synapse/latest/admin_api/server_notices.html</a></li>
+</ul>
+<h2 id="一准备信息">一、准备信息</h2>
+<p>下面示例统一使用这些占位值：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Matrix server_name: 666666.xyz
+</span></span><span style="display:flex;"><span>Synapse 本机地址: http://127.0.0.1:8008
+</span></span><span style="display:flex;"><span>管理员 token 文件: /root/.config/synapse-admin/access_token
+</span></span><span style="display:flex;"><span>Server Notices 系统账号: @server:666666.xyz
+</span></span><span style="display:flex;"><span>测试接收用户: @alice:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"Matrix server_name: 666666.xyz\nSynapse 本机地址: http://127.0.0.1:8008\n管理员 token 文件: /root/.config/synapse-admin/access_token\nServer Notices 系统账号: @server:666666.xyz\n测试接收用户: @alice:666666.xyz"</script>
+</div>
+<p>实际操作时必须改成自己的值：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>666666.xyz                              改成你的 Matrix server_name
+</span></span><span style="display:flex;"><span>@server:666666.xyz                      改成你的 Server Notices 系统账号
+</span></span><span style="display:flex;"><span>@alice:666666.xyz                       改成要测试接收通知的真实用户
+</span></span><span style="display:flex;"><span>/root/.config/synapse-admin/access_token 改成你实际保存管理员 token 的文件路径</span></span></code></pre></div><script class="code-source" type="application/json">"666666.xyz                              改成你的 Matrix server_name\n@server:666666.xyz                      改成你的 Server Notices 系统账号\n@alice:666666.xyz                       改成要测试接收通知的真实用户\n/root/.config/synapse-admin/access_token 改成你实际保存管理员 token 的文件路径"</script>
+</div>
+<p>文中的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\""</script>
+</div>
+<p>不是固定 token。它的意思是从 <code>TOKEN_FILE</code> 读取你自己的 Synapse 管理员 access token。如果你的 token 存在别的位置，要同步改掉 <code>TOKEN_FILE</code>。</p>
+<p>先确认 token 有效：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  http://127.0.0.1:8008/_matrix/client/v3/account/whoami
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo</span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\ncurl -sS \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  http://127.0.0.1:8008/_matrix/client/v3/account/whoami\n\necho"</script>
+</div>
+<p>正常会返回类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;user_id&#34;</span>:<span style="color:#e6db74">&#34;@media_purge_admin:666666.xyz&#34;</span>,<span style="color:#f92672">&#34;is_guest&#34;</span>:<span style="color:#66d9ef">false</span>,<span style="color:#f92672">&#34;device_id&#34;</span>:<span style="color:#e6db74">&#34;MEDIA_PURGE_CRON&#34;</span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"user_id\":\"@media_purge_admin:666666.xyz\",\"is_guest\":false,\"device_id\":\"MEDIA_PURGE_CRON\"}"</script>
+</div>
+<p>再确认它能访问 Admin API：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS -o /tmp/synapse-admin-check.json -w <span style="color:#e6db74">&#39;http_code=%{http_code}\n&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#39;http://127.0.0.1:8008/_synapse/admin/v2/users?from=0&amp;limit=1&amp;guests=false&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cat /tmp/synapse-admin-check.json
+</span></span><span style="display:flex;"><span>echo
+</span></span><span style="display:flex;"><span>rm -f /tmp/synapse-admin-check.json</span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\ncurl -sS -o /tmp/synapse-admin-check.json -w 'http_code=%{http_code}\\n' \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  'http://127.0.0.1:8008/_synapse/admin/v2/users?from=0\u0026limit=1\u0026guests=false'\n\ncat /tmp/synapse-admin-check.json\necho\nrm -f /tmp/synapse-admin-check.json"</script>
+</div>
+<p>看到 <code>http_code=200</code> 才继续。<code>401</code> 通常是 token 失效，<code>403</code> 通常是这个用户不是管理员。</p>
+<h2 id="二检查系统通知账号是否被占用">二、检查系统通知账号是否被占用</h2>
+<p>Server Notices 需要一个本地系统账号。本文使用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@server:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"@server:666666.xyz"</script>
+</div>
+<p>先查这个用户是否已经存在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS -o /tmp/server-user-check.json -w <span style="color:#e6db74">&#39;http_code=%{http_code}\n&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#39;http://127.0.0.1:8008/_synapse/admin/v2/users/@server:666666.xyz&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cat /tmp/server-user-check.json
+</span></span><span style="display:flex;"><span>echo
+</span></span><span style="display:flex;"><span>rm -f /tmp/server-user-check.json</span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\ncurl -sS -o /tmp/server-user-check.json -w 'http_code=%{http_code}\\n' \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  'http://127.0.0.1:8008/_synapse/admin/v2/users/@server:666666.xyz'\n\ncat /tmp/server-user-check.json\necho\nrm -f /tmp/server-user-check.json"</script>
+</div>
+<p>如果返回类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http_code=404</span></span></code></pre></div><script class="code-source" type="application/json">"http_code=404"</script>
+</div>
+<p>并且 JSON 里有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;errcode&#34;</span>:<span style="color:#e6db74">&#34;M_NOT_FOUND&#34;</span>,<span style="color:#f92672">&#34;error&#34;</span>:<span style="color:#e6db74">&#34;User not found&#34;</span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"errcode\":\"M_NOT_FOUND\",\"error\":\"User not found\"}"</script>
+</div>
+<p>说明 <code>@server:666666.xyz</code> 没有被普通用户占用，可以作为 Server Notices 系统账号。</p>
+<p>如果返回 <code>200</code>，说明这个用户已经存在。不要直接拿已存在的普通用户当系统通知账号，建议换一个 localpart，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@notice:666666.xyz
+</span></span><span style="display:flex;"><span>@server_notice:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"@notice:666666.xyz\n@server_notice:666666.xyz"</script>
+</div>
+<p>后文配置里的 <code>system_mxid_localpart</code> 也要跟着改。</p>
+<h2 id="三启用-server-notices">三、启用 Server Notices</h2>
+<p>编辑 Synapse 配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /root/data/docker_data/synapse/data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"vi /root/data/docker_data/synapse/data/homeserver.yaml"</script>
+</div>
+<p>在文件末尾加入：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">server_notices</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_localpart</span>: <span style="color:#ae81ff">server</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_display_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">room_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">auto_join</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"server_notices:\n  system_mxid_localpart: server\n  system_mxid_display_name: \"服务器通知\"\n  room_name: \"服务器通知\"\n  auto_join: true"</script>
+</div>
+<p>这里的 <code>system_mxid_localpart: server</code> 会生成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@server:&lt;你的 server_name&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"@server:\u003c你的 server_name\u003e"</script>
+</div>
+<p>如果你想使用 <code>@notice:666666.xyz</code>，就写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">server_notices</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_localpart</span>: <span style="color:#ae81ff">notice</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_display_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">room_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">auto_join</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"server_notices:\n  system_mxid_localpart: notice\n  system_mxid_display_name: \"服务器通知\"\n  room_name: \"服务器通知\"\n  auto_join: true"</script>
+</div>
+<p>重启 Synapse：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
+</span></span><span style="display:flex;"><span>docker compose restart synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose restart synapse"</script>
+</div>
+<p>等接口恢复：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -i http://127.0.0.1:8008/_matrix/client/versions</span></span></code></pre></div><script class="code-source" type="application/json">"curl -i http://127.0.0.1:8008/_matrix/client/versions"</script>
+</div>
+<p>如果返回 <code>HTTP/1.1 200 OK</code>，说明 Synapse 已恢复。</p>
+<h2 id="四先给单个用户测试">四、先给单个用户测试</h2>
+<p>不要一上来群发。先挑一个自己的测试用户，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@alice:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"@alice:666666.xyz"</script>
+</div>
+<p>生成通知 JSON：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39; &gt; /tmp/media-policy-notice.json
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import json
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">body = &#34;&#34;&#34;【服务器媒体保留规则】
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">为了避免 Matrix 媒体仓库长期堆积大文件，本服务器已启用媒体分层清理：
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 5MiB 以内文件长期保留。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 5MiB 的文件，90 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 100MiB 的超大文件 7 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">请自行保存重要大文件。&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(json.dumps({
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;user_id&#34;: &#34;@alice:666666.xyz&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;content&#34;: {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;msgtype&#34;: &#34;m.notice&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;body&#34;: body,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    },
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}, ensure_ascii=False))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"python3 - \u003c\u003c'PY' \u003e /tmp/media-policy-notice.json\nimport json\n\nbody = \"\"\"【服务器媒体保留规则】\n\n为了避免 Matrix 媒体仓库长期堆积大文件，本服务器已启用媒体分层清理：\n\n- 5MiB 以内文件长期保留。\n- 超过 5MiB 的文件，90 天后清理。\n- 超过 100MiB 的超大文件 7 天后清理。\n\n请自行保存重要大文件。\"\"\"\n\nprint(json.dumps({\n    \"user_id\": \"@alice:666666.xyz\",\n    \"content\": {\n        \"msgtype\": \"m.notice\",\n        \"body\": body,\n    },\n}, ensure_ascii=False))\nPY"</script>
+</div>
+<p>把 <code>@alice:666666.xyz</code> 改成真实测试用户，然后发送：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS -X PUT <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Content-Type: application/json&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  --data @/tmp/media-policy-notice.json <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#39;http://127.0.0.1:8008/_synapse/admin/v1/send_server_notice/media-policy-v4-tiered-alice&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo
+</span></span><span style="display:flex;"><span>rm -f /tmp/media-policy-notice.json</span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\ncurl -sS -X PUT \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  -H \"Content-Type: application/json\" \\\n  --data @/tmp/media-policy-notice.json \\\n  'http://127.0.0.1:8008/_synapse/admin/v1/send_server_notice/media-policy-v4-tiered-alice'\n\necho\nrm -f /tmp/media-policy-notice.json"</script>
+</div>
+<p>正常会返回类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;event_id&#34;</span>:<span style="color:#e6db74">&#34;$example_event_id&#34;</span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"event_id\":\"$example_event_id\"}"</script>
+</div>
+<p>然后登录测试用户，确认能看到一个名为“服务器通知”的房间和刚才那条通知。</p>
+<p>这里的 URL 最后有一个 <code>media-policy-v4-tiered-alice</code>，它是 transaction id。相同 transaction id 重复请求时，Synapse 会按幂等逻辑处理，避免重复发送同一条通知。</p>
+<h2 id="五批量发送给本服用户">五、批量发送给本服用户</h2>
+<p>单用户测试正常后，可以写成脚本批量发送。</p>
+<p>创建脚本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/synapse/scripts
+</span></span><span style="display:flex;"><span>vi /root/data/docker_data/synapse/scripts/send-media-policy-notice.py</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/synapse/scripts\nvi /root/data/docker_data/synapse/scripts/send-media-policy-notice.py"</script>
+</div>
+<p>脚本内容如下。注意先改 <code>SERVER_NAME</code>、<code>TOKEN_PATH</code> 和 <code>EXCLUDE</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env python3</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> json
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> urllib.error
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> urllib.parse
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> urllib.request
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>BASE <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;http://127.0.0.1:8008&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN_PATH <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>SERVER_NAME <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;666666.xyz&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 不给媒体清理专用账号和 Server Notices 系统账号发通知。</span>
+</span></span><span style="display:flex;"><span>EXCLUDE <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;@media_purge_admin:</span><span style="color:#e6db74">{</span>SERVER_NAME<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;@server:</span><span style="color:#e6db74">{</span>SERVER_NAME<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 规则版本号。通知内容更新时，改这里，例如 media-policy-v5-20260601-。</span>
+</span></span><span style="display:flex;"><span>TXN_PREFIX <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;media-policy-v4-tiered-20260523-&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>BODY <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;&#34;&#34;【服务器媒体保留规则】
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">为了避免 Matrix 媒体仓库长期堆积大文件，本服务器已启用媒体分层清理：
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 5MiB 以内文件长期保留。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 5MiB 的文件，90 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 100MiB 的超大文件 7 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">请自行保存重要大文件。&#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>CONTENT <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;msgtype&#34;</span>: <span style="color:#e6db74">&#34;m.notice&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;body&#34;</span>: BODY,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">with</span> open(TOKEN_PATH, <span style="color:#e6db74">&#34;r&#34;</span>, encoding<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;utf-8&#34;</span>) <span style="color:#66d9ef">as</span> f:
+</span></span><span style="display:flex;"><span>    TOKEN <span style="color:#f92672">=</span> f<span style="color:#f92672">.</span>read()<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>HEADERS <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Authorization&#34;</span>: <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Bearer </span><span style="color:#e6db74">{</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>JSON_HEADERS <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">**</span>HEADERS,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Content-Type&#34;</span>: <span style="color:#e6db74">&#34;application/json&#34;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">request_json</span>(method, url, payload<span style="color:#f92672">=</span><span style="color:#66d9ef">None</span>):
+</span></span><span style="display:flex;"><span>    data <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span> <span style="color:#66d9ef">if</span> payload <span style="color:#f92672">is</span> <span style="color:#66d9ef">None</span> <span style="color:#66d9ef">else</span> json<span style="color:#f92672">.</span>dumps(payload)<span style="color:#f92672">.</span>encode(<span style="color:#e6db74">&#34;utf-8&#34;</span>)
+</span></span><span style="display:flex;"><span>    headers <span style="color:#f92672">=</span> JSON_HEADERS <span style="color:#66d9ef">if</span> payload <span style="color:#f92672">is</span> <span style="color:#f92672">not</span> <span style="color:#66d9ef">None</span> <span style="color:#66d9ef">else</span> HEADERS
+</span></span><span style="display:flex;"><span>    req <span style="color:#f92672">=</span> urllib<span style="color:#f92672">.</span>request<span style="color:#f92672">.</span>Request(url, data<span style="color:#f92672">=</span>data, headers<span style="color:#f92672">=</span>headers, method<span style="color:#f92672">=</span>method)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> urllib<span style="color:#f92672">.</span>request<span style="color:#f92672">.</span>urlopen(req, timeout<span style="color:#f92672">=</span><span style="color:#ae81ff">20</span>) <span style="color:#66d9ef">as</span> resp:
+</span></span><span style="display:flex;"><span>            raw <span style="color:#f92672">=</span> resp<span style="color:#f92672">.</span>read()<span style="color:#f92672">.</span>decode(<span style="color:#e6db74">&#34;utf-8&#34;</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> resp<span style="color:#f92672">.</span>status, json<span style="color:#f92672">.</span>loads(raw) <span style="color:#66d9ef">if</span> raw <span style="color:#66d9ef">else</span> {}
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">except</span> urllib<span style="color:#f92672">.</span>error<span style="color:#f92672">.</span>HTTPError <span style="color:#66d9ef">as</span> exc:
+</span></span><span style="display:flex;"><span>        raw <span style="color:#f92672">=</span> exc<span style="color:#f92672">.</span>read()<span style="color:#f92672">.</span>decode(<span style="color:#e6db74">&#34;utf-8&#34;</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>            parsed <span style="color:#f92672">=</span> json<span style="color:#f92672">.</span>loads(raw)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">except</span> <span style="color:#a6e22e">Exception</span>:
+</span></span><span style="display:flex;"><span>            parsed <span style="color:#f92672">=</span> {<span style="color:#e6db74">&#34;raw&#34;</span>: raw}
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> exc<span style="color:#f92672">.</span>code, parsed
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>users <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>start <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> <span style="color:#66d9ef">True</span>:
+</span></span><span style="display:flex;"><span>    url <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{</span>BASE<span style="color:#e6db74">}</span><span style="color:#e6db74">/_synapse/admin/v2/users?from=</span><span style="color:#e6db74">{</span>start<span style="color:#e6db74">}</span><span style="color:#e6db74">&amp;limit=100&amp;guests=false&#34;</span>
+</span></span><span style="display:flex;"><span>    status, data <span style="color:#f92672">=</span> request_json(<span style="color:#e6db74">&#34;GET&#34;</span>, url)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> status <span style="color:#f92672">!=</span> <span style="color:#ae81ff">200</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">SystemExit</span>(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;list users failed: HTTP </span><span style="color:#e6db74">{</span>status<span style="color:#e6db74">}</span><span style="color:#e6db74"> </span><span style="color:#e6db74">{</span>data<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> user <span style="color:#f92672">in</span> data<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;users&#34;</span>, []):
+</span></span><span style="display:flex;"><span>        mxid <span style="color:#f92672">=</span> user<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;name&#34;</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> mxid <span style="color:#f92672">or</span> <span style="color:#f92672">not</span> mxid<span style="color:#f92672">.</span>endswith(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;:</span><span style="color:#e6db74">{</span>SERVER_NAME<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>):
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> mxid <span style="color:#f92672">in</span> EXCLUDE:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> user<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;deactivated&#34;</span>) <span style="color:#f92672">or</span> user<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;is_guest&#34;</span>):
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>        users<span style="color:#f92672">.</span>append(mxid)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    next_token <span style="color:#f92672">=</span> data<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;next_token&#34;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> next_token <span style="color:#f92672">is</span> <span style="color:#66d9ef">None</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">break</span>
+</span></span><span style="display:flex;"><span>    start <span style="color:#f92672">=</span> int(next_token)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>sent <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>failed <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> mxid <span style="color:#f92672">in</span> users:
+</span></span><span style="display:flex;"><span>    encoded_user_id <span style="color:#f92672">=</span> urllib<span style="color:#f92672">.</span>parse<span style="color:#f92672">.</span>quote(mxid, safe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>)
+</span></span><span style="display:flex;"><span>    txn <span style="color:#f92672">=</span> TXN_PREFIX <span style="color:#f92672">+</span> encoded_user_id
+</span></span><span style="display:flex;"><span>    url <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{</span>BASE<span style="color:#e6db74">}</span><span style="color:#e6db74">/_synapse/admin/v1/send_server_notice/</span><span style="color:#e6db74">{</span>txn<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>    payload <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;user_id&#34;</span>: mxid,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;content&#34;</span>: CONTENT,
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    status, data <span style="color:#f92672">=</span> request_json(<span style="color:#e6db74">&#34;PUT&#34;</span>, url, payload)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#ae81ff">200</span> <span style="color:#f92672">&lt;=</span> status <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">300</span>:
+</span></span><span style="display:flex;"><span>        sent<span style="color:#f92672">.</span>append({<span style="color:#e6db74">&#34;user_id&#34;</span>: mxid, <span style="color:#e6db74">&#34;event_id&#34;</span>: data<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;event_id&#34;</span>)})
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>        failed<span style="color:#f92672">.</span>append({<span style="color:#e6db74">&#34;user_id&#34;</span>: mxid, <span style="color:#e6db74">&#34;http_code&#34;</span>: status, <span style="color:#e6db74">&#34;response&#34;</span>: data})
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>print(json<span style="color:#f92672">.</span>dumps({
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;target_count&#34;</span>: len(users),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;sent&#34;</span>: sent,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;failed&#34;</span>: failed,
+</span></span><span style="display:flex;"><span>}, ensure_ascii<span style="color:#f92672">=</span><span style="color:#66d9ef">False</span>, indent<span style="color:#f92672">=</span><span style="color:#ae81ff">2</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> failed:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">SystemExit</span>(<span style="color:#ae81ff">1</span>)</span></span></code></pre></div><script class="code-source" type="application/json">"#!/usr/bin/env python3\nimport json\nimport urllib.error\nimport urllib.parse\nimport urllib.request\n\nBASE = \"http://127.0.0.1:8008\"\nTOKEN_PATH = \"/root/.config/synapse-admin/access_token\"\nSERVER_NAME = \"666666.xyz\"\n\n# 不给媒体清理专用账号和 Server Notices 系统账号发通知。\nEXCLUDE = {\n    f\"@media_purge_admin:{SERVER_NAME}\",\n    f\"@server:{SERVER_NAME}\",\n}\n\n# 规则版本号。通知内容更新时，改这里，例如 media-policy-v5-20260601-。\nTXN_PREFIX = \"media-policy-v4-tiered-20260523-\"\n\nBODY = \"\"\"【服务器媒体保留规则】\n\n为了避免 Matrix 媒体仓库长期堆积大文件，本服务器已启用媒体分层清理：\n\n- 5MiB 以内文件长期保留。\n- 超过 5MiB 的文件，90 天后清理。\n- 超过 100MiB 的超大文件 7 天后清理。\n\n请自行保存重要大文件。\"\"\"\n\nCONTENT = {\n    \"msgtype\": \"m.notice\",\n    \"body\": BODY,\n}\n\nwith open(TOKEN_PATH, \"r\", encoding=\"utf-8\") as f:\n    TOKEN = f.read().strip()\n\nHEADERS = {\n    \"Authorization\": f\"Bearer {TOKEN}\",\n}\nJSON_HEADERS = {\n    **HEADERS,\n    \"Content-Type\": \"application/json\",\n}\n\n\ndef request_json(method, url, payload=None):\n    data = None if payload is None else json.dumps(payload).encode(\"utf-8\")\n    headers = JSON_HEADERS if payload is not None else HEADERS\n    req = urllib.request.Request(url, data=data, headers=headers, method=method)\n\n    try:\n        with urllib.request.urlopen(req, timeout=20) as resp:\n            raw = resp.read().decode(\"utf-8\")\n            return resp.status, json.loads(raw) if raw else {}\n    except urllib.error.HTTPError as exc:\n        raw = exc.read().decode(\"utf-8\")\n        try:\n            parsed = json.loads(raw)\n        except Exception:\n            parsed = {\"raw\": raw}\n        return exc.code, parsed\n\n\nusers = []\nstart = 0\n\nwhile True:\n    url = f\"{BASE}/_synapse/admin/v2/users?from={start}\u0026limit=100\u0026guests=false\"\n    status, data = request_json(\"GET\", url)\n    if status != 200:\n        raise SystemExit(f\"list users failed: HTTP {status} {data}\")\n\n    for user in data.get(\"users\", []):\n        mxid = user.get(\"name\")\n        if not mxid or not mxid.endswith(f\":{SERVER_NAME}\"):\n            continue\n        if mxid in EXCLUDE:\n            continue\n        if user.get(\"deactivated\") or user.get(\"is_guest\"):\n            continue\n        users.append(mxid)\n\n    next_token = data.get(\"next_token\")\n    if next_token is None:\n        break\n    start = int(next_token)\n\nsent = []\nfailed = []\n\nfor mxid in users:\n    encoded_user_id = urllib.parse.quote(mxid, safe=\"\")\n    txn = TXN_PREFIX + encoded_user_id\n    url = f\"{BASE}/_synapse/admin/v1/send_server_notice/{txn}\"\n    payload = {\n        \"user_id\": mxid,\n        \"content\": CONTENT,\n    }\n\n    status, data = request_json(\"PUT\", url, payload)\n    if 200 \u003c= status \u003c 300:\n        sent.append({\"user_id\": mxid, \"event_id\": data.get(\"event_id\")})\n    else:\n        failed.append({\"user_id\": mxid, \"http_code\": status, \"response\": data})\n\nprint(json.dumps({\n    \"target_count\": len(users),\n    \"sent\": sent,\n    \"failed\": failed,\n}, ensure_ascii=False, indent=2))\n\nif failed:\n    raise SystemExit(1)"</script>
+</div>
+<p>授权：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod <span style="color:#ae81ff">700</span> /root/data/docker_data/synapse/scripts/send-media-policy-notice.py</span></span></code></pre></div><script class="code-source" type="application/json">"chmod 700 /root/data/docker_data/synapse/scripts/send-media-policy-notice.py"</script>
+</div>
+<p>运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/send-media-policy-notice.py</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/send-media-policy-notice.py"</script>
+</div>
+<p>成功输出类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;target_count&#34;</span>: <span style="color:#ae81ff">5</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;sent&#34;</span>: [
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;user_id&#34;</span>: <span style="color:#e6db74">&#34;@admin:666666.xyz&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;event_id&#34;</span>: <span style="color:#e6db74">&#34;$example1&#34;</span>
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;user_id&#34;</span>: <span style="color:#e6db74">&#34;@alice:666666.xyz&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;event_id&#34;</span>: <span style="color:#e6db74">&#34;$example2&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  ],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;failed&#34;</span>: []
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"target_count\": 5,\n  \"sent\": [\n    {\n      \"user_id\": \"@admin:666666.xyz\",\n      \"event_id\": \"$example1\"\n    },\n    {\n      \"user_id\": \"@alice:666666.xyz\",\n      \"event_id\": \"$example2\"\n    }\n  ],\n  \"failed\": []\n}"</script>
+</div>
+<h2 id="六以后新增用户怎么办">六、以后新增用户怎么办</h2>
+<p>如果 <code>TXN_PREFIX</code> 不变，脚本重复运行时，已经收到过这一版通知的老用户不会重复收到同一条。</p>
+<p>以后新增用户后，可以手动再跑一次：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/send-media-policy-notice.py</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/send-media-policy-notice.py"</script>
+</div>
+<p>新用户会收到通知，老用户通常不会重复收到。</p>
+<p>如果只是给后来新增的用户补发同一版媒体规则通知，<code>TXN_PREFIX</code> 不用改。</p>
+<p>如果是新内容、新公告、新规则，就要同时改通知内容和 <code>TXN_PREFIX</code>。例如规则内容从“按大小到期清理”改成“安全维护公告”，就改成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>TXN_PREFIX <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;media-policy-v4-20260601-&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TXN_PREFIX = \"media-policy-v4-20260601-\""</script>
+</div>
+<p>这样所有用户都会收到新版通知。否则你只改 <code>BODY</code>，但 <code>TXN_PREFIX</code> 不变，Synapse 可能会认为这是同一个 transaction，同一用户不会重复收到。</p>
+<p>简单说：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>同一版通知补发给新用户：不改 TXN_PREFIX
+</span></span><span style="display:flex;"><span>新通知、新规则、新公告：修改 BODY，也修改 TXN_PREFIX</span></span></code></pre></div><script class="code-source" type="application/json">"同一版通知补发给新用户：不改 TXN_PREFIX\n新通知、新规则、新公告：修改 BODY，也修改 TXN_PREFIX"</script>
+</div>
+<h2 id="七已经发出去的通知能不能修改">七、已经发出去的通知能不能修改</h2>
+<p>不能原地修改。</p>
+<p>Server Notices 发出去后，本质上就是 Matrix 房间里的一个事件。事件内容已经进入用户的通知房间，不能像编辑网页公告那样统一改掉。</p>
+<p>如果通知内容写错了，常见处理方式有三种：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>1. 直接发一条新版通知，写明“以本通知为准”
+</span></span><span style="display:flex;"><span>2. 撤回旧通知，再发新版通知
+</span></span><span style="display:flex;"><span>3. 旧通知保留，新通知解释规则已经更新</span></span></code></pre></div><script class="code-source" type="application/json">"1. 直接发一条新版通知，写明“以本通知为准”\n2. 撤回旧通知，再发新版通知\n3. 旧通知保留，新通知解释规则已经更新"</script>
+</div>
+<p>实际运维里，我更推荐第 1 种或第 3 种。因为撤回后用户看到的通常是“消息已删除/已撤回”，反而可能让人困惑。</p>
+<h3 id="推荐做法发新版通知">推荐做法：发新版通知</h3>
+<p>把 <code>BODY</code> 改成新版内容，同时修改 <code>TXN_PREFIX</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>TXN_PREFIX <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;media-policy-v4-20260601-&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>BODY <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;&#34;&#34;【服务器媒体保留规则更新】
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">此前通知中的媒体清理规则已更新，请以本通知为准：
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 5MiB 以内文件长期保留。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 5MiB 的文件，90 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">- 超过 100MiB 的超大文件 7 天后清理。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">请自行保存重要大文件。&#34;&#34;&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TXN_PREFIX = \"media-policy-v4-20260601-\"\n\nBODY = \"\"\"【服务器媒体保留规则更新】\n\n此前通知中的媒体清理规则已更新，请以本通知为准：\n\n- 5MiB 以内文件长期保留。\n- 超过 5MiB 的文件，90 天后清理。\n- 超过 100MiB 的超大文件 7 天后清理。\n\n请自行保存重要大文件。\"\"\""</script>
+</div>
+<p>然后运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/send-media-policy-notice.py</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/send-media-policy-notice.py"</script>
+</div>
+<p>这样所有用户都会收到新版通知，而且上下文清楚。</p>
+<h3 id="确实要撤回旧通知">确实要撤回旧通知</h3>
+<p>Matrix 里的撤回叫 redaction。它不会“编辑旧通知”，而是把旧事件内容抹掉。客户端通常会显示成“消息已删除”或“已撤回”。</p>
+<p>要撤回旧通知，需要两个值：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>event_id：发送 Server Notice 时返回的事件 ID，例如 $example
+</span></span><span style="display:flex;"><span>room_id：这条通知所在的通知房间 ID，例如 !abcdef:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"event_id：发送 Server Notice 时返回的事件 ID，例如 $example\nroom_id：这条通知所在的通知房间 ID，例如 !abcdef:666666.xyz"</script>
+</div>
+<p>如果你只有 <code>event_id</code>，可以先从 Synapse 数据库查 <code>room_id</code>。示例使用 Docker 里的 PostgreSQL 容器 <code>postgres16</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>EVENT_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;$这里填旧通知的event_id&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker exec postgres16 psql -U synapse -d synapse -c <span style="color:#e6db74">&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">SELECT event_id, room_id, sender, type
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">FROM events
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">WHERE event_id = &#39;</span><span style="color:#e6db74">${</span>EVENT_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"EVENT_ID='$这里填旧通知的event_id'\n\ndocker exec postgres16 psql -U synapse -d synapse -c \"\nSELECT event_id, room_id, sender, type\nFROM events\nWHERE event_id = '${EVENT_ID}';\n\""</script>
+</div>
+<p>返回里会有 <code>room_id</code>。拿到 <code>room_id</code> 后，调用 Matrix redaction API：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN_FILE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/root/.config/synapse-admin/access_token&#34;</span>
+</span></span><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$TOKEN_FILE<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ROOM_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;!这里填room_id:666666.xyz&#39;</span>
+</span></span><span style="display:flex;"><span>EVENT_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;$这里填旧通知的event_id&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ENC_ROOM_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;PY
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import urllib.parse
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(urllib.parse.quote(&#39;&#39;&#39;${ROOM_ID}&#39;&#39;&#39;, safe=&#39;&#39;))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ENC_EVENT_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>python3 - <span style="color:#e6db74">&lt;&lt;PY
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import urllib.parse
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(urllib.parse.quote(&#39;&#39;&#39;${EVENT_ID}&#39;&#39;&#39;, safe=&#39;&#39;))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>TXN_ID<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;redact-media-policy-v1-</span><span style="color:#66d9ef">$(</span>date +%s<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -sS -X PUT <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span><span style="color:#e6db74">${</span>TOKEN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Content-Type: application/json&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  --data <span style="color:#e6db74">&#39;{&#34;reason&#34;:&#34;媒体保留规则通知已更新，请以新版通知为准&#34;}&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_matrix/client/v3/rooms/</span><span style="color:#e6db74">${</span>ENC_ROOM_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">/redact/</span><span style="color:#e6db74">${</span>ENC_EVENT_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span>TXN_ID<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo</span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN_FILE=\"/root/.config/synapse-admin/access_token\"\nTOKEN=\"$(cat \"$TOKEN_FILE\")\"\n\nROOM_ID='!这里填room_id:666666.xyz'\nEVENT_ID='$这里填旧通知的event_id'\n\nENC_ROOM_ID=\"$(python3 - \u003c\u003cPY\nimport urllib.parse\nprint(urllib.parse.quote('''${ROOM_ID}''', safe=''))\nPY\n)\"\n\nENC_EVENT_ID=\"$(python3 - \u003c\u003cPY\nimport urllib.parse\nprint(urllib.parse.quote('''${EVENT_ID}''', safe=''))\nPY\n)\"\n\nTXN_ID=\"redact-media-policy-v1-$(date +%s)\"\n\ncurl -sS -X PUT \\\n  -H \"Authorization: Bearer ${TOKEN}\" \\\n  -H \"Content-Type: application/json\" \\\n  --data '{\"reason\":\"媒体保留规则通知已更新，请以新版通知为准\"}' \\\n  \"http://127.0.0.1:8008/_matrix/client/v3/rooms/${ENC_ROOM_ID}/redact/${ENC_EVENT_ID}/${TXN_ID}\"\n\necho"</script>
+</div>
+<p>如果你当时给 5 个用户都发了旧通知，就会有 5 个不同的 <code>event_id</code>。要撤回就得逐条查 <code>room_id</code>，逐条 redaction。</p>
+<p>注意：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>redaction 不能还原
+</span></span><span style="display:flex;"><span>redaction 不是物理硬删所有历史痕迹，而是移除事件内容
+</span></span><span style="display:flex;"><span>用户可能仍能看到“消息已删除/已撤回”的占位</span></span></code></pre></div><script class="code-source" type="application/json">"redaction 不能还原\nredaction 不是物理硬删所有历史痕迹，而是移除事件内容\n用户可能仍能看到“消息已删除/已撤回”的占位"</script>
+</div>
+<p>官方参考：</p>
+<ul>
+<li>Matrix Redaction API：<a href="https://spec.matrix.org/latest/client-server-api/#put_matrixclientv3roomsroomidredacteventidtxnid">https://spec.matrix.org/latest/client-server-api/#put_matrixclientv3roomsroomidredacteventidtxnid</a></li>
+</ul>
+<h2 id="八常见错误">八、常见错误</h2>
+<h3 id="m_unknown_token"><code>M_UNKNOWN_TOKEN</code></h3>
+<p>示例：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;errcode&#34;</span>:<span style="color:#e6db74">&#34;M_UNKNOWN_TOKEN&#34;</span>,<span style="color:#f92672">&#34;error&#34;</span>:<span style="color:#e6db74">&#34;Invalid access token passed.&#34;</span>,<span style="color:#f92672">&#34;soft_logout&#34;</span>:<span style="color:#66d9ef">false</span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"errcode\":\"M_UNKNOWN_TOKEN\",\"error\":\"Invalid access token passed.\",\"soft_logout\":false}"</script>
+</div>
+<p>说明 token 失效或 token 文件不对。重新登录管理员账号，刷新 <code>/root/.config/synapse-admin/access_token</code>。</p>
+<h3 id="403"><code>403</code></h3>
+<p>token 能识别，但用户不是 Synapse 管理员。换成管理员账号的 token，或把专用账号设置为管理员。</p>
+<h3 id="m_not_found"><code>M_NOT_FOUND</code></h3>
+<p>检查 Server Notices 系统账号时返回 <code>M_NOT_FOUND</code> 是正常的，说明账号未被占用。</p>
+<p>如果发送通知时返回 <code>M_NOT_FOUND</code>，通常是目标用户 ID 写错了。</p>
+<h3 id="用户看不到通知房间">用户看不到通知房间</h3>
+<p>先确认 <code>homeserver.yaml</code> 里有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">server_notices</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">auto_join</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"server_notices:\n  auto_join: true"</script>
+</div>
+<p>然后确认 Synapse 已经重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps --filter name<span style="color:#f92672">=</span>matrix-synapse --format <span style="color:#e6db74">&#39;table {{.Names}}\t{{.Status}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker ps --filter name=matrix-synapse --format 'table {{.Names}}\\t{{.Status}}'"</script>
+</div>
+<p>再给单个测试用户发送一次，确认返回了 <code>event_id</code>。</p>
+<h2 id="九生产实测结果">九、生产实测结果</h2>
+<p>一次生产环境实测：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>启用 server_notices 后重启 Synapse
+</span></span><span style="display:flex;"><span>目标用户：5 个
+</span></span><span style="display:flex;"><span>成功发送：5 个
+</span></span><span style="display:flex;"><span>失败：0 个
+</span></span><span style="display:flex;"><span>Synapse 容器状态：healthy</span></span></code></pre></div><script class="code-source" type="application/json">"启用 server_notices 后重启 Synapse\n目标用户：5 个\n成功发送：5 个\n失败：0 个\nSynapse 容器状态：healthy"</script>
+</div>
+<p>这套做法适合媒体清理规则上线、隐私政策变更、维护公告等低频通知。不要用它刷屏；真的要做“每次上传大文件都提醒”，应该单独做上传检测模块或反代日志分析，不建议混在 Server Notices 公告脚本里。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-codebot-second-gateway-runbook/">
+            <img src="/posts/ai/hermes-codebot-second-gateway-runbook/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes Codebot 第二个 Telegram Gateway 复盘手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-telegram-quiet-mode-restore/">
+            <img src="/posts/ai/hermes-telegram-quiet-mode-restore/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Telegram 安静模式恢复手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-handmade-tuning/">
+            <img src="/posts/ai/hermes-agent-handmade-tuning/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-deployment/">
+            <img src="/posts/ai/hermes-agent-deployment/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-ubuntu2504-vm-docker/">
+            <img src="/posts/linux/proxmox-ubuntu2504-vm-docker/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/lol-riot-realip-mosdns-sing-box/">
+            <img src="/posts/linux/lol-riot-realip-mosdns-sing-box/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-hysteria2-sing-box-production/">
+            <img src="/posts/linux/alpine-hysteria2-sing-box-production/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

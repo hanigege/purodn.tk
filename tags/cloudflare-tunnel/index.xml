@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Cloudflare Tunnel on 电脑自习室</title>
+    <link>http://127.0.0.1:1313/tags/cloudflare-tunnel/</link>
+    <description>Recent content in Cloudflare Tunnel on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 20 May 2026 10:40:00 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/cloudflare-tunnel/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Matrix Synapse 接入 LiveKit：Cloudflare Tunnel 免 NPM Docker Compose 部署</title>
+      <link>http://127.0.0.1:1313/posts/docker/matrix-livekit-jwt-docker-compose/</link>
+      <pubDate>Wed, 20 May 2026 10:40:00 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/docker/matrix-livekit-jwt-docker-compose/</guid>
+      <description>&lt;p&gt;这篇记录一套已经实际跑通的 Matrix Synapse 接入 LiveKit 语音视频方案：公网 HTTPS 入口走 Cloudflare Tunnel，Docker 主机上的 LiveKit server、matrix-livekit-jwt-service、coturn 都使用 &lt;code&gt;network_mode: host&lt;/code&gt;，全程不走 Nginx Proxy Manager。&lt;/p&gt;&#xA;&lt;p&gt;先把限制说在前面：如果主要使用地点在中国大陆，这套方案不一定稳定，尤其不适合把 LiveKit 呼叫控制面长期压在 Cloudflare Tunnel 上。实际现象可能是 coturn 老通话路径正常，但使用 LiveKit / MatrixRTC 呼叫时，Element 点呼叫后白屏、等待 8 秒甚至更久才弹出呼叫界面。这个问题通常不是 coturn relay 端口的问题，而是 LiveKit 相关的 HTTPS / WebSocket / JWT 控制链路经 Tunnel 后延迟和抖动变大。&lt;/p&gt;&#xA;&lt;p&gt;如果你有稳定公网 &lt;code&gt;80/443&lt;/code&gt;，优先看“公网 443 标准部署方案”。如果没有本地标准 443，但能转发自定义 HTTPS 端口并想继续用 NPM，优先看“Cloudflare Worker 与 NPM 部署方案”。本文更适合作为没有公网 443 时的临时方案、验证方案，或者对呼叫启动延迟不敏感的环境。&lt;/p&gt;&#xA;&lt;p&gt;这不是 Synapse 从零安装篇，而是在已经有 Matrix Synapse 的基础上补齐新版 Element / MatrixRTC 需要的 LiveKit 后端。本文示例里：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

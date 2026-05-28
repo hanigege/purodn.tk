@@ -25,4 +25,4 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install -y neovim git curl
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim --version | grep ^NVIM&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install -y neovim git curl\nnvim --version | grep ^NVIM"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果 Debian 或 Ubuntu 仓库里的 Neovim 版本低于 &lt;code&gt;0.10.0&lt;/code&gt;，可以参考源码编译方案，或使用官方 release 版本。&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 &lt;code&gt;neovim&lt;/code&gt; 仍可能停留在 &lt;code&gt;0.9.x&lt;/code&gt;：&lt;/p&gt;</description></item></channel></rss>

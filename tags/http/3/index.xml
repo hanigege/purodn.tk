@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>HTTP/3 on 电脑自习室</title>
+    <link>http://127.0.0.1:1313/tags/http/3/</link>
+    <description>Recent content in HTTP/3 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 24 May 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/http/3/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 15 下配置 Hysteria2 服务器端</title>
+      <link>http://127.0.0.1:1313/posts/freebsd/freebsd15-hysteria2-server/</link>
+      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/freebsd/freebsd15-hysteria2-server/</guid>
+      <description>&lt;p&gt;本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 &lt;code&gt;salamander&lt;/code&gt; 混淆。&lt;/p&gt;&#xA;&lt;p&gt;截至 2026-05-24，Hysteria2 最新稳定版本是 &lt;code&gt;app/v2.9.2&lt;/code&gt;。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。&lt;/p&gt;&#xA;&lt;h2 id=&#34;1-部署思路&#34;&gt;1. 部署思路&lt;/h2&gt;&#xA;&lt;p&gt;最稳妥的服务端配置思路是：&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;监听 UDP &lt;code&gt;443&lt;/code&gt;，这也是官方默认 HTTP/3 端口。&lt;/li&gt;&#xA;&lt;li&gt;使用 TLS 证书；如果没有正式域名，可以先用自签证书。&lt;/li&gt;&#xA;&lt;li&gt;使用 &lt;code&gt;masquerade.proxy&lt;/code&gt; 伪装成正常网站。&lt;/li&gt;&#xA;&lt;li&gt;个人自用时，服务端不写 &lt;code&gt;bandwidth&lt;/code&gt; 和 &lt;code&gt;ignoreClientBandwidth&lt;/code&gt;，把带宽参数交给客户端。&lt;/li&gt;&#xA;&lt;li&gt;不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。&lt;/li&gt;&#xA;&lt;li&gt;如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 &lt;code&gt;obfs.type: salamander&lt;/code&gt;。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;官方文档里说明，&lt;code&gt;listen&lt;/code&gt; 省略时会默认监听 &lt;code&gt;:443&lt;/code&gt;，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 &lt;code&gt;listen: :443&lt;/code&gt;。&lt;/p&gt;&#xA;&lt;h2 id=&#34;2-安装-hysteria2-最新版&#34;&gt;2. 安装 Hysteria2 最新版&lt;/h2&gt;&#xA;&lt;p&gt;建议用 &lt;code&gt;root&lt;/code&gt; 用户操作。监听 &lt;code&gt;443&lt;/code&gt; 这类 1024 以下端口也需要 root 权限，或额外配置权限。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

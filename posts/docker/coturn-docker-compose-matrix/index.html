@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用 | 电脑自习室</title>
+    <meta name="description" content="记录 coturn TURN 服务器的 Docker Compose 部署方式：生成共享密钥，配置 turnserver.conf，使用 host 网络开放 TURN 端口，并接入 Synapse。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-19">2026年5月19日</time>
+        </div>
+        <h1>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</h1>
+          <p>记录 coturn TURN 服务器的 Docker Compose 部署方式：生成共享密钥，配置 turnserver.conf，使用 host 网络开放 TURN 端口，并接入 Synapse。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/coturn-docker-compose-matrix/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录 coturn TURN 服务器的 Docker Compose 部署方式。coturn 主要用于解决 Matrix 语音、视频通话中的 NAT 穿透问题，部署好之后可以在 Synapse 的 <code>homeserver.yaml</code> 中配置 <code>turn_uris</code> 和共享密钥。</p>
+<p>前面 Synapse、Nginx Proxy Manager、ntfy 这类 HTTP 服务适合统一接入 <code>matrix</code> bridge 网络，反代容器可以直接通过容器名访问它们。但 coturn 不太一样：TURN 服务要直接处理 <code>3478/udp</code> 和一整段 UDP 中继端口。这里按小规模自用场景收窄为 <code>50000-50200/udp</code>，大约 200 个 UDP 中继端口；如果用 Docker bridge 网络再映射端口段，启动容器时仍然可能比 host 网络慢。</p>
+<p>所以本文的 coturn 改用 <code>network_mode: host</code>：coturn 直接监听宿主机端口，不再加入 <code>matrix</code> Docker 网络。Synapse 仍然通过公网域名和共享密钥使用 coturn，不需要和 coturn 在同一个 Docker 网络里。</p>
+<h2 id="一准备目录">一、准备目录</h2>
+<p>先创建 coturn 的配置目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/coturn/etc/coturn
+</span></span><span style="display:flex;"><span>cd /root/data/docker_data/coturn/etc/coturn</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/coturn/etc/coturn\ncd /root/data/docker_data/coturn/etc/coturn"</script>
+</div>
+<p>创建基础配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>touch turnserver.conf</span></span></code></pre></div><script class="code-source" type="application/json">"touch turnserver.conf"</script>
+</div>
+<p>生成一个 68 位随机共享密钥，后面 <code>turnserver.conf</code> 和 Synapse 都要用同一个值：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /dev/urandom | tr -cd <span style="color:#e6db74">&#39;[:alnum:]&#39;</span> | fold -w <span style="color:#ae81ff">68</span> | head -n <span style="color:#ae81ff">1</span></span></span></code></pre></div><script class="code-source" type="application/json">"cat /dev/urandom | tr -cd '[:alnum:]' | fold -w 68 | head -n 1"</script>
+</div>
+<p>把输出结果保存下来，下面用 <code>你的68位随机密钥</code> 代替。</p>
+<h2 id="二关于证书和-turns">二、关于证书和 TURNS</h2>
+<p>本文默认只启用普通 TURN，不启用 TURN TLS / TURNS，也不准备证书。原因很简单：Matrix 语音通话优先需要稳定的 <code>3478/udp</code> 和 UDP 中继端口段；如果要使用 <code>turns:</code>，客户端会校验证书链，证书配置反而会给这套自用部署增加额外变量。</p>
+<p>所以这篇的配置会显式写 <code>no-tls</code> 和 <code>no-dtls</code>，让 coturn 不启动 TLS/DTLS listener，也避免它查找默认证书文件时打印证书警告。对应地，后面的 Synapse 配置也只写 <code>turn:</code>，不写 <code>turns:</code>。</p>
+<h2 id="三创建-turnserverconf">三、创建 turnserver.conf</h2>
+<p>编辑 coturn 配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /root/data/docker_data/coturn/etc/coturn/turnserver.conf</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /root/data/docker_data/coturn/etc/coturn/turnserver.conf"</script>
+</div>
+<p>写入下面的配置，并把域名和密钥换成你自己的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-conf" data-lang="conf"># 日志级别：info、debug、verbose
+# 注意：CoTurn 的 log-file 配置才决定级别，单写一个 info 是错的，这里保持注释即可
+
+# 启用长期凭证与共享密钥认证
+use-auth-secret
+static-auth-secret=你的68位随机密钥
+# 填入你的外网的域名,即使非标443端口，也不要添加其它的端口，只保留域名即可！
+realm=coturn.example.com
+
+# 添加明确的 IPv4 监听地址，防止出现 &#34;NO EXPLICIT LISTENER ADDRESS&#34; 警告。
+# 如果公网 IPv6、AAAA 记录或 RouterOS IPv6 防火墙不确定，先不要启用 IPv6。
+listening-ip=0.0.0.0
+# listening-ip=::
+
+# 如果 Docker 主机在 RouterOS、光猫或云 NAT 后面，必须写公网 IPv4 和本机内网 IPv4 的映射。
+# 如果 Docker 主机自己直接持有公网 IPv4，就不要写这一行。
+# external-ip=你的公网IPv4/你的Docker主机内网IPv4
+
+# 不使用 turns: 时关闭 TLS/DTLS listener，避免 coturn 查找默认证书文件并打印证书警告
+no-tls
+no-dtls
+
+# 把 pid 文件写到容器可写目录，避免 Cannot create pid file 警告
+pidfile=/var/tmp/turnserver.pid
+
+# 管理功能，可选
+# cli-password=你的管理密码
+
+# UDP 中继端口范围
+min-port=50000
+max-port=50200
+
+# 禁止中继访问内网私有地址
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255</code></pre><script class="code-source" type="application/json">"# 日志级别：info、debug、verbose\n# 注意：CoTurn 的 log-file 配置才决定级别，单写一个 info 是错的，这里保持注释即可\n\n# 启用长期凭证与共享密钥认证\nuse-auth-secret\nstatic-auth-secret=你的68位随机密钥\n# 填入你的外网的域名,即使非标443端口，也不要添加其它的端口，只保留域名即可！\nrealm=coturn.example.com\n\n# 添加明确的 IPv4 监听地址，防止出现 \"NO EXPLICIT LISTENER ADDRESS\" 警告。\n# 如果公网 IPv6、AAAA 记录或 RouterOS IPv6 防火墙不确定，先不要启用 IPv6。\nlistening-ip=0.0.0.0\n# listening-ip=::\n\n# 如果 Docker 主机在 RouterOS、光猫或云 NAT 后面，必须写公网 IPv4 和本机内网 IPv4 的映射。\n# 如果 Docker 主机自己直接持有公网 IPv4，就不要写这一行。\n# external-ip=你的公网IPv4/你的Docker主机内网IPv4\n\n# 不使用 turns: 时关闭 TLS/DTLS listener，避免 coturn 查找默认证书文件并打印证书警告\nno-tls\nno-dtls\n\n# 把 pid 文件写到容器可写目录，避免 Cannot create pid file 警告\npidfile=/var/tmp/turnserver.pid\n\n# 管理功能，可选\n# cli-password=你的管理密码\n\n# UDP 中继端口范围\nmin-port=50000\nmax-port=50200\n\n# 禁止中继访问内网私有地址\ndenied-peer-ip=10.0.0.0-10.255.255.255\ndenied-peer-ip=192.168.0.0-192.168.255.255\ndenied-peer-ip=172.16.0.0-172.31.255.255"</script>
+</div>
+<p>如果公网 IPv4 是固定的，并且 Docker 主机在 NAT 后面，例如公网入口在 RouterOS 上，而 Docker 主机内网地址是 <code>10.20.20.8</code>，可以把 <code>external-ip</code> 改成类似下面这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-conf" data-lang="conf">external-ip=203.0.113.10/10.20.20.8</code></pre><script class="code-source" type="application/json">"external-ip=203.0.113.10/10.20.20.8"</script>
+</div>
+<p>这会让 coturn 对外发出的 IPv4 relay candidate 使用公网 IPv4，而不是把内网地址交给公网客户端。公网 IPv4 会变化时，建议用 DDNS 脚本自动改写这一行并重启 coturn；在没有确认 IPv6 路径稳定前，不建议依赖 IPv6 兜底。</p>
+<p>如果 Docker 主机本身有公网 IPv6，也可以取消 <code># listening-ip=::</code> 的注释，让 coturn 同时监听 IPv6。IPv6 不需要 <code>external-ip</code>，但域名的 <code>AAAA</code> 记录、防火墙和 RouterOS IPv6 转发规则必须跟上；如果 IPv6 地址会变化，需要确保 DDNS 能及时更新。只要其中任意一环不确定，就先保持 IPv4-only。</p>
+<p>不要再加入 <code>no-tlsv1</code>、<code>no-tlsv1_1</code>、<code>no-tlsv1_3</code> 这类旧配置。较新的 coturn 镜像默认已经不启用 TLS 1.0/1.1，这些旧写法在新版本里可能会打印 <code>Bad configuration format</code> 警告。这个警告通常不是手机端无声的直接原因，但说明配置文件里混入了过时参数，建议删掉。</p>
+<h3 id="内网双栈且不启用证书的配置">内网双栈且不启用证书的配置</h3>
+<p>如果 coturn 跑在内网 Docker 主机上，公网入口在 RouterOS、光猫或上级路由上，并且公网 IPv4 会变化，可以先不写 <code>external-ip</code>，改用 IPv4/IPv6 双栈监听。这个写法适合内网自用、IPv6 可用、暂时不启用 TURN TLS 证书的场景：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-conf" data-lang="conf"># 排障时可以临时打开 verbose，稳定后建议注释掉，避免日志太多
+verbose
+
+# 启用长期凭证与共享密钥认证
+use-auth-secret
+static-auth-secret=你的68位随机密钥
+realm=coturn.example.com
+
+# IPv4/IPv6 双栈监听
+listening-ip=0.0.0.0
+listening-ip=::
+
+# 不使用 turns: 时关闭 TLS/DTLS listener，避免 coturn 查找默认证书文件并打印证书警告
+no-tls
+no-dtls
+
+# 把 pid 文件写到容器可写目录，避免 Cannot create pid file 警告
+pidfile=/var/tmp/turnserver.pid
+
+# UDP 中继端口范围
+min-port=50000
+max-port=50200
+
+# 内网双栈环境里，客户端可能会提交内网 IPv4 或 ULA IPv6 候选地址。
+# 如果通话时日志出现大量 403 Forbidden IP，可以先不要启用这些黑名单。
+#denied-peer-ip=10.0.0.0-10.255.255.255
+#denied-peer-ip=192.168.0.0-192.168.255.255
+#denied-peer-ip=172.16.0.0-172.31.255.255</code></pre><script class="code-source" type="application/json">"# 排障时可以临时打开 verbose，稳定后建议注释掉，避免日志太多\nverbose\n\n# 启用长期凭证与共享密钥认证\nuse-auth-secret\nstatic-auth-secret=你的68位随机密钥\nrealm=coturn.example.com\n\n# IPv4/IPv6 双栈监听\nlistening-ip=0.0.0.0\nlistening-ip=::\n\n# 不使用 turns: 时关闭 TLS/DTLS listener，避免 coturn 查找默认证书文件并打印证书警告\nno-tls\nno-dtls\n\n# 把 pid 文件写到容器可写目录，避免 Cannot create pid file 警告\npidfile=/var/tmp/turnserver.pid\n\n# UDP 中继端口范围\nmin-port=50000\nmax-port=50200\n\n# 内网双栈环境里，客户端可能会提交内网 IPv4 或 ULA IPv6 候选地址。\n# 如果通话时日志出现大量 403 Forbidden IP，可以先不要启用这些黑名单。\n#denied-peer-ip=10.0.0.0-10.255.255.255\n#denied-peer-ip=192.168.0.0-192.168.255.255\n#denied-peer-ip=172.16.0.0-172.31.255.255"</script>
+</div>
+<p>这个配置里没有 <code>external-ip</code>，因此 IPv4 relay candidate 可能仍然出现内网地址。它更依赖 IPv6 直连、内网候选或客户端最终选到可用路径。公网 IPv4 固定时，仍然更推荐上一段的 <code>external-ip=公网IPv4/内网IPv4</code> 写法；公网 IPv4 会变化时，可以用 DDNS 脚本自动改写 <code>external-ip</code> 并重启 coturn，或者先采用双栈配置观察实际通话效果。</p>
+<p>使用双栈配置时，域名的 <code>AAAA</code> 记录必须能及时更新到 Docker 主机当前公网 IPv6，并且 RouterOS IPv6 防火墙要放行 <code>3478/tcp</code>、<code>3478/udp</code> 和 <code>50000-50200/udp</code>。如果不配置证书，Synapse 中不要写 <code>turns:</code>，只写普通 <code>turn:</code>。</p>
+<h2 id="四创建-docker-composeyaml">四、创建 docker-compose.yaml</h2>
+<p>新建 Compose 文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /root/data/docker_data/coturn/docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /root/data/docker_data/coturn/docker-compose.yaml"</script>
+</div>
+<p>写入下面的配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">coturn</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">coturn/coturn:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">coturn</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># network_mode: host 会让 coturn 直接使用宿主机网络栈。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 容器内监听的 3478 和 50000-50200/udp 就是宿主机上的端口。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 需要在宿主机防火墙/云安全组/路由器里放行：</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 3478/tcp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 3478/udp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 50000-50200/udp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;-c&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;/etc/coturn/turnserver.conf&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;--log-file=stdout&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/:/etc/</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  coturn:\n    image: coturn/coturn:latest\n    container_name: coturn\n    restart: unless-stopped\n    # 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。\n    # network_mode: host 会让 coturn 直接使用宿主机网络栈。\n    # 容器内监听的 3478 和 50000-50200/udp 就是宿主机上的端口。\n    # 需要在宿主机防火墙/云安全组/路由器里放行：\n    # - 3478/tcp\n    # - 3478/udp\n    # - 50000-50200/udp\n    network_mode: host\n    command:\n      - \"-c\"\n      - \"/etc/coturn/turnserver.conf\"\n      - \"--log-file=stdout\"\n    volumes:\n      - /root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf\n      - /root/data/docker_data/coturn/etc/:/etc/"</script>
+</div>
+<p>这里不要再写 <code>ports</code>，也不要把 coturn 接入 <code>matrix</code> 网络。<code>network_mode: host</code> 会让 coturn 直接使用宿主机网络栈，容器内监听的 <code>3478</code> 和 <code>50000-50200/udp</code> 就是宿主机上的端口。<code>command</code> 明确指定读取 <code>/etc/coturn/turnserver.conf</code>，避免镜像默认命令自动探测外网 IP 导致启动卡住。</p>
+<p>这和前面 Synapse、ntfy 的文章并不冲突：Synapse、ntfy、NPM 仍然适合留在 <code>matrix</code> 网络里；coturn 属于对外 TURN 边界服务，直接绑定宿主机端口更稳定，也能避开 UDP 端口段映射导致的启动卡顿。</p>
+<h2 id="五启动-coturn">五、启动 coturn</h2>
+<p>先前台启动观察日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/coturn
+</span></span><span style="display:flex;"><span>docker compose up</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/coturn\ndocker compose up"</script>
+</div>
+<p>这时终端会停在前台持续打印日志，看起来像“卡住了”，这是正常现象。先不要关闭这个终端，观察日志里是否有明显报错。</p>
+<p>如果想确认它到底是“活着”还是“挂了”，保持当前这个前台终端不要动，打开一个新的终端窗口，进入同一个目录后检查容器状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/coturn
+</span></span><span style="display:flex;"><span>docker compose ps</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/coturn\ndocker compose ps"</script>
+</div>
+<p>也可以在新终端里查看实时日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f coturn</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f coturn"</script>
+</div>
+<p>如果前台终端里按 <code>Ctrl+C</code> 后一直卡在类似 <code>Stopping 73.2s</code> 的状态无法结束，可以在新的终端窗口强制删除这个卡住的容器：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker rm -f coturn</span></span></code></pre></div><script class="code-source" type="application/json">"docker rm -f coturn"</script>
+</div>
+<p>如果你之前用过 bridge 网络版本，并且 Compose 里还保留了下面这种端口段映射：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#e6db74">&#39;50000-50200:50000-50200/udp&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"- '50000-50200:50000-50200/udp'"</script>
+</div>
+<p>启动和停止都可能很慢。建议先改成本文的 <code>network_mode: host</code>，再重新启动。</p>
+<p>可以先用下面的命令确认最终 Compose 配置里已经没有 <code>ports</code>，并且网络模式确实是 <code>host</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose config</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose config"</script>
+</div>
+<p>如果你使用的是旧命令，也可以执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker-compose config</span></span></code></pre></div><script class="code-source" type="application/json">"docker-compose config"</script>
+</div>
+<p>启动后再检查容器网络模式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker inspect coturn --format <span style="color:#e6db74">&#39;{{.HostConfig.NetworkMode}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker inspect coturn --format '{{.HostConfig.NetworkMode}}'"</script>
+</div>
+<p>正常应输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>host</span></span></code></pre></div><script class="code-source" type="application/json">"host"</script>
+</div>
+<p>也可以检查端口监听：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -tulnp | grep <span style="color:#ae81ff">3478</span></span></span></code></pre></div><script class="code-source" type="application/json">"ss -tulnp | grep 3478"</script>
+</div>
+<p>如果输出里看到的是 <code>docker-proxy</code>，说明当前容器仍然在走 Docker 端口映射，通常是 Compose 文件里还残留了 <code>ports</code>，或者存在 <code>docker-compose.override.yml</code> 之类的覆盖配置。先删掉旧容器，再重新创建：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker rm -f coturn
+</span></span><span style="display:flex;"><span>docker compose up -d --force-recreate</span></span></code></pre></div><script class="code-source" type="application/json">"docker rm -f coturn\ndocker compose up -d --force-recreate"</script>
+</div>
+<p>确认配置没有明显报错后，再改成后台运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<p>后台启动后再次查看容器状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose ps</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose ps"</script>
+</div>
+<p>查看实时日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f coturn</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f coturn"</script>
+</div>
+<h2 id="六开放防火墙端口">六、开放防火墙端口</h2>
+<p>服务器防火墙、云安全组或路由器端口转发需要放行：</p>
+<table>
+  <thead>
+      <tr>
+          <th>端口</th>
+          <th>协议</th>
+          <th>用途</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>3478</code></td>
+          <td>TCP/UDP</td>
+          <td>TURN 普通监听端口</td>
+      </tr>
+      <tr>
+          <td><code>50000-50200</code></td>
+          <td>UDP</td>
+          <td>TURN 中继端口范围</td>
+      </tr>
+  </tbody>
+</table>
+<blockquote>
+<p><code>5349</code> 只在启用 TURN TLS / TURNS 并配置好可信域名证书时才需要。本文默认使用 <code>no-tls</code>、<code>no-dtls</code> 不启动证书，所以不用开放 <code>5349</code>，Synapse 里也不要写 <code>turns:</code>。</p>
+</blockquote>
+<p>其中 <code>3478/udp</code> 很重要，WebRTC 通话优先走 UDP，保留它能减少延迟并提高连接成功率。<code>3478/tcp</code> 可以作为普通 TURN over TCP 的补充入口。</p>
+<p>如果你的服务器开启了 IPv6，也要同步检查 IPv6 防火墙规则。</p>
+<p>如果宿主机使用 <code>ufw</code>，可以参考下面的命令放行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ufw allow 3478/tcp
+</span></span><span style="display:flex;"><span>ufw allow 3478/udp
+</span></span><span style="display:flex;"><span>ufw allow 50000:50200/udp</span></span></code></pre></div><script class="code-source" type="application/json">"ufw allow 3478/tcp\nufw allow 3478/udp\nufw allow 50000:50200/udp"</script>
+</div>
+<p>如果前面还有 RouterOS 软路由，公网入口在软路由上，而 Docker 主机内网 IP 是 <code>10.20.20.8</code>，就应该在 RouterOS 上把 coturn 端口转发到这台 Docker 主机。示例命令如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat
+add chain=dstnat action=dst-nat dst-address-type=local protocol=tcp dst-port=3478 to-addresses=10.20.20.8 to-ports=3478 comment=&#34;coturn 3478 tcp&#34;
+add chain=dstnat action=dst-nat dst-address-type=local protocol=udp dst-port=3478 to-addresses=10.20.20.8 to-ports=3478 comment=&#34;coturn 3478 udp&#34;
+add chain=dstnat action=dst-nat dst-address-type=local protocol=udp dst-port=50000-50200 to-addresses=10.20.20.8 comment=&#34;coturn relay udp&#34;</code></pre><script class="code-source" type="application/json">"/ip firewall nat\nadd chain=dstnat action=dst-nat dst-address-type=local protocol=tcp dst-port=3478 to-addresses=10.20.20.8 to-ports=3478 comment=\"coturn 3478 tcp\"\nadd chain=dstnat action=dst-nat dst-address-type=local protocol=udp dst-port=3478 to-addresses=10.20.20.8 to-ports=3478 comment=\"coturn 3478 udp\"\nadd chain=dstnat action=dst-nat dst-address-type=local protocol=udp dst-port=50000-50200 to-addresses=10.20.20.8 comment=\"coturn relay udp\""</script>
+</div>
+<p>如果你的 RouterOS 防火墙默认丢弃转发流量，还需要允许已经做了 <code>dstnat</code> 的转发连接：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall filter
+add chain=forward action=accept connection-nat-state=dstnat comment=&#34;allow dstnat forwarded services&#34;</code></pre><script class="code-source" type="application/json">"/ip firewall filter\nadd chain=forward action=accept connection-nat-state=dstnat comment=\"allow dstnat forwarded services\""</script>
+</div>
+<p>IPv6 不需要做 <code>dstnat</code>。如果 Docker 主机已经拿到了公网 IPv6 地址，就在 RouterOS 的 IPv6 防火墙里允许转发这些端口。按 WinBox 里的写法，对应就是 <code>chain=forward</code>、<code>protocol</code>、<code>dst-port</code>，动作选择 <code>accept</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ipv6 firewall filter
+add chain=forward action=accept protocol=tcp dst-port=3478 comment=&#34;allow coturn 3478 tcp&#34;
+add chain=forward action=accept protocol=udp dst-port=3478 comment=&#34;allow coturn 3478 udp&#34;
+add chain=forward action=accept protocol=udp dst-port=50000-50200 comment=&#34;allow coturn relay udp&#34;</code></pre><script class="code-source" type="application/json">"/ipv6 firewall filter\nadd chain=forward action=accept protocol=tcp dst-port=3478 comment=\"allow coturn 3478 tcp\"\nadd chain=forward action=accept protocol=udp dst-port=3478 comment=\"allow coturn 3478 udp\"\nadd chain=forward action=accept protocol=udp dst-port=50000-50200 comment=\"allow coturn relay udp\""</script>
+</div>
+<p>这里不加 <code>in-interface-list=WAN</code>，是为了让内网设备访问公网域名时也能匹配到规则。如果你的内网里有多台 IPv6 主机也可能使用这些端口，可以再加 <code>dst-address=你的Docker主机IPv6地址</code> 精确限定目标。只有明确不需要内网设备通过公网域名访问时，才建议额外限制 <code>in-interface-list=WAN</code>。无论哪种写法，这些 IPv6 <code>accept</code> 规则都要放在最终丢弃转发流量的规则之前，否则规则写了也不会生效。</p>
+<p>如果想更准确地观察一次通话到底有没有走这些规则，可以在通话前先清零 coturn 相关规则计数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat reset-counters [find comment~&#34;coturn&#34;]
+/ip firewall filter reset-counters [find comment~&#34;coturn&#34;]
+/ipv6 firewall filter reset-counters [find comment~&#34;coturn&#34;]</code></pre><script class="code-source" type="application/json">"/ip firewall nat reset-counters [find comment~\"coturn\"]\n/ip firewall filter reset-counters [find comment~\"coturn\"]\n/ipv6 firewall filter reset-counters [find comment~\"coturn\"]"</script>
+</div>
+<p>然后发起通话，保持 30 秒左右，再查看计数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall nat print stats where comment~&#34;coturn&#34;
+/ip firewall filter print stats where comment~&#34;coturn&#34;
+/ipv6 firewall filter print stats where comment~&#34;coturn&#34;</code></pre><script class="code-source" type="application/json">"/ip firewall nat print stats where comment~\"coturn\"\n/ip firewall filter print stats where comment~\"coturn\"\n/ipv6 firewall filter print stats where comment~\"coturn\""</script>
+</div>
+<p>需要注意，WebRTC 会优先选择能直连的 ICE 候选。通话能听到但 <code>50000-50200/udp</code> 计数没有明显增长，并不一定是错误，可能是这次通话走了 IPv6 直连、局域网直连或其他可用路径。只有当通话实际失败，且 coturn 日志里 <code>peer usage</code> 长期为 <code>0</code>，才需要重点回头检查 relay UDP 端口段。</p>
+<h2 id="七nginx-proxy-manager-配置">七、Nginx Proxy Manager 配置</h2>
+<p>coturn 不是普通 Web 服务，不能在 Nginx Proxy Manager（NPM）里用 <code>Proxy Hosts</code> 按 HTTP/HTTPS 网站那样反向代理。TURN 需要 TCP/UDP 端口和 UDP 中继端口段，尤其 <code>3478/udp</code> 和 <code>50000-50200/udp</code> 对 WebRTC 通话很关键。</p>
+<p>推荐做法是：DNS 直接指向运行 coturn 的服务器，服务器防火墙直接放行 coturn 端口，NPM 不参与 TURN 流量转发。</p>
+<p>DNS 示例：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>coturn.example.com  A     服务器IPv4
+</span></span><span style="display:flex;"><span>coturn.example.com  AAAA  服务器IPv6</span></span></code></pre></div><script class="code-source" type="application/json">"coturn.example.com  A     服务器IPv4\ncoturn.example.com  AAAA  服务器IPv6"</script>
+</div>
+<p>本文使用 <code>network_mode: host</code> 后，coturn 不在 <code>matrix</code> bridge 网络里，NPM 后台也不能再把 Stream 目标写成 <code>coturn</code> 这个容器名。即使强行用 NPM Streams 转发 <code>3478</code>，UDP 中继端口段 <code>50000-50200/udp</code> 仍然不适合通过 NPM 维护。</p>
+<p>因此更推荐的最终结构是：</p>
+<ul>
+<li>Synapse、ntfy、NPM 等 HTTP/HTTPS 服务继续接入 <code>matrix</code> Docker 网络。</li>
+<li>NPM 继续负责 Synapse、ntfy 等 Web 服务的反代。</li>
+<li>coturn 使用 <code>network_mode: host</code>，直接监听宿主机的 <code>3478/tcp</code>、<code>3478/udp</code> 和 <code>50000-50200/udp</code>。</li>
+<li>固定公网 IPv4 场景下，<code>coturn.example.com</code> 的 <code>A</code> 记录直接指向公网 IPv4，并在 coturn 中配置 <code>external-ip=公网IPv4/内网IPv4</code>。</li>
+<li>公网 IPv4 会变化或主要依赖 IPv6 的内网双栈场景下，保持域名的 <code>AAAA</code> 记录及时更新，coturn 可以不写 <code>external-ip</code>，但要确认 IPv6 防火墙放行了 TURN 端口。</li>
+<li>Synapse 只需要在 <code>homeserver.yaml</code> 中填写 coturn 的公网域名和同一个共享密钥。</li>
+</ul>
+<h2 id="八接入-synapse">八、接入 Synapse</h2>
+<p>编辑 Synapse 的配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /root/data/docker_data/synapse/data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /root/data/docker_data/synapse/data/homeserver.yaml"</script>
+</div>
+<p>加入 TURN 配置，把域名和密钥改成自己的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># 旧版 TURN 配置，保留给 Element Web/Desktop 和旧客户端使用</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_uris</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;turn:coturn.example.com?transport=udp&#34;</span>
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;turn:coturn.example.com?transport=tcp&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_shared_secret</span>: <span style="color:#e6db74">&#34;你的68位随机密钥&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_user_lifetime</span>: <span style="color:#ae81ff">86400000</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_allow_guests</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 旧版 TURN 配置，保留给 Element Web/Desktop 和旧客户端使用\nturn_uris:\n  - \"turn:coturn.example.com?transport=udp\"\n  - \"turn:coturn.example.com?transport=tcp\"\nturn_shared_secret: \"你的68位随机密钥\"\nturn_user_lifetime: 86400000\nturn_allow_guests: true"</script>
+</div>
+<p>这里的 <code>turn_shared_secret</code> 必须和 <code>turnserver.conf</code> 里的 <code>static-auth-secret</code> 完全一致。<code>coturn.example.com</code> 只是示例域名，实际配置时换成自己的 coturn 域名，不要带端口。本文没有启用证书，所以不要把 <code>turn:</code> 写成 <code>turns:</code>。</p>
+<p>修改完成后重启 Synapse：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
+</span></span><span style="display:flex;"><span>docker compose restart synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose restart synapse"</script>
+</div>
+<h2 id="九常用排查命令">九、常用排查命令</h2>
+<p>查看 coturn 日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f coturn</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f coturn"</script>
+</div>
+<p>查看宿主机监听端口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>netstat -anpl | grep turnserver</span></span></code></pre></div><script class="code-source" type="application/json">"netstat -anpl | grep turnserver"</script>
+</div>
+<p>如果没有 <code>netstat</code>，可以先安装：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt install -y net-tools</span></span></code></pre></div><script class="code-source" type="application/json">"apt install -y net-tools"</script>
+</div>
+<p>如果你想确认 coturn 是否真的用了 host 网络，可以查看容器网络模式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker inspect coturn --format <span style="color:#e6db74">&#39;{{.HostConfig.NetworkMode}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker inspect coturn --format '{{.HostConfig.NetworkMode}}'"</script>
+</div>
+<p>正常应输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>host</span></span></code></pre></div><script class="code-source" type="application/json">"host"</script>
+</div>
+<p>Synapse 容器仍然可以继续留在 <code>matrix</code> 网络里。coturn 不需要和 <code>matrix-synapse</code> 处在同一个 Docker 网络，只要 Synapse 配置里的 <code>turn_uris</code> 能解析到 coturn 的公网域名即可。</p>
+<h3 id="认证错误cannot-find-credentials-of-user">认证错误：Cannot find credentials of user</h3>
+<p>如果 coturn 日志里出现类似下面的报错：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>check_stun_auth: Cannot find credentials of user &lt;testuser&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"check_stun_auth: Cannot find credentials of user \u003ctestuser\u003e"</script>
+</div>
+<p>先看你是不是用 Trickle ICE 或其他 WebRTC 测试页直接填了 <code>testuser</code> 和共享密钥。本文使用的是 <code>use-auth-secret</code> + <code>static-auth-secret</code>，也就是 Matrix/Synapse 常用的 TURN REST API 动态凭据模式；客户端用户名不是固定的 <code>testuser</code>，密码也不是共享密钥本身，而是 Synapse 按共享密钥临时生成的一组用户名和密码。</p>
+<p>测试 shared secret 模式时，可以在服务器上用下面的命令临时生成一组 1 小时有效的 TURN 用户名和密码：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>secret<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;你的68位随机密钥&#39;</span>
+</span></span><span style="display:flex;"><span>u<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(($(</span>date +%s<span style="color:#66d9ef">)</span> <span style="color:#f92672">+</span> <span style="color:#ae81ff">3600</span><span style="color:#66d9ef">))</span><span style="color:#e6db74">:test&#34;</span>
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>printf <span style="color:#e6db74">&#39;%s&#39;</span> <span style="color:#e6db74">&#34;</span>$u<span style="color:#e6db74">&#34;</span> | openssl dgst -sha1 -hmac <span style="color:#e6db74">&#34;</span>$secret<span style="color:#e6db74">&#34;</span> -binary | base64<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;username: %s\npassword: %s\n&#39;</span> <span style="color:#e6db74">&#34;</span>$u<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$p<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret='你的68位随机密钥'\nu=\"$(($(date +%s) + 3600)):test\"\np=\"$(printf '%s' \"$u\" | openssl dgst -sha1 -hmac \"$secret\" -binary | base64)\"\nprintf 'username: %s\\npassword: %s\\n' \"$u\" \"$p\""</script>
+</div>
+<p>然后在 Trickle ICE 里填写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>URI: turn:coturn.example.com?transport=udp
+</span></span><span style="display:flex;"><span>username: 上面输出的 username
+</span></span><span style="display:flex;"><span>password: 上面输出的 password</span></span></code></pre></div><script class="code-source" type="application/json">"URI: turn:coturn.example.com?transport=udp\nusername: 上面输出的 username\npassword: 上面输出的 password"</script>
+</div>
+<p>正常情况下结果里应该至少出现一条 <code>relay</code> candidate。只出现 <code>host</code> 或 <code>srflx</code>，或者继续报 <code>Cannot find credentials</code>，就优先检查下面几项：</p>
+<ul>
+<li><code>turnserver.conf</code> 里的 <code>static-auth-secret</code> 和 Synapse <code>homeserver.yaml</code> 里的 <code>turn_shared_secret</code> 必须完全一致。</li>
+<li>修改 <code>homeserver.yaml</code> 后要重启 Synapse；修改 <code>turnserver.conf</code> 后要重启 coturn。</li>
+<li><code>turnserver.conf</code> 里不要同时混用 <code>use-auth-secret</code> 和固定用户 <code>user=testuser:password</code>。如果要临时测试固定用户名，必须先注释掉 <code>use-auth-secret</code> 和 <code>static-auth-secret</code>，改用 <code>lt-cred-mech</code> 与 <code>user=用户名:密码</code>，测试完再改回 shared secret 模式。</li>
+<li>如果 Docker 主机在 NAT 后面，确认已经配置 <code>external-ip=公网IPv4/内网IPv4</code>，并且路由器、云安全组和宿主机防火墙都放行了 <code>3478/udp</code> 与 <code>50000-50200/udp</code>。</li>
+</ul>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-codebot-second-gateway-runbook/">
+            <img src="/posts/ai/hermes-codebot-second-gateway-runbook/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes Codebot 第二个 Telegram Gateway 复盘手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-telegram-quiet-mode-restore/">
+            <img src="/posts/ai/hermes-telegram-quiet-mode-restore/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Telegram 安静模式恢复手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-handmade-tuning/">
+            <img src="/posts/ai/hermes-agent-handmade-tuning/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-deployment/">
+            <img src="/posts/ai/hermes-agent-deployment/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 部署教程：一键安装、Docker、Dashboard 与 Gateway</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/proxmox-ubuntu2504-vm-docker/">
+            <img src="/posts/linux/proxmox-ubuntu2504-vm-docker/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/lol-riot-realip-mosdns-sing-box/">
+            <img src="/posts/linux/lol-riot-realip-mosdns-sing-box/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-hysteria2-sing-box-production/">
+            <img src="/posts/linux/alpine-hysteria2-sing-box-production/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>
