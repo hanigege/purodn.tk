@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Netplan on 电脑自习室</title><link>https://purodn.tk/tags/netplan/</link><description>Recent content in Netplan on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/netplan/index.xml" rel="self" type="application/rss+xml"/><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>&lt;p&gt;在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。&lt;/p&gt;
+&lt;p&gt;后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。&lt;/p&gt;
+&lt;h2 id="准备-ubuntu-cloud-image"&gt;准备 Ubuntu Cloud Image&lt;/h2&gt;
+&lt;p&gt;Ubuntu Cloud Image 官方下载站：&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://cloud-images.ubuntu.com/"&gt;https://cloud-images.ubuntu.com/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。&lt;/p&gt;
+&lt;h2 id="创建虚拟机并写入-cloud-init"&gt;创建虚拟机并写入 cloud-init&lt;/h2&gt;
+&lt;p&gt;在 ESXi 里创建虚拟机后，可以通过 &lt;code&gt;guestinfo.userdata&lt;/code&gt; 写入 cloud-init 配置。原文示例里使用了 base64 方式：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;guestinfo.userdata.encoding base64
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;guestinfo.userdata&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"guestinfo.userdata.encoding base64\nguestinfo.userdata"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#cloud-config&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;users&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;mac&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;groups&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sudo&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;sudo&lt;/span&gt;: [&lt;span style="color:#e6db74"&gt;&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;plain_text_passwd&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#39;12345&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;lock_passwd&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;false&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# ssh_authorized_keys:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# - ssh-ed25519 AAAA... your-key&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"#cloud-config\nusers:\n - name: mac\n groups: sudo\n sudo: ['ALL=(ALL) NOPASSWD:ALL']\n plain_text_passwd: '12345'\n lock_passwd: false\n # ssh_authorized_keys:\n # - ssh-ed25519 AAAA... your-key"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果要转换成 base64，可以在本机保存为 &lt;code&gt;user-data.yaml&lt;/code&gt; 后执行：&lt;/p&gt;</description></item></channel></rss>

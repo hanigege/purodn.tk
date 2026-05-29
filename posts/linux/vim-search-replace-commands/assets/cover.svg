@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Vim search and replace commands cover</title>
+  <desc id="desc">A terminal style cover for a Vim search and replace tutorial.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172033"/>
+      <stop offset="0.55" stop-color="#263548"/>
+      <stop offset="1" stop-color="#30443f"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#101827"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="210" cy="710" r="230" fill="#22c55e" opacity="0.11"/>
+  <circle cx="1320" cy="190" r="190" fill="#38bdf8" opacity="0.12"/>
+  <g transform="translate(154 126)" filter="url(#shadow)">
+    <rect width="1292" height="648" rx="28" fill="url(#panel)"/>
+    <rect width="1292" height="72" rx="28" fill="#1f2937"/>
+    <circle cx="48" cy="36" r="12" fill="#f97316"/>
+    <circle cx="88" cy="36" r="12" fill="#facc15"/>
+    <circle cx="128" cy="36" r="12" fill="#22c55e"/>
+    <text x="646" y="46" text-anchor="middle" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="23" fill="#cbd5e1">vim-search-replace.md</text>
+    <g font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="34">
+      <text x="78" y="160" fill="#86efac">:%s/foo/bar/g</text>
+      <text x="78" y="228" fill="#fbbf24">:%s/foo/bar/gc</text>
+      <text x="78" y="296" fill="#93c5fd">:%s/8\.8\.8\.8/10.20.20.29/g</text>
+      <text x="78" y="364" fill="#c4b5fd">:%s#/old/path#/new/path#g</text>
+      <text x="78" y="432" fill="#f8fafc">:%s/\&lt;foo\&gt;/bar/g</text>
+    </g>
+    <g transform="translate(960 164)">
+      <rect x="0" y="0" width="240" height="240" rx="36" fill="#16a34a" opacity="0.95"/>
+      <text x="120" y="154" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="108" font-weight="900" fill="#ecfdf5">V</text>
+      <path d="M64 286h154" fill="none" stroke="#22c55e" stroke-width="16" stroke-linecap="round"/>
+      <path d="M176 246l42 40-42 40" fill="none" stroke="#22c55e" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="120" y="370" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" fill="#d1fae5">find and replace</text>
+    </g>
+    <text x="78" y="572" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" fill="#f8fafc">Vim 查找替换命令速查</text>
+    <text x="78" y="624" font-family="Inter, Arial, sans-serif" font-size="28" fill="#cbd5e1">substitute, confirm, range, escape and change word</text>
+  </g>
+</svg>
