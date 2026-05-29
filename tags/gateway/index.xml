@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Gateway on 电脑自习室</title><link>https://purodn.tk/tags/gateway/</link><description>Recent content in Gateway on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/gateway/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</title><link>https://purodn.tk/posts/ai/hermes-backup-migration/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-backup-migration/</guid><description>&lt;p&gt;Hermes Agent 自带 &lt;code&gt;backup&lt;/code&gt; 和 &lt;code&gt;import&lt;/code&gt;，适合把一台机器上的 Hermes 环境完整搬到另一台机器。它不是只导出一份配置文件，而是把 profile、技能、记忆、会话历史、认证状态和本地数据库一起打包。&lt;/p&gt;
+&lt;p&gt;如果你已经有一个默认助手和一个开发助手，例如默认 profile 用来日常聊天，&lt;code&gt;coder&lt;/code&gt; profile 用来写代码和运维，那么迁移时不需要分别手工复制两个目录。正常情况下，一个 &lt;code&gt;hermes backup&lt;/code&gt; 就能把它们一起带走。&lt;/p&gt;
+&lt;p&gt;这篇教程按公版写法整理：旧机器备份，新机器安装，导入备份，恢复 gateway，再检查 Matrix 反向代理和客户端地址。&lt;/p&gt;
+&lt;h2 id="迁移前先确认什么"&gt;迁移前先确认什么&lt;/h2&gt;
+&lt;p&gt;开始前建议确认三件事：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;旧机器上的 Hermes 能正常启动。&lt;/li&gt;
+&lt;li&gt;新机器可以访问 GitHub 或能通过其他方式安装 Hermes。&lt;/li&gt;
+&lt;li&gt;你知道 Hermes 运行在哪个系统用户下，例如当前登录用户、&lt;code&gt;hermes&lt;/code&gt; 用户或其他专用用户。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;后续命令默认在运行 Hermes 的那个用户下执行。不要一会儿用普通用户，一会儿用 &lt;code&gt;root&lt;/code&gt;，否则导入后的数据可能落到不同 home 目录里。&lt;/p&gt;
+&lt;p&gt;先确认当前用户和 Hermes 命令位置：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;whoami
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$HOME&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;command -v hermes
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;hermes --version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"whoami\necho \"$HOME\"\ncommand -v hermes\nhermes --version"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果 Hermes 是 systemd user service，后续也要用同一个用户管理 gateway：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;systemctl --user list-units &lt;span style="color:#e6db74"&gt;&amp;#39;hermes*&amp;#39;&lt;/span&gt; --no-pager&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"systemctl --user list-units 'hermes*' --no-pager"&lt;/script&gt;
+&lt;/div&gt;
+&lt;h2 id="备份包会包含什么"&gt;备份包会包含什么&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;hermes backup&lt;/code&gt; 会把 Hermes 的本地数据打成一个 zip 包。实际包含内容会随 Hermes 版本和本机配置略有变化，但迁移时可以按下面理解：&lt;/p&gt;</description></item></channel></rss>

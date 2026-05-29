@@ -1,4 +1,39 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ubuntu on 电脑自习室</title><link>https://purodn.tk/tags/ubuntu/</link><description>Recent content in Ubuntu on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 27 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ubuntu/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ubuntu on 电脑自习室</title><link>https://purodn.tk/tags/ubuntu/</link><description>Recent content in Ubuntu on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 08:32:50 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ubuntu/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title><link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link><pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid><description>&lt;p&gt;这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 &lt;code&gt;Asia/Shanghai&lt;/code&gt;，再用 &lt;code&gt;chrony&lt;/code&gt; 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。&lt;/p&gt;
+&lt;h2 id="时间同步和北京时间的关系"&gt;时间同步和北京时间的关系&lt;/h2&gt;
+&lt;p&gt;这里要分清两件事：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Asia/Shanghai&lt;/code&gt; 负责把系统显示时区设为北京时间，也就是 UTC+8。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;chrony&lt;/code&gt; 负责通过 NTP 校准系统时钟，让时间本身准确。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;所以只安装 &lt;code&gt;chrony&lt;/code&gt; 不等于设置北京时间；只设置 &lt;code&gt;Asia/Shanghai&lt;/code&gt; 也不等于时间已经校准。两个都做完，&lt;code&gt;date&lt;/code&gt; 看到的时间才会是准确的北京时间。&lt;/p&gt;
+&lt;h2 id="一设置时区为北京时间"&gt;一、设置时区为北京时间&lt;/h2&gt;
+&lt;p&gt;先查看当前时间和时区：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;timedatectl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;date&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"timedatectl\ndate"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;设置系统时区为北京时间：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo timedatectl set-timezone Asia/Shanghai&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo timedatectl set-timezone Asia/Shanghai"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;再次确认：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;timedatectl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;date&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"timedatectl\ndate"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;timedatectl&lt;/code&gt; 输出里应能看到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Time zone: Asia/Shanghai (CST, +0800)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"Time zone: Asia/Shanghai (CST, +0800)"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;date&lt;/code&gt; 输出里也应该出现 &lt;code&gt;CST&lt;/code&gt; 或 &lt;code&gt;+0800&lt;/code&gt;。这一步只负责时区显示，不负责从网络校准时间。&lt;/p&gt;
+&lt;h2 id="二使用-chrony-校准系统时间"&gt;二、使用 chrony 校准系统时间&lt;/h2&gt;
+&lt;p&gt;Ubuntu 默认可以使用 &lt;code&gt;systemd-timesyncd&lt;/code&gt; 做基础时间同步，但服务器环境更推荐使用 &lt;code&gt;chrony&lt;/code&gt;。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。&lt;/p&gt;
+&lt;p&gt;先安装 &lt;code&gt;chrony&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install -y chrony&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install -y chrony"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;编辑配置文件：&lt;/p&gt;</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
 &lt;p&gt;适用场景：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。&lt;/li&gt;
@@ -33,6 +68,11 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git checkout stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"git clone https://github.com/neovim/neovim.git ~/neovim-src\ncd ~/neovim-src\ngit checkout stable"&lt;/script&gt;
 &lt;/div&gt;
 &lt;p&gt;开始编译并全局安装：&lt;/p&gt;</description></item><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>&lt;p&gt;这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 &lt;code&gt;/srv/backup&lt;/code&gt; 单向同步到 B 机器，不让备份端的改动反向影响源端。&lt;/p&gt;
+&lt;p&gt;如果前面还有一台业务服务器只负责打包并上传备份，生产链路可以拆成三段：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;业务服务器 A -&amp;gt; SSH 上传 tar.gz -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 单向同步 -&amp;gt; 最终备份端 C:/srv/backup&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"业务服务器 A -\u003e SSH 上传 tar.gz -\u003e Syncthing 源端 B:/srv/backup -\u003e Syncthing 单向同步 -\u003e 最终备份端 C:/srv/backup"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这种情况下，A 不必运行 Syncthing；A 只需要把完整备份包原子地放入 B 的 &lt;code&gt;/srv/backup&lt;/code&gt;。真正负责同步状态、设备连接和最终落盘的是 B 与 C 上的 Syncthing。&lt;/p&gt;
 &lt;p&gt;&lt;a href="https://syncthing.net/"&gt;Syncthing&lt;/a&gt; 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。&lt;/p&gt;
 &lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
 &lt;ul&gt;
@@ -43,19 +83,4 @@
 &lt;li&gt;运行用户：专门创建的 &lt;code&gt;syncthing&lt;/code&gt; 普通服务用户&lt;/li&gt;
 &lt;li&gt;管理方式：通过 SSH 隧道访问 Syncthing Web GUI&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;本文从安装开始就把服务、配置目录和同步目录都交给 &lt;code&gt;syncthing:syncthing&lt;/code&gt;，符合 Syncthing 对运行用户的建议。&lt;/p&gt;
-&lt;h2 id="一ubuntu-源端配置"&gt;一、Ubuntu 源端配置&lt;/h2&gt;
-&lt;h3 id="1-安装-syncthing"&gt;1. 安装 Syncthing&lt;/h3&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install syncthing -y&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install syncthing -y"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建服务用户、配置目录和同步目录：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo useradd --system --home /var/lib/syncthing --create-home --shell /usr/sbin/nologin syncthing
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing/.config
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /var/lib/syncthing/.local/state/syncthing
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo install -d -o syncthing -g syncthing /srv/backup&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo useradd --system --home /var/lib/syncthing --create-home --shell /usr/sbin/nologin syncthing\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing/.config\nsudo install -d -o syncthing -g syncthing /var/lib/syncthing/.local/state/syncthing\nsudo install -d -o syncthing -g syncthing /srv/backup"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;生成 Syncthing 配置：&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;实际生产里也可以把源端同步端口改成非默认端口，例如 B 机监听 &lt;code&gt;29029/tcp&lt;/code&gt; 和 &lt;code&gt;29029/udp&lt;/code&gt;，C 机继续监听默认 &lt;code&gt;22000&lt;/code&gt;。Syncthing 设备地址保留 &lt;code&gt;dynamic&lt;/code&gt; 时会通过发现服务交换真实地址；手动指定地址时才需要写成 &lt;code&gt;tcp://公网IP:端口&lt;/code&gt;。&lt;/p&gt;</description></item></channel></rss>
