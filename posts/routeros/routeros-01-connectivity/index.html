@@ -1,9 +1,9 @@
 <!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>01.RouterOS 联网基本配置及 IPv4 防火墙 | 电脑自习室</title><meta name=description content="RouterOS 联网基本配置及 IPv4 防火墙。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
 <a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
 <a href=/categories/linux/>Linux</a>
 <a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a>
-<a href=/categories/ai/>AI</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
 <time datetime=2025-08-14>2025年8月14日</time></div><h1>01.RouterOS 联网基本配置及 IPv4 防火墙</h1><p>RouterOS 联网基本配置及 IPv4 防火墙。</p></header><img class=article-cover src=/posts/routeros/routeros-01-connectivity/assets/routeros-01.svg alt><div class=article-content><h2 id=本文介绍routeros拨号配置dhcp服务器配置dns开启ipv4防火墙等通网的基础配置桥接接口bridge1拨号接口pppoe-out1名称若不同则自行替换>本文介绍RouterOS拨号、配置DHCP服务器、配置DNS、开启IPv4防火墙等通网的基础配置。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换</h2><h4 id=1-pppoe-拨号>1. PPPoE 拨号</h4><p>手动配置pppoe-out1接口拨号，User填入宽带账号，Password填入宽带密码。如果不使用运营商提供的DNS可不勾选User Peed DNS。
 <img src=assets/routeros-01-connectivity-01.png alt>
 注：接口前出现“R”代表拨号成功。拨号成功后建议先禁用，待防火墙配置完毕后再开启!
@@ -34,19 +34,19 @@
 </span></span><span style=display:flex><span>/ip firewall service-port disable rtsp
 </span></span><span style=display:flex><span>/ip firewall service-port disable sip
 </span></span><span style=display:flex><span>/ip firewall service-port disable tftp</span></span></code></pre></div><script class=code-source type=application/json>"/ip firewall service-port disable ftp\n/ip firewall service-port disable irc\n/ip firewall service-port disable pptp\n/ip firewall service-port disable rtsp\n/ip firewall service-port disable sip\n/ip firewall service-port disable tftp"</script></div><p>注：防火墙已配置完毕，可打开pppoe接口开始网上冲浪</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-profiles-multi-bot-isolation/><img src=/posts/ai/hermes-profiles-multi-bot-isolation/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
+<span class=latest-title>Hermes Profile 多机器人隔离查询手册</span></a></li><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
+<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
+<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
+<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li><li><a href=/posts/ai/hermes-backup-migration/><img src=/posts/ai/hermes-backup-migration/assets/cover.svg alt>
+<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

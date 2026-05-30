@@ -1,9 +1,9 @@
 <!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置 | 电脑自习室</title><meta name=description content="在 FreeBSD 15 上部署 Xray VLESS Reality Vision TCP 节点，用作轻量 TCP 代理方案和 Gost MWSS 的对比基准。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
 <a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
 <a href=/categories/linux/>Linux</a>
 <a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a>
-<a href=/categories/ai/>AI</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
 <time datetime=2026-05-25>2026年5月25日</time></div><h1>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</h1><p>在 FreeBSD 15 上部署 Xray VLESS Reality Vision TCP 节点，用作轻量 TCP 代理方案和 Gost MWSS 的对比基准。</p></header><img class=article-cover src=/posts/freebsd/freebsd15-xray-reality-sing-box/assets/cover.svg alt><div class=article-content><p>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>sing-box 客户端
 </span></span><span style=display:flex><span>  -&gt; Xray VLESS Reality Vision
 </span></span><span style=display:flex><span>  -&gt; FreeBSD Xray 443/tcp
@@ -191,19 +191,19 @@ pass in quick inet proto udp from any to any port 443 keep state (max-src-states
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>service gost_mwss stop
 </span></span><span style=display:flex><span>sysrc gost_mwss_enable<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;NO&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"service nginx stop\nsysrc nginx_enable=\"NO\"\n\nservice gost_mwss stop\nsysrc gost_mwss_enable=\"NO\""</script></div><p>再次确认只有 Xray 占用 TCP 443：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>sockstat -4 -6 -l | egrep <span style=color:#e6db74>&#39;:(443|80|18080)&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"sockstat -4 -6 -l | egrep ':(443|80|18080)'"</script></div><p>正常情况下，Xray 应监听 <code>*:443/tcp</code>；如果有 Hysteria2，则它监听 <code>*:443/udp</code>，这不冲突。若最终改用 Gost MWSS + Nginx，则需要停用 Xray，把 <code>443/tcp</code> 交给 Nginx。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-profiles-multi-bot-isolation/><img src=/posts/ai/hermes-profiles-multi-bot-isolation/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
+<span class=latest-title>Hermes Profile 多机器人隔离查询手册</span></a></li><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
+<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
+<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
+<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li><li><a href=/posts/ai/hermes-backup-migration/><img src=/posts/ai/hermes-backup-migration/assets/cover.svg alt>
+<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
