@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes Agent config.yaml reference</title>
+  <desc id="desc">A configuration file with model, display, platform, gateway, memory, and permissions blocks for Hermes Agent.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172126"/>
+      <stop offset="0.55" stop-color="#203232"/>
+      <stop offset="1" stop-color="#2d2a1c"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10202a"/>
+      <stop offset="1" stop-color="#16251f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="0.55" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.36"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 455 C146 395 270 435 412 390 C595 332 722 233 900 284 C1018 318 1100 389 1200 360 L1200 630 L0 630 Z" fill="#19302c" opacity="0.9"/>
+  <path d="M0 540 C178 496 326 556 516 500 C704 444 845 405 1005 451 C1090 476 1156 514 1200 500 L1200 630 L0 630 Z" fill="#111f1d" opacity="0.94"/>
+
+  <g filter="url(#shadow)">
+    <rect x="108" y="74" width="984" height="482" rx="20" fill="url(#card)" stroke="#44545b" stroke-width="2"/>
+    <rect x="108" y="74" width="984" height="54" rx="20" fill="#0d151b"/>
+    <circle cx="143" cy="101" r="8" fill="#ef4444"/>
+    <circle cx="171" cy="101" r="8" fill="#f59e0b"/>
+    <circle cx="199" cy="101" r="8" fill="#22c55e"/>
+  </g>
+
+  <text x="152" y="188" fill="#eef6f8" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="52" font-weight="700" letter-spacing="0">Hermes config.yaml</text>
+  <text x="154" y="230" fill="#afc3c8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" letter-spacing="0">models · display · platforms · gateway · memory · permissions</text>
+
+  <g transform="translate(155 278)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25" letter-spacing="0">
+    <text x="0" y="0" fill="#38bdf8">default_model:</text>
+    <text x="230" y="0" fill="#e2e8f0">openai:gpt-4.1</text>
+    <text x="0" y="48" fill="#34d399">display:</text>
+    <text x="40" y="88" fill="#d1fae5">tool_progress:</text>
+    <text x="270" y="88" fill="#fbbf24">off</text>
+    <text x="40" y="128" fill="#d1fae5">language:</text>
+    <text x="210" y="128" fill="#fbbf24">zh</text>
+    <text x="0" y="184" fill="#38bdf8">platforms:</text>
+    <text x="40" y="224" fill="#dbeafe">telegram:</text>
+    <text x="80" y="264" fill="#dbeafe">reply_to_mode:</text>
+    <text x="335" y="264" fill="#fbbf24">off</text>
+  </g>
+
+  <g transform="translate(780 292)">
+    <rect x="0" y="0" width="214" height="70" rx="14" fill="#122334" stroke="#38bdf8" stroke-width="2"/>
+    <rect x="0" y="96" width="214" height="70" rx="14" fill="#102d24" stroke="#34d399" stroke-width="2"/>
+    <rect x="0" y="192" width="214" height="70" rx="14" fill="#302719" stroke="#fbbf24" stroke-width="2"/>
+    <text x="28" y="44" fill="#e0f2fe" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24" letter-spacing="0">models</text>
+    <text x="28" y="140" fill="#dcfce7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24" letter-spacing="0">gateway</text>
+    <text x="28" y="236" fill="#fef3c7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24" letter-spacing="0">safety</text>
+  </g>
+
+  <rect x="150" y="504" width="900" height="4" rx="2" fill="url(#accent)"/>
+</svg>

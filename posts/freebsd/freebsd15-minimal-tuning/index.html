@@ -32,19 +32,19 @@
 </span></span><span style=display:flex><span>df -h /var/cache/pkg
 </span></span><span style=display:flex><span>pstat -s
 </span></span><span style=display:flex><span>top -bn <span style=color:#ae81ff>1</span> | head -n <span style=color:#ae81ff>5</span></span></span></code></pre></div><script class=code-source type=application/json>"ps ax\ndf -h /var/cache/pkg\npstat -s\ntop -bn 1 | head -n 5"</script></div><p>如果想装轻量流量监控工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>pkg install -y bmon</span></span></code></pre></div><script class=code-source type=application/json>"pkg install -y bmon"</script></div><h2 id=小结>小结</h2><p>这套配置的思路是：</p><ul><li>用户：普通用户加入 <code>wheel</code>，避免长期直接使用 root。</li><li>控制台：保留 <code>ttyv0</code> 救援，关闭多余 TTY。</li><li>缓存：<code>pkg</code> 自动清理，<code>/var/cache/pkg</code> 使用 tmpfs。</li><li>内存：1GB 小内存机器用 2GB Swap 做缓冲。</li><li>服务：保留 SSH、NTP、日志等基础能力，谨慎关闭系统服务。</li></ul><p>这样 FreeBSD 15 会更轻、更干净，但仍然保留可维护性。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/image-cstk.png alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
+<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li><li><a href=/posts/docker/docker-install-log-rotation-ipv6/><img src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
+<span class=latest-title>Docker 安装、日志轮转与 IPv6 支持配置</span></a></li><li><a href=/posts/linux/vim-search-replace-commands/><img src=/posts/linux/vim-search-replace-commands/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
+<span class=latest-title>Vim 查找替换命令速查</span></a></li><li><a href=/posts/linux/ubuntu-nodejs-nvm-chrony/><img src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li><li><a href=/posts/ai/hermes-backup-migration/><img src=/posts/ai/hermes-backup-migration/assets/cover.svg alt>
+<span class=latest-title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</span></a></li><li><a href=/posts/linux/esxi8-ubuntu-vm-prep/><img src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</span></a></li><li><a href=/posts/ai/hermes-codebot-second-gateway-runbook/><img src=/posts/ai/hermes-codebot-second-gateway-runbook/assets/cover.svg alt>
+<span class=latest-title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span></a></li><li><a href=/posts/ai/hermes-backup-migration/><img src=/posts/ai/hermes-backup-migration/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

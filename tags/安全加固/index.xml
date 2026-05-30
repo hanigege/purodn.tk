@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>安全加固 on 电脑自习室</title>
+    <link>http://10.20.20.19:1313/tags/%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA/</link>
+    <description>Recent content in 安全加固 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 30 May 2026 02:12:00 +0800</lastBuildDate>
+    <atom:link href="http://10.20.20.19:1313/tags/%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证</title>
+      <link>http://10.20.20.19:1313/posts/ai/openclaw-production-docker-install/</link>
+      <pubDate>Sat, 30 May 2026 02:12:00 +0800</pubDate>
+      <guid>http://10.20.20.19:1313/posts/ai/openclaw-production-docker-install/</guid>
+      <description>&lt;p&gt;这篇教程目标很明确：不是“能跑起来就行”，而是在一台干净 Debian/Ubuntu VPS 上，把 OpenClaw 按生产思路装到可以长期维护、可以备份、可以升级、出了问题能定位的状态。&lt;/p&gt;&#xA;&lt;p&gt;我在写作前查了官方安装、Docker、Linux Server、安全、迁移和更新文档，也看了 GitHub 最新 release。官方文档目前推荐 Node 24 或 Node 22.14+，Docker 部署要求 Docker Engine + Compose v2，并特别提醒 1GB 主机在镜像构建时可能因为 OOM 出现 &lt;code&gt;exit 137&lt;/code&gt;；VPS 场景则建议 Gateway 默认保持本机/受控网络访问，不要裸露到公网。本文按这些坑来设计流程。&lt;/p&gt;&#xA;&lt;p&gt;参考资料：&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/install/index&#34;&gt;OpenClaw Install&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/install/docker&#34;&gt;OpenClaw Docker&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/vps&#34;&gt;OpenClaw Linux server&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/gateway/security&#34;&gt;OpenClaw Security&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/install/updating&#34;&gt;OpenClaw Updating&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://docs.openclaw.ai/install/migrating&#34;&gt;OpenClaw Migration guide&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://github.com/openclaw/openclaw/releases/tag/v2026.5.27&#34;&gt;GitHub Release v2026.5.27&lt;/a&gt;&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;本文查询时间是 &lt;code&gt;2026-05-30&lt;/code&gt;，示例固定使用当前最新 release &lt;code&gt;2026.5.27&lt;/code&gt;。以后安装前先到 release 页面确认最新稳定版本，再替换文中的版本号。&lt;/p&gt;&#xA;&lt;h2 id=&#34;方案选择&#34;&gt;方案选择&lt;/h2&gt;&#xA;&lt;p&gt;本文使用 Docker Compose，而不是直接在宿主机全局 &lt;code&gt;npm install -g openclaw&lt;/code&gt;。&lt;/p&gt;&#xA;&lt;p&gt;原因有四个：&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;宿主机更干净，OpenClaw 的 Node、依赖、运行目录和工作区都在明确边界内。&lt;/li&gt;&#xA;&lt;li&gt;生产环境可以用固定镜像版本，避免 &lt;code&gt;latest&lt;/code&gt; 引起不可控变化。&lt;/li&gt;&#xA;&lt;li&gt;Gateway、状态目录、工作区、密钥目录可以统一备份。&lt;/li&gt;&#xA;&lt;li&gt;防火墙、端口绑定、反代、隧道都能围绕 Compose 文件审计。&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;p&gt;最终结构：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

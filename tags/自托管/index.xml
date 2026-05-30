@@ -22,7 +22,8 @@
 &lt;/div&gt;
 &lt;h2 id="备份包会包含什么"&gt;备份包会包含什么&lt;/h2&gt;
 &lt;p&gt;&lt;code&gt;hermes backup&lt;/code&gt; 会把 Hermes 的本地数据打成一个 zip 包。实际包含内容会随 Hermes 版本和本机配置略有变化，但迁移时可以按下面理解：&lt;/p&gt;</description></item><item><title>Hermes Telegram 安静模式恢复手册</title><link>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</link><pubDate>Wed, 27 May 2026 09:50:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</guid><description>&lt;p&gt;这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。&lt;/p&gt;
-&lt;p&gt;目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话、gateway 生命周期提示等内部信息。&lt;/p&gt;
+&lt;p&gt;目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。&lt;/p&gt;
+&lt;p&gt;如果你想系统了解 &lt;code&gt;~/.hermes/config.yaml&lt;/code&gt; 每个配置段的作用，可以先看这篇：&lt;a href="https://purodn.tk/posts/ai/hermes-config-yaml-reference/"&gt;Hermes Agent config.yaml 中文配置说明&lt;/a&gt;。&lt;/p&gt;
 &lt;p&gt;配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 &lt;code&gt;$HERMES_HOME&lt;/code&gt;、&lt;code&gt;$HOME&lt;/code&gt;、&lt;code&gt;&amp;lt;profile&amp;gt;&lt;/code&gt;、&lt;code&gt;&amp;lt;user&amp;gt;&lt;/code&gt;、&lt;code&gt;&amp;lt;service&amp;gt;&lt;/code&gt; 替换成自己的环境即可。&lt;/p&gt;
 &lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
 &lt;ul&gt;
@@ -36,8 +37,9 @@
 &lt;ul&gt;
 &lt;li&gt;保留记忆功能，但不显示 &lt;code&gt;memory:&lt;/code&gt; 通知。&lt;/li&gt;
 &lt;li&gt;保留工具和后台能力，但不显示工具进度。&lt;/li&gt;
-&lt;li&gt;保留开发和运维能力，但 Telegram 里只显示最终回复。&lt;/li&gt;
+&lt;li&gt;保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。&lt;/li&gt;
 &lt;li&gt;不开启全局 yolo 权限，危险命令仍然需要确认。&lt;/li&gt;
+&lt;li&gt;优先使用 &lt;code&gt;hermes config set&lt;/code&gt; 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 &lt;code&gt;config.yaml&lt;/code&gt; 只作为对照和兜底。&lt;/li&gt;
 &lt;li&gt;不把私钥、API Key、Telegram Token、SSH 密码写进文档。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 id="目录变量约定"&gt;目录变量约定&lt;/h2&gt;
@@ -45,21 +47,4 @@
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;HERMES_HOME&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;HOME&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/.hermes&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"HERMES_HOME=\"${HOME}/.hermes\""&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;默认 profile 配置文件：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;HERMES_HOME&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/config.yaml&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"\"${HERMES_HOME}/config.yaml\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;其他 profile 配置目录通常类似：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;HERMES_HOME&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/profiles/&amp;lt;profile&amp;gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"\"${HERMES_HOME}/profiles/\u003cprofile\u003e\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;例如开发 profile：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;HERMES_HOME&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/profiles/dev/config.yaml&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"\"${HERMES_HOME}/profiles/dev/config.yaml\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果服务部署在专用 Linux 用户下，例如 &lt;code&gt;hermes&lt;/code&gt;、&lt;code&gt;felix&lt;/code&gt;、&lt;code&gt;agent&lt;/code&gt;，先切到对应用户，或明确使用对应用户的 home 目录：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo -iu &amp;lt;user&amp;gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$HOME&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo -iu \u003cuser\u003e\necho \"$HOME\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;后续命令都假设已经在运行 Hermes 的那个用户环境中执行。&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;默认 profile 配置文件：&lt;/p&gt;</description></item></channel></rss>

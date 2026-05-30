@@ -58,7 +58,54 @@
 <li>可访问模型供应商 API，例如 OpenRouter、NVIDIA API、OpenAI 兼容接口等。</li>
 <li>如果使用 Docker 部署，需要 Docker Engine 和 Compose。</li>
 </ul>
-<p>首次部署前建议准备一个普通用户账号，不要直接使用 <code>root</code> 运行长期 Agent 服务。只有安装 systemd 服务、调整防火墙或管理 Docker 时才使用 <code>sudo</code>。</p>
+<p>首次部署前建议准备一个普通用户账号，不要直接使用 <code>root</code> 运行长期 Agent 服务。本文统一使用 <code>hermesuser</code> 作为部署用户示例。只有安装 systemd 服务、调整防火墙或管理 Docker 时才使用 <code>sudo</code>。</p>
+<h2 id="创建独立普通用户">创建独立普通用户</h2>
+<p>服务器长期运行时，先创建独立用户 <code>hermesuser</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo useradd -m -s /bin/bash hermesuser
+</span></span><span style="display:flex;"><span>sudo usermod -aG sudo hermesuser</span></span></code></pre></div><script class="code-source" type="application/json">"sudo useradd -m -s /bin/bash hermesuser\nsudo usermod -aG sudo hermesuser"</script>
+</div>
+<p>第二条命令把 <code>hermesuser</code> 加入 <code>sudo</code> 用户组，让它具备通过 <code>sudo</code> 安装系统依赖、启用 systemd 服务和管理必要系统配置的权限。之后 Hermes Agent 的安装、配置、Gateway 和 Dashboard 都放在 <code>hermesuser</code> 账号下完成。这样可以降低 Agent 服务对系统其他目录的访问范围。</p>
+<h2 id="基础环境配置sudo-免密设置">基础环境配置：sudo 免密设置</h2>
+<p>为了在后续安装脚本运行中避免频繁输入密码，可以为 <code>hermesuser</code> 开启 sudo 免密权限。</p>
+<p>先编辑 sudoers 配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo visudo</span></span></code></pre></div><script class="code-source" type="application/json">"sudo visudo"</script>
+</div>
+<p>在文件末尾添加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">hermesuser ALL=(ALL) NOPASSWD: ALL</code></pre><script class="code-source" type="application/json">"hermesuser ALL=(ALL) NOPASSWD: ALL"</script>
+</div>
+<p>前面已经把 <code>hermesuser</code> 加入 <code>sudo</code> 用户组，这里再用 sudoers 精确配置免密规则。这样后续执行 <code>sudo apt install ...</code>、<code>sudo systemctl ...</code>、<code>sudo nano /etc/systemd/system/...</code> 这类系统级操作时，既有 sudo 权限，也不会反复要求输入密码。</p>
+<p>保存并退出：</p>
+<table>
+  <thead>
+      <tr>
+          <th>编辑器</th>
+          <th>保存退出方法</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>nano</td>
+          <td>按 <code>Ctrl+O</code> 保存，按 <code>Enter</code> 确认，再按 <code>Ctrl+X</code> 退出</td>
+      </tr>
+      <tr>
+          <td>vim</td>
+          <td>输入 <code>:wq</code> 保存退出</td>
+      </tr>
+  </tbody>
+</table>
+<p>退出后切换到 <code>hermesuser</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo su - hermesuser</span></span></code></pre></div><script class="code-source" type="application/json">"sudo su - hermesuser"</script>
+</div>
+<p><code>visudo</code> 保存成功后，<code>hermesuser ALL=(ALL) NOPASSWD: ALL</code> 这条按用户名授权的规则会立即对新的 <code>sudo</code> 命令生效，不需要重启系统。前面 <code>sudo usermod -aG sudo hermesuser</code> 这条“加入 sudo 组”的组成员关系通常需要重新登录后才完整生效，所以这里直接重新切换到 <code>hermesuser</code> 再验证。</p>
+<p>再测试 sudo 免密是否生效：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -n true <span style="color:#f92672">&amp;&amp;</span> echo <span style="color:#e6db74">&#34;sudo 免密已生效&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"sudo -n true \u0026\u0026 echo \"sudo 免密已生效\""</script>
+</div>
+<p>如果命令没有提示输入密码，并输出 <code>sudo 免密已生效</code>，说明配置正确。后续安装 Hermes Agent、安装依赖、启用 systemd 服务时就不会被 sudo 密码反复打断。</p>
 <h2 id="hermes-agent-的核心能力">Hermes Agent 的核心能力</h2>
 <p>Hermes Agent 与传统“安装一组固定技能的 Agent”不同，它强调使用过程中的持续学习：</p>
 <table>
@@ -101,7 +148,7 @@
 </table>
 <p>如果与 OpenClaw 这类技能驱动工具比较，可以粗略理解为：OpenClaw 更像“给 Agent 安装技能”，Hermes Agent 更像“让 Agent 在使用中积累记忆和技能”。实际部署时，记忆、Skills 和权限策略需要谨慎维护，避免让临时信息长期影响后续行为。</p>
 <h2 id="方式一一键安装">方式一：一键安装</h2>
-<p>一键安装适合 Linux、macOS 和 WSL2。建议使用普通用户执行：</p>
+<p>一键安装适合 Linux、macOS 和 WSL2。前面已经切到 <code>hermesuser</code>，后续命令都在这个普通用户下执行：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"</script>
 </div>
@@ -151,6 +198,58 @@
 </span></span><span style="display:flex;"><span>~/.hermes/sessions/
 </span></span><span style="display:flex;"><span>~/.hermes/logs/</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/cron/\n~/.hermes/sessions/\n~/.hermes/logs/"</script>
 </div>
+<p>初始化后先做一次真实模型连通性测试，不要只看安装命令是否成功：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes doctor
+</span></span><span style="display:flex;"><span>hermes -z <span style="color:#e6db74">&#34;请只回复：模型连通性测试通过&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes doctor\nhermes -z \"请只回复：模型连通性测试通过\""</script>
+</div>
+<p><code>hermes doctor</code> 只能说明当前机器上某些 provider/key 可用，不一定等于 Gateway 正在使用的默认模型一定可用。真正要确认默认模型，应同时看：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config show | sed -n <span style="color:#e6db74">&#39;/^model:/,/^[^ ]/p&#39;</span>
+</span></span><span style="display:flex;"><span>hermes -z <span style="color:#e6db74">&#34;请只回复：模型连通性测试通过&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes config show | sed -n '/^model:/,/^[^ ]/p'\nhermes -z \"请只回复：模型连通性测试通过\""</script>
+</div>
+<p>如果 Telegram 里出现下面这种提示：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>The model provider failed after retries. I kept raw provider details out of chat; check gateway logs for diagnostics.</span></span></code></pre></div><script class="code-source" type="application/json">"The model provider failed after retries. I kept raw provider details out of chat; check gateway logs for diagnostics."</script>
+</div>
+<p>说明 Gateway 本身不一定坏了，通常是模型供应商、余额、API Key、模型名或 base_url 有问题。先看 user service 日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>journalctl --user -u hermes-gateway.service -n <span style="color:#ae81ff">120</span> --no-pager -o cat</span></span></code></pre></div><script class="code-source" type="application/json">"journalctl --user -u hermes-gateway.service -n 120 --no-pager -o cat"</script>
+</div>
+<p>常见原因：</p>
+<table>
+  <thead>
+      <tr>
+          <th>日志现象</th>
+          <th>含义</th>
+          <th>处理</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>HTTP 402: Insufficient Balance</code></td>
+          <td>模型账户余额不足或额度不可用</td>
+          <td>给对应 provider 充值，或切换可用模型</td>
+      </tr>
+      <tr>
+          <td><code>401</code> / <code>Unauthorized</code></td>
+          <td>API Key 不正确或未加载</td>
+          <td>检查 <code>~/.hermes/.env</code> 的环境变量名和值</td>
+      </tr>
+      <tr>
+          <td><code>404</code> / model not found</td>
+          <td>模型名不对或当前 provider 不支持</td>
+          <td>换成 provider 支持的模型名</td>
+      </tr>
+      <tr>
+          <td>connection / timeout</td>
+          <td>网络或 base_url 不通</td>
+          <td>检查 DNS、代理、防火墙和 <code>model.base_url</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>日志里可能包含 provider、model、base_url 和错误码；不要把 API Key、Telegram Token、SSH 密钥贴到聊天或公开文档里。</p>
+<p>如果使用 OpenAI-compatible 中转接口，并把 <code>model.provider</code> 设置为 <code>custom</code>，不要只假设 <code>OPENAI_API_KEY</code> 一定会被当前版本读取。更稳妥的做法是先查看 Hermes 当前版本的自定义 provider 说明；部分版本会按 <code>base_url</code> 主机名派生环境变量名，例如 <code>https://api.example.com/v1</code> 可能读取 <code>EXAMPLE_API_KEY</code>，也可以在受控私有机器上写入 <code>model.api_key</code>。生产环境推荐把真实密钥放在 <code>~/.hermes/.env</code>，文档和聊天里只写变量名，不写密钥值。</p>
 <h2 id="dashboard-图形界面">Dashboard 图形界面</h2>
 <p>如果希望通过浏览器完成配置和聊天，可以启动 Dashboard：</p>
 <div class="code-block">
@@ -170,7 +269,9 @@
 </ol>
 <p>Dashboard 只适合在可信网络中使用。需要远程访问时，应优先使用 VPN、SSH 隧道或带认证的反向代理。</p>
 <h2 id="gateway-后台服务">Gateway 后台服务</h2>
-<p>Gateway 适合长期运行，用来接入 Telegram、Discord、Slack 等消息平台，也可以承载后台任务。安装为系统服务：</p>
+<p>Gateway 适合长期运行，用来接入 Telegram、Discord、Slack 等消息平台，也可以承载后台任务。</p>
+<p>安装前先确认运行身份。如果已经切到 <code>hermesuser</code>，并且目标是让 Telegram Gateway 在这个普通用户下面长期运行，优先选择当前用户级 Gateway。不要因为系统级服务看起来更“正式”就选它；系统级服务通常权限范围更大，不适合普通用户随手选择。</p>
+<p>执行安装：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway install
 </span></span><span style="display:flex;"><span>hermes gateway start
@@ -207,6 +308,382 @@
       </tr>
   </tbody>
 </table>
+<p>如果 Gateway 用来接 Telegram bot，而你希望聊天窗口保持安静，但长任务时仍能看到它确实在工作，可以先用下面这组快捷命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>hermes config set command_allowlist <span style="color:#e6db74">&#39;[&#34;stop/restart system service&#34;]&#39;</span>
+</span></span><span style="display:flex;"><span>hermes config set telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>hermes config set telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.extra.disable_link_previews true
+</span></span><span style="display:flex;"><span>hermes config set display.tool_progress off
+</span></span><span style="display:flex;"><span>hermes config set display.interim_assistant_messages false
+</span></span><span style="display:flex;"><span>hermes config set display.background_process_notifications off
+</span></span><span style="display:flex;"><span>hermes config set display.cleanup_progress true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart\nhermes config set command_allowlist '[\"stop/restart system service\"]'\nhermes config set telegram.reply_to_mode off\nhermes config set telegram.gateway_restart_notification true\nhermes config set platforms.telegram.reply_to_mode off\nhermes config set platforms.telegram.gateway_restart_notification true\nhermes config set platforms.telegram.extra.disable_link_previews true\nhermes config set display.tool_progress off\nhermes config set display.interim_assistant_messages false\nhermes config set display.background_process_notifications off\nhermes config set display.cleanup_progress true"</script>
+</div>
+<p>这几项分别用于切到智能审批、放宽停止/重启服务这类操作的审批、关闭 Telegram 回复引用、保留 gateway 上线提醒、关闭链接预览、关闭工具进度和中间态消息，并清理后台进程通知。优先使用 <code>hermes config set</code> 这类官方命令，让 Hermes 自己维护配置文件结构；手改 <code>config.yaml</code> 只作为核对或兜底。</p>
+<p>如果是在导入新机器人、批量恢复配置或初始化 profile，确认风险可控时可以先临时开启 YOLO，省掉一条条确认：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode yolo</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode yolo"</script>
+</div>
+<p>批量操作完成后再切回智能审批：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>为了避免当前 Telegram 回复还没发完就被 gateway 重启打断，建议改完后安排一个延迟重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemd-run --user --on-active<span style="color:#f92672">=</span>5s systemctl --user restart hermes-gateway</span></span></code></pre></div><script class="code-source" type="application/json">"systemd-run --user --on-active=5s systemctl --user restart hermes-gateway"</script>
+</div>
+<p>如果服务名不是 <code>hermes-gateway</code>，先查看实际服务名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user list-units <span style="color:#e6db74">&#39;hermes*&#39;</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user list-units 'hermes*' --no-pager"</script>
+</div>
+<p>这样日常在 Telegram 里对话时，不会频繁看到工具调用或引用上一句话的气泡；gateway 重启/上线时仍会有一条提醒，方便确认机器人恢复在线。</p>
+<p>如果当前 Hermes 版本已经使用新版 <code>config.yaml</code> 结构，也建议同时检查这些字段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">display</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tool_progress</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cleanup_progress</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">interim_assistant_messages</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">long_running_notifications</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">busy_ack_detail</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">background_process_notifications</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">platforms</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">tool_progress</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">cleanup_progress</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">interim_assistant_messages</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">long_running_notifications</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">busy_ack_detail</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">background_process_notifications</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">streaming</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">platforms</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">guest_mode</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extra</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">disable_link_previews</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"display:\n  tool_progress: off\n  cleanup_progress: true\n  interim_assistant_messages: false\n  long_running_notifications: true\n  busy_ack_detail: true\n  background_process_notifications: off\n  platforms:\n    telegram:\n      tool_progress: off\n      cleanup_progress: true\n      interim_assistant_messages: false\n      long_running_notifications: true\n      busy_ack_detail: true\n      background_process_notifications: off\n\nstreaming:\n  enabled: false\n\nplatforms:\n  telegram:\n    reply_to_mode: off\n    gateway_restart_notification: true\n    guest_mode: false\n    extra:\n      disable_link_previews: true"</script>
+</div>
+<p>更完整的恢复和参数说明可以参考：<a href="/posts/ai/hermes-telegram-quiet-mode-restore/">Hermes Telegram 安静模式恢复手册</a> 和 <a href="/posts/ai/hermes-config-yaml-reference/">Hermes Agent config.yaml 中文配置说明</a>。</p>
+<h2 id="安装后优化清单">安装后优化清单</h2>
+<p>刚装好的 Hermes 不建议直接让它“自己随便优化”。更稳的做法是给它一个明确任务：先读取官方配置说明和本机配置，再只改确认存在、能解释清楚的字段，最后重启并验证。</p>
+<p>可以把下面这段直接发给刚配置好的 Hermes：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>你现在运行在一台刚安装好的 Hermes Agent 服务器上。请先做一次保守的安装后优化，不要猜测不存在的配置字段。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>目标：
+</span></span><span style="display:flex;"><span>1. 让 Telegram bot 保持安静，只显示最终回答、必要心跳和心跳里的工作进度细节。
+</span></span><span style="display:flex;"><span>2. 保留危险操作确认，不开启全局 yolo。
+</span></span><span style="display:flex;"><span>3. 确认 Gateway 能长期运行并能随用户会话/系统重启恢复。
+</span></span><span style="display:flex;"><span>4. 确认 Hermes 的配置、环境变量、sessions、memory、skills、cron 和 logs 已纳入备份范围。
+</span></span><span style="display:flex;"><span>5. 不把 Dashboard 或 Gateway API 无认证暴露到公网。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>执行要求：
+</span></span><span style="display:flex;"><span>1. 先读取本机配置和当前版本帮助，例如 ~/.hermes/config.yaml、~/.hermes/.env、`hermes config --help`、`hermes gateway --help`，以及当前版本能找到的 cli-config.yaml.example。如果机器可以联网，再对照 Hermes 官方 Configuration Options。
+</span></span><span style="display:flex;"><span>2. 修改前先备份：
+</span></span><span style="display:flex;"><span>   cp ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.$(date +%Y%m%d-%H%M%S)
+</span></span><span style="display:flex;"><span>3. 优先使用 Hermes 官方提供的 `hermes config set` 命令调整参数，保持配置文件规范；不要优先手写 YAML。请按功能执行下面 11 处调整：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>   # 开启智能审批模式。低风险命令自动放行，高风险命令仍然提示确认。比 manual 少打扰，比 YOLO/off 安全。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set command_allowlist &#39;[&#34;stop/restart system service&#34;]&#39;
+</span></span><span style="display:flex;"><span>   # 加入命令审批白名单，允许“停止/重启系统服务”这类操作更容易通过审批。注意：这是偏权限放宽的配置，新环境里如果要更保守，可以先不加。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set display.background_process_notifications off
+</span></span><span style="display:flex;"><span>   # 关闭后台进程通知。避免后台任务、进程状态变化频繁打扰 Telegram。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set display.cleanup_progress true
+</span></span><span style="display:flex;"><span>   # 开启清理进度信息。通常用于让界面或消息里的进度展示更干净，减少残留进度噪声。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set display.interim_assistant_messages false
+</span></span><span style="display:flex;"><span>   # 关闭中间态助手消息。减少“我正在处理/中间进度”这类临时消息，更安静。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set display.tool_progress off
+</span></span><span style="display:flex;"><span>   # 关闭工具调用进度提示。减少 Telegram 里显示工具执行过程的噪声，只看最终结果。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set platforms.telegram.extra.disable_link_previews true
+</span></span><span style="display:flex;"><span>   # 关闭 Telegram 链接预览。避免发送链接时自动展开预览，消息更清爽。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set platforms.telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>   # 开启 platforms.telegram 路径下的网关重启/上线提醒。建议和 telegram.gateway_restart_notification 一起设置，避免不同加载路径漏生效。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set platforms.telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>   # 关闭 Telegram 回复引用模式。机器人回复时不引用或挂在线程式回复到原消息，聊天界面更干净。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>   # 开启 Telegram 顶层配置里的网关重启/上线提醒。重启后会收到类似 “Gateway online” 的上线提示。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>   hermes config set telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>   # 关闭 Telegram 顶层配置里的回复引用模式。和 platforms.telegram.reply_to_mode off 建议一起设置。
+</span></span><span style="display:flex;"><span>4. 导入机器人、批量恢复配置或初始化 profile 时，如果确认当前环境风险可控，可以先临时开启 YOLO 来减少确认：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode yolo
+</span></span><span style="display:flex;"><span>   批量操作完成后必须切回：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>5. 检查 Telegram 入口权限，优先使用 pairing、allowed users 或 allowed chats，不要设置 allow all users。
+</span></span><span style="display:flex;"><span>6. 检查 platform_toolsets。如果 Telegram 是日常入口，不要默认给不可信群聊开放过强工具；至少说明当前 Telegram 可用哪些工具集。
+</span></span><span style="display:flex;"><span>7. 检查 systemd user 服务：
+</span></span><span style="display:flex;"><span>   systemctl --user status hermes-gateway.service --no-pager
+</span></span><span style="display:flex;"><span>   systemctl --user list-units &#39;hermes*&#39; --no-pager
+</span></span><span style="display:flex;"><span>8. 如果需要长期运行，确认当前 Linux 用户已执行 loginctl enable-linger，或者说明为什么不需要。
+</span></span><span style="display:flex;"><span>9. 修改后运行：
+</span></span><span style="display:flex;"><span>   hermes doctor
+</span></span><span style="display:flex;"><span>   hermes gateway status
+</span></span><span style="display:flex;"><span>10. 做一次真实模型连通性检查。不要只看 hermes doctor；请同时确认当前默认模型配置，并用一次性 prompt 实测：
+</span></span><span style="display:flex;"><span>   hermes config show | sed -n &#39;/^model:/,/^[^ ]/p&#39;
+</span></span><span style="display:flex;"><span>   hermes -z &#34;请只回复：模型连通性测试通过&#34;
+</span></span><span style="display:flex;"><span>   如果 Telegram 或日志出现 provider failed，请查看 gateway 日志并只汇报 provider、model、base_url、HTTP 状态码和简短错误原因，不要打印任何 token。常见例子：HTTP 402 通常是模型账户余额不足，不是 gateway 挂了。
+</span></span><span style="display:flex;"><span>11. 如果需要让新配置立即生效，不要在当前 Telegram 回复还没发完时直接重启 gateway。请优先安排延迟重启，例如：
+</span></span><span style="display:flex;"><span>   systemd-run --user --on-active=5s systemctl --user restart hermes-gateway
+</span></span><span style="display:flex;"><span>   如果服务名不同，先用下面命令确认：
+</span></span><span style="display:flex;"><span>   systemctl --user list-units &#39;hermes*&#39; --no-pager
+</span></span><span style="display:flex;"><span>12. 最后给出变更摘要，列出改了哪些文件、哪些字段、哪些命令成功、模型连通性是否通过、是否已安排延迟重启、哪些地方需要人工确认。说明：如果 gateway 重启导致当前 Telegram 会话短暂中断，这是预期行为。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>限制：
+</span></span><span style="display:flex;"><span>- 不要删除现有配置。
+</span></span><span style="display:flex;"><span>- 不要打印 API Key、Telegram Token、SSH 密钥、cookie 或密码。
+</span></span><span style="display:flex;"><span>- 不要把 Dashboard 的 --insecure 服务暴露到公网。
+</span></span><span style="display:flex;"><span>- 不要启用全局 yolo。
+</span></span><span style="display:flex;"><span>- 不要运行破坏性命令。</span></span></code></pre></div><script class="code-source" type="application/json">"你现在运行在一台刚安装好的 Hermes Agent 服务器上。请先做一次保守的安装后优化，不要猜测不存在的配置字段。\n\n目标：\n1. 让 Telegram bot 保持安静，只显示最终回答、必要心跳和心跳里的工作进度细节。\n2. 保留危险操作确认，不开启全局 yolo。\n3. 确认 Gateway 能长期运行并能随用户会话/系统重启恢复。\n4. 确认 Hermes 的配置、环境变量、sessions、memory、skills、cron 和 logs 已纳入备份范围。\n5. 不把 Dashboard 或 Gateway API 无认证暴露到公网。\n\n执行要求：\n1. 先读取本机配置和当前版本帮助，例如 ~/.hermes/config.yaml、~/.hermes/.env、`hermes config --help`、`hermes gateway --help`，以及当前版本能找到的 cli-config.yaml.example。如果机器可以联网，再对照 Hermes 官方 Configuration Options。\n2. 修改前先备份：\n   cp ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\n3. 优先使用 Hermes 官方提供的 `hermes config set` 命令调整参数，保持配置文件规范；不要优先手写 YAML。请按功能执行下面 11 处调整：\n   hermes config set approvals.mode smart\n   # 开启智能审批模式。低风险命令自动放行，高风险命令仍然提示确认。比 manual 少打扰，比 YOLO/off 安全。\n\n   hermes config set command_allowlist '[\"stop/restart system service\"]'\n   # 加入命令审批白名单，允许“停止/重启系统服务”这类操作更容易通过审批。注意：这是偏权限放宽的配置，新环境里如果要更保守，可以先不加。\n\n   hermes config set display.background_process_notifications off\n   # 关闭后台进程通知。避免后台任务、进程状态变化频繁打扰 Telegram。\n\n   hermes config set display.cleanup_progress true\n   # 开启清理进度信息。通常用于让界面或消息里的进度展示更干净，减少残留进度噪声。\n\n   hermes config set display.interim_assistant_messages false\n   # 关闭中间态助手消息。减少“我正在处理/中间进度”这类临时消息，更安静。\n\n   hermes config set display.tool_progress off\n   # 关闭工具调用进度提示。减少 Telegram 里显示工具执行过程的噪声，只看最终结果。\n\n   hermes config set platforms.telegram.extra.disable_link_previews true\n   # 关闭 Telegram 链接预览。避免发送链接时自动展开预览，消息更清爽。\n\n   hermes config set platforms.telegram.gateway_restart_notification true\n   # 开启 platforms.telegram 路径下的网关重启/上线提醒。建议和 telegram.gateway_restart_notification 一起设置，避免不同加载路径漏生效。\n\n   hermes config set platforms.telegram.reply_to_mode off\n   # 关闭 Telegram 回复引用模式。机器人回复时不引用或挂在线程式回复到原消息，聊天界面更干净。\n\n   hermes config set telegram.gateway_restart_notification true\n   # 开启 Telegram 顶层配置里的网关重启/上线提醒。重启后会收到类似 “Gateway online” 的上线提示。\n\n   hermes config set telegram.reply_to_mode off\n   # 关闭 Telegram 顶层配置里的回复引用模式。和 platforms.telegram.reply_to_mode off 建议一起设置。\n4. 导入机器人、批量恢复配置或初始化 profile 时，如果确认当前环境风险可控，可以先临时开启 YOLO 来减少确认：\n   hermes config set approvals.mode yolo\n   批量操作完成后必须切回：\n   hermes config set approvals.mode smart\n5. 检查 Telegram 入口权限，优先使用 pairing、allowed users 或 allowed chats，不要设置 allow all users。\n6. 检查 platform_toolsets。如果 Telegram 是日常入口，不要默认给不可信群聊开放过强工具；至少说明当前 Telegram 可用哪些工具集。\n7. 检查 systemd user 服务：\n   systemctl --user status hermes-gateway.service --no-pager\n   systemctl --user list-units 'hermes*' --no-pager\n8. 如果需要长期运行，确认当前 Linux 用户已执行 loginctl enable-linger，或者说明为什么不需要。\n9. 修改后运行：\n   hermes doctor\n   hermes gateway status\n10. 做一次真实模型连通性检查。不要只看 hermes doctor；请同时确认当前默认模型配置，并用一次性 prompt 实测：\n   hermes config show | sed -n '/^model:/,/^[^ ]/p'\n   hermes -z \"请只回复：模型连通性测试通过\"\n   如果 Telegram 或日志出现 provider failed，请查看 gateway 日志并只汇报 provider、model、base_url、HTTP 状态码和简短错误原因，不要打印任何 token。常见例子：HTTP 402 通常是模型账户余额不足，不是 gateway 挂了。\n11. 如果需要让新配置立即生效，不要在当前 Telegram 回复还没发完时直接重启 gateway。请优先安排延迟重启，例如：\n   systemd-run --user --on-active=5s systemctl --user restart hermes-gateway\n   如果服务名不同，先用下面命令确认：\n   systemctl --user list-units 'hermes*' --no-pager\n12. 最后给出变更摘要，列出改了哪些文件、哪些字段、哪些命令成功、模型连通性是否通过、是否已安排延迟重启、哪些地方需要人工确认。说明：如果 gateway 重启导致当前 Telegram 会话短暂中断，这是预期行为。\n\n限制：\n- 不要删除现有配置。\n- 不要打印 API Key、Telegram Token、SSH 密钥、cookie 或密码。\n- 不要把 Dashboard 的 --insecure 服务暴露到公网。\n- 不要启用全局 yolo。\n- 不要运行破坏性命令。"</script>
+</div>
+<p>人工复核时重点看这些结果：</p>
+<table>
+  <thead>
+      <tr>
+          <th>项目</th>
+          <th>期望结果</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>hermes doctor</code></td>
+          <td>没有关键错误</td>
+      </tr>
+      <tr>
+          <td><code>hermes gateway status</code></td>
+          <td>Gateway 正常运行</td>
+      </tr>
+      <tr>
+          <td>模型连通性</td>
+          <td>CLI 或 Telegram 能完成一次真实回复</td>
+      </tr>
+      <tr>
+          <td>延迟重启</td>
+          <td>已安排或明确告诉用户需要手动执行</td>
+      </tr>
+      <tr>
+          <td>Telegram 测试消息</td>
+          <td>返回最终回答；长任务时有带进度细节的心跳</td>
+      </tr>
+      <tr>
+          <td>Telegram 权限</td>
+          <td>不是所有人都能随便调用</td>
+      </tr>
+      <tr>
+          <td><code>~/.hermes/</code></td>
+          <td>已纳入备份</td>
+      </tr>
+      <tr>
+          <td>Dashboard</td>
+          <td>没有无认证暴露到公网</td>
+      </tr>
+      <tr>
+          <td><code>platform_toolsets</code></td>
+          <td>Telegram 工具集符合实际风险</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="克隆一个写代码专用-telegram-机器人">克隆一个写代码专用 Telegram 机器人</h2>
+<p>如果第一个 Telegram 机器人已经按上面的安静模式和权限策略优化过，可以让它基于当前配置克隆一个独立 profile，用第二个 Telegram bot 专门写代码。这个 code profile 可以使用另一套更适合代码的大模型，和默认日常机器人分开。这样日常助手和开发助手分开，避免模型、记忆、sessions、skills、cron 和权限策略互相污染。</p>
+<p>先准备两样东西：</p>
+<ol>
+<li>在 BotFather 创建第二个 bot，拿到新的 <code>TELEGRAM_BOT_TOKEN</code>。不要复用第一个 bot token。</li>
+<li>准备代码机器人专用的大模型配置，例如 provider、model、base_url 和对应 API Key。不要默认沿用第一个机器人的模型。</li>
+</ol>
+<p>然后把下面这段发给第一个 Hermes：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>请帮我基于当前默认 Hermes 配置，创建一个专门写代码的 Telegram 机器人 profile。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>目标：
+</span></span><span style="display:flex;"><span>1. 使用官方 profile 命令从当前默认 profile 克隆一个新 profile，名称用 code。
+</span></span><span style="display:flex;"><span>2. 如果默认 profile 已经配置好，可以用普通 clone 作为起点，复用基础配置和安静模式；不要使用 `--clone all` 直接全量复制，避免把原机器人的 Telegram token、模型和环境引用也一起带过去。
+</span></span><span style="display:flex;"><span>3. 新 profile 使用单独的 Telegram bot token，不要复用默认机器人的 token。
+</span></span><span style="display:flex;"><span>4. 新 profile 使用单独的大模型配置，不要沿用默认机器人的 model/provider/base_url/API key。模型用于写代码、排障和服务器维护。
+</span></span><span style="display:flex;"><span>5. 新 profile 的 sessions、memory、skills、cron 和 gateway 服务要和默认 profile 分开。
+</span></span><span style="display:flex;"><span>6. 新 profile 面向写代码、排障、服务器维护和技术任务，但 Telegram 里仍然保持安静。
+</span></span><span style="display:flex;"><span>7. 新 profile 要有单独的写代码人格/说明，不要完全沿用默认日常助手的性格。它可以中文、技术向、简洁、主动验证，适合开发、排障和运维。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>执行步骤：
+</span></span><span style="display:flex;"><span>1. 先读取官方 profile/gateway/config/tools 文档或本机帮助，确认当前版本的准确命令和配置 schema：
+</span></span><span style="display:flex;"><span>   hermes --version
+</span></span><span style="display:flex;"><span>   hermes profile --help
+</span></span><span style="display:flex;"><span>   hermes gateway --help
+</span></span><span style="display:flex;"><span>   hermes config --help
+</span></span><span style="display:flex;"><span>   hermes tools --help
+</span></span><span style="display:flex;"><span>   hermes profile list
+</span></span><span style="display:flex;"><span>2. 修改前先检查是否已经有等价备份。列出：
+</span></span><span style="display:flex;"><span>   ls -lh ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.* 2&gt;/dev/null
+</span></span><span style="display:flex;"><span>   如果最近的备份和当前 `~/.hermes/config.yaml` 内容一致，就不要二次备份；如果没有备份，或当前配置已经有新改动，再执行：
+</span></span><span style="display:flex;"><span>   cp ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.$(date +%Y%m%d-%H%M%S)
+</span></span><span style="display:flex;"><span>3. 如果当前版本提供配置迁移或校验命令，例如 `hermes config migrate`，只在已经确认有可用备份后执行。不要手工改 `_config_version`，不要猜新字段。
+</span></span><span style="display:flex;"><span>4. 如果接下来要连续创建 profile、写入模型和 gateway 配置，可以临时减少确认打断；但不要长期保持全局 YOLO。当前这次批量操作前可以临时设置：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode off
+</span></span><span style="display:flex;"><span>   批量操作结束后必须恢复：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>   如果我是从 shell 里手动启动一个新的临时 Hermes 会话，也可以改用一次性启动参数 `hermes --yolo`，任务结束退出即可；不要把它当作长期配置。
+</span></span><span style="display:flex;"><span>   如果中途失败或不确定下一步，也先恢复：
+</span></span><span style="display:flex;"><span>   hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>5. 创建 profile。优先使用官方 clone 命令，例如：
+</span></span><span style="display:flex;"><span>   hermes profile create code --clone --description &#39;写代码、排障和运维专用 Hermes profile；继承默认 profile 的基础配置、安静模式和安全策略。&#39;
+</span></span><span style="display:flex;"><span>   不要使用 `--clone all`，除非你明确确认当前版本不会复制不该共用的 token、模型、sessions、memory 或 gateway state。
+</span></span><span style="display:flex;"><span>6. 检查新 profile 配置文件路径，通常类似：
+</span></span><span style="display:flex;"><span>   ~/.hermes/profiles/code/config.yaml
+</span></span><span style="display:flex;"><span>   同时确认 code profile 的 `.env` 路径，通常类似：
+</span></span><span style="display:flex;"><span>   ~/.hermes/profiles/code/.env
+</span></span><span style="display:flex;"><span>   `.env` 权限应尽量收紧：
+</span></span><span style="display:flex;"><span>   chmod 600 ~/.hermes/profiles/code/.env
+</span></span><span style="display:flex;"><span>7. 把新 Telegram bot token 配到 code profile 对应的环境或 gateway 配置里。不要覆盖默认 profile 的 Telegram token。检查时只列出变量名，不要打印变量值，例如只汇报存在 `TELEGRAM_BOT_TOKEN` 之类的键名。
+</span></span><span style="display:flex;"><span>8. 给 code profile 配置专用大模型。请先询问我要使用哪个 provider、model、base_url 和 API key 环境变量名；如果我已经提供，就只写入 code profile，不要改默认 profile。配置完成后明确列出 code profile 当前使用的模型，例如：
+</span></span><span style="display:flex;"><span>   model.provider = &lt;code-provider&gt;
+</span></span><span style="display:flex;"><span>   model.default = &lt;code-model&gt;
+</span></span><span style="display:flex;"><span>   model.base_url = &lt;code-base-url&gt;
+</span></span><span style="display:flex;"><span>   API key 从 code profile 对应 .env 或环境变量读取，不要明文打印。
+</span></span><span style="display:flex;"><span>9. 普通 `--clone` 可能会继承默认 profile 的人格、SOUL/说明或 display personality。请检查 code profile 是否还是日常助手口吻；如果是，就单独调整成写代码机器人。目标风格：
+</span></span><span style="display:flex;"><span>   - 中文回复
+</span></span><span style="display:flex;"><span>   - 技术向但不啰嗦
+</span></span><span style="display:flex;"><span>   - 先读项目和当前配置，再动手
+</span></span><span style="display:flex;"><span>   - 优先使用 rg、git、测试和官方命令
+</span></span><span style="display:flex;"><span>   - 修改前说明风险，修改后验证结果
+</span></span><span style="display:flex;"><span>   - 适合开发、排障、服务器维护和自动化任务
+</span></span><span style="display:flex;"><span>   如果当前版本支持配置项，可以把 code profile 的显示风格设成 technical；如果使用 SOUL.md 或 profile 说明文件，就只改 code profile 自己的说明文件，不要改默认 profile。
+</span></span><span style="display:flex;"><span>10. 普通 `--clone` 理论上已经继承默认 profile 的安静模式。不要无脑重写整段配置；只检查 code profile 是否已经继承这些关键项，缺什么再用 `hermes -p code config set ...` 补什么：
+</span></span><span style="display:flex;"><span>   display.tool_progress = off
+</span></span><span style="display:flex;"><span>   display.interim_assistant_messages = false
+</span></span><span style="display:flex;"><span>   display.background_process_notifications = off
+</span></span><span style="display:flex;"><span>   platforms.telegram.reply_to_mode = off
+</span></span><span style="display:flex;"><span>   platforms.telegram.extra.disable_link_previews = true
+</span></span><span style="display:flex;"><span>   telegram.reply_to_mode = off
+</span></span><span style="display:flex;"><span>   如果默认 profile 已经开启 gateway 上线提醒，也让 code profile 保持一致：
+</span></span><span style="display:flex;"><span>   telegram.gateway_restart_notification = true
+</span></span><span style="display:flex;"><span>   platforms.telegram.gateway_restart_notification = true
+</span></span><span style="display:flex;"><span>11. 为 code profile 检查工具权限和 Telegram 平台工具集。写代码 profile 可以保留 terminal、file、web、browser、skills、todo 等开发工具，但不要开启全局 yolo；危险操作仍需确认。如果 clone 后工具状态已经符合预期，不要重复改。重点核对：
+</span></span><span style="display:flex;"><span>   hermes -p code tools list
+</span></span><span style="display:flex;"><span>   platform_toolsets.telegram 是否符合风险预期
+</span></span><span style="display:flex;"><span>   如果这个 bot 只给自己私聊使用，可以保留开发工具；如果以后会进群，必须单独收窄 Telegram 可用工具。
+</span></span><span style="display:flex;"><span>12. 配置 Telegram 访问授权。优先使用当前版本支持的 pairing、allowed users 或 allowed chats，不要让任何人都能调用 code profile。至少确认：
+</span></span><span style="display:flex;"><span>   - 第二个 Telegram bot token 只属于 code profile
+</span></span><span style="display:flex;"><span>   - code profile 只允许我的 Telegram 用户或指定私聊
+</span></span><span style="display:flex;"><span>   - 如果进群，先限制群 ID 或只响应 mention/thread
+</span></span><span style="display:flex;"><span>13. 安装或启动 code profile 的 gateway。若 Hermes 支持 profile 参数，请使用 code profile 对应方式，例如：
+</span></span><span style="display:flex;"><span>   hermes --profile code gateway install
+</span></span><span style="display:flex;"><span>   hermes --profile code gateway start
+</span></span><span style="display:flex;"><span>   hermes --profile code gateway status
+</span></span><span style="display:flex;"><span>   如果当前版本命令不同，按 `hermes gateway --help` 的官方输出执行。
+</span></span><span style="display:flex;"><span>14. 检查 systemd user 服务名，可能类似：
+</span></span><span style="display:flex;"><span>   hermes-gateway-code.service
+</span></span><span style="display:flex;"><span>   请用 `systemctl --user list-units &#39;hermes*&#39; --no-pager` 确认，不要凭空假设。
+</span></span><span style="display:flex;"><span>15. 在第二个 Telegram bot 里发送 `/sethome`，把当前聊天设为 code profile 的 home channel。
+</span></span><span style="display:flex;"><span>16. 先做 CLI 侧真实连通性测试，再做 Telegram 测试。不要只看配置文件：
+</span></span><span style="display:flex;"><span>   hermes --profile code -z &#34;请只回复：code profile 模型连通性测试通过&#34;
+</span></span><span style="display:flex;"><span>   然后在第二个 Telegram bot 里发一句测试消息，确认回复来自 code profile。
+</span></span><span style="display:flex;"><span>17. 运行：
+</span></span><span style="display:flex;"><span>   hermes --profile code doctor
+</span></span><span style="display:flex;"><span>   hermes --profile code gateway status
+</span></span><span style="display:flex;"><span>   如果失败，查看对应 gateway 日志，但只汇报 provider、model、base_url、HTTP 状态码和简短错误原因，不要打印 token。
+</span></span><span style="display:flex;"><span>18. 最后再次确认审批模式已经恢复为 smart，并汇报：
+</span></span><span style="display:flex;"><span>   - 创建了哪个 profile
+</span></span><span style="display:flex;"><span>   - 新 profile 配置文件路径
+</span></span><span style="display:flex;"><span>   - 新 profile .env 路径和权限是否正确，不打印密钥值
+</span></span><span style="display:flex;"><span>   - code profile 使用的 provider、model 和 base_url
+</span></span><span style="display:flex;"><span>   - code profile 的人格/说明是否已调整为写代码、排障和运维专用
+</span></span><span style="display:flex;"><span>   - code profile 的 Telegram 访问授权是否已限制
+</span></span><span style="display:flex;"><span>   - code profile 的工具集和 platform_toolsets.telegram 是否符合预期
+</span></span><span style="display:flex;"><span>   - 新 gateway 服务名
+</span></span><span style="display:flex;"><span>   - 第二个 Telegram bot 是否已连接
+</span></span><span style="display:flex;"><span>   - CLI 和 Telegram 真实连通性测试是否通过
+</span></span><span style="display:flex;"><span>   - 安静模式是否生效
+</span></span><span style="display:flex;"><span>   - 当前 `approvals.mode` 是否已恢复为 smart
+</span></span><span style="display:flex;"><span>   - 还有哪些需要我手动确认
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>限制：
+</span></span><span style="display:flex;"><span>- 不要打印 Telegram bot token 或任何 API Key。
+</span></span><span style="display:flex;"><span>- 不要覆盖默认 profile 的配置和 token。
+</span></span><span style="display:flex;"><span>- 不要修改默认 profile 的模型配置。
+</span></span><span style="display:flex;"><span>- 不要删除默认机器人的 gateway 服务。
+</span></span><span style="display:flex;"><span>- 不要启用全局 yolo。
+</span></span><span style="display:flex;"><span>- 不要运行破坏性命令。</span></span></code></pre></div><script class="code-source" type="application/json">"请帮我基于当前默认 Hermes 配置，创建一个专门写代码的 Telegram 机器人 profile。\n\n目标：\n1. 使用官方 profile 命令从当前默认 profile 克隆一个新 profile，名称用 code。\n2. 如果默认 profile 已经配置好，可以用普通 clone 作为起点，复用基础配置和安静模式；不要使用 `--clone all` 直接全量复制，避免把原机器人的 Telegram token、模型和环境引用也一起带过去。\n3. 新 profile 使用单独的 Telegram bot token，不要复用默认机器人的 token。\n4. 新 profile 使用单独的大模型配置，不要沿用默认机器人的 model/provider/base_url/API key。模型用于写代码、排障和服务器维护。\n5. 新 profile 的 sessions、memory、skills、cron 和 gateway 服务要和默认 profile 分开。\n6. 新 profile 面向写代码、排障、服务器维护和技术任务，但 Telegram 里仍然保持安静。\n7. 新 profile 要有单独的写代码人格/说明，不要完全沿用默认日常助手的性格。它可以中文、技术向、简洁、主动验证，适合开发、排障和运维。\n\n执行步骤：\n1. 先读取官方 profile/gateway/config/tools 文档或本机帮助，确认当前版本的准确命令和配置 schema：\n   hermes --version\n   hermes profile --help\n   hermes gateway --help\n   hermes config --help\n   hermes tools --help\n   hermes profile list\n2. 修改前先检查是否已经有等价备份。列出：\n   ls -lh ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.* 2\u003e/dev/null\n   如果最近的备份和当前 `~/.hermes/config.yaml` 内容一致，就不要二次备份；如果没有备份，或当前配置已经有新改动，再执行：\n   cp ~/.hermes/config.yaml ~/.hermes/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\n3. 如果当前版本提供配置迁移或校验命令，例如 `hermes config migrate`，只在已经确认有可用备份后执行。不要手工改 `_config_version`，不要猜新字段。\n4. 如果接下来要连续创建 profile、写入模型和 gateway 配置，可以临时减少确认打断；但不要长期保持全局 YOLO。当前这次批量操作前可以临时设置：\n   hermes config set approvals.mode off\n   批量操作结束后必须恢复：\n   hermes config set approvals.mode smart\n   如果我是从 shell 里手动启动一个新的临时 Hermes 会话，也可以改用一次性启动参数 `hermes --yolo`，任务结束退出即可；不要把它当作长期配置。\n   如果中途失败或不确定下一步，也先恢复：\n   hermes config set approvals.mode smart\n5. 创建 profile。优先使用官方 clone 命令，例如：\n   hermes profile create code --clone --description '写代码、排障和运维专用 Hermes profile；继承默认 profile 的基础配置、安静模式和安全策略。'\n   不要使用 `--clone all`，除非你明确确认当前版本不会复制不该共用的 token、模型、sessions、memory 或 gateway state。\n6. 检查新 profile 配置文件路径，通常类似：\n   ~/.hermes/profiles/code/config.yaml\n   同时确认 code profile 的 `.env` 路径，通常类似：\n   ~/.hermes/profiles/code/.env\n   `.env` 权限应尽量收紧：\n   chmod 600 ~/.hermes/profiles/code/.env\n7. 把新 Telegram bot token 配到 code profile 对应的环境或 gateway 配置里。不要覆盖默认 profile 的 Telegram token。检查时只列出变量名，不要打印变量值，例如只汇报存在 `TELEGRAM_BOT_TOKEN` 之类的键名。\n8. 给 code profile 配置专用大模型。请先询问我要使用哪个 provider、model、base_url 和 API key 环境变量名；如果我已经提供，就只写入 code profile，不要改默认 profile。配置完成后明确列出 code profile 当前使用的模型，例如：\n   model.provider = \u003ccode-provider\u003e\n   model.default = \u003ccode-model\u003e\n   model.base_url = \u003ccode-base-url\u003e\n   API key 从 code profile 对应 .env 或环境变量读取，不要明文打印。\n9. 普通 `--clone` 可能会继承默认 profile 的人格、SOUL/说明或 display personality。请检查 code profile 是否还是日常助手口吻；如果是，就单独调整成写代码机器人。目标风格：\n   - 中文回复\n   - 技术向但不啰嗦\n   - 先读项目和当前配置，再动手\n   - 优先使用 rg、git、测试和官方命令\n   - 修改前说明风险，修改后验证结果\n   - 适合开发、排障、服务器维护和自动化任务\n   如果当前版本支持配置项，可以把 code profile 的显示风格设成 technical；如果使用 SOUL.md 或 profile 说明文件，就只改 code profile 自己的说明文件，不要改默认 profile。\n10. 普通 `--clone` 理论上已经继承默认 profile 的安静模式。不要无脑重写整段配置；只检查 code profile 是否已经继承这些关键项，缺什么再用 `hermes -p code config set ...` 补什么：\n   display.tool_progress = off\n   display.interim_assistant_messages = false\n   display.background_process_notifications = off\n   platforms.telegram.reply_to_mode = off\n   platforms.telegram.extra.disable_link_previews = true\n   telegram.reply_to_mode = off\n   如果默认 profile 已经开启 gateway 上线提醒，也让 code profile 保持一致：\n   telegram.gateway_restart_notification = true\n   platforms.telegram.gateway_restart_notification = true\n11. 为 code profile 检查工具权限和 Telegram 平台工具集。写代码 profile 可以保留 terminal、file、web、browser、skills、todo 等开发工具，但不要开启全局 yolo；危险操作仍需确认。如果 clone 后工具状态已经符合预期，不要重复改。重点核对：\n   hermes -p code tools list\n   platform_toolsets.telegram 是否符合风险预期\n   如果这个 bot 只给自己私聊使用，可以保留开发工具；如果以后会进群，必须单独收窄 Telegram 可用工具。\n12. 配置 Telegram 访问授权。优先使用当前版本支持的 pairing、allowed users 或 allowed chats，不要让任何人都能调用 code profile。至少确认：\n   - 第二个 Telegram bot token 只属于 code profile\n   - code profile 只允许我的 Telegram 用户或指定私聊\n   - 如果进群，先限制群 ID 或只响应 mention/thread\n13. 安装或启动 code profile 的 gateway。若 Hermes 支持 profile 参数，请使用 code profile 对应方式，例如：\n   hermes --profile code gateway install\n   hermes --profile code gateway start\n   hermes --profile code gateway status\n   如果当前版本命令不同，按 `hermes gateway --help` 的官方输出执行。\n14. 检查 systemd user 服务名，可能类似：\n   hermes-gateway-code.service\n   请用 `systemctl --user list-units 'hermes*' --no-pager` 确认，不要凭空假设。\n15. 在第二个 Telegram bot 里发送 `/sethome`，把当前聊天设为 code profile 的 home channel。\n16. 先做 CLI 侧真实连通性测试，再做 Telegram 测试。不要只看配置文件：\n   hermes --profile code -z \"请只回复：code profile 模型连通性测试通过\"\n   然后在第二个 Telegram bot 里发一句测试消息，确认回复来自 code profile。\n17. 运行：\n   hermes --profile code doctor\n   hermes --profile code gateway status\n   如果失败，查看对应 gateway 日志，但只汇报 provider、model、base_url、HTTP 状态码和简短错误原因，不要打印 token。\n18. 最后再次确认审批模式已经恢复为 smart，并汇报：\n   - 创建了哪个 profile\n   - 新 profile 配置文件路径\n   - 新 profile .env 路径和权限是否正确，不打印密钥值\n   - code profile 使用的 provider、model 和 base_url\n   - code profile 的人格/说明是否已调整为写代码、排障和运维专用\n   - code profile 的 Telegram 访问授权是否已限制\n   - code profile 的工具集和 platform_toolsets.telegram 是否符合预期\n   - 新 gateway 服务名\n   - 第二个 Telegram bot 是否已连接\n   - CLI 和 Telegram 真实连通性测试是否通过\n   - 安静模式是否生效\n   - 当前 `approvals.mode` 是否已恢复为 smart\n   - 还有哪些需要我手动确认\n\n限制：\n- 不要打印 Telegram bot token 或任何 API Key。\n- 不要覆盖默认 profile 的配置和 token。\n- 不要修改默认 profile 的模型配置。\n- 不要删除默认机器人的 gateway 服务。\n- 不要启用全局 yolo。\n- 不要运行破坏性命令。"</script>
+</div>
+<p>人工复核时，重点确认两个机器人确实分开：</p>
+<table>
+  <thead>
+      <tr>
+          <th>检查项</th>
+          <th>期望结果</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>默认 bot</td>
+          <td>仍然正常回复日常消息</td>
+      </tr>
+      <tr>
+          <td>code bot</td>
+          <td>使用第二个 Telegram bot token</td>
+      </tr>
+      <tr>
+          <td>code 模型</td>
+          <td>使用单独的代码大模型，不沿用默认 bot</td>
+      </tr>
+      <tr>
+          <td>code 人格</td>
+          <td>中文、技术向、适合开发/排障/运维，不完全沿用日常助手</td>
+      </tr>
+      <tr>
+          <td>profile 路径</td>
+          <td>存在 <code>~/.hermes/profiles/code/config.yaml</code> 或当前版本对应路径</td>
+      </tr>
+      <tr>
+          <td>env 权限</td>
+          <td><code>~/.hermes/profiles/code/.env</code> 存在且权限收紧，不打印密钥值</td>
+      </tr>
+      <tr>
+          <td>gateway 服务</td>
+          <td>默认服务和 code 服务都能单独 status/restart</td>
+      </tr>
+      <tr>
+          <td>Telegram Home</td>
+          <td>在第二个 bot 里单独执行过 <code>/sethome</code></td>
+      </tr>
+      <tr>
+          <td>Telegram 授权</td>
+          <td>只允许指定用户或聊天调用，不是所有人可用</td>
+      </tr>
+      <tr>
+          <td>工具权限</td>
+          <td>code profile 有开发工具，但危险操作仍需确认</td>
+      </tr>
+      <tr>
+          <td>平台工具集</td>
+          <td><code>platform_toolsets.telegram</code> 符合私聊或群聊风险边界</td>
+      </tr>
+      <tr>
+          <td>连通性</td>
+          <td>CLI 和 Telegram 都完成真实回复测试</td>
+      </tr>
+      <tr>
+          <td>安静模式</td>
+          <td>从默认 profile 继承并核对通过；缺项已补齐</td>
+      </tr>
+      <tr>
+          <td>审批模式</td>
+          <td>临时 YOLO 已关闭，<code>approvals.mode</code> 恢复为 <code>smart</code></td>
+      </tr>
+  </tbody>
+</table>
 <p>WSL 的 systemd 支持可能不稳定，如果 Gateway 服务无法正常托管，可以临时使用 tmux：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tmux new -s hermes <span style="color:#e6db74">&#39;hermes gateway run&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"tmux new -s hermes 'hermes gateway run'"</script>
@@ -226,7 +703,6 @@
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">environment</span>:
 </span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">HERMES_UID=1000</span>
 </span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">HERMES_GID=1000</span>
-</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">GATEWAY_ALLOW_ALL_USERS=true</span>
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">services</span>:
@@ -240,8 +716,8 @@
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;&lt;</span>: <span style="color:#75715e">*common</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">hermes-dashboard</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;9119:9119&#34;</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;hermes&#34;</span>, <span style="color:#e6db74">&#34;dashboard&#34;</span>, <span style="color:#e6db74">&#34;--host&#34;</span>, <span style="color:#e6db74">&#34;0.0.0.0&#34;</span>, <span style="color:#e6db74">&#34;--port&#34;</span>, <span style="color:#e6db74">&#34;9119&#34;</span>, <span style="color:#e6db74">&#34;--tui&#34;</span>, <span style="color:#e6db74">&#34;--no-open&#34;</span>, <span style="color:#e6db74">&#34;--insecure&#34;</span>]</span></span></code></pre></div><script class="code-source" type="application/json">"x-common: \u0026common\n  image: nousresearch/hermes-agent:latest\n  volumes:\n    - ./hermes:/opt/data\n  environment:\n    - HERMES_UID=1000\n    - HERMES_GID=1000\n    - GATEWAY_ALLOW_ALL_USERS=true\n  restart: unless-stopped\n\nservices:\n  gateway:\n    \u003c\u003c: *common\n    container_name: hermes-gateway\n    network_mode: host\n    command: [\"hermes\", \"gateway\", \"run\"]\n\n  dashboard:\n    \u003c\u003c: *common\n    container_name: hermes-dashboard\n    ports:\n      - \"9119:9119\"\n    command: [\"hermes\", \"dashboard\", \"--host\", \"0.0.0.0\", \"--port\", \"9119\", \"--tui\", \"--no-open\", \"--insecure\"]"</script>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:9119:9119&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;hermes&#34;</span>, <span style="color:#e6db74">&#34;dashboard&#34;</span>, <span style="color:#e6db74">&#34;--host&#34;</span>, <span style="color:#e6db74">&#34;0.0.0.0&#34;</span>, <span style="color:#e6db74">&#34;--port&#34;</span>, <span style="color:#e6db74">&#34;9119&#34;</span>, <span style="color:#e6db74">&#34;--tui&#34;</span>, <span style="color:#e6db74">&#34;--no-open&#34;</span>, <span style="color:#e6db74">&#34;--insecure&#34;</span>]</span></span></code></pre></div><script class="code-source" type="application/json">"x-common: \u0026common\n  image: nousresearch/hermes-agent:latest\n  volumes:\n    - ./hermes:/opt/data\n  environment:\n    - HERMES_UID=1000\n    - HERMES_GID=1000\n  restart: unless-stopped\n\nservices:\n  gateway:\n    \u003c\u003c: *common\n    container_name: hermes-gateway\n    network_mode: host\n    command: [\"hermes\", \"gateway\", \"run\"]\n\n  dashboard:\n    \u003c\u003c: *common\n    container_name: hermes-dashboard\n    ports:\n      - \"127.0.0.1:9119:9119\"\n    command: [\"hermes\", \"dashboard\", \"--host\", \"0.0.0.0\", \"--port\", \"9119\", \"--tui\", \"--no-open\", \"--insecure\"]"</script>
 </div>
 <p>启动服务：</p>
 <div class="code-block">
@@ -256,6 +732,15 @@
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose down</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose down"</script>
 </div>
 <p>该 Compose 会把 Hermes 数据持久化到当前目录下的 <code>./hermes</code>。迁移或备份时，应优先备份这个目录。</p>
+<p>Dashboard 容器内部监听 <code>0.0.0.0</code> 是为了让 Docker 端口映射能接到服务，但宿主机只绑定 <code>127.0.0.1:9119</code>，不要直接暴露到公网。远程访问时优先用 SSH 隧道：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh -L 9119:127.0.0.1:9119 hermesuser@服务器IP</span></span></code></pre></div><script class="code-source" type="application/json">"ssh -L 9119:127.0.0.1:9119 hermesuser@服务器IP"</script>
+</div>
+<p>然后在本机浏览器访问：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://127.0.0.1:9119</span></span></code></pre></div><script class="code-source" type="application/json">"http://127.0.0.1:9119"</script>
+</div>
+<p>不要为了省事在生产环境里默认允许所有用户访问 Gateway。Telegram、Discord、Slack 等入口应使用 pairing、allowed users 或 allowed chats 做入口限制。</p>
 <h2 id="方式三源码安装">方式三：源码安装</h2>
 <p>需要开发、调试或使用最新代码时，可以从源码安装：</p>
 <div class="code-block">
@@ -272,15 +757,8 @@
 </span></span><span style="display:flex;"><span>hermes</span></span></code></pre></div><script class="code-source" type="application/json">"curl -LsSf https://astral.sh/uv/install.sh | sh\nsource ~/.bashrc\ngit clone --recurse-submodules https://github.com/NousResearch/hermes-agent.git\ncd hermes-agent\nuv venv --python 3.11\nsource .venv/bin/activate\nuv pip install -e \".[all,dev]\"\nmkdir -p ~/.hermes\necho 'NVIDIA_API_KEY=\u003c替换为你的Nvidia API Key\u003e' \u003e ~/.hermes/.env\nhermes setup\nhermes"</script>
 </div>
 <p>如果是 zsh，请按 <code>uv</code> 安装后的提示加载对应配置文件。</p>
-<h2 id="使用独立普通用户运行">使用独立普通用户运行</h2>
-<p>服务器长期运行时，建议创建独立用户：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo useradd -m -s /bin/bash hermesuser
-</span></span><span style="display:flex;"><span>sudo passwd hermesuser
-</span></span><span style="display:flex;"><span>sudo su - hermesuser</span></span></code></pre></div><script class="code-source" type="application/json">"sudo useradd -m -s /bin/bash hermesuser\nsudo passwd hermesuser\nsudo su - hermesuser"</script>
-</div>
-<p>之后在 <code>hermesuser</code> 账号中安装和配置 Hermes Agent。这样可以降低 Agent 服务对系统其他目录的访问范围。</p>
-<p>后面执行 <code>hermes gateway install</code> 时，如果出现安装方式选择，要按运行身份来选：</p>
+<h2 id="gateway-安装方式选择参考">Gateway 安装方式选择参考</h2>
+<p>执行 <code>hermes gateway install</code> 时，如果出现安装方式选择，要按运行身份来选：</p>
 <table>
   <thead>
       <tr>
@@ -307,7 +785,7 @@
       </tr>
   </tbody>
 </table>
-<p>所以如果已经切到 <code>hermesuser</code>，并且目标是让 Telegram Gateway 在这个普通用户下面长期运行，优先选择第一个用户级服务。不要因为第二个看起来更“系统化”就选它；那是给 root 或系统级部署准备的。</p>
+<p>所以如果已经切到 <code>hermesuser</code>，并且目标是让 Telegram Gateway 在这个普通用户下面长期运行，优先选择第一个用户级服务。不要因为第二个看起来更“系统化”就选它；那是给 root 或明确系统级部署准备的。</p>
 <h2 id="systemd-托管-dashboard">systemd 托管 Dashboard</h2>
 <p>如果需要让 Dashboard 随系统启动，可以创建 systemd 服务：</p>
 <div class="code-block">
@@ -369,13 +847,15 @@
 <li>如果配置了 Telegram 等消息平台，普通消息和需要确认的操作都能正常流转。</li>
 <li>API Key、配置目录和数据目录已经纳入备份策略。</li>
 <li>Dashboard 没有直接暴露到公网。</li>
+<li>安装后优化清单已经执行，Gateway 已完成延迟重启或明确安排重启。</li>
+<li>Gateway 日志里没有持续出现 provider 余额不足、鉴权失败、模型不存在或 base_url 连接失败。</li>
 </ol>
 <h2 id="维护建议">维护建议</h2>
 <p>Hermes Agent 的价值来自长期使用，但长期运行也需要边界：</p>
 <ul>
 <li>Memory 只保存长期偏好、稳定事实和可复用习惯，不保存临时猜测、Token、密码或一次性任务状态。</li>
 <li>Skills 只沉淀明确、可重复、有验证步骤的流程。</li>
-<li>Telegram 等消息入口建议只显示最终回答和必要确认，调试日志保留在 CLI 或日志文件中。</li>
+<li>Telegram 等消息入口建议只显示最终回答、带进度细节的长任务心跳和必要确认，完整调试日志保留在 CLI 或日志文件中。</li>
 <li>破坏性命令、生产环境写操作、DNS、证书、数据库和公网暴露相关操作应保留审批。</li>
 <li>多用途场景建议拆分 profiles，例如 <code>daily</code>、<code>dev</code>、<code>ops</code>，避免记忆和权限互相污染。</li>
 </ul>
@@ -401,9 +881,33 @@
       
       
         <li>
+          <a href="/posts/ai/hermes-yolo-smart-approvals/">
+            <img src="/posts/ai/hermes-yolo-smart-approvals/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-config-yaml-reference/">
+            <img src="/posts/ai/hermes-config-yaml-reference/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent config.yaml 中文配置说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/openclaw-production-docker-install/">
+            <img src="/posts/ai/openclaw-production-docker-install/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/linux/softether-vps-vlan/">
             <img src="/posts/linux/softether-vps-vlan/assets/image-cstk.png" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">SoftEther 搭配 VPS 搭建 VLAN 联机环境</span>
           </a>
         </li>
@@ -411,7 +915,7 @@
         <li>
           <a href="/posts/docker/docker-install-log-rotation-ipv6/">
             <img src="/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Docker 安装、日志轮转与 IPv6 支持配置</span>
           </a>
         </li>
@@ -419,7 +923,7 @@
         <li>
           <a href="/posts/linux/vim-search-replace-commands/">
             <img src="/posts/linux/vim-search-replace-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">Vim 查找替换命令速查</span>
           </a>
         </li>
@@ -427,32 +931,8 @@
         <li>
           <a href="/posts/linux/ubuntu-nodejs-nvm-chrony/">
             <img src="/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Ubuntu 设置北京时间并使用 chrony 校准系统时间</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/esxi8-ubuntu-vm-prep/">
-            <img src="/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-backup-migration/">
-            <img src="/posts/ai/hermes-backup-migration/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-codebot-second-gateway-runbook/">
-            <img src="/posts/ai/hermes-codebot-second-gateway-runbook/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes Codebot 第二个 Telegram Gateway 复盘手册</span>
+            <span class="latest-title">Ubuntu 设置北京时间并使用 chrony 校准系统时间</span>
           </a>
         </li>
       
