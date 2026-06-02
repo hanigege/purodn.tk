@@ -1,13 +1,39 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Proxmox VE on 电脑自习室</title><link>https://purodn.tk/tags/proxmox-ve/</link><description>Recent content in Proxmox VE on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 27 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/proxmox-ve/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
-适用场景：
-使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
-一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
-Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
-复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。
-视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：
-复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：
-用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。
-还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。
-二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：
-复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：
-复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Proxmox VE on 电脑自习室</title><link>https://purodn.tk/tags/proxmox-ve/</link><description>Recent content in Proxmox VE on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 27 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/proxmox-ve/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
+&lt;p&gt;适用场景：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。&lt;/li&gt;
+&lt;li&gt;需要配置 Cloud-Init、SSH、qemu-guest-agent。&lt;/li&gt;
+&lt;li&gt;需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;提醒&lt;/strong&gt;：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="一使用-community-scripts-创建-ubuntu-2504-vm"&gt;一、使用 community-scripts 创建 Ubuntu 25.04 VM&lt;/h2&gt;
+&lt;p&gt;项目页面：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://community-scripts.org/categories?category=operating-systems&amp;amp;preview=ubuntu2504-vm"&gt;Ubuntu 25.04 VM 脚本页面&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/community-scripts/ProxmoxVE"&gt;ProxmoxVE community-scripts 仓库&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;在 Proxmox VE 节点 Shell 中执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh)\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;脚本会交互式创建 Ubuntu 25.04 虚拟机。创建完成后，不要急着启动，先进入虚拟机的 Cloud-Init 页面完成初始化配置。&lt;/p&gt;</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>&lt;p&gt;本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&lt;/p&gt;
+&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
+&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
+ &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/f4ShA57AAco?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
+ &lt;/div&gt;
+
+&lt;h2 id="一在-proxmox-ve-中创建-debian-13-虚拟机"&gt;一、在 Proxmox VE 中创建 Debian 13 虚拟机&lt;/h2&gt;
+&lt;p&gt;进入 Proxmox VE Shell，执行社区脚本：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;用户名和密码&lt;/li&gt;
+&lt;li&gt;IP 地址&lt;/li&gt;
+&lt;li&gt;DNS&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;填写完成后点击“重生成镜像”，然后重启虚拟机。&lt;/p&gt;
+&lt;p&gt;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 &lt;code&gt;host&lt;/code&gt;。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&lt;/p&gt;</description></item></channel></rss>

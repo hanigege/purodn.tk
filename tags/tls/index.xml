@@ -1,22 +1,118 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TLS on 电脑自习室</title><link>https://purodn.tk/tags/tls/</link><description>Recent content in TLS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 20:57:38 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tls/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份三份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
-三份原始脚本也保存在本文同级 assets/ 目录中：
-Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh 这些脚本会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
-Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
-复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略...&amp;#34; # 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线 iptables -P INPUT ACCEPT iptables -F iptables -X # 默认策略：严防死守 iptables -P INPUT DROP iptables -P FORWARD DROP iptables -P OUTPUT ACCEPT echo -e &amp;#34;$info 注入严谨优先级规则.</description></item><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>在 Alpine Linux 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。
-本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /var/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
-准备证书 正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 acme.sh、lego 或 certbot。
-本文后续示例假设证书和私钥已经放在下面的位置：
-复制/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key。
-安装并启用 Nginx Alpine 使用 apk 安装软件，服务管理使用 OpenRC：
-复制apk update apk add nginx openssl logrotate rc-update add nginx default 创建 Web 根目录：
-复制mkdir -p /var/www/fetch.jgaga.tk chown -R root:nginx /var/www/fetch.jgaga.tk 这里推荐让目录归属为 root:nginx。Nginx worker 以 nginx 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
-创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。下面以用户名 admin 为例：</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
-本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
-准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
-本文后续示例假设证书和私钥已经放在下面的位置：
-复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。
-安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：
-复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
-创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
-下面以用户名 admin 为例：
-复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TLS on 电脑自习室</title><link>https://purodn.tk/tags/tls/</link><description>Recent content in TLS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 20:57:38 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tls/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份三份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
+&lt;p&gt;三份原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="assets/Alpine_firewall.sh"&gt;Alpine_firewall.sh&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="assets/ssl_alpine.sh"&gt;ssl_alpine.sh&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="assets/alpine_root_ssh_key_manage.sh"&gt;alpine_root_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;这些脚本会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&lt;/p&gt;
+&lt;h2 id="alpine-ipv4-防火墙脚本"&gt;Alpine IPv4 防火墙脚本&lt;/h2&gt;
+&lt;p&gt;这个脚本用于安装 &lt;code&gt;iptables&lt;/code&gt; 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、&lt;code&gt;8000&lt;/code&gt;、&lt;code&gt;10521&lt;/code&gt; 等 TCP 端口，以及 UDP &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#!/bin/sh
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 针对 sing-box 性能优化 &amp;amp; 安全加固&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set -e
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 颜色输出&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;info&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[32m[INFO]\033[0m&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;warn&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[33m[WARN]\033[0m&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 安装 iptables 及其服务组件...&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk add --no-cache iptables iptables-openrc
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 清空旧规则并预设安全策略...&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -F
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -X
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 默认策略：严防死守&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT DROP
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P FORWARD DROP
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P OUTPUT ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 注入严谨优先级规则...&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 2. 第二优先级：本地回环 (127.0.0.1)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -i lo -j ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 3. 开放 TCP 业务端口&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;for&lt;/span&gt; port in &lt;span style="color:#ae81ff"&gt;22&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;80&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;8000&lt;/span&gt; 10521; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; iptables -A INPUT -p tcp --dport $port -j ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;done&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 4. 开放 sing-box UDP 监听端口&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p udp --dport &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; -j ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst &lt;span style="color:#ae81ff"&gt;5&lt;/span&gt; -j ACCEPT
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp -j DROP
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 正在持久化并启动服务...&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine 必须先保存到文件，否则 start 可能会加载旧配置&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/init.d/iptables save
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 设置开机自启&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-update add iptables default
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 重启服务以确保内存规则与文件同步&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-service iptables restart
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;\n\033[32m✅ IPv4 防火墙加固完成！\033[0m&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -L INPUT -n -v
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"#!/bin/sh\n# ============================================================\n# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)\n# 针对 sing-box 性能优化 \u0026 安全加固\n# ============================================================\n\nset -e\n\n# 颜色输出\ninfo='\\033[32m[INFO]\\033[0m'\nwarn='\\033[33m[WARN]\\033[0m'\n\necho -e \"$info 安装 iptables 及其服务组件...\"\napk add --no-cache iptables iptables-openrc\n\necho -e \"$info 清空旧规则并预设安全策略...\"\n# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线\niptables -P INPUT ACCEPT\niptables -F\niptables -X\n\n# 默认策略：严防死守\niptables -P INPUT DROP\niptables -P FORWARD DROP\niptables -P OUTPUT ACCEPT\n\necho -e \"$info 注入严谨优先级规则...\"\n\n# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）\niptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n\n# 2. 第二优先级：本地回环 (127.0.0.1)\niptables -A INPUT -i lo -j ACCEPT\n\n# 3. 开放 TCP 业务端口\nfor port in 22 80 443 8000 10521; do\n iptables -A INPUT -p tcp --dport $port -j ACCEPT\ndone\n\n# 4. 开放 sing-box UDP 监听端口\niptables -A INPUT -p udp --dport 443 -j ACCEPT\n\n# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击\niptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT\niptables -A INPUT -p icmp -j DROP\n\necho -e \"$info 正在持久化并启动服务...\"\n# Alpine 必须先保存到文件，否则 start 可能会加载旧配置\n/etc/init.d/iptables save\n\n# 设置开机自启\nrc-update add iptables default\n\n# 重启服务以确保内存规则与文件同步\nrc-service iptables restart\n\necho -e \"\\n\\033[32m✅ IPv4 防火墙加固完成！\\033[0m\"\necho \"-------------------------------------------\"\niptables -L INPUT -n -v\necho \"-------------------------------------------\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;h2 id="alpine-ssl-证书申请脚本"&gt;Alpine SSL 证书申请脚本&lt;/h2&gt;
+&lt;p&gt;这个脚本使用 &lt;code&gt;acme.sh&lt;/code&gt; 和 Let&amp;rsquo;s Encrypt，通过 standalone 模式申请证书，并把证书安装到 &lt;code&gt;/etc/ssl/&amp;lt;domain&amp;gt;/&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>&lt;p&gt;在 Alpine Linux 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。&lt;/p&gt;
+&lt;p&gt;本文以 &lt;code&gt;fetch.jgaga.tk&lt;/code&gt; 为示例域名，Web 根目录为 &lt;code&gt;/var/www/fetch.jgaga.tk&lt;/code&gt;。实际使用时，把域名和目录替换成自己的即可。&lt;/p&gt;
+&lt;h2 id="准备证书"&gt;准备证书&lt;/h2&gt;
+&lt;p&gt;正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 &lt;code&gt;acme.sh&lt;/code&gt;、&lt;code&gt;lego&lt;/code&gt; 或 &lt;code&gt;certbot&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;本文后续示例假设证书和私钥已经放在下面的位置：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt\n/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 &lt;code&gt;ssl_certificate&lt;/code&gt; 和 &lt;code&gt;ssl_certificate_key&lt;/code&gt;。&lt;/p&gt;
+&lt;h2 id="安装并启用-nginx"&gt;安装并启用 Nginx&lt;/h2&gt;
+&lt;p&gt;Alpine 使用 &lt;code&gt;apk&lt;/code&gt; 安装软件，服务管理使用 OpenRC：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk add nginx openssl logrotate
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-update add nginx default&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apk update\napk add nginx openssl logrotate\nrc-update add nginx default"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建 Web 根目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /var/www/fetch.jgaga.tk
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;chown -R root:nginx /var/www/fetch.jgaga.tk&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /var/www/fetch.jgaga.tk\nchown -R root:nginx /var/www/fetch.jgaga.tk"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里推荐让目录归属为 &lt;code&gt;root:nginx&lt;/code&gt;。Nginx worker 以 &lt;code&gt;nginx&lt;/code&gt; 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&lt;/p&gt;</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>&lt;p&gt;在 FreeBSD 15 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&lt;/p&gt;
+&lt;p&gt;本文以 &lt;code&gt;fetch.jgaga.tk&lt;/code&gt; 为示例域名，Web 根目录为 &lt;code&gt;/usr/local/www/fetch.jgaga.tk&lt;/code&gt;。实际使用时，把域名和目录替换成自己的即可。&lt;/p&gt;
+&lt;h2 id="准备证书"&gt;准备证书&lt;/h2&gt;
+&lt;p&gt;正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 &lt;code&gt;acme.sh&lt;/code&gt;、&lt;code&gt;certbot&lt;/code&gt; 等工具签发。&lt;/p&gt;
+&lt;p&gt;本文后续示例假设证书和私钥已经放在下面的位置：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt\n/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 &lt;code&gt;ssl_certificate&lt;/code&gt; 和 &lt;code&gt;ssl_certificate_key&lt;/code&gt; 即可。&lt;/p&gt;
+&lt;h2 id="安装并启用-nginx"&gt;安装并启用 Nginx&lt;/h2&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y nginx
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc nginx_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pkg install -y nginx\nsysrc nginx_enable=\"YES\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建 Web 根目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /usr/local/www/fetch.jgaga.tk
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;chown -R root:www /usr/local/www/fetch.jgaga.tk&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /usr/local/www/fetch.jgaga.tk\nchown -R root:www /usr/local/www/fetch.jgaga.tk"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里推荐让目录归属为 &lt;code&gt;root:www&lt;/code&gt;。Nginx worker 以 &lt;code&gt;www&lt;/code&gt; 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&lt;/p&gt;
+&lt;h2 id="创建认证密码文件"&gt;创建认证密码文件&lt;/h2&gt;
+&lt;p&gt;如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 &lt;code&gt;openssl&lt;/code&gt;，不需要额外安装工具。&lt;/p&gt;</description></item></channel></rss>

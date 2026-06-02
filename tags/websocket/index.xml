@@ -1,9 +1,58 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>WebSocket on 电脑自习室</title><link>https://purodn.tk/tags/websocket/</link><description>Recent content in WebSocket on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/websocket/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。
-先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
-这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
-整体结构如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。
-架构说明 访问链路如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：
-项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：
-项目 文档示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path 服务端入口 443 Gost 后端端口 18080 客户端本地 SOCKS 127.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>WebSocket on 电脑自习室</title><link>https://purodn.tk/tags/websocket/</link><description>Recent content in WebSocket on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/websocket/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。&lt;/p&gt;
+&lt;p&gt;先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 &lt;code&gt;6-9 MB/s&lt;/code&gt;，Gost MWSS + Nginx 多轮在 &lt;code&gt;8-18 MB/s&lt;/code&gt; 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。&lt;/p&gt;
+&lt;p&gt;这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。&lt;/p&gt;
+&lt;p&gt;整体结构如下：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; mwss://proxy.example.com:443/secret-gost-path
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Nginx 443
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 客户端 Gost\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e FreeBSD Nginx 443\n -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost v3 MWS"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这里有一个关键点：普通用户不能监听 &lt;code&gt;443&lt;/code&gt; 这种低端口，但本方案监听 &lt;code&gt;443/tcp&lt;/code&gt; 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 &lt;code&gt;www&lt;/code&gt; 用户处理请求；Gost 只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，所以可以安全地用专用低权限用户运行。&lt;/p&gt;</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>&lt;p&gt;这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&lt;/p&gt;
+&lt;h2 id="架构说明"&gt;架构说明&lt;/h2&gt;
+&lt;p&gt;访问链路如下：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; mwss://proxy.example.com:443/secret-gost-path
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 本地 Gost 客户端\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e Nginx 443 -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost MWS"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;本文使用下面这些占位值，部署时请替换成自己的信息：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;项目&lt;/th&gt;
+ &lt;th&gt;示例值&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;域名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;proxy.example.com&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务器公网 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;203.0.113.10&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;WebSocket 路径&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/secret-gost-path&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Gost 用户名&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;GOST_USER&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Gost 密码&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;GOST_PASS&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;服务端后端端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;127.0.0.1:18080&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;客户端本地 SOCKS&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;127.0.0.1:1080&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;本文示例可以按下面这样替换：&lt;/p&gt;</description></item></channel></rss>

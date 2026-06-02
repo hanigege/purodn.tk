@@ -1,8 +1,66 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Asterisk on 电脑自习室</title><link>https://purodn.tk/tags/asterisk/</link><description>Recent content in Asterisk on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/asterisk/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（二）：FreePBX 16 基础配置</title><link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid><description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。
-基础假设 示例网络如下：
-项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。
-原文中的整体架构图如下：
-固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：
-复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：
-复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：
-复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Asterisk on 电脑自习室</title><link>https://purodn.tk/tags/asterisk/</link><description>Recent content in Asterisk on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/asterisk/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（二）：FreePBX 16 基础配置</title><link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="基础假设"&gt;基础假设&lt;/h2&gt;
+&lt;p&gt;示例网络如下：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;项目&lt;/th&gt;
+ &lt;th&gt;示例值&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;FreePBX IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;10.20.20.60&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;默认网关/路由器 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;10.20.20.1&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;SMG4004 网关 IP&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;10.20.20.74&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;DNS&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;114.114.114.114&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;PJSIP 端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;5060&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;chan_sip 端口&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;5160&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&lt;/p&gt;
+&lt;p&gt;原文中的整体架构图如下：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/freepbx-01.png" alt="FreePBX 自建 VoIP 架构"&gt;&lt;/p&gt;
+&lt;h2 id="固定-freepbx-ip"&gt;固定 FreePBX IP&lt;/h2&gt;
+&lt;p&gt;安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 &lt;code&gt;eth0&lt;/code&gt; 为例：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;vi /etc/sysconfig/network-scripts/ifcfg-eth0&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"vi /etc/sysconfig/network-scripts/ifcfg-eth0"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;保留原文件里的其他字段，只调整关键项：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;TYPE&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Ethernet&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;BOOTPROTO&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;static&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;IPADDR&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;10.20.20.60&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;NETMASK&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;255.255.255.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;GATEWAY&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;10.20.20.1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;DNS1&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;114.114.114.114&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;DEFROUTE&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;yes&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;NAME&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;eth0&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;DEVICE&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;eth0&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;ONBOOT&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;yes&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"TYPE=\"Ethernet\"\nBOOTPROTO=\"static\"\nIPADDR=10.20.20.60\nNETMASK=255.255.255.0\nGATEWAY=10.20.20.1\nDNS1=114.114.114.114\nDEFROUTE=\"yes\"\nNAME=\"eth0\"\nDEVICE=\"eth0\"\nONBOOT=\"yes\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;重启后确认地址：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ip addr show eth0
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ip route&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"ip addr show eth0\nip route"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。&lt;/p&gt;</description></item></channel></rss>

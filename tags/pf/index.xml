@@ -1,7 +1,34 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PF on 电脑自习室</title><link>https://purodn.tk/tags/pf/</link><description>Recent content in PF on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/pf/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
-这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
-默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
-复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
-复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。
-如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：
-复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PF on 电脑自习室</title><link>https://purodn.tk/tags/pf/</link><description>Recent content in PF on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/pf/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>&lt;p&gt;FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。&lt;/p&gt;
+&lt;p&gt;这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;默认拒绝入站，允许出站。&lt;/li&gt;
+&lt;li&gt;自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。&lt;/li&gt;
+&lt;li&gt;按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。&lt;/li&gt;
+&lt;li&gt;对 TCP 高频连接启用 &lt;code&gt;overload &amp;lt;blacklist&amp;gt;&lt;/code&gt; 自动拉黑，并定期释放过期黑名单。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="先启用-pf"&gt;先启用 PF&lt;/h2&gt;
+&lt;p&gt;用 root 用户执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pf_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pflog_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sysrc pf_enable=\"YES\"\nsysrc pflog_enable=\"YES\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果是首次启用，先不要急着 &lt;code&gt;service pf start&lt;/code&gt;。PF 服务启动时会读取 &lt;code&gt;/etc/pf.conf&lt;/code&gt;，如果这个文件不存在或不可读，就会看到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable.&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable."&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。&lt;/p&gt;
+&lt;p&gt;如果你的 SSH 不是 22 端口，把最后一行里的 &lt;code&gt;22&lt;/code&gt; 换成你实际的 SSH 端口：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cat &amp;gt; /etc/pf.conf &lt;span style="color:#e6db74"&gt;&amp;lt;&amp;lt;&amp;#39;EOF&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set skip on lo0
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set block-policy drop
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;scrub in all fragment reassemble
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;block in all
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass out all keep state
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto icmp all icmp-type echoreq keep state
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto tcp from any to any port 22 keep state
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;EOF&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cat \u003e /etc/pf.conf \u003c\u003c'EOF'\nset skip on lo0\nset block-policy drop\nscrub in all fragment reassemble\n\nblock in all\npass out all keep state\n\npass in quick inet proto icmp all icmp-type echoreq keep state\npass in quick inet proto tcp from any to any port 22 keep state\nEOF"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;先检查语法：&lt;/p&gt;</description></item></channel></rss>

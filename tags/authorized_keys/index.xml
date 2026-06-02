@@ -1,10 +1,17 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Authorized_keys on 电脑自习室</title><link>https://purodn.tk/tags/authorized_keys/</link><description>Recent content in Authorized_keys on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 01 Mar 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/authorized_keys/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
-它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
-使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
-更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
-GitHub 公钥地址格式是：
-复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
-root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
-复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
-root 用户配置项核对 root 用户版本推荐状态如下：
-复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Authorized_keys on 电脑自习室</title><link>https://purodn.tk/tags/authorized_keys/</link><description>Recent content in Authorized_keys on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 01 Mar 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/authorized_keys/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>&lt;p&gt;这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 &lt;code&gt;authorized_keys&lt;/code&gt;，并自动调整 &lt;code&gt;sshd_config&lt;/code&gt; 里的关键认证参数。&lt;/p&gt;
+&lt;p&gt;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/CleanShot-2026-03-01-at-20.56.31-2x.png" alt="FreeBSD SSH key manager"&gt;&lt;/p&gt;
+&lt;h2 id="使用前提醒"&gt;使用前提醒&lt;/h2&gt;
+&lt;p&gt;这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&lt;/p&gt;
+&lt;p&gt;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&lt;/p&gt;
+&lt;p&gt;GitHub 公钥地址格式是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"https://github.com/\u003c你的GitHub用户名\u003e.keys"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&lt;/p&gt;
+&lt;h2 id="root-用户版本"&gt;root 用户版本&lt;/h2&gt;
+&lt;p&gt;如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; ./freebsd_ssh_key_manage.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh \u0026\u0026 chmod +x freebsd_ssh_key_manage.sh \u0026\u0026 ./freebsd_ssh_key_manage.sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这个版本配置的是 root 用户的 &lt;code&gt;authorized_keys&lt;/code&gt;。脚本执行完成后，应重点核对 &lt;code&gt;/etc/ssh/sshd_config&lt;/code&gt; 里的配置项。&lt;/p&gt;</description></item></channel></rss>

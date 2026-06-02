@@ -1,9 +1,24 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Python on 电脑自习室</title><link>https://purodn.tk/tags/python/</link><description>Recent content in Python on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/python/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
-准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
-复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
-复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
-复制python3 -m venv .venv 安装依赖：
-复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
-准备脚本 把测试通过的桥接脚本放到：
-复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
-复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Python on 电脑自习室</title><link>https://purodn.tk/tags/python/</link><description>Recent content in Python on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/python/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="准备系统"&gt;准备系统&lt;/h2&gt;
+&lt;p&gt;建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt install -y python3 python3-venv python3-pip curl&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apt update\napt install -y python3 python3-venv python3-pip curl"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建专用目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /opt/voip-sms-bot
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /opt/voip-sms-bot&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /opt/voip-sms-bot\ncd /opt/voip-sms-bot"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建虚拟环境：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;python3 -m venv .venv&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"python3 -m venv .venv"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;安装依赖：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip\n/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 &lt;code&gt;smpplib&lt;/code&gt;。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&lt;/p&gt;</description></item></channel></rss>

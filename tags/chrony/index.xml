@@ -1,12 +1,36 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Chrony on 电脑自习室</title><link>https://purodn.tk/tags/chrony/</link><description>Recent content in Chrony on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 08:32:50 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/chrony/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title><link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link><pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid><description>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 Asia/Shanghai，再用 chrony 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。
-时间同步和北京时间的关系 这里要分清两件事：
-Asia/Shanghai 负责把系统显示时区设为北京时间，也就是 UTC+8。 chrony 负责通过 NTP 校准系统时钟，让时间本身准确。 所以只安装 chrony 不等于设置北京时间；只设置 Asia/Shanghai 也不等于时间已经校准。两个都做完，date 看到的时间才会是准确的北京时间。
-一、设置时区为北京时间 先查看当前时间和时区：
-复制timedatectl date 设置系统时区为北京时间：
-复制sudo timedatectl set-timezone Asia/Shanghai 再次确认：
-复制timedatectl date timedatectl 输出里应能看到：
-复制Time zone: Asia/Shanghai (CST, +0800) date 输出里也应该出现 CST 或 +0800。这一步只负责时区显示，不负责从网络校准时间。
-二、使用 chrony 校准系统时间 Ubuntu 默认可以使用 systemd-timesyncd 做基础时间同步，但服务器环境更推荐使用 chrony。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。
-先安装 chrony：
-复制sudo apt update sudo apt install -y chrony 编辑配置文件：
-复制sudo nvim /etc/chrony/chrony.conf 清空或覆盖 /etc/chrony/chrony.conf，写入以下完整配置：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Chrony on 电脑自习室</title><link>https://purodn.tk/tags/chrony/</link><description>Recent content in Chrony on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 08:32:50 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/chrony/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title><link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link><pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid><description>&lt;p&gt;这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 &lt;code&gt;Asia/Shanghai&lt;/code&gt;，再用 &lt;code&gt;chrony&lt;/code&gt; 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。&lt;/p&gt;
+&lt;h2 id="时间同步和北京时间的关系"&gt;时间同步和北京时间的关系&lt;/h2&gt;
+&lt;p&gt;这里要分清两件事：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Asia/Shanghai&lt;/code&gt; 负责把系统显示时区设为北京时间，也就是 UTC+8。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;chrony&lt;/code&gt; 负责通过 NTP 校准系统时钟，让时间本身准确。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;所以只安装 &lt;code&gt;chrony&lt;/code&gt; 不等于设置北京时间；只设置 &lt;code&gt;Asia/Shanghai&lt;/code&gt; 也不等于时间已经校准。两个都做完，&lt;code&gt;date&lt;/code&gt; 看到的时间才会是准确的北京时间。&lt;/p&gt;
+&lt;h2 id="一设置时区为北京时间"&gt;一、设置时区为北京时间&lt;/h2&gt;
+&lt;p&gt;先查看当前时间和时区：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;timedatectl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;date&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"timedatectl\ndate"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;设置系统时区为北京时间：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo timedatectl set-timezone Asia/Shanghai&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo timedatectl set-timezone Asia/Shanghai"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;再次确认：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;timedatectl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;date&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"timedatectl\ndate"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;timedatectl&lt;/code&gt; 输出里应能看到：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Time zone: Asia/Shanghai (CST, +0800)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"Time zone: Asia/Shanghai (CST, +0800)"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;date&lt;/code&gt; 输出里也应该出现 &lt;code&gt;CST&lt;/code&gt; 或 &lt;code&gt;+0800&lt;/code&gt;。这一步只负责时区显示，不负责从网络校准时间。&lt;/p&gt;
+&lt;h2 id="二使用-chrony-校准系统时间"&gt;二、使用 chrony 校准系统时间&lt;/h2&gt;
+&lt;p&gt;Ubuntu 默认可以使用 &lt;code&gt;systemd-timesyncd&lt;/code&gt; 做基础时间同步，但服务器环境更推荐使用 &lt;code&gt;chrony&lt;/code&gt;。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。&lt;/p&gt;
+&lt;p&gt;先安装 &lt;code&gt;chrony&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install -y chrony&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install -y chrony"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;编辑配置文件：&lt;/p&gt;</description></item></channel></rss>

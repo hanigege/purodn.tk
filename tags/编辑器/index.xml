@@ -1,30 +1,115 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>编辑器 on 电脑自习室</title><link>https://purodn.tk/tags/%E7%BC%96%E8%BE%91%E5%99%A8/</link><description>Recent content in 编辑器 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 09:48:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E7%BC%96%E8%BE%91%E5%99%A8/index.xml" rel="self" type="application/rss+xml"/><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。
-基本格式 Vim 替换命令的基本格式是：
-复制:[范围]s/查找内容/替换内容/[标志] 常见写法：
-复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。
-复制:s/foo/bar/g 表示只在当前行，把所有 foo 都替换成 bar。
-复制:%s/foo/bar/g 表示在整个文件里，把所有 foo 都替换成 bar。
-这里的 % 表示整个文件范围，等价于 1,$。
-替换整个文件里的 IP 地址 如果要把当前文件中的 8.8.8.8 全部替换成 10.20.20.29，不要直接写：
-复制:%s/8.8.8.8/10.20.20.29/g 这条命令看起来直观，但在 Vim 正则里，. 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：
-复制:%s/8\.8\.8\.8/10.20.20.29/g 这样才是精确匹配 8.8.8.8。
-每次替换前都确认 如果担心误替换，可以加 c 标志，让 Vim 每次替换前都询问：
-复制:%s/8\.8\.8\.8/10.20.20.29/gc 提示时常见按键含义：
-按键 作用 y 替换当前匹配项 n 跳过当前匹配项 a 替换剩余所有匹配项 q 退出替换 l 替换当前项后退出 只替换指定范围 只替换当前行：
-复制:s/foo/bar/g 替换第 10 到第 30 行：</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
-这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
-一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
-下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。
-复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：
-复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description></item><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。
-前提是你想使用的新编辑器已经安装。
-临时更改 临时更改只对当前命令有效，适合偶尔使用一次。
-复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：
-复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。
-永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。
-sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：
-复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。
-如果写入的是 ~/.profile：
-复制. ~/.profile 如果写入的是 ~/.bashrc：
-复制. ~/.bashrc 如果写入的是 ~/.bash_profile：
-复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>编辑器 on 电脑自习室</title><link>https://purodn.tk/tags/%E7%BC%96%E8%BE%91%E5%99%A8/</link><description>Recent content in 编辑器 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 09:48:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E7%BC%96%E8%BE%91%E5%99%A8/index.xml" rel="self" type="application/rss+xml"/><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>&lt;p&gt;Vim 里最常用的查找替换命令是 &lt;code&gt;:s&lt;/code&gt;，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。&lt;/p&gt;
+&lt;h2 id="基本格式"&gt;基本格式&lt;/h2&gt;
+&lt;p&gt;Vim 替换命令的基本格式是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:[&lt;span style="color:#a6e22e"&gt;范围&lt;/span&gt;]&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/查找内容/&lt;/span&gt;&lt;span style="color:#a6e22e"&gt;替换内容&lt;/span&gt;/[&lt;span style="color:#a6e22e"&gt;标志&lt;/span&gt;]&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":[范围]s/查找内容/替换内容/[标志]"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;常见写法：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/foo/&lt;/span&gt;&lt;span style="color:#a6e22e"&gt;bar&lt;/span&gt;/&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":s/foo/bar/"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;表示只在当前行，把第一个 &lt;code&gt;foo&lt;/code&gt; 替换成 &lt;code&gt;bar&lt;/code&gt;。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/foo/&lt;/span&gt;&lt;span style="color:#a6e22e"&gt;bar&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;g&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":s/foo/bar/g"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;表示只在当前行，把所有 &lt;code&gt;foo&lt;/code&gt; 都替换成 &lt;code&gt;bar&lt;/code&gt;。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:%&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/foo/&lt;/span&gt;&lt;span style="color:#a6e22e"&gt;bar&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;g&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":%s/foo/bar/g"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;表示在整个文件里，把所有 &lt;code&gt;foo&lt;/code&gt; 都替换成 &lt;code&gt;bar&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;这里的 &lt;code&gt;%&lt;/code&gt; 表示整个文件范围，等价于 &lt;code&gt;1,$&lt;/code&gt;。&lt;/p&gt;
+&lt;h2 id="替换整个文件里的-ip-地址"&gt;替换整个文件里的 IP 地址&lt;/h2&gt;
+&lt;p&gt;如果要把当前文件中的 &lt;code&gt;8.8.8.8&lt;/code&gt; 全部替换成 &lt;code&gt;10.20.20.29&lt;/code&gt;，不要直接写：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:%&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/8.8.8.8/&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;29&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;g&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":%s/8.8.8.8/10.20.20.29/g"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这条命令看起来直观，但在 Vim 正则里，&lt;code&gt;.&lt;/code&gt; 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:%&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/8\.8\.8\.8/&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;29&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;g&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":%s/8\\.8\\.8\\.8/10.20.20.29/g"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这样才是精确匹配 &lt;code&gt;8.8.8.8&lt;/code&gt;。&lt;/p&gt;
+&lt;h2 id="每次替换前都确认"&gt;每次替换前都确认&lt;/h2&gt;
+&lt;p&gt;如果担心误替换，可以加 &lt;code&gt;c&lt;/code&gt; 标志，让 Vim 每次替换前都询问：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:%&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/8\.8\.8\.8/&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;10&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;20&lt;/span&gt;.&lt;span style="color:#ae81ff"&gt;29&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;gc&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":%s/8\\.8\\.8\\.8/10.20.20.29/gc"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;提示时常见按键含义：&lt;/p&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;按键&lt;/th&gt;
+ &lt;th&gt;作用&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;y&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;替换当前匹配项&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;n&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;跳过当前匹配项&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;a&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;替换剩余所有匹配项&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;q&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;退出替换&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;l&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;替换当前项后退出&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="只替换指定范围"&gt;只替换指定范围&lt;/h2&gt;
+&lt;p&gt;只替换当前行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-vim" data-lang="vim"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;:&lt;span style="color:#a6e22e"&gt;s&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/foo/&lt;/span&gt;&lt;span style="color:#a6e22e"&gt;bar&lt;/span&gt;/&lt;span style="color:#a6e22e"&gt;g&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;":s/foo/bar/g"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;替换第 10 到第 30 行：&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 &lt;code&gt;pkg&lt;/code&gt; 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 &lt;code&gt;lazy.nvim&lt;/code&gt; 的 Lua 配置。&lt;/p&gt;
+&lt;p&gt;这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。&lt;/p&gt;
+&lt;h2 id="一安装系统依赖并编译-neovim"&gt;一、安装系统依赖并编译 Neovim&lt;/h2&gt;
+&lt;p&gt;FreeBSD 使用 &lt;code&gt;pkg&lt;/code&gt; 管理二进制包。编译 Neovim 时建议使用 &lt;code&gt;gmake&lt;/code&gt;，不要直接用系统自带的 &lt;code&gt;make&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 &lt;code&gt;doas&lt;/code&gt; 或 &lt;code&gt;sudo&lt;/code&gt;。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 强制刷新仓库索引，并升级已安装软件包&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg update -f
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg upgrade -y
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 安装源码编译 Neovim 所需工具&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# 强制刷新仓库索引，并升级已安装软件包\npkg update -f\npkg upgrade -y\n\n# 安装源码编译 Neovim 所需工具\npkg install -y ninja cmake gettext-tools gmake unzip curl git gcc"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;然后拉取 Neovim 源码并切换到稳定分支：&lt;/p&gt;</description></item><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>&lt;p&gt;FreeBSD 默认环境里，很多命令会调用 &lt;code&gt;vi&lt;/code&gt; 作为编辑器，例如 &lt;code&gt;crontab -e&lt;/code&gt;。如果更习惯 &lt;code&gt;nano&lt;/code&gt;、&lt;code&gt;micro&lt;/code&gt;、&lt;code&gt;ee&lt;/code&gt; 或 &lt;code&gt;vim&lt;/code&gt;，可以通过设置 &lt;code&gt;EDITOR&lt;/code&gt; 环境变量来更改默认编辑器。&lt;/p&gt;
+&lt;p&gt;前提是你想使用的新编辑器已经安装。&lt;/p&gt;
+&lt;h2 id="临时更改"&gt;临时更改&lt;/h2&gt;
+&lt;p&gt;临时更改只对当前命令有效，适合偶尔使用一次。&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;nano crontab -e&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"EDITOR=nano crontab -e"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;也可以换成其他喜欢的编辑器：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;micro crontab -e
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;ee crontab -e
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;vim crontab -e&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"EDITOR=micro crontab -e\nEDITOR=ee crontab -e\nEDITOR=vim crontab -e"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这种写法不会修改系统配置，关闭当前终端后也不会保留。&lt;/p&gt;
+&lt;h2 id="永久更改"&gt;永久更改&lt;/h2&gt;
+&lt;p&gt;如果希望以后执行 &lt;code&gt;crontab -e&lt;/code&gt; 时都使用指定编辑器，可以把 &lt;code&gt;EDITOR&lt;/code&gt; 写入当前用户的 shell 启动文件。&lt;/p&gt;
+&lt;h2 id="sh-或-bash"&gt;sh 或 bash&lt;/h2&gt;
+&lt;p&gt;如果使用的是 &lt;code&gt;sh&lt;/code&gt; 或 &lt;code&gt;bash&lt;/code&gt;，可以把下面这行加入 &lt;code&gt;~/.profile&lt;/code&gt;、&lt;code&gt;~/.bashrc&lt;/code&gt; 或 &lt;code&gt;~/.bash_profile&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;nano&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export EDITOR=nano"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;修改完成后，可以重新登录终端，也可以手动加载配置文件。&lt;/p&gt;
+&lt;p&gt;如果写入的是 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果写入的是 &lt;code&gt;~/.bashrc&lt;/code&gt;：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.bashrc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.bashrc"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果写入的是 &lt;code&gt;~/.bash_profile&lt;/code&gt;：&lt;/p&gt;</description></item></channel></rss>

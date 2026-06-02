@@ -1,19 +1,64 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SMS on 电脑自习室</title><link>https://purodn.tk/tags/sms/</link><description>Recent content in SMS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/sms/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。
-为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。
-更稳的方式是：
-复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。
-创建 Bot 在 Telegram 搜索：
-复制@BotFather 创建流程：
-发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：
-复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。
-获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：
-先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：
-复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description></item><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
-准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
-复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
-复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
-复制python3 -m venv .venv 安装依赖：
-复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
-准备脚本 把测试通过的桥接脚本放到：
-复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
-复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SMS on 电脑自习室</title><link>https://purodn.tk/tags/sms/</link><description>Recent content in SMS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/sms/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="为什么短信单独处理"&gt;为什么短信单独处理&lt;/h2&gt;
+&lt;p&gt;FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。&lt;/p&gt;
+&lt;p&gt;更稳的方式是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;语音网关短信接口
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Python 桥接程序
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ↓
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Telegram Bot&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"语音网关短信接口\n ↓\nPython 桥接程序\n ↓\nTelegram Bot"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。&lt;/p&gt;
+&lt;h2 id="创建-bot"&gt;创建 Bot&lt;/h2&gt;
+&lt;p&gt;在 Telegram 搜索：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;@BotFather&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"@BotFather"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建流程：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;发送 &lt;code&gt;/newbot&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;输入机器人显示名称，例如 &lt;code&gt;Home VoIP SMS&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;输入唯一用户名，必须以 &lt;code&gt;bot&lt;/code&gt; 结尾，例如 &lt;code&gt;home_voip_sms_bot&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;BotFather 返回 API Token。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Token 形态类似：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;1234567890:AAExampleTokenDoNotExpose&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"1234567890:AAExampleTokenDoNotExpose"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。&lt;/p&gt;
+&lt;h2 id="获取-chat_id"&gt;获取 chat_id&lt;/h2&gt;
+&lt;p&gt;Bot 需要知道把短信发给谁。最简单的办法：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;先给你的 Bot 发一条消息，例如 &lt;code&gt;hello&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;在服务器上请求 Telegram API：&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl &lt;span style="color:#e6db74"&gt;&amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"curl \"https://api.telegram.org/bot\u003cTOKEN\u003e/getUpdates\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;返回 JSON 里找到：&lt;/p&gt;</description></item><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>&lt;blockquote&gt;
+&lt;p&gt;本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="准备系统"&gt;准备系统&lt;/h2&gt;
+&lt;p&gt;建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt update
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt install -y python3 python3-venv python3-pip curl&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apt update\napt install -y python3 python3-venv python3-pip curl"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建专用目录：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /opt/voip-sms-bot
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /opt/voip-sms-bot&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /opt/voip-sms-bot\ncd /opt/voip-sms-bot"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;创建虚拟环境：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;python3 -m venv .venv&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"python3 -m venv .venv"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;安装依赖：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip\n/opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 &lt;code&gt;smpplib&lt;/code&gt;。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&lt;/p&gt;</description></item></channel></rss>

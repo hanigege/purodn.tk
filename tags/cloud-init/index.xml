@@ -1,13 +1,45 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Cloud-Init on 电脑自习室</title><link>https://purodn.tk/tags/cloud-init/</link><description>Recent content in Cloud-Init on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/cloud-init/index.xml" rel="self" type="application/rss+xml"/><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。
-后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。
-准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：
-https://cloud-images.ubuntu.com/
-在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。
-创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：
-复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：
-复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
-适用场景：
-使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
-一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
-Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
-复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Cloud-Init on 电脑自习室</title><link>https://purodn.tk/tags/cloud-init/</link><description>Recent content in Cloud-Init on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/cloud-init/index.xml" rel="self" type="application/rss+xml"/><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>&lt;p&gt;在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。&lt;/p&gt;
+&lt;p&gt;后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。&lt;/p&gt;
+&lt;h2 id="准备-ubuntu-cloud-image"&gt;准备 Ubuntu Cloud Image&lt;/h2&gt;
+&lt;p&gt;Ubuntu Cloud Image 官方下载站：&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://cloud-images.ubuntu.com/"&gt;https://cloud-images.ubuntu.com/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。&lt;/p&gt;
+&lt;h2 id="创建虚拟机并写入-cloud-init"&gt;创建虚拟机并写入 cloud-init&lt;/h2&gt;
+&lt;p&gt;在 ESXi 里创建虚拟机后，可以通过 &lt;code&gt;guestinfo.userdata&lt;/code&gt; 写入 cloud-init 配置。原文示例里使用了 base64 方式：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;guestinfo.userdata.encoding base64
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;guestinfo.userdata&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"guestinfo.userdata.encoding base64\nguestinfo.userdata"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#cloud-config&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;users&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;mac&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;groups&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sudo&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;sudo&lt;/span&gt;: [&lt;span style="color:#e6db74"&gt;&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;plain_text_passwd&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#39;12345&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;lock_passwd&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;false&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# ssh_authorized_keys:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# - ssh-ed25519 AAAA... your-key&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"#cloud-config\nusers:\n - name: mac\n groups: sudo\n sudo: ['ALL=(ALL) NOPASSWD:ALL']\n plain_text_passwd: '12345'\n lock_passwd: false\n # ssh_authorized_keys:\n # - ssh-ed25519 AAAA... your-key"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果要转换成 base64，可以在本机保存为 &lt;code&gt;user-data.yaml&lt;/code&gt; 后执行：&lt;/p&gt;</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
+&lt;p&gt;适用场景：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。&lt;/li&gt;
+&lt;li&gt;需要配置 Cloud-Init、SSH、qemu-guest-agent。&lt;/li&gt;
+&lt;li&gt;需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;提醒&lt;/strong&gt;：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id="一使用-community-scripts-创建-ubuntu-2504-vm"&gt;一、使用 community-scripts 创建 Ubuntu 25.04 VM&lt;/h2&gt;
+&lt;p&gt;项目页面：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://community-scripts.org/categories?category=operating-systems&amp;amp;preview=ubuntu2504-vm"&gt;Ubuntu 25.04 VM 脚本页面&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/community-scripts/ProxmoxVE"&gt;ProxmoxVE community-scripts 仓库&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;在 Proxmox VE 节点 Shell 中执行：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh)\""&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;脚本会交互式创建 Ubuntu 25.04 虚拟机。创建完成后，不要急着启动，先进入虚拟机的 Cloud-Init 页面完成初始化配置。&lt;/p&gt;</description></item></channel></rss>
