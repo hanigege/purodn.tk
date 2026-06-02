@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes tools scope and profile isolation</title>
+  <desc id="desc">A diagram-style cover showing Hermes profiles, gateways, and scoped toolsets.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#102238"/>
+      <stop offset="0.55" stop-color="#18364a"/>
+      <stop offset="1" stop-color="#243b33"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#06111c" flood-opacity="0.36"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 530 C180 470 270 610 420 560 C560 514 650 426 812 458 C966 489 1023 600 1200 540 L1200 630 L0 630 Z" fill="#2f624f" opacity="0.45"/>
+  <rect x="86" y="78" width="1032" height="454" rx="28" fill="#f7faf8" filter="url(#shadow)"/>
+  <rect x="86" y="78" width="1032" height="86" rx="28" fill="#13253a"/>
+  <circle cx="132" cy="121" r="12" fill="#ff6b4a"/>
+  <circle cx="170" cy="121" r="12" fill="#f6c344"/>
+  <circle cx="208" cy="121" r="12" fill="#42d17a"/>
+  <text x="600" y="133" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#d9e7f5">hermes tools scope</text>
+  <text x="128" y="225" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="48" font-weight="800" fill="#142238">Hermes 工具权限范围</text>
+  <text x="128" y="270" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="25" fill="#425269">profile 全局、单次启动、Cron 子任务和多机器人隔离</text>
+  <g transform="translate(130 326)">
+    <rect width="250" height="118" rx="16" fill="#e7f0ff"/>
+    <text x="28" y="42" font-family="Inter, system-ui, sans-serif" font-size="25" font-weight="800" fill="#204a8f">code profile</text>
+    <text x="28" y="76" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#26374d">terminal file web</text>
+  </g>
+  <g transform="translate(472 326)">
+    <rect width="250" height="118" rx="16" fill="#e7f8ef"/>
+    <text x="28" y="42" font-family="Inter, system-ui, sans-serif" font-size="25" font-weight="800" fill="#196c43">webonly</text>
+    <text x="28" y="76" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#26374d">web only</text>
+  </g>
+  <g transform="translate(814 326)">
+    <rect width="250" height="118" rx="16" fill="#fff3df"/>
+    <text x="28" y="42" font-family="Inter, system-ui, sans-serif" font-size="25" font-weight="800" fill="#9a5b13">safe</text>
+    <text x="28" y="76" font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#26374d">safe clarify</text>
+  </g>
+  <path d="M385 385 H455" stroke="#8292a7" stroke-width="5" stroke-linecap="round"/>
+  <path d="M727 385 H797" stroke="#8292a7" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(130 470)">
+    <text x="0" y="0" font-family="ui-monospace, Menlo, monospace" font-size="23" fill="#1d2a3b">hermes tools</text>
+    <text x="285" y="0" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#536273">writes profile config</text>
+    <text x="0" y="42" font-family="ui-monospace, Menlo, monospace" font-size="23" fill="#1d2a3b">hermes chat -t web</text>
+    <text x="285" y="42" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#536273">one process only</text>
+  </g>
+</svg>

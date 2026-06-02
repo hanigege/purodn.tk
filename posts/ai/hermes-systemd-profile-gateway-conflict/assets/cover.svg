@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes systemd profile gateway conflict</title>
+  <desc id="desc">Two Hermes gateway services are isolated by explicit default and code profiles.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15202b"/>
+      <stop offset="0.48" stop-color="#203b46"/>
+      <stop offset="1" stop-color="#2f4f3f"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#061016" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#d8f3dc"/>
+    </marker>
+    <marker id="warnArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#ffcf5a"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="84" y="72" width="1432" height="756" rx="28" fill="#f8faf6" opacity="0.06"/>
+
+  <text x="112" y="148" fill="#f6fff8" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="700">Hermes 双 Profile 网关互相打架</text>
+  <text x="116" y="204" fill="#c8ded5" font-family="Arial, Helvetica, sans-serif" font-size="30">systemd user service / active_profile / --replace</text>
+
+  <g filter="url(#shadow)">
+    <rect x="130" y="292" width="410" height="155" rx="18" fill="#f7fff7"/>
+    <text x="164" y="348" fill="#17252b" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">hermes-gateway.service</text>
+    <text x="164" y="392" fill="#46626b" font-family="Menlo, Consolas, monospace" font-size="25">--profile default</text>
+
+    <rect x="130" y="548" width="410" height="155" rx="18" fill="#f7fff7"/>
+    <text x="164" y="604" fill="#17252b" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">hermes-gateway-code</text>
+    <text x="164" y="648" fill="#46626b" font-family="Menlo, Consolas, monospace" font-size="25">--profile code</text>
+
+    <rect x="1040" y="292" width="410" height="155" rx="18" fill="#f0fbff"/>
+    <text x="1074" y="348" fill="#14252e" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">default profile</text>
+    <text x="1074" y="392" fill="#46626b" font-family="Menlo, Consolas, monospace" font-size="24">~/.hermes</text>
+
+    <rect x="1040" y="548" width="410" height="155" rx="18" fill="#f0fbff"/>
+    <text x="1074" y="604" fill="#14252e" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">code profile</text>
+    <text x="1074" y="648" fill="#46626b" font-family="Menlo, Consolas, monospace" font-size="24">~/.hermes/profiles/code</text>
+  </g>
+
+  <path d="M560 370 C720 310, 870 310, 1020 370" fill="none" stroke="#d8f3dc" stroke-width="8" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M560 626 C720 686, 870 686, 1020 626" fill="none" stroke="#d8f3dc" stroke-width="8" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="610" y="438" width="380" height="92" rx="18" fill="#25313a" stroke="#ffcf5a" stroke-width="4"/>
+    <text x="650" y="475" fill="#ffdf86" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700">坑点</text>
+    <text x="650" y="511" fill="#f6f4e6" font-family="Menlo, Consolas, monospace" font-size="22">active_profile = code</text>
+  </g>
+
+  <path d="M362 448 C484 510, 514 478, 610 484" fill="none" stroke="#ffcf5a" stroke-width="5" stroke-dasharray="12 12" marker-end="url(#warnArrow)"/>
+  <path d="M990 484 C1094 476, 1110 504, 1238 548" fill="none" stroke="#ffcf5a" stroke-width="5" stroke-dasharray="12 12" marker-end="url(#warnArrow)"/>
+
+  <g>
+    <rect x="500" y="748" width="600" height="54" rx="14" fill="#d8f3dc"/>
+    <text x="545" y="784" fill="#163023" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700">修复：每个常驻服务都显式绑定自己的 --profile</text>
+  </g>
+</svg>
