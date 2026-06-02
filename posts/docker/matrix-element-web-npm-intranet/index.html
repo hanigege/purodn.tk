@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署 | 电脑自习室</title>
+    <meta name="description" content="记录在 Alpine Docker 主机上部署 Element Web，并通过 Nginx Proxy Manager 暴露为内网 HTTPS 域名，用来登录 Matrix 管理员账号、获取 Admin API token。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-22">2026年5月22日</time>
+        </div>
+        <h1>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</h1>
+          <p>记录在 Alpine Docker 主机上部署 Element Web，并通过 Nginx Proxy Manager 暴露为内网 HTTPS 域名，用来登录 Matrix 管理员账号、获取 Admin API token。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/matrix-element-web-npm-intranet/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录一个很实用的小组件：在 Matrix Synapse 同一台 Docker 主机上单独跑一个 Element Web，用来登录管理员账号、获取 access token、验证 Synapse 登录和 MatrixRTC 配置。</p>
+<p>它不是 Element Call。这里的 <code>web-call</code> 只是本地目录名，实际跑的是 Element Web 客户端，也就是浏览器版 Matrix 客户端。它适合下面这些场景：</p>
+<ul>
+<li>临时登录管理员账号，获取 Synapse Admin API token。</li>
+<li>不想在公网 Element、桌面端或手机端里折腾管理员账号。</li>
+<li>需要一个固定指向自己 Synapse 的内网 Matrix Web 客户端。</li>
+<li>浏览器访问 <code>http://10.20.20.8:8181</code> 提示不支持、白屏或一直转圈。</li>
+</ul>
+<p>本文示例用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Docker 主机内网 IP: 10.20.20.8
+</span></span><span style="display:flex;"><span>Matrix server_name: 666666.xyz
+</span></span><span style="display:flex;"><span>Synapse 客户端地址: https://matrix.666666.xyz:12335
+</span></span><span style="display:flex;"><span>Element Web 域名: https://element.666666.xyz:12335
+</span></span><span style="display:flex;"><span>部署路径: /root/data/docker_data/web-call</span></span></code></pre></div><script class="code-source" type="application/json">"Docker 主机内网 IP: 10.20.20.8\nMatrix server_name: 666666.xyz\nSynapse 客户端地址: https://matrix.666666.xyz:12335\nElement Web 域名: https://element.666666.xyz:12335\n部署路径: /root/data/docker_data/web-call"</script>
+</div>
+<p>实际使用时，把 <code>666666.xyz</code> 换成自己的域名。</p>
+<h2 id="一为什么不直接访问-ip">一、为什么不直接访问 IP</h2>
+<p>Element Web 对浏览器安全上下文比较敏感。你直接打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://10.20.20.8:8181</span></span></code></pre></div><script class="code-source" type="application/json">"http://10.20.20.8:8181"</script>
+</div>
+<p>可能会看到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Element does not support this browser</span></span></code></pre></div><script class="code-source" type="application/json">"Element does not support this browser"</script>
+</div>
+<p>或者点了继续后一直转圈。这通常不是容器坏了，而是浏览器把普通内网 IP 的 HTTP 页面当成不安全上下文。一些 Web API、存储能力或加密相关能力在这种上下文里会受限制。</p>
+<p>SSH 本地转发能用，是因为：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://localhost:8181</span></span></code></pre></div><script class="code-source" type="application/json">"http://localhost:8181"</script>
+</div>
+<p>浏览器会把 <code>localhost</code> 当成特殊可信来源。所以临时拿 token 或排障时，可以先用 SSH 本地转发；长期使用再让 NPM 提供 HTTPS 域名访问 Element Web。</p>
+<p>如果公网 <code>443</code> 没被封，可以直接用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://element.666666.xyz/</span></span></code></pre></div><script class="code-source" type="application/json">"https://element.666666.xyz/"</script>
+</div>
+<p>如果公网 <code>443</code> 被运营商封了，NPM 可以继续用非标准 HTTPS 端口，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://element.666666.xyz:12335/</span></span></code></pre></div><script class="code-source" type="application/json">"https://element.666666.xyz:12335/"</script>
+</div>
+<p>关键点是：浏览器看到的是 HTTPS 域名，而不是明文 IP。</p>
+<h2 id="二准备目录">二、准备目录</h2>
+<p>如果这个目录以前已经存在，想重新部署，可以先删掉再建：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rm -rf /root/data/docker_data/web-call
+</span></span><span style="display:flex;"><span>mkdir -p /root/data/docker_data/web-call
+</span></span><span style="display:flex;"><span>cd /root/data/docker_data/web-call</span></span></code></pre></div><script class="code-source" type="application/json">"rm -rf /root/data/docker_data/web-call\nmkdir -p /root/data/docker_data/web-call\ncd /root/data/docker_data/web-call"</script>
+</div>
+<p>注意，这只删除 Element Web 客户端目录，不会删除 Synapse 数据库、媒体文件或 Matrix 用户数据。</p>
+<h2 id="三写-element-web-配置">三、写 Element Web 配置</h2>
+<p>新建 <code>config.json</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /root/data/docker_data/web-call/config.json</span></span></code></pre></div><script class="code-source" type="application/json">"vi /root/data/docker_data/web-call/config.json"</script>
+</div>
+<p>写入：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_server_config&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;m.homeserver&#34;</span>: {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;base_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix.666666.xyz:12335&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;server_name&#34;</span>: <span style="color:#e6db74">&#34;666666.xyz&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;disable_custom_urls&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;disable_guests&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;disable_3pid_login&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;brand&#34;</span>: <span style="color:#e6db74">&#34;Element&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_theme&#34;</span>: <span style="color:#e6db74">&#34;light&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;features&#34;</span>: {},
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;setting_defaults&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;breadcrumbs&#34;</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;show_labs_settings&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_ui_url&#34;</span>: <span style="color:#e6db74">&#34;&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_rest_url&#34;</span>: <span style="color:#e6db74">&#34;&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_widgets_urls&#34;</span>: [],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;hosting_signup_link&#34;</span>: <span style="color:#66d9ef">null</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;map_style_url&#34;</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"default_server_config\": {\n    \"m.homeserver\": {\n      \"base_url\": \"https://matrix.666666.xyz:12335\",\n      \"server_name\": \"666666.xyz\"\n    }\n  },\n  \"disable_custom_urls\": false,\n  \"disable_guests\": true,\n  \"disable_3pid_login\": false,\n  \"brand\": \"Element\",\n  \"default_theme\": \"light\",\n  \"features\": {},\n  \"setting_defaults\": {\n    \"breadcrumbs\": true\n  },\n  \"show_labs_settings\": true,\n  \"integrations_ui_url\": \"\",\n  \"integrations_rest_url\": \"\",\n  \"integrations_widgets_urls\": [],\n  \"hosting_signup_link\": null,\n  \"map_style_url\": \"\"\n}"</script>
+</div>
+<p>这里最重要的是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#e6db74">&#34;https://matrix.666666.xyz:12335&#34;</span><span style="color:#960050;background-color:#1e0010">,</span>
+</span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;server_name&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#e6db74">&#34;666666.xyz&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"base_url\": \"https://matrix.666666.xyz:12335\",\n\"server_name\": \"666666.xyz\""</script>
+</div>
+<p><code>base_url</code> 是客户端访问 Synapse 的地址。它必须是浏览器能访问到的 Synapse Client-Server API 地址。</p>
+<p><code>server_name</code> 是 Matrix ID 后面的服务器名。比如你的账号是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@admin:666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"@admin:666666.xyz"</script>
+</div>
+<p>那这里就写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"666666.xyz"</script>
+</div>
+<h2 id="四写-docker-composeyaml">四、写 docker-compose.yaml</h2>
+<p>新建：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /root/data/docker_data/web-call/docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"vi /root/data/docker_data/web-call/docker-compose.yaml"</script>
+</div>
+<p>写入：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">web-call</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">vectorim/element-web:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">web-call</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;8181:80&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.json:/app/config.json:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  web-call:\n    image: vectorim/element-web:latest\n    container_name: web-call\n    restart: unless-stopped\n    ports:\n      - \"8181:80\"\n    volumes:\n      - ./config.json:/app/config.json:ro\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\""</script>
+</div>
+<p>启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/web-call
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/web-call\ndocker compose up -d"</script>
+</div>
+<p>检查容器：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps --filter name<span style="color:#f92672">=</span>web-call</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps --filter name=web-call"</script>
+</div>
+<p>本机验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -I http://127.0.0.1:8181/
+</span></span><span style="display:flex;"><span>curl -s http://127.0.0.1:8181/config.json | head</span></span></code></pre></div><script class="code-source" type="application/json">"curl -I http://127.0.0.1:8181/\ncurl -s http://127.0.0.1:8181/config.json | head"</script>
+</div>
+<p>如果返回 <code>200 OK</code>，说明 Element Web 容器本身没问题。</p>
+<h2 id="五临时方式ssh-本地转发访问">五、临时方式：SSH 本地转发访问</h2>
+<p>如果只是临时登录管理员账号、拿一次 Admin API token，或者还没来得及配置 NPM，可以直接从自己的电脑建立 SSH 本地转发：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh -N -L 8181:127.0.0.1:8181 root@10.20.20.8</span></span></code></pre></div><script class="code-source" type="application/json">"ssh -N -L 8181:127.0.0.1:8181 root@10.20.20.8"</script>
+</div>
+<p>保持这个 SSH 终端不要关闭，然后在浏览器打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://localhost:8181/</span></span></code></pre></div><script class="code-source" type="application/json">"http://localhost:8181/"</script>
+</div>
+<p>这里的访问路径是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>浏览器 localhost:8181
+</span></span><span style="display:flex;"><span>  -&gt; 本机 SSH 隧道
+</span></span><span style="display:flex;"><span>  -&gt; 10.20.20.8 的 127.0.0.1:8181
+</span></span><span style="display:flex;"><span>  -&gt; web-call 容器</span></span></code></pre></div><script class="code-source" type="application/json">"浏览器 localhost:8181\n  -\u003e 本机 SSH 隧道\n  -\u003e 10.20.20.8 的 127.0.0.1:8181\n  -\u003e web-call 容器"</script>
+</div>
+<p>这种方式的优点是简单，不需要 DNS、证书和 NPM；而且 <code>localhost</code> 在浏览器里属于特殊可信来源，通常不会触发直接访问内网 IP 时的安全限制。</p>
+<p>如果本机 <code>8181</code> 已经被占用，可以换一个本地端口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh -N -L 18181:127.0.0.1:8181 root@10.20.20.8</span></span></code></pre></div><script class="code-source" type="application/json">"ssh -N -L 18181:127.0.0.1:8181 root@10.20.20.8"</script>
+</div>
+<p>浏览器对应打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://localhost:18181/</span></span></code></pre></div><script class="code-source" type="application/json">"http://localhost:18181/"</script>
+</div>
+<p>如果 SSH 连接断开，浏览器页面也会失效。这个方式适合临时使用，不适合作为长期入口。</p>
+<h2 id="六长期方式npm-反代配置">六、长期方式：NPM 反代配置</h2>
+<p>进入 Nginx Proxy Manager 的 UI，添加一个 Proxy Host。</p>
+<h3 id="details">Details</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Domain Names: element.666666.xyz
+</span></span><span style="display:flex;"><span>Scheme: http
+</span></span><span style="display:flex;"><span>Forward Hostname / IP: 10.20.20.8
+</span></span><span style="display:flex;"><span>Forward Port: 8181
+</span></span><span style="display:flex;"><span>Cache Assets: 关
+</span></span><span style="display:flex;"><span>Block Common Exploits: 开
+</span></span><span style="display:flex;"><span>Websockets Support: 开
+</span></span><span style="display:flex;"><span>Access List: Public</span></span></code></pre></div><script class="code-source" type="application/json">"Domain Names: element.666666.xyz\nScheme: http\nForward Hostname / IP: 10.20.20.8\nForward Port: 8181\nCache Assets: 关\nBlock Common Exploits: 开\nWebsockets Support: 开\nAccess List: Public"</script>
+</div>
+<p>Element Web 是静态前端，反代本身不复杂。<code>Websockets Support</code> 开着即可，虽然 Element Web 访问 Synapse 的请求会直接走 <code>matrix.666666.xyz:12335</code>，不是走这个 <code>element</code> 反代。</p>
+<h3 id="ssl">SSL</h3>
+<p>如果你已经有通配符证书，比如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>*.666666.xyz, 666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"*.666666.xyz, 666666.xyz"</script>
+</div>
+<p>直接选择它。然后打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Force SSL: 开
+</span></span><span style="display:flex;"><span>HTTP/2 Support: 开</span></span></code></pre></div><script class="code-source" type="application/json">"Force SSL: 开\nHTTP/2 Support: 开"</script>
+</div>
+<p>如果还没有证书，建议用 DNS Challenge 申请通配符证书。公网 <code>80/443</code> 被封时，不要指望普通 HTTP 验证稳定通过。</p>
+<h3 id="advanced">Advanced</h3>
+<p>Element Web 通常不需要额外 Advanced 配置，保持空即可。</p>
+<p>如果以后想加安全响应头，也要谨慎，尤其不要随意写死过严的 CSP，否则 Element 的登录、加密、跨域请求可能被自己拦掉。</p>
+<h2 id="七npm-使用非标准-https-端口">七、NPM 使用非标准 HTTPS 端口</h2>
+<p>如果公网 <code>443</code> 被封，可以让 NPM 的容器继续把内部 <code>443</code> 映射到宿主机的非标准端口。</p>
+<p>例如 <code>/root/data/docker_data/npm/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#e6db74">&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">nginx-proxy-manager</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12332:80&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;81:81&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># NPM 内部仍然监听 443，宿主机用 12335 暴露</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 其他服务也可以继续复用 NPM 443，由 SNI 区分域名</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12338:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12338:443&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./letsencrypt:/etc/letsencrypt</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    container_name: nginx-proxy-manager\n    restart: unless-stopped\n    ports:\n      - '12332:80'\n      - '81:81'\n\n      # NPM 内部仍然监听 443，宿主机用 12335 暴露\n      - '0.0.0.0:12335:443'\n      - '[::]:12335:443'\n\n      # 其他服务也可以继续复用 NPM 443，由 SNI 区分域名\n      - '0.0.0.0:12336:443'\n      - '[::]:12336:443'\n      - '0.0.0.0:12337:443'\n      - '[::]:12337:443'\n      - '0.0.0.0:12338:443'\n      - '[::]:12338:443'\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt"</script>
+</div>
+<p>这种写法的含义是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>浏览器访问 https://element.666666.xyz:12335
+</span></span><span style="display:flex;"><span>        -&gt; 宿主机 12335
+</span></span><span style="display:flex;"><span>        -&gt; NPM 容器 443
+</span></span><span style="display:flex;"><span>        -&gt; 根据 SNI/Host 匹配 element.666666.xyz
+</span></span><span style="display:flex;"><span>        -&gt; 反代到 10.20.20.8:8181</span></span></code></pre></div><script class="code-source" type="application/json">"浏览器访问 https://element.666666.xyz:12335\n        -\u003e 宿主机 12335\n        -\u003e NPM 容器 443\n        -\u003e 根据 SNI/Host 匹配 element.666666.xyz\n        -\u003e 反代到 10.20.20.8:8181"</script>
+</div>
+<p>所以即使多个域名都走 <code>:12335</code>，NPM 也能靠域名区分不同 Proxy Host：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://matrix.666666.xyz:12335
+</span></span><span style="display:flex;"><span>https://element.666666.xyz:12335</span></span></code></pre></div><script class="code-source" type="application/json">"https://matrix.666666.xyz:12335\nhttps://element.666666.xyz:12335"</script>
+</div>
+<p>只要它们都在 NPM 里有对应 Proxy Host 即可。</p>
+<p>改完 NPM compose 后重建：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/npm
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/npm\ndocker compose up -d"</script>
+</div>
+<p>检查端口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -lntp | grep -E <span style="color:#e6db74">&#39;:12335|:8181&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ss -lntp | grep -E ':12335|:8181'"</script>
+</div>
+<p>不要再额外映射宿主机标准 <code>443:443</code>，除非你确定公网或内网确实要用标准 443，而且它不会和其他服务冲突。</p>
+<h2 id="八dns-怎么指">八、DNS 怎么指</h2>
+<p>内网想直接打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://element.666666.xyz:12335/</span></span></code></pre></div><script class="code-source" type="application/json">"https://element.666666.xyz:12335/"</script>
+</div>
+<p>DNS 至少要满足一个条件：</p>
+<ul>
+<li>内网 DNS 把 <code>element.666666.xyz</code> 解析到 <code>10.20.20.8</code>。</li>
+<li>或者公网 DNS 解析到公网 IP，同时路由器支持 NAT Loopback / Hairpin NAT，并把 <code>12335</code> 转发回 <code>10.20.20.8:12335</code>。</li>
+</ul>
+<p>如果你的电脑解析出来的是公网 IP，但路由器不支持回流，就会出现服务器上测试正常、内网电脑打不开的情况。自用环境最省事的是在内网 DNS 或 DDNS 里直接把 <code>element.666666.xyz</code> 指到 <code>10.20.20.8</code>。</p>
+<p>可以在客户端电脑上检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nslookup element.666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"nslookup element.666666.xyz"</script>
+</div>
+<p>期望看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>element.666666.xyz -&gt; 10.20.20.8</span></span></code></pre></div><script class="code-source" type="application/json">"element.666666.xyz -\u003e 10.20.20.8"</script>
+</div>
+<h2 id="九验证访问">九、验证访问</h2>
+<p>在服务器上可以先强制解析到本机测试：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -k -I <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  --resolve element.666666.xyz:12335:127.0.0.1 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  https://element.666666.xyz:12335/</span></span></code></pre></div><script class="code-source" type="application/json">"curl -k -I \\\n  --resolve element.666666.xyz:12335:127.0.0.1 \\\n  https://element.666666.xyz:12335/"</script>
+</div>
+<p>正常会看到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>HTTP/1.1 200 OK
+</span></span><span style="display:flex;"><span>Server: openresty
+</span></span><span style="display:flex;"><span>X-Served-By: element.666666.xyz</span></span></code></pre></div><script class="code-source" type="application/json">"HTTP/1.1 200 OK\nServer: openresty\nX-Served-By: element.666666.xyz"</script>
+</div>
+<p>再验证配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -k -s <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  --resolve element.666666.xyz:12335:127.0.0.1 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  https://element.666666.xyz:12335/config.json</span></span></code></pre></div><script class="code-source" type="application/json">"curl -k -s \\\n  --resolve element.666666.xyz:12335:127.0.0.1 \\\n  https://element.666666.xyz:12335/config.json"</script>
+</div>
+<p>确认里面有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#e6db74">&#34;https://matrix.666666.xyz:12335&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"base_url\": \"https://matrix.666666.xyz:12335\""</script>
+</div>
+<p>也可以验证 Synapse：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -k -I <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  --resolve matrix.666666.xyz:12335:127.0.0.1 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  https://matrix.666666.xyz:12335/_matrix/client/versions</span></span></code></pre></div><script class="code-source" type="application/json">"curl -k -I \\\n  --resolve matrix.666666.xyz:12335:127.0.0.1 \\\n  https://matrix.666666.xyz:12335/_matrix/client/versions"</script>
+</div>
+<p>正常返回：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>HTTP/2 200</span></span></code></pre></div><script class="code-source" type="application/json">"HTTP/2 200"</script>
+</div>
+<p>最后在浏览器打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://element.666666.xyz:12335/</span></span></code></pre></div><script class="code-source" type="application/json">"https://element.666666.xyz:12335/"</script>
+</div>
+<p>用管理员账号登录即可。</p>
+<h2 id="十获取管理员-access-token">十、获取管理员 access token</h2>
+<p>登录管理员账号后，可以在浏览器开发者工具里取 token。不同 Element Web 版本界面略有差异，常见方法是：</p>
+<ol>
+<li>打开浏览器开发者工具。</li>
+<li>进入 Application / Storage。</li>
+<li>找到当前站点的 Local Storage 或 IndexedDB。</li>
+<li>搜索 <code>access_token</code>。</li>
+</ol>
+<p>拿到 token 后，可以测试 Admin API：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -s <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer ACCESS_TOKEN_HERE&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  https://matrix.666666.xyz:12335/_synapse/admin/v1/server_version</span></span></code></pre></div><script class="code-source" type="application/json">"curl -s \\\n  -H \"Authorization: Bearer ACCESS_TOKEN_HERE\" \\\n  https://matrix.666666.xyz:12335/_synapse/admin/v1/server_version"</script>
+</div>
+<p>如果服务器只在内网访问，也可以在 Synapse 主机上用本地地址测试：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -s <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer ACCESS_TOKEN_HERE&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>  http://127.0.0.1:8008/_synapse/admin/v1/server_version</span></span></code></pre></div><script class="code-source" type="application/json">"curl -s \\\n  -H \"Authorization: Bearer ACCESS_TOKEN_HERE\" \\\n  http://127.0.0.1:8008/_synapse/admin/v1/server_version"</script>
+</div>
+<p>token 很敏感，不要写进公开文章、截图、群聊或 shell 历史。生产环境建议保存到 root 只能读的文件，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/.config/synapse-admin
+</span></span><span style="display:flex;"><span>vi /root/.config/synapse-admin/access_token
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /root/.config/synapse-admin/access_token</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/.config/synapse-admin\nvi /root/.config/synapse-admin/access_token\nchmod 600 /root/.config/synapse-admin/access_token"</script>
+</div>
+<p>后续脚本里再这样读取：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/.config/synapse-admin/access_token<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=\"$(cat /root/.config/synapse-admin/access_token)\""</script>
+</div>
+<h2 id="十一老客户端的会话和密钥问题">十一、老客户端的会话和密钥问题</h2>
+<p>如果这个 Element Web 只是临时管理客户端，用完以后不要简单地清浏览器数据就算退出。</p>
+<p>Matrix 的端到端加密会把每次登录看成一个设备会话。老版本 Element Web 的“设置 -&gt; 安全与隐私 -&gt; 管理会话”里，有时只能看到其它会话，却无法正常登出其它会话。这样会留下很多旧设备。下次清除浏览器数据、重新登录后，客户端又会把自己当成新设备，并要求重新验证原来的加密密钥或交叉签名。</p>
+<p>比较稳妥的做法是：</p>
+<ol>
+<li>临时管理账号尽量只用来拿 Admin API token，不参与加密房间聊天。</li>
+<li>清浏览器数据或重装客户端之前，先在当前仍可用的客户端里确认密钥备份、恢复密钥或安全密钥可用。</li>
+<li>如果老 Element Web 不能删除其它会话，换一个较新的 Element Web、Element Desktop 或 Element X 登录同一账号，在可用的“会话管理”里清理旧设备。</li>
+<li>清理旧设备后，再清除这个临时 Element Web 的浏览器数据。</li>
+</ol>
+<p>如果已经清了浏览器数据，又被要求验证旧密钥，就需要从仍然可信的已登录设备验证新会话，或者使用之前保存的恢复密钥/安全密钥恢复。没有可信设备，也没有恢复密钥时，加密房间的旧消息可能无法再解密。</p>
+<p>所以这类管理用 Element Web 更适合作为“临时拿 token 的工具”，不要把它当成长期主力加密聊天客户端。</p>
+<h2 id="十二常见问题">十二、常见问题</h2>
+<h3 id="打开-ip-提示浏览器不支持">打开 IP 提示浏览器不支持</h3>
+<p>不要用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://10.20.20.8:8181</span></span></code></pre></div><script class="code-source" type="application/json">"http://10.20.20.8:8181"</script>
+</div>
+<p>改用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://element.666666.xyz:12335/</span></span></code></pre></div><script class="code-source" type="application/json">"https://element.666666.xyz:12335/"</script>
+</div>
+<h3 id="页面一直转圈">页面一直转圈</h3>
+<p>先检查 Element Web 的 <code>config.json</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -k -s https://element.666666.xyz:12335/config.json</span></span></code></pre></div><script class="code-source" type="application/json">"curl -k -s https://element.666666.xyz:12335/config.json"</script>
+</div>
+<p>重点看 <code>base_url</code> 是否能从浏览器所在网络访问。如果写成了内网容器名、错误端口或公网不可达地址，就会转圈。</p>
+<h3 id="登录时报-homeserver-连接失败">登录时报 homeserver 连接失败</h3>
+<p>验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -k -I https://matrix.666666.xyz:12335/_matrix/client/versions</span></span></code></pre></div><script class="code-source" type="application/json">"curl -k -I https://matrix.666666.xyz:12335/_matrix/client/versions"</script>
+</div>
+<p>如果这里不通，先修 Synapse 的 NPM 反代，不要先怀疑 Element Web。</p>
+<h3 id="npm-ui-看不到反代">NPM UI 看不到反代</h3>
+<p>不要手写 <code>/data/nginx/proxy_host/*.conf</code> 来长期管理。应该在 NPM UI 里添加 Proxy Host。这样证书、WebSocket、状态、日志和后续修改都能在 UI 里看到。</p>
+<h3 id="证书申请失败">证书申请失败</h3>
+<p>公网 <code>80/443</code> 被封时，HTTP-01 验证经常失败。建议使用 Cloudflare DNS Challenge 申请通配符证书，然后所有内网子域名复用这张证书。</p>
+<h2 id="十三最后的推荐形态">十三、最后的推荐形态</h2>
+<p>最终推荐保持这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/web-call/
+</span></span><span style="display:flex;"><span>  docker-compose.yaml
+</span></span><span style="display:flex;"><span>  config.json
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Element Web:
+</span></span><span style="display:flex;"><span>  web-call -&gt; 8181:80
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>NPM Proxy Host:
+</span></span><span style="display:flex;"><span>  element.666666.xyz -&gt; http://10.20.20.8:8181
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>访问地址:
+</span></span><span style="display:flex;"><span>  https://element.666666.xyz:12335/
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Synapse:
+</span></span><span style="display:flex;"><span>  https://matrix.666666.xyz:12335</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/web-call/\n  docker-compose.yaml\n  config.json\n\nElement Web:\n  web-call -\u003e 8181:80\n\nNPM Proxy Host:\n  element.666666.xyz -\u003e http://10.20.20.8:8181\n\n访问地址:\n  https://element.666666.xyz:12335/\n\nSynapse:\n  https://matrix.666666.xyz:12335"</script>
+</div>
+<p>这套方式的好处是：Element Web 容器简单，NPM UI 可见，证书统一管理，不依赖 SSH 隧道，也不要求运营商放行公网标准 <code>443</code>。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/docker-container-dns-stale-after-host-dns-change/">
+            <img src="/posts/docker/docker-container-dns-stale-after-host-dns-change/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/">
+            <img src="/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">sing-box FakeIP &#43; TProxy 旁路网关部署草稿</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-project-context-files/">
+            <img src="/posts/ai/hermes-project-context-files/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-compose-configs-10-20-20-8/">
+            <img src="/posts/docker/docker-compose-configs-10-20-20-8/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">10.20.20.8 Docker Compose 配置私有备份</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-profiles-multi-bot-isolation/">
+            <img src="/posts/ai/hermes-profiles-multi-bot-isolation/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Profile 多机器人隔离查询手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-yolo-smart-approvals/">
+            <img src="/posts/ai/hermes-yolo-smart-approvals/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-config-yaml-reference/">
+            <img src="/posts/ai/hermes-config-yaml-reference/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes Agent config.yaml 中文配置说明</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>
