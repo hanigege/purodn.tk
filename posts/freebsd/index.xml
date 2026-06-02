@@ -1,357 +1,91 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD on 电脑自习室</title><link>https://purodn.tk/posts/freebsd/</link><description>Recent content in FreeBSD on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/freebsd/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。&lt;/p&gt;
-&lt;p&gt;先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 &lt;code&gt;6-9 MB/s&lt;/code&gt;，Gost MWSS + Nginx 多轮在 &lt;code&gt;8-18 MB/s&lt;/code&gt; 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。&lt;/p&gt;
-&lt;p&gt;这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。&lt;/p&gt;
-&lt;p&gt;整体结构如下：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; mwss://proxy.example.com:443/secret-gost-path
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Nginx 443
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box -\u003e 127.0.0.1:1080 -\u003e 客户端 Gost\n -\u003e mwss://proxy.example.com:443/secret-gost-path\n -\u003e FreeBSD Nginx 443\n -\u003e 127.0.0.1:18080 -\u003e 服务端 Gost v3 MWS"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这里有一个关键点：普通用户不能监听 &lt;code&gt;443&lt;/code&gt; 这种低端口，但本方案监听 &lt;code&gt;443/tcp&lt;/code&gt; 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 &lt;code&gt;www&lt;/code&gt; 用户处理请求；Gost 只监听本机 &lt;code&gt;127.0.0.1:18080&lt;/code&gt;，所以可以安全地用专用低权限用户运行。&lt;/p&gt;</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>&lt;p&gt;这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sing-box 客户端
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; Xray VLESS Reality Vision
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; FreeBSD Xray 443/tcp
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -&amp;gt; 目标网站&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sing-box 客户端\n -\u003e Xray VLESS Reality Vision\n -\u003e FreeBSD Xray 443/tcp\n -\u003e 目标网站"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 &lt;code&gt;443/tcp&lt;/code&gt;；如果同机还跑 Hysteria2，它可以继续监听 &lt;code&gt;443/udp&lt;/code&gt;，二者不冲突。&lt;/p&gt;
-&lt;h2 id="示例信息"&gt;示例信息&lt;/h2&gt;
-&lt;p&gt;本文统一使用公版示例值，部署时替换成你自己的真实信息：&lt;/p&gt;
-&lt;table&gt;
- &lt;thead&gt;
- &lt;tr&gt;
- &lt;th&gt;项目&lt;/th&gt;
- &lt;th&gt;示例值&lt;/th&gt;
- &lt;/tr&gt;
- &lt;/thead&gt;
- &lt;tbody&gt;
- &lt;tr&gt;
- &lt;td&gt;节点域名&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;proxy.example.com&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;服务器公网 IP&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;203.0.113.10&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;Xray 入口端口&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;443/tcp&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;REALITY 伪装域名&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;www.microsoft.com&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;VLESS 用户 ID&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;00000000-0000-4000-8000-000000000000&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;REALITY public key&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;PUBLIC_KEY_HERE&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;REALITY short id&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;0123456789abcdef&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;sing-box 节点 tag&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;xray-reality-freebsd&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;/tbody&gt;
-&lt;/table&gt;
-&lt;p&gt;命令默认使用 &lt;code&gt;root&lt;/code&gt; 执行。&lt;/p&gt;</description></item><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>&lt;p&gt;FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。&lt;/p&gt;
-&lt;p&gt;这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;默认拒绝入站，允许出站。&lt;/li&gt;
-&lt;li&gt;自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。&lt;/li&gt;
-&lt;li&gt;按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。&lt;/li&gt;
-&lt;li&gt;对 TCP 高频连接启用 &lt;code&gt;overload &amp;lt;blacklist&amp;gt;&lt;/code&gt; 自动拉黑，并定期释放过期黑名单。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="先启用-pf"&gt;先启用 PF&lt;/h2&gt;
-&lt;p&gt;用 root 用户执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pf_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pflog_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sysrc pf_enable=\"YES\"\nsysrc pflog_enable=\"YES\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果是首次启用，先不要急着 &lt;code&gt;service pf start&lt;/code&gt;。PF 服务启动时会读取 &lt;code&gt;/etc/pf.conf&lt;/code&gt;，如果这个文件不存在或不可读，就会看到：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable.&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable."&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。&lt;/p&gt;
-&lt;p&gt;如果你的 SSH 不是 22 端口，把最后一行里的 &lt;code&gt;22&lt;/code&gt; 换成你实际的 SSH 端口：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cat &amp;gt; /etc/pf.conf &lt;span style="color:#e6db74"&gt;&amp;lt;&amp;lt;&amp;#39;EOF&amp;#39;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set skip on lo0
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set block-policy drop
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;scrub in all fragment reassemble
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;block in all
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass out all keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto icmp all icmp-type echoreq keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto tcp from any to any port 22 keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;EOF&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cat \u003e /etc/pf.conf \u003c\u003c'EOF'\nset skip on lo0\nset block-policy drop\nscrub in all fragment reassemble\n\nblock in all\npass out all keep state\n\npass in quick inet proto icmp all icmp-type echoreq keep state\npass in quick inet proto tcp from any to any port 22 keep state\nEOF"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;先检查语法：&lt;/p&gt;</description></item><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>&lt;p&gt;&lt;code&gt;trzsz-go&lt;/code&gt; 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/trz@latest
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/trz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/tsz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/go/bin/trz\n/root/go/bin/tsz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果只是 root 自己使用，可以把 &lt;code&gt;$HOME/go/bin&lt;/code&gt; 加入 &lt;code&gt;PATH&lt;/code&gt;。但在 FreeBSD 上，更推荐把这种全局命令放到 &lt;code&gt;/usr/local/bin&lt;/code&gt;，这样所有用户和脚本都更容易调用。&lt;/p&gt;
-&lt;h2 id="准备-go-环境"&gt;准备 Go 环境&lt;/h2&gt;
-&lt;p&gt;先确认 Go 已经可用：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 &lt;code&gt;/usr/local/go/bin/go&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;如果当前终端还找不到 &lt;code&gt;go&lt;/code&gt;，可以临时加入 PATH：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="方案一直接安装到-usrlocalbin"&gt;方案一：直接安装到 /usr/local/bin&lt;/h2&gt;
-&lt;p&gt;可以。&lt;code&gt;go install&lt;/code&gt; 支持通过 &lt;code&gt;GOBIN&lt;/code&gt; 指定输出目录，所以最干净的方式是直接把 &lt;code&gt;trz&lt;/code&gt; 和 &lt;code&gt;tsz&lt;/code&gt; 安装到 &lt;code&gt;/usr/local/bin&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;以 root 用户执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;确认文件已经生成：&lt;/p&gt;</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>&lt;p&gt;在 FreeBSD 15 下，如果只是临时分享目录，&lt;code&gt;python3 -m http.server&lt;/code&gt; 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&lt;/p&gt;
-&lt;p&gt;本文以 &lt;code&gt;fetch.jgaga.tk&lt;/code&gt; 为示例域名，Web 根目录为 &lt;code&gt;/usr/local/www/fetch.jgaga.tk&lt;/code&gt;。实际使用时，把域名和目录替换成自己的即可。&lt;/p&gt;
-&lt;h2 id="准备证书"&gt;准备证书&lt;/h2&gt;
-&lt;p&gt;正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 &lt;code&gt;acme.sh&lt;/code&gt;、&lt;code&gt;certbot&lt;/code&gt; 等工具签发。&lt;/p&gt;
-&lt;p&gt;本文后续示例假设证书和私钥已经放在下面的位置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt\n/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 &lt;code&gt;ssl_certificate&lt;/code&gt; 和 &lt;code&gt;ssl_certificate_key&lt;/code&gt; 即可。&lt;/p&gt;
-&lt;h2 id="安装并启用-nginx"&gt;安装并启用 Nginx&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y nginx
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc nginx_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pkg install -y nginx\nsysrc nginx_enable=\"YES\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建 Web 根目录：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /usr/local/www/fetch.jgaga.tk
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;chown -R root:www /usr/local/www/fetch.jgaga.tk&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /usr/local/www/fetch.jgaga.tk\nchown -R root:www /usr/local/www/fetch.jgaga.tk"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这里推荐让目录归属为 &lt;code&gt;root:www&lt;/code&gt;。Nginx worker 以 &lt;code&gt;www&lt;/code&gt; 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&lt;/p&gt;
-&lt;h2 id="创建认证密码文件"&gt;创建认证密码文件&lt;/h2&gt;
-&lt;p&gt;如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 &lt;code&gt;openssl&lt;/code&gt;，不需要额外安装工具。&lt;/p&gt;</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>&lt;p&gt;本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 &lt;code&gt;pkg&lt;/code&gt; 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 &lt;code&gt;lazy.nvim&lt;/code&gt; 的 Lua 配置。&lt;/p&gt;
-&lt;p&gt;这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。&lt;/p&gt;
-&lt;h2 id="一安装系统依赖并编译-neovim"&gt;一、安装系统依赖并编译 Neovim&lt;/h2&gt;
-&lt;p&gt;FreeBSD 使用 &lt;code&gt;pkg&lt;/code&gt; 管理二进制包。编译 Neovim 时建议使用 &lt;code&gt;gmake&lt;/code&gt;，不要直接用系统自带的 &lt;code&gt;make&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 &lt;code&gt;doas&lt;/code&gt; 或 &lt;code&gt;sudo&lt;/code&gt;。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 强制刷新仓库索引，并升级已安装软件包&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg update -f
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg upgrade -y
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 安装源码编译 Neovim 所需工具&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"# 强制刷新仓库索引，并升级已安装软件包\npkg update -f\npkg upgrade -y\n\n# 安装源码编译 Neovim 所需工具\npkg install -y ninja cmake gettext-tools gmake unzip curl git gcc"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;然后拉取 Neovim 源码并切换到稳定分支：&lt;/p&gt;</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>&lt;p&gt;这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 &lt;code&gt;authorized_keys&lt;/code&gt;，并自动调整 &lt;code&gt;sshd_config&lt;/code&gt; 里的关键认证参数。&lt;/p&gt;
-&lt;p&gt;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/CleanShot-2026-03-01-at-20.56.31-2x.png" alt="FreeBSD SSH key manager"&gt;&lt;/p&gt;
-&lt;h2 id="使用前提醒"&gt;使用前提醒&lt;/h2&gt;
-&lt;p&gt;这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&lt;/p&gt;
-&lt;p&gt;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&lt;/p&gt;
-&lt;p&gt;GitHub 公钥地址格式是：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"https://github.com/\u003c你的GitHub用户名\u003e.keys"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&lt;/p&gt;
-&lt;h2 id="root-用户版本"&gt;root 用户版本&lt;/h2&gt;
-&lt;p&gt;如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x freebsd_ssh_key_manage.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; ./freebsd_ssh_key_manage.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh \u0026\u0026 chmod +x freebsd_ssh_key_manage.sh \u0026\u0026 ./freebsd_ssh_key_manage.sh"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这个版本配置的是 root 用户的 &lt;code&gt;authorized_keys&lt;/code&gt;。脚本执行完成后，应重点核对 &lt;code&gt;/etc/ssh/sshd_config&lt;/code&gt; 里的配置项。&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>&lt;p&gt;这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&lt;/p&gt;
-&lt;p&gt;适合下面几种场景：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;VPS 面板只提供 VNC / noVNC 控制台。&lt;/li&gt;
-&lt;li&gt;内存较小，优先选择 UFS 而不是 ZFS。&lt;/li&gt;
-&lt;li&gt;只需要一个干净的 FreeBSD 基础系统。&lt;/li&gt;
-&lt;li&gt;安装阶段先跑通网络、时区和 SSH，后续再做安全加固。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="快速选择表"&gt;快速选择表&lt;/h2&gt;
-&lt;table&gt;
- &lt;thead&gt;
- &lt;tr&gt;
- &lt;th&gt;阶段&lt;/th&gt;
- &lt;th&gt;推荐选择&lt;/th&gt;
- &lt;/tr&gt;
- &lt;/thead&gt;
- &lt;tbody&gt;
- &lt;tr&gt;
- &lt;td&gt;Distribution Sets&lt;/td&gt;
- &lt;td&gt;全部取消，保持最小安装&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;文件系统&lt;/td&gt;
- &lt;td&gt;小内存 VPS 优先 UFS&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;分区表&lt;/td&gt;
- &lt;td&gt;GPT&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;网络&lt;/td&gt;
- &lt;td&gt;VPS 通常选 Auto / DHCP&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;时区&lt;/td&gt;
- &lt;td&gt;Asia / China / CST&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;NTP&lt;/td&gt;
- &lt;td&gt;建议启用 ntpd 相关选项&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;用户&lt;/td&gt;
- &lt;td&gt;推荐创建普通用户，并加入 wheel 组&lt;/td&gt;
- &lt;/tr&gt;
- &lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h2 id="进入安装器"&gt;进入安装器&lt;/h2&gt;
-&lt;p&gt;启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-01.png" alt="FreeBSD 安装器欢迎界面"&gt;&lt;/p&gt;
-&lt;h2 id="选择最小安装组件"&gt;选择最小安装组件&lt;/h2&gt;
-&lt;p&gt;&lt;code&gt;Distribution Sets&lt;/code&gt; 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-02.png" alt="不要选择额外安装组件"&gt;&lt;/p&gt;
-&lt;p&gt;输入主机名。这里可以直接写机器用途，例如 &lt;code&gt;freebsd&lt;/code&gt;、&lt;code&gt;vps-freebsd&lt;/code&gt; 或自己的主机命名。&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/freebsd15-minimal-install-03.png" alt="输入主机名"&gt;&lt;/p&gt;</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&lt;/p&gt;
-&lt;p&gt;建议按下面顺序做：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;修正误创建的用户。&lt;/li&gt;
-&lt;li&gt;保留 &lt;code&gt;ttyv0&lt;/code&gt;，关闭多余本地控制台。&lt;/li&gt;
-&lt;li&gt;配置 &lt;code&gt;pkg&lt;/code&gt; 自动清理缓存。&lt;/li&gt;
-&lt;li&gt;小内存机器添加 Swap 文件。&lt;/li&gt;
-&lt;li&gt;用 &lt;code&gt;tmpfs&lt;/code&gt; 加速 &lt;code&gt;/var/cache/pkg&lt;/code&gt;。&lt;/li&gt;
-&lt;li&gt;只关闭确认不用的服务。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id="修正误创建的用户"&gt;修正误创建的用户&lt;/h2&gt;
-&lt;p&gt;如果安装阶段把用户名写错了，例如把 &lt;code&gt;felix&lt;/code&gt; 写成了 &lt;code&gt;fexil&lt;/code&gt;，可以先删除错误用户，再重新创建正确用户。&lt;/p&gt;
-&lt;p&gt;确认要删除的用户确实是错误账号后，在 root 下执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw userdel -n fexil -r&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw userdel -n fexil -r"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;参数含义：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;-n fexil&lt;/code&gt; 指定要删除的用户名。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;-r&lt;/code&gt; 会同时删除该用户的家目录，例如 &lt;code&gt;/home/fexil&lt;/code&gt;。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;然后重新创建正确的普通用户，并加入 &lt;code&gt;wheel&lt;/code&gt; 组：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw useradd felix -m -G wheel -s /bin/sh
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;passwd felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw useradd felix -m -G wheel -s /bin/sh\npasswd felix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建后检查用户和组：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;id felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"id felix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;看到输出中包含 &lt;code&gt;wheel&lt;/code&gt;，说明这个用户后续可以使用 &lt;code&gt;su&lt;/code&gt; 切换到 root。&lt;/p&gt;</description></item><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>&lt;p&gt;FreeBSD 默认环境里，很多命令会调用 &lt;code&gt;vi&lt;/code&gt; 作为编辑器，例如 &lt;code&gt;crontab -e&lt;/code&gt;。如果更习惯 &lt;code&gt;nano&lt;/code&gt;、&lt;code&gt;micro&lt;/code&gt;、&lt;code&gt;ee&lt;/code&gt; 或 &lt;code&gt;vim&lt;/code&gt;，可以通过设置 &lt;code&gt;EDITOR&lt;/code&gt; 环境变量来更改默认编辑器。&lt;/p&gt;
-&lt;p&gt;前提是你想使用的新编辑器已经安装。&lt;/p&gt;
-&lt;h2 id="临时更改"&gt;临时更改&lt;/h2&gt;
-&lt;p&gt;临时更改只对当前命令有效，适合偶尔使用一次。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;nano crontab -e&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"EDITOR=nano crontab -e"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;也可以换成其他喜欢的编辑器：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;micro crontab -e
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;ee crontab -e
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;vim crontab -e&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"EDITOR=micro crontab -e\nEDITOR=ee crontab -e\nEDITOR=vim crontab -e"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这种写法不会修改系统配置，关闭当前终端后也不会保留。&lt;/p&gt;
-&lt;h2 id="永久更改"&gt;永久更改&lt;/h2&gt;
-&lt;p&gt;如果希望以后执行 &lt;code&gt;crontab -e&lt;/code&gt; 时都使用指定编辑器，可以把 &lt;code&gt;EDITOR&lt;/code&gt; 写入当前用户的 shell 启动文件。&lt;/p&gt;
-&lt;h2 id="sh-或-bash"&gt;sh 或 bash&lt;/h2&gt;
-&lt;p&gt;如果使用的是 &lt;code&gt;sh&lt;/code&gt; 或 &lt;code&gt;bash&lt;/code&gt;，可以把下面这行加入 &lt;code&gt;~/.profile&lt;/code&gt;、&lt;code&gt;~/.bashrc&lt;/code&gt; 或 &lt;code&gt;~/.bash_profile&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export EDITOR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;nano&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export EDITOR=nano"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;修改完成后，可以重新登录终端，也可以手动加载配置文件。&lt;/p&gt;
-&lt;p&gt;如果写入的是 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果写入的是 &lt;code&gt;~/.bashrc&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.bashrc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.bashrc"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果写入的是 &lt;code&gt;~/.bash_profile&lt;/code&gt;：&lt;/p&gt;</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>&lt;p&gt;在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。&lt;/p&gt;
-&lt;p&gt;本文以 &lt;code&gt;go1.26.0.freebsd-amd64.tar.gz&lt;/code&gt; 为示例。后续 Go 版本更新时，请先到 &lt;a href="https://go.dev/dl/"&gt;Go 官方下载页&lt;/a&gt; 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。&lt;/p&gt;
-&lt;h2 id="root-用户安装到默认路径"&gt;root 用户安装到默认路径&lt;/h2&gt;
-&lt;p&gt;如果希望 Go 对系统所有用户可用，可以用 &lt;code&gt;root&lt;/code&gt; 权限安装到 &lt;code&gt;/usr/local/go&lt;/code&gt;。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ntar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;默认解压后，Go 会位于：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/go&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/usr/local/go"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;然后把 Go 加入环境变量：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;printf &lt;span style="color:#e6db74"&gt;&amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39;&lt;/span&gt; &amp;gt;&amp;gt; ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"printf '\\nexport PATH=$PATH:/usr/local/go/bin\\n' \u003e\u003e ~/.profile"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;写入后，让变量在当前终端立即生效：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile\ngo version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="root-用户安装到自定义路径"&gt;root 用户安装到自定义路径&lt;/h2&gt;
-&lt;p&gt;如果你更喜欢把手动安装的软件统一放到 &lt;code&gt;/usr/local/opt/&lt;/code&gt; 下面，可以这样操作：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /usr/local/opt/
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /usr/local/opt/
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /usr/local/opt/\nfetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd /usr/local/opt/\ntar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;此时 Go 的目录是：&lt;/p&gt;</description></item><item><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title><link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link><pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid><description>&lt;p&gt;我个人不太建议在所有环境里都直接开启 &lt;code&gt;sudo&lt;/code&gt;。如果只是自己的服务器，很多时候使用 &lt;code&gt;su -&lt;/code&gt; 切换到 &lt;code&gt;root&lt;/code&gt; 管理系统，权限边界会更清楚。&lt;/p&gt;
-&lt;p&gt;不过 &lt;code&gt;sudo&lt;/code&gt; 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 &lt;code&gt;sudo&lt;/code&gt; 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 &lt;code&gt;sudo&lt;/code&gt; 时验证 &lt;code&gt;root&lt;/code&gt; 密码，而不是验证普通用户自己的密码。&lt;/p&gt;
-&lt;h2 id="报错含义"&gt;报错含义&lt;/h2&gt;
-&lt;p&gt;如果普通用户执行 &lt;code&gt;sudo&lt;/code&gt; 时看到：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;gary is not in the sudoers file.
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;This incident has been reported to the administrator.&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"gary is not in the sudoers file.\nThis incident has been reported to the administrator."&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;意思是当前用户 &lt;code&gt;gary&lt;/code&gt; 没有被 sudoers 授权，所以不能通过 &lt;code&gt;sudo&lt;/code&gt; 执行需要管理员权限的命令。&lt;/p&gt;
-&lt;p&gt;后续操作需要先用 &lt;code&gt;root&lt;/code&gt; 用户完成。可以直接登录 &lt;code&gt;root&lt;/code&gt;，也可以从普通用户切换：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;su -&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"su -"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这里输入的是 &lt;code&gt;root&lt;/code&gt; 密码，不是普通用户密码。&lt;/p&gt;
-&lt;h2 id="安装-sudo"&gt;安装 sudo&lt;/h2&gt;
-&lt;p&gt;如果系统还没有安装 &lt;code&gt;sudo&lt;/code&gt;，先安装：&lt;/p&gt;</description></item><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>&lt;p&gt;FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 &lt;code&gt;/etc/login.conf&lt;/code&gt; 新增中文登录类，并把用户切换到这个登录类。&lt;/p&gt;
-&lt;h2 id="编辑-etcloginconf"&gt;编辑 &lt;code&gt;/etc/login.conf&lt;/code&gt;&lt;/h2&gt;
-&lt;p&gt;打开 &lt;code&gt;/etc/login.conf&lt;/code&gt;，在文件结尾处添加下面这段配置。我个人一般会放在 &lt;code&gt;russian&lt;/code&gt; 段落后面，方便以后查找。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;chinese|Chinese Users Accounts:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :charset&lt;span style="color:#f92672"&gt;=&lt;/span&gt;UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :lang&lt;span style="color:#f92672"&gt;=&lt;/span&gt;zh_CN.UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :setenv&lt;span style="color:#f92672"&gt;=&lt;/span&gt;LC_ALL&lt;span style="color:#f92672"&gt;=&lt;/span&gt;zh_CN.UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :tc&lt;span style="color:#f92672"&gt;=&lt;/span&gt;default:&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"chinese|Chinese Users Accounts:\\\n :charset=UTF-8:\\\n :lang=zh_CN.UTF-8:\\\n :setenv=LC_ALL=zh_CN.UTF-8:\\\n :tc=default:"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="重新生成-loginconf-数据库"&gt;重新生成 login.conf 数据库&lt;/h2&gt;
-&lt;p&gt;保存文件后，运行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cap_mkdb /etc/login.conf&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cap_mkdb /etc/login.conf"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="修改-root-用户登录类"&gt;修改 root 用户登录类&lt;/h2&gt;
-&lt;p&gt;如果要让 &lt;code&gt;root&lt;/code&gt; 使用刚才新增的 &lt;code&gt;chinese&lt;/code&gt; 登录类，运行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw usermod root -L chinese&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw usermod root -L chinese"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;重新登录终端后，中文 locale 配置就会生效。&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD on 电脑自习室</title><link>https://purodn.tk/posts/freebsd/</link><description>Recent content in FreeBSD on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/freebsd/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。
+先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
+这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
+整体结构如下：
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。
+复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。
+示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：
+项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description></item><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
+这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
+默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
+复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
+复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。
+如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：
+复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description></item><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
+复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
+复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
+准备 Go 环境 先确认 Go 已经可用：
+复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
+如果当前终端还找不到 go，可以临时加入 PATH：
+复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
+以 root 用户执行：
+复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
+复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
+本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
+准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
+本文后续示例假设证书和私钥已经放在下面的位置：
+复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。
+安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：
+复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
+创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
+下面以用户名 admin 为例：
+复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
+这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
+一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
+下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。
+复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：
+复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
+它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
+使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
+更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
+GitHub 公钥地址格式是：
+复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
+root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
+复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
+root 用户配置项核对 root 用户版本推荐状态如下：
+复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。
+适合下面几种场景：
+VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。
+选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。
+输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。
+进入 Distribution Sets 选择界面。</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。
+建议按下面顺序做：
+修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。
+确认要删除的用户确实是错误账号后，在 root 下执行：
+复制pw userdel -n fexil -r 参数含义：
+-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：
+复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：
+复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。
+复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：
+用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description></item><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。
+前提是你想使用的新编辑器已经安装。
+临时更改 临时更改只对当前命令有效，适合偶尔使用一次。
+复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：
+复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。
+永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。
+sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：
+复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。
+如果写入的是 ~/.profile：
+复制. ~/.profile 如果写入的是 ~/.bashrc：
+复制. ~/.bashrc 如果写入的是 ~/.bash_profile：
+复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
+本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。
+root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。
+复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：
+复制/usr/local/go 然后把 Go 加入环境变量：
+复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：
+复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：
+复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：
+复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description></item><item><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title><link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link><pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid><description>我个人不太建议在所有环境里都直接开启 sudo。如果只是自己的服务器，很多时候使用 su - 切换到 root 管理系统，权限边界会更清楚。
+不过 sudo 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 sudo 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 sudo 时验证 root 密码，而不是验证普通用户自己的密码。
+报错含义 如果普通用户执行 sudo 时看到：
+复制gary is not in the sudoers file. This incident has been reported to the administrator. 意思是当前用户 gary 没有被 sudoers 授权，所以不能通过 sudo 执行需要管理员权限的命令。
+后续操作需要先用 root 用户完成。可以直接登录 root，也可以从普通用户切换：
+复制su - 这里输入的是 root 密码，不是普通用户密码。
+安装 sudo 如果系统还没有安装 sudo，先安装：
+复制pkg install sudo FreeBSD 通过 pkg 安装的 sudo，配置文件通常是：
+复制/usr/local/etc/sudoers 不要直接用普通编辑器修改这个文件，应该使用 visudo，它会在保存前检查语法，避免 sudoers 写错后导致 sudo 无法使用。</description></item><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。
+编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。
+复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：
+复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：
+复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description></item></channel></rss>

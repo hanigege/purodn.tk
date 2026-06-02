@@ -1,216 +1,43 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>VyOS on 电脑自习室</title><link>https://purodn.tk/tags/vyos/</link><description>Recent content in VyOS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 01 Jun 2025 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/vyos/index.xml" rel="self" type="application/rss+xml"/><item><title>Vyos Wireguard Ipv4</title><link>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</link><pubDate>Sun, 01 Jun 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</guid><description>&lt;p&gt;vyos上配置wireguard （IPV4）&lt;/p&gt;
-&lt;h2 id="1-生成-wireguard-密钥"&gt;1. 生成 WireGuard 密钥&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;wg genkey | tee privatekey | wg pubkey &amp;gt; publickey&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"wg genkey | tee privatekey | wg pubkey \u003e publickey"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;• privatekey 文件中存储 私钥&lt;/p&gt;
-&lt;p&gt;• publickey 文件中存储 公钥&lt;/p&gt;
-&lt;p&gt;然后使用：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;cat privatekey&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"cat privatekey"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;把私钥填入 第一步 的 &amp;lt;服务器私钥&amp;gt; 位置。&lt;/p&gt;
-&lt;p&gt;配置wireguard:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set interfaces wireguard wg0 address &amp;#39;10.20.30.1/24&amp;#39;
-set interfaces wireguard wg0 port &amp;#39;11133&amp;#39;
-set interfaces wireguard wg0 private-key &amp;#39;private-key&amp;#39;
-set interfaces wireguard wg0 peer iphone allowed-ips &amp;#39;10.20.30.2/32&amp;#39;
-set interfaces wireguard wg0 peer iphone public-key &amp;#39;public-key&amp;#39;
-set interfaces wireguard wg0 peer iphone preshared-key &amp;#39;preshared-key&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set interfaces wireguard wg0 address '10.20.30.1/24'\nset interfaces wireguard wg0 port '11133'\nset interfaces wireguard wg0 private-key 'private-key'\nset interfaces wireguard wg0 peer iphone allowed-ips '10.20.30.2/32'\nset interfaces wireguard wg0 peer iphone public-key 'public-key'\nset interfaces wireguard wg0 peer iphone preshared-key 'preshared-key'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;上面这是添加过peer的。&lt;/p&gt;</description></item><item><title>Vyos下安装ddns-Go</title><link>https://purodn.tk/posts/routeros/vyos-ddns-go/</link><pubDate>Sun, 11 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-ddns-go/</guid><description>&lt;h2 id="这里使用vyos自管理容器的方法可以获取到网卡公网ip"&gt;这里使用vyos自管理容器的方法,可以获取到网卡公网ip&lt;/h2&gt;
-&lt;h3 id="操作前vyos本机先科学不然没法接docker镜像"&gt;操作前，vyos本机先科学，不然没法接docker镜像&lt;/h3&gt;
-&lt;p&gt;    这种模式不可以设置单独的IP,因为使用的是vyos主机的ip&lt;/p&gt;
-&lt;p&gt;    桥接的网络如果没有，可以建一个的：原因是方便 ddns-go使用内网的网址登录 ：172.23.0.1 (可选，非必须，也可以用内外网口ip登录)&lt;/p&gt;
-&lt;h2 id="创建桥接网络"&gt;创建桥接网络&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container network ct-network prefix &lt;span style="color:#e6db74"&gt;&amp;#39;172.23.0.0/24&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"set container network ct-network prefix '172.23.0.0/24'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="提前建立好ddns的映射本地持久目录"&gt;提前建立好ddns的映射本地持久目录：&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /config/containers/ddns&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /config/containers/ddns"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="拉取容器镜像"&gt;拉取容器镜像&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;$ add container image &lt;span style="color:#e6db74"&gt;&amp;#39;jeessy/ddns-go&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"$ add container image 'jeessy/ddns-go'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="搭建ddns-go"&gt;搭建ddns-go&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container name ddns-go allow-host-networks &lt;span style="color:#75715e"&gt;#允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container name ddns-go image &lt;span style="color:#e6db74"&gt;&amp;#39;docker.io/jeessy/ddns-go&amp;#39;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#指定该容器使用的 Docker 镜像&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container name ddns-go restart &lt;span style="color:#e6db74"&gt;&amp;#39;always&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container name ddns-go volume config destination &lt;span style="color:#e6db74"&gt;&amp;#39;/root/&amp;#39;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#映射容器内的路径&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set container name ddns-go volume config source &lt;span style="color:#e6db74"&gt;&amp;#39;/config/containers/ddns&amp;#39;&lt;/span&gt; &lt;span style="color:#75715e"&gt;#映射本地的路役&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"set container name ddns-go allow-host-networks #允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络\nset container name ddns-go image 'docker.io/jeessy/ddns-go' #指定该容器使用的 Docker 镜像\nset container name ddns-go restart 'always'\nset container name ddns-go volume config destination '/root/' #映射容器内的路径\nset container name ddns-go volume config source '/config/containers/ddns' #映射本地的路役"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="查看运行是否成功有up即成功"&gt;查看运行是否成功有UP即成功&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;sudo podman ps -s
-sudo podman ps -a&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"sudo podman ps -s\nsudo podman ps -a"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="登录管理平台"&gt;登录管理平台&lt;/h2&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;http://IP:9876&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"http://IP:9876"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;登录用户名：admin&lt;/p&gt;</description></item><item><title>Vyos上网系列之-Fakeip配置(2)</title><link>https://purodn.tk/posts/routeros/vyos-fakeip-2/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-fakeip-2/</guid><description>&lt;h2 id="对于终端网关是vyos的通过mosdns来分流realip和fakeip的流量-可这样配置"&gt;对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置:&lt;/h2&gt;
-&lt;p&gt;(vyos的group分为address-group,network-group等)&lt;/p&gt;
-&lt;h4 id="定义组-ip例"&gt;定义组 IP例:&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set firewall group address-group Telegram-v4 address &amp;#39;157.148.47.204&amp;#39;
-set firewall group address-group Telegram-v4 address &amp;#39;182.43.124.6&amp;#39;
-...&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set firewall group address-group Telegram-v4 address '157.148.47.204'\nset firewall group address-group Telegram-v4 address '182.43.124.6'\n..."&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="定义组网段v4例"&gt;定义组网段V4例：&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39;
-...&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\n..."&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;定义组telegram V4:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.8.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.16.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.12.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;149.154.160.0/20&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.105.192.0/23&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;91.108.20.0/22&amp;#39;
-set firewall group network-group Telegram-v4 network &amp;#39;185.76.151.0/24&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\nset firewall group network-group Telegram-v4 network '91.108.8.0/22'\nset firewall group network-group Telegram-v4 network '91.108.16.0/22'\nset firewall group network-group Telegram-v4 network '91.108.12.0/22'\nset firewall group network-group Telegram-v4 network '149.154.160.0/20'\nset firewall group network-group Telegram-v4 network '91.105.192.0/23'\nset firewall group network-group Telegram-v4 network '91.108.20.0/22'\nset firewall group network-group Telegram-v4 network '185.76.151.0/24'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="定义组ip-v6例"&gt;定义组ip-V6例：&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set firewall group ipv6-address-group Telegram-v6 address &amp;#39;2a00:1098:80:2::1004&amp;#39;
-set firewall group ipv6-address-group Telegram-v6 address &amp;#39;2a00:1098:80:2::1001&amp;#39;
-...&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1004'\nset firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1001'\n..."&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;定义组网段V6例：&lt;/p&gt;</description></item><item><title>Vyos上网系列之-上网配置（1）</title><link>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</guid><description>&lt;h4 id="vyos的命令行界面是基于shell的没有图形界面-但是可以用tab自动补全"&gt;vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全.&lt;/h4&gt;
-&lt;p&gt;本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;**特别感谢大卫佬给予的指导与帮助**&lt;/code&gt;&lt;/p&gt;
-&lt;h2 id="pve安装vyos"&gt;pve安装vyos:&lt;/h2&gt;
-&lt;p&gt;下载nightly-build: &lt;a href="https://github.com/vyos/vyos-nightly-build/releases"&gt;https://github.com/vyos/vyos-nightly-build/releases&lt;/a&gt;
-pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.&lt;/p&gt;
-&lt;p&gt;vm运行后, 用vyos:vyos登录. 用命令&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;install image&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"install image"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;安装vyos.&lt;/p&gt;
-&lt;p&gt;进入配置模式：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;configure&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"configure"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;生效：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;commit&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"commit"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;保存配置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;save&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"save"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;取消生效的,未保存的配置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;discard&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"discard"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="下面开始配置随时都可以输入生效命令如果不保存重启后配置会失效"&gt;下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效&lt;/h2&gt;
-&lt;p&gt;设置ssh登录:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set service ssh port &amp;#39;22&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set service ssh port '22'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建用户gary:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set system login user gary full-name gary
-set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set system login user gary full-name gary\nset system login user gary authentication plaintext-password '密码'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;建议ssh密钥登录:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39;
-set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set system login user gary authentication public-keys gary@laptop key 'your-public-key'\nset system login user gary authentication public-keys gary@laptop type 'ssh-rsa'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;禁用默认的vyos用户:&lt;/p&gt;</description></item><item><title>Vyos上网系统之-vyos命令技巧集(3)</title><link>https://purodn.tk/posts/routeros/vyos-command-tips-3/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-command-tips-3/</guid><description>&lt;h2 id="你可以使用-delete-和-set-命令来修改-network-group-的子网"&gt;你可以使用 delete 和 set 命令来修改 network-group 的子网。&lt;/h2&gt;
-&lt;p&gt;修改 LAN-v4 的网络&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;删除原来的 192.168.10.0/24&lt;/li&gt;
-&lt;/ol&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;delete firewall group network-group LAN-v4 network 192.168.10.0/24&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"delete firewall group network-group LAN-v4 network 192.168.10.0/24"&lt;/script&gt;
-&lt;/div&gt;
-&lt;ol&gt;
-&lt;li&gt;添加新的 192.168.100.0/24&lt;/li&gt;
-&lt;/ol&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;set firewall group network-group LAN-v4 network 192.168.100.0/24&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"set firewall group network-group LAN-v4 network 192.168.100.0/24"&lt;/script&gt;
-&lt;/div&gt;
-&lt;ol&gt;
-&lt;li&gt;提交并保存&lt;/li&gt;
-&lt;/ol&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;commit
-save&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"commit\nsave"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;验证修改是否生效&lt;/p&gt;
-&lt;p&gt;执行以下命令：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;show firewall group network-group LAN-v4&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"show firewall group network-group LAN-v4"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果输出如下，就说明修改成功：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt; network-group LAN-v4 {
- network 192.168.100.0/24
- }&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;" network-group LAN-v4 {\n network 192.168.100.0/24\n }"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;在 VyOS 中，你可以使用以下命令查看 所有配置：
-显示完整的层级配置（推荐）&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;show configuration&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"show configuration"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这个命令会以 层级结构 显示整个配置，类似于 show running-config。&lt;/p&gt;</description></item><item><title>vyos多网口小主机桥接配置(完整)</title><link>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</link><pubDate>Wed, 07 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</guid><description>&lt;h3 id="一基本上网配置"&gt;一.基本上网配置&lt;/h3&gt;
-&lt;h3 id="vyos的命令行界面是基于shell的没有图形界面-但是可以用tab自动补全"&gt;vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全&lt;/h3&gt;
-&lt;p&gt;本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.&lt;/p&gt;
-&lt;p&gt;pve安装vyos:
-&lt;a href="https://github.com/vyos/vyos-nightly-build/releases"&gt;下载安装包&lt;/a&gt;
-pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos除自己的容器管理工具以外，也可以用podman管理容器.
-vm运行后, 用vyos:vyos登录. 用下面命令安装:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;install image&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"install image"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="2安装vyos"&gt;2.安装vyos.&lt;/h2&gt;
-&lt;p&gt;进入配置模式：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;configure&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"configure"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;生效：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;commit&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"commit"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;保存配置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;save&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"save"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;取消未commit生效的,未保存的配置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;discard&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"discard"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;延时确认：如2分钟后不确认，配置回滚到上一配置&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;commit&lt;span style="color:#f92672"&gt;-&lt;/span&gt;confirm &lt;span style="color:#ae81ff"&gt;2&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"commit-confirm 2"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;回滚后 dircard 清除上次没有commit配置。(因为commit-confirm 2后已经输入过了，只是没有commit提交)
-如果提前提效确认，直接输入：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;confirm&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"confirm"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;设置ssh登录:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set service ssh port &lt;span style="color:#e6db74"&gt;&amp;#39;22&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"set service ssh port '22'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建用户gary:&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set system login user gary full&lt;span style="color:#f92672"&gt;-&lt;/span&gt;name gary
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set system login user gary authentication plaintext&lt;span style="color:#f92672"&gt;-&lt;/span&gt;password &lt;span style="color:#e6db74"&gt;&amp;#39;密码&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"set system login user gary full-name gary\nset system login user gary authentication plaintext-password '密码'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;建议ssh密钥登录:(可选，非必须，熟练后再使用）&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set system login user gary authentication public&lt;span style="color:#f92672"&gt;-&lt;/span&gt;keys gary&lt;span style="color:#a6e22e"&gt;@laptop&lt;/span&gt; key &lt;span style="color:#e6db74"&gt;&amp;#39;your-public-key&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set system login user gary authentication public&lt;span style="color:#f92672"&gt;-&lt;/span&gt;keys gary&lt;span style="color:#a6e22e"&gt;@laptop&lt;/span&gt; type &lt;span style="color:#e6db74"&gt;&amp;#39;ssh-rsa&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"set system login user gary authentication public-keys gary@laptop key 'your-public-key'\nset system login user gary authentication public-keys gary@laptop type 'ssh-rsa'"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;禁用默认的vyos用户:&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>VyOS on 电脑自习室</title><link>https://purodn.tk/tags/vyos/</link><description>Recent content in VyOS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 01 Jun 2025 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/vyos/index.xml" rel="self" type="application/rss+xml"/><item><title>Vyos Wireguard Ipv4</title><link>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</link><pubDate>Sun, 01 Jun 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</guid><description>vyos上配置wireguard （IPV4）
+1. 生成 WireGuard 密钥 复制wg genkey | tee privatekey | wg pubkey &amp;gt; publickey • privatekey 文件中存储 私钥
+• publickey 文件中存储 公钥
+然后使用：
+复制cat privatekey 把私钥填入 第一步 的 &amp;lt;服务器私钥&amp;gt; 位置。
+配置wireguard:
+复制set interfaces wireguard wg0 address &amp;#39;10.20.30.1/24&amp;#39; set interfaces wireguard wg0 port &amp;#39;11133&amp;#39; set interfaces wireguard wg0 private-key &amp;#39;private-key&amp;#39; set interfaces wireguard wg0 peer iphone allowed-ips &amp;#39;10.20.30.2/32&amp;#39; set interfaces wireguard wg0 peer iphone public-key &amp;#39;public-key&amp;#39; set interfaces wireguard wg0 peer iphone preshared-key &amp;#39;preshared-key&amp;#39; 上面这是添加过peer的。</description></item><item><title>Vyos下安装ddns-Go</title><link>https://purodn.tk/posts/routeros/vyos-ddns-go/</link><pubDate>Sun, 11 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-ddns-go/</guid><description>这里使用vyos自管理容器的方法,可以获取到网卡公网ip 操作前，vyos本机先科学，不然没法接docker镜像 这种模式不可以设置单独的IP,因为使用的是vyos主机的ip
+桥接的网络如果没有，可以建一个的：原因是方便 ddns-go使用内网的网址登录 ：172.23.0.1 (可选，非必须，也可以用内外网口ip登录)
+创建桥接网络 复制set container network ct-network prefix &amp;#39;172.23.0.0/24&amp;#39; 提前建立好ddns的映射本地持久目录： 复制mkdir -p /config/containers/ddns 拉取容器镜像 复制$ add container image &amp;#39;jeessy/ddns-go&amp;#39; 搭建ddns-go 复制set container name ddns-go allow-host-networks #允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络 set container name ddns-go image &amp;#39;docker.io/jeessy/ddns-go&amp;#39; #指定该容器使用的 Docker 镜像 set container name ddns-go restart &amp;#39;always&amp;#39; set container name ddns-go volume config destination &amp;#39;/root/&amp;#39; #映射容器内的路径 set container name ddns-go volume config source &amp;#39;/config/containers/ddns&amp;#39; #映射本地的路役 查看运行是否成功有UP即成功 复制sudo podman ps -s sudo podman ps -a 登录管理平台 复制http://IP:9876 登录用户名：admin</description></item><item><title>Vyos上网系列之-Fakeip配置(2)</title><link>https://purodn.tk/posts/routeros/vyos-fakeip-2/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-fakeip-2/</guid><description>对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置: (vyos的group分为address-group,network-group等)
+定义组 IP例: 复制set firewall group address-group Telegram-v4 address &amp;#39;157.148.47.204&amp;#39; set firewall group address-group Telegram-v4 address &amp;#39;182.43.124.6&amp;#39; ... 定义组网段V4例： 复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; ... 定义组telegram V4:
+复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.8.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.16.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.</description></item><item><title>Vyos上网系列之-上网配置（1）</title><link>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</guid><description>vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全. 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.
+**特别感谢大卫佬给予的指导与帮助**
+pve安装vyos: 下载nightly-build: https://github.com/vyos/vyos-nightly-build/releases pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.
+vm运行后, 用vyos:vyos登录. 用命令
+复制install image 安装vyos.
+进入配置模式：
+复制configure 生效：
+复制commit 保存配置：
+复制save 取消生效的,未保存的配置：
+复制discard 下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效 设置ssh登录:
+复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:
+复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:
+复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description></item><item><title>Vyos上网系统之-vyos命令技巧集(3)</title><link>https://purodn.tk/posts/routeros/vyos-command-tips-3/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-command-tips-3/</guid><description>你可以使用 delete 和 set 命令来修改 network-group 的子网。 修改 LAN-v4 的网络
+删除原来的 192.168.10.0/24 复制delete firewall group network-group LAN-v4 network 192.168.10.0/24 添加新的 192.168.100.0/24 复制set firewall group network-group LAN-v4 network 192.168.100.0/24 提交并保存 复制commit save 验证修改是否生效
+执行以下命令：
+复制show firewall group network-group LAN-v4 如果输出如下，就说明修改成功：
+复制 network-group LAN-v4 { network 192.168.100.0/24 } 在 VyOS 中，你可以使用以下命令查看 所有配置： 显示完整的层级配置（推荐）
+复制show configuration 这个命令会以 层级结构 显示整个配置，类似于 show running-config。
+显示所有配置命令（适合复制）($ 模式下）
+复制show configuration commands 这个命令会以 show 命令的格式 展示所有配置，适用于备份或复制配置：
+按层级展开查看（交互式）
+复制show configuration level 2 level 2 代表展开到第 2 层，你可以调整 level 数值来控制显示的详细程度。</description></item><item><title>vyos多网口小主机桥接配置(完整)</title><link>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</link><pubDate>Wed, 07 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</guid><description>一.基本上网配置 vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.
+pve安装vyos: 下载安装包 pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos除自己的容器管理工具以外，也可以用podman管理容器. vm运行后, 用vyos:vyos登录. 用下面命令安装:
+复制install image 2.安装vyos. 进入配置模式：
+复制configure 生效：
+复制commit 保存配置：
+复制save 取消未commit生效的,未保存的配置：
+复制discard 延时确认：如2分钟后不确认，配置回滚到上一配置
+复制commit-confirm 2 回滚后 dircard 清除上次没有commit配置。(因为commit-confirm 2后已经输入过了，只是没有commit提交) 如果提前提效确认，直接输入：
+复制confirm 设置ssh登录:
+复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:
+复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:(可选，非必须，熟练后再使用）
+复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description></item></channel></rss>

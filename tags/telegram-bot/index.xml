@@ -1,146 +1,16 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Telegram Bot on 电脑自习室</title><link>https://purodn.tk/tags/telegram-bot/</link><description>Recent content in Telegram Bot on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 31 May 2026 07:23:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/telegram-bot/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Profile 多机器人隔离查询手册</title><link>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</link><pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</guid><description>&lt;p&gt;Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。&lt;/p&gt;
-&lt;p&gt;这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。&lt;/p&gt;
-&lt;p&gt;最重要的一句话：操作具名 profile 时一定要带 &lt;code&gt;-p &amp;lt;profile&amp;gt;&lt;/code&gt; 或 &lt;code&gt;--profile &amp;lt;profile&amp;gt;&lt;/code&gt;。不带 profile 的命令通常会改默认机器人。&lt;/p&gt;
-&lt;h2 id="速查表"&gt;速查表&lt;/h2&gt;
-&lt;table&gt;
- &lt;thead&gt;
- &lt;tr&gt;
- &lt;th&gt;需求&lt;/th&gt;
- &lt;th&gt;命令或路径&lt;/th&gt;
- &lt;/tr&gt;
- &lt;/thead&gt;
- &lt;tbody&gt;
- &lt;tr&gt;
- &lt;td&gt;默认 profile 配置&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;~/.hermes/config.yaml&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;默认 profile 密钥&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;~/.hermes/.env&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;&lt;code&gt;groupbot&lt;/code&gt; 配置&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;~/.hermes/profiles/groupbot/config.yaml&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;&lt;code&gt;groupbot&lt;/code&gt; 密钥&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;~/.hermes/profiles/groupbot/.env&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;查看 profile&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes profile list&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;创建 profile&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes profile create groupbot&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;复制当前配置创建&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes profile create groupbot --clone&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;尽量完整复制创建&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes profile create groupbot --clone-all&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;查看工具&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot tools list&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;进入工具开关界面&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot tools&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;配置模型&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot model&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;配置 Telegram&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot gateway setup&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;重启 gateway&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot gateway restart&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;查看 gateway 状态&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes -p groupbot gateway status&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h2 id="profile-配置文件在哪里"&gt;Profile 配置文件在哪里&lt;/h2&gt;
-&lt;p&gt;默认 profile：&lt;/p&gt;</description></item><item><title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title><link>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</link><pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</guid><description>&lt;p&gt;这篇是给下次的自己看的。&lt;/p&gt;
-&lt;p&gt;第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 &lt;code&gt;codebot&lt;/code&gt; profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。&lt;/p&gt;
-&lt;p&gt;这次踩到的点很典型：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;服务看起来 restart 失败，但其实新进程已经启动。&lt;/li&gt;
-&lt;li&gt;Telegram 明明写了允许用户，仍然报 &lt;code&gt;Unauthorized user&lt;/code&gt;。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;.env&lt;/code&gt; 里同名变量出现两次，后面的覆盖前面的。&lt;/li&gt;
-&lt;li&gt;授权修好后，又报 &lt;code&gt;OPENAI_API_KEY&lt;/code&gt; 没读到。&lt;/li&gt;
-&lt;li&gt;bot 能回复以后，还会提醒没有设置 home channel。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h2 id="目标结构"&gt;目标结构&lt;/h2&gt;
-&lt;p&gt;推荐把默认助手和开发助手分开。&lt;/p&gt;
-&lt;table&gt;
- &lt;thead&gt;
- &lt;tr&gt;
- &lt;th&gt;角色&lt;/th&gt;
- &lt;th&gt;profile&lt;/th&gt;
- &lt;th&gt;systemd user service&lt;/th&gt;
- &lt;th&gt;用途&lt;/th&gt;
- &lt;/tr&gt;
- &lt;/thead&gt;
- &lt;tbody&gt;
- &lt;tr&gt;
- &lt;td&gt;默认助手&lt;/td&gt;
- &lt;td&gt;默认 profile&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes-gateway.service&lt;/code&gt; 或类似名称&lt;/td&gt;
- &lt;td&gt;日常聊天、提醒、低风险任务&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;代码助手&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;codebot&lt;/code&gt;&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;hermes-codebot-gateway.service&lt;/code&gt;&lt;/td&gt;
- &lt;td&gt;代码修改、调试、测试、重构&lt;/td&gt;
- &lt;/tr&gt;
- &lt;/tbody&gt;
-&lt;/table&gt;
-&lt;p&gt;拆 profile 的好处是边界清楚：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;每个 profile 有自己的 &lt;code&gt;.env&lt;/code&gt;、&lt;code&gt;config.yaml&lt;/code&gt;、session、memory 和 gateway state。&lt;/li&gt;
-&lt;li&gt;每个 Telegram bot 可以只服务一个用途。&lt;/li&gt;
-&lt;li&gt;codebot 可以用更适合写代码的模型和权限策略。&lt;/li&gt;
-&lt;li&gt;默认助手不会被开发任务的上下文污染。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="第一个默认-gateway"&gt;第一个默认 Gateway&lt;/h2&gt;
-&lt;p&gt;第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 &lt;code&gt;hermesuser&lt;/code&gt;：&lt;/p&gt;</description></item><item><title>Hermes Telegram 安静模式恢复手册</title><link>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</link><pubDate>Wed, 27 May 2026 09:50:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</guid><description>&lt;p&gt;这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。&lt;/p&gt;
-&lt;p&gt;目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。&lt;/p&gt;
-&lt;p&gt;如果你想系统了解 &lt;code&gt;~/.hermes/config.yaml&lt;/code&gt; 每个配置段的作用，可以先看这篇：&lt;a href="https://purodn.tk/posts/ai/hermes-config-yaml-reference/"&gt;Hermes Agent config.yaml 中文配置说明&lt;/a&gt;。&lt;/p&gt;
-&lt;p&gt;配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 &lt;code&gt;$HERMES_HOME&lt;/code&gt;、&lt;code&gt;$HOME&lt;/code&gt;、&lt;code&gt;&amp;lt;profile&amp;gt;&lt;/code&gt;、&lt;code&gt;&amp;lt;user&amp;gt;&lt;/code&gt;、&lt;code&gt;&amp;lt;service&amp;gt;&lt;/code&gt; 替换成自己的环境即可。&lt;/p&gt;
-&lt;h2 id="适用场景"&gt;适用场景&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;已安装 Hermes Agent。&lt;/li&gt;
-&lt;li&gt;已配置 Telegram bot token。&lt;/li&gt;
-&lt;li&gt;已配置模型 API。&lt;/li&gt;
-&lt;li&gt;希望 Telegram 聊天窗口保持干净。&lt;/li&gt;
-&lt;li&gt;需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="关键原则"&gt;关键原则&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;保留记忆功能，但不显示 &lt;code&gt;memory:&lt;/code&gt; 通知。&lt;/li&gt;
-&lt;li&gt;保留工具和后台能力，但不显示工具进度。&lt;/li&gt;
-&lt;li&gt;保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。&lt;/li&gt;
-&lt;li&gt;不开启全局 yolo 权限，危险命令仍然需要确认。&lt;/li&gt;
-&lt;li&gt;优先使用 &lt;code&gt;hermes config set&lt;/code&gt; 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 &lt;code&gt;config.yaml&lt;/code&gt; 只作为对照和兜底。&lt;/li&gt;
-&lt;li&gt;不把私钥、API Key、Telegram Token、SSH 密码写进文档。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="目录变量约定"&gt;目录变量约定&lt;/h2&gt;
-&lt;p&gt;Hermes 默认配置目录通常在当前用户的 home 目录下：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;HERMES_HOME&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;HOME&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;/.hermes&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"HERMES_HOME=\"${HOME}/.hermes\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;默认 profile 配置文件：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Telegram Bot on 电脑自习室</title><link>https://purodn.tk/tags/telegram-bot/</link><description>Recent content in Telegram Bot on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 31 May 2026 07:23:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/telegram-bot/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Profile 多机器人隔离查询手册</title><link>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</link><pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</guid><description>Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。
+这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。
+最重要的一句话：操作具名 profile 时一定要带 -p &amp;lt;profile&amp;gt; 或 --profile &amp;lt;profile&amp;gt;。不带 profile 的命令通常会改默认机器人。
+速查表 需求 命令或路径 默认 profile 配置 ~/.hermes/config.yaml 默认 profile 密钥 ~/.hermes/.env groupbot 配置 ~/.hermes/profiles/groupbot/config.yaml groupbot 密钥 ~/.hermes/profiles/groupbot/.env 查看 profile hermes profile list 创建 profile hermes profile create groupbot 复制当前配置创建 hermes profile create groupbot --clone 尽量完整复制创建 hermes profile create groupbot --clone-all 查看工具 hermes -p groupbot tools list 进入工具开关界面 hermes -p groupbot tools 配置模型 hermes -p groupbot model 配置 Telegram hermes -p groupbot gateway setup 重启 gateway hermes -p groupbot gateway restart 查看 gateway 状态 hermes -p groupbot gateway status Profile 配置文件在哪里 默认 profile：</description></item><item><title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title><link>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</link><pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</guid><description>这篇是给下次的自己看的。
+第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 codebot profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。
+这次踩到的点很典型：
+服务看起来 restart 失败，但其实新进程已经启动。 Telegram 明明写了允许用户，仍然报 Unauthorized user。 .env 里同名变量出现两次，后面的覆盖前面的。 授权修好后，又报 OPENAI_API_KEY 没读到。 bot 能回复以后，还会提醒没有设置 home channel。 所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。
+安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。
+目标结构 推荐把默认助手和开发助手分开。
+角色 profile systemd user service 用途 默认助手 默认 profile hermes-gateway.service 或类似名称 日常聊天、提醒、低风险任务 代码助手 codebot hermes-codebot-gateway.service 代码修改、调试、测试、重构 拆 profile 的好处是边界清楚：
+每个 profile 有自己的 .env、config.yaml、session、memory 和 gateway state。 每个 Telegram bot 可以只服务一个用途。 codebot 可以用更适合写代码的模型和权限策略。 默认助手不会被开发任务的上下文污染。 第一个默认 Gateway 第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 hermesuser：</description></item><item><title>Hermes Telegram 安静模式恢复手册</title><link>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</link><pubDate>Wed, 27 May 2026 09:50:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</guid><description>这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。
+目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。
+如果你想系统了解 ~/.hermes/config.yaml 每个配置段的作用，可以先看这篇：Hermes Agent config.yaml 中文配置说明。
+配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 $HERMES_HOME、$HOME、&amp;lt;profile&amp;gt;、&amp;lt;user&amp;gt;、&amp;lt;service&amp;gt; 替换成自己的环境即可。
+适用场景 已安装 Hermes Agent。 已配置 Telegram bot token。 已配置模型 API。 希望 Telegram 聊天窗口保持干净。 需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。 关键原则 保留记忆功能，但不显示 memory: 通知。 保留工具和后台能力，但不显示工具进度。 保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。 不开启全局 yolo 权限，危险命令仍然需要确认。 优先使用 hermes config set 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 config.yaml 只作为对照和兜底。 不把私钥、API Key、Telegram Token、SSH 密码写进文档。 目录变量约定 Hermes 默认配置目录通常在当前用户的 home 目录下：
+复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; 默认 profile 配置文件：</description></item></channel></rss>

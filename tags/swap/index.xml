@@ -1,31 +1,10 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Swap on 电脑自习室</title><link>https://purodn.tk/tags/swap/</link><description>Recent content in Swap on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 15 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/swap/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>&lt;p&gt;这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&lt;/p&gt;
-&lt;p&gt;建议按下面顺序做：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;修正误创建的用户。&lt;/li&gt;
-&lt;li&gt;保留 &lt;code&gt;ttyv0&lt;/code&gt;，关闭多余本地控制台。&lt;/li&gt;
-&lt;li&gt;配置 &lt;code&gt;pkg&lt;/code&gt; 自动清理缓存。&lt;/li&gt;
-&lt;li&gt;小内存机器添加 Swap 文件。&lt;/li&gt;
-&lt;li&gt;用 &lt;code&gt;tmpfs&lt;/code&gt; 加速 &lt;code&gt;/var/cache/pkg&lt;/code&gt;。&lt;/li&gt;
-&lt;li&gt;只关闭确认不用的服务。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id="修正误创建的用户"&gt;修正误创建的用户&lt;/h2&gt;
-&lt;p&gt;如果安装阶段把用户名写错了，例如把 &lt;code&gt;felix&lt;/code&gt; 写成了 &lt;code&gt;fexil&lt;/code&gt;，可以先删除错误用户，再重新创建正确用户。&lt;/p&gt;
-&lt;p&gt;确认要删除的用户确实是错误账号后，在 root 下执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw userdel -n fexil -r&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw userdel -n fexil -r"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;参数含义：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;-n fexil&lt;/code&gt; 指定要删除的用户名。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;-r&lt;/code&gt; 会同时删除该用户的家目录，例如 &lt;code&gt;/home/fexil&lt;/code&gt;。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;然后重新创建正确的普通用户，并加入 &lt;code&gt;wheel&lt;/code&gt; 组：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw useradd felix -m -G wheel -s /bin/sh
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;passwd felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw useradd felix -m -G wheel -s /bin/sh\npasswd felix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;创建后检查用户和组：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;id felix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"id felix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;看到输出中包含 &lt;code&gt;wheel&lt;/code&gt;，说明这个用户后续可以使用 &lt;code&gt;su&lt;/code&gt; 切换到 root。&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Swap on 电脑自习室</title><link>https://purodn.tk/tags/swap/</link><description>Recent content in Swap on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 15 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/swap/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。
+建议按下面顺序做：
+修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。
+确认要删除的用户确实是错误账号后，在 root 下执行：
+复制pw userdel -n fexil -r 参数含义：
+-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：
+复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：
+复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。
+复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：
+用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description></item></channel></rss>

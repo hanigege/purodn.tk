@@ -1,184 +1,65 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Docker on 电脑自习室</title><link>https://purodn.tk/tags/docker/</link><description>Recent content in Docker on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/docker/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 安装、日志轮转与 IPv6 支持配置</title><link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link><pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid><description>&lt;p&gt;这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。&lt;/p&gt;
-&lt;p&gt;核心建议很简单：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;新机器先把 Docker 和 Docker Compose 装好。&lt;/li&gt;
-&lt;li&gt;立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。&lt;/li&gt;
-&lt;li&gt;Compose 文件里如果单独配置了 &lt;code&gt;logging&lt;/code&gt;，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。&lt;/li&gt;
-&lt;li&gt;Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="一安装-docker"&gt;一、安装 Docker&lt;/h2&gt;
-&lt;p&gt;在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sh &amp;lt;&lt;span style="color:#f92672"&gt;(&lt;/span&gt;curl -sSL https://get.docker.com&lt;span style="color:#f92672"&gt;)&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sh \u003c(curl -sSL https://get.docker.com)"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;安装后检查客户端和服务端版本：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看 Docker 服务是否能正常列出容器：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker ps&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker ps"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果当前是 &lt;code&gt;root&lt;/code&gt; 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 &lt;code&gt;docker&lt;/code&gt; 组：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo usermod -aG docker $USER&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo usermod -aG docker $USER"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;然后重新登录 SSH 会话，再测试：&lt;/p&gt;</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>&lt;p&gt;本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&lt;/p&gt;
-&lt;p&gt;适用场景：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。&lt;/li&gt;
-&lt;li&gt;需要配置 Cloud-Init、SSH、qemu-guest-agent。&lt;/li&gt;
-&lt;li&gt;需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&lt;strong&gt;提醒&lt;/strong&gt;：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h2 id="一使用-community-scripts-创建-ubuntu-2504-vm"&gt;一、使用 community-scripts 创建 Ubuntu 25.04 VM&lt;/h2&gt;
-&lt;p&gt;项目页面：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href="https://community-scripts.org/categories?category=operating-systems&amp;amp;preview=ubuntu2504-vm"&gt;Ubuntu 25.04 VM 脚本页面&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://github.com/community-scripts/ProxmoxVE"&gt;ProxmoxVE community-scripts 仓库&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;在 Proxmox VE 节点 Shell 中执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/ubuntu2504-vm.sh)\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;脚本会交互式创建 Ubuntu 25.04 虚拟机。创建完成后，不要急着启动，先进入虚拟机的 Cloud-Init 页面完成初始化配置。&lt;/p&gt;</description></item><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>&lt;p&gt;这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 &lt;code&gt;tar.gz&lt;/code&gt;，通过 SSH 上传到另一台服务器的 &lt;code&gt;/srv/backup&lt;/code&gt;，再由那台服务器上的 Syncthing 继续同步到备份端。&lt;/p&gt;
-&lt;p&gt;这个方案适合下面这种链路：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"业务服务器 A -\u003e SSH 上传 -\u003e Syncthing 源端 B:/srv/backup -\u003e Syncthing 同步 -\u003e 备份端 C:/srv/backup"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。&lt;/p&gt;
-&lt;h2 id="为什么要这样写"&gt;为什么要这样写&lt;/h2&gt;
-&lt;p&gt;直接把备份文件 &lt;code&gt;scp&lt;/code&gt; 到 &lt;code&gt;/srv/backup&lt;/code&gt; 也能用，但有两个细节容易踩坑。&lt;/p&gt;
-&lt;p&gt;第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 &lt;code&gt;mv&lt;/code&gt; 到 &lt;code&gt;/srv/backup&lt;/code&gt;。同一文件系统内的 &lt;code&gt;mv&lt;/code&gt; 基本是原子操作，Syncthing 看到的是最终文件。&lt;/p&gt;
-&lt;p&gt;第二，Syncthing 现在以普通 &lt;code&gt;syncthing&lt;/code&gt; 用户运行。远端文件最好统一成：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;syncthing:syncthing
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;0644&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"syncthing:syncthing\n0644"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 &lt;code&gt;root:root&lt;/code&gt; 且权限为 &lt;code&gt;0644&lt;/code&gt;，通常也能读；但如果脚本或系统 umask 让文件变成 &lt;code&gt;0600&lt;/code&gt;，Syncthing 就读不到了。&lt;/p&gt;</description></item><item><title>2026 年 Matrix 消息过期自动删除配置</title><link>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</link><pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</guid><description>&lt;p&gt;这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 &lt;code&gt;retention&lt;/code&gt;，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 &lt;code&gt;expiringmessages&lt;/code&gt; 插件，让机器人在房间里按时间撤回消息。&lt;/p&gt;
-&lt;p&gt;如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 &lt;code&gt;retention&lt;/code&gt;。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。&lt;/p&gt;
-&lt;h2 id="一两种方案怎么选"&gt;一、两种方案怎么选&lt;/h2&gt;
-&lt;p&gt;服务器端 &lt;code&gt;retention&lt;/code&gt; 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 &lt;code&gt;homeserver.yaml&lt;/code&gt; 并重启 Synapse，而且房间还需要设置 &lt;code&gt;m.room.retention&lt;/code&gt; 状态事件。&lt;/p&gt;
-&lt;p&gt;机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 &lt;code&gt;redact&lt;/code&gt; 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。&lt;/p&gt;
-&lt;p&gt;简单理解：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;有 Synapse 管理权限：优先用 &lt;code&gt;retention&lt;/code&gt;。&lt;/li&gt;
-&lt;li&gt;只有房间管理权限：可以用 maubot 机器人。&lt;/li&gt;
-&lt;li&gt;对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="二方案一启用-synapse-retention"&gt;二、方案一：启用 Synapse retention&lt;/h2&gt;
-&lt;p&gt;先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim /root/data/docker_data/synapse/data/homeserver.yaml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"nvim /root/data/docker_data/synapse/data/homeserver.yaml"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;在 &lt;code&gt;homeserver.yaml&lt;/code&gt; 中加入或调整下面这段配置。注意：&lt;code&gt;retention:&lt;/code&gt; 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;retention&lt;/span&gt;:
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;enabled&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;default_policy&lt;/span&gt;:
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;max_lifetime&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;allowed_lifetime_max&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3d&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;purge_jobs&lt;/span&gt;:
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;interval&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1d&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"retention:\n enabled: true\n default_policy:\n max_lifetime: 3d\n allowed_lifetime_max: 3d\n purge_jobs:\n - interval: 1d"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这段配置的含义是：&lt;/p&gt;</description></item><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。&lt;/p&gt;
-&lt;p&gt;这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 &lt;code&gt;8008&lt;/code&gt; 端口映射到宿主机 &lt;code&gt;8008&lt;/code&gt;，方便内网客户端访问或后续接入反代。&lt;/p&gt;
-&lt;p&gt;网络方面使用统一的 &lt;code&gt;matrix&lt;/code&gt; bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h2 id="一安装基础环境"&gt;一、安装基础环境&lt;/h2&gt;
-&lt;p&gt;如果宿主机还没有 Docker，可以先更新系统并安装常用工具：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt update -y &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; apt upgrade -y
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt install -y curl wget sudo socat&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"apt update -y \u0026\u0026 apt upgrade -y\napt install -y curl wget sudo socat"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;安装 Docker：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -fsSL https://get.docker.com -o get-docker.sh
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sh get-docker.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"curl -fsSL https://get.docker.com -o get-docker.sh\nsh get-docker.sh"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果你的系统还没有 &lt;code&gt;docker compose&lt;/code&gt;，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。&lt;/p&gt;</description></item><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>&lt;p&gt;这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 &lt;code&gt;matrix&lt;/code&gt;，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。&lt;/p&gt;
-&lt;p&gt;如果你的反代入口也接在 &lt;code&gt;matrix&lt;/code&gt; 网络里，NPM 后台就可以直接用容器名 &lt;code&gt;ntfy&lt;/code&gt; 作为上游地址。&lt;/p&gt;
-&lt;h2 id="一先确认-matrix-网络"&gt;一、先确认 matrix 网络&lt;/h2&gt;
-&lt;p&gt;如果前面已经创建过 &lt;code&gt;matrix&lt;/code&gt; 网络，这一步可以跳过。否则先在宿主机终端创建：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network create matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network create matrix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看网络是否存在：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network ls | grep matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network ls | grep matrix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;后续需要被反代的容器，都建议统一接入这个网络。&lt;/p&gt;
-&lt;h2 id="二准备数据目录"&gt;二、准备数据目录&lt;/h2&gt;
-&lt;p&gt;这份配置把 ntfy 的缓存和配置目录挂载到宿主机：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/cache
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/data/docker_data/ntfy/data/cache\n/root/data/docker_data/ntfy/data/config"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;可以先创建目录：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/cache
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /root/data/docker_data/ntfy/data/config&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /root/data/docker_data/ntfy/data/cache\nmkdir -p /root/data/docker_data/ntfy/data/config"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;其中：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;cache&lt;/code&gt; 用来保存 ntfy 的缓存数据。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;config&lt;/code&gt; 对应容器内的 &lt;code&gt;/etc/ntfy&lt;/code&gt;，后续可以放置 ntfy 配置文件。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="三创建-docker-composeyml"&gt;三、创建 docker-compose.yml&lt;/h2&gt;
-&lt;p&gt;新建并编辑 &lt;code&gt;docker-compose.yml&lt;/code&gt;：&lt;/p&gt;</description></item><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>&lt;p&gt;这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 &lt;code&gt;matrix&lt;/code&gt;，NPM 再通过多个宿主机端口把请求转发到容器内部的 &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。&lt;/p&gt;
-&lt;p&gt;注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 &lt;code&gt;3478/udp&lt;/code&gt; 和大范围 UDP 中继端口，更适合单独使用 &lt;code&gt;network_mode: host&lt;/code&gt;，不要接入 &lt;code&gt;matrix&lt;/code&gt; 网络，也不要交给 NPM 反代。&lt;/p&gt;
-&lt;h2 id="一先创建-matrix-网络"&gt;一、先创建 matrix 网络&lt;/h2&gt;
-&lt;p&gt;在启动需要接入 &lt;code&gt;matrix&lt;/code&gt; 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network create matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network create matrix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 &lt;code&gt;matrix&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;可以用下面的命令确认网络是否已经存在：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker network ls | grep matrix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker network ls | grep matrix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果已经能看到 &lt;code&gt;matrix&lt;/code&gt;，就可以继续写 Compose 配置。&lt;/p&gt;</description></item><item><title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title><link>https://purodn.tk/posts/docker/docker-command-cheatsheet/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/docker/docker-command-cheatsheet/</guid><description>&lt;p&gt;本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。&lt;/p&gt;
-&lt;p&gt;命令中的 &lt;code&gt;容器名&lt;/code&gt;、&lt;code&gt;镜像名&lt;/code&gt;、&lt;code&gt;网络名&lt;/code&gt;、&lt;code&gt;数据卷名&lt;/code&gt; 可以替换成你的实际名称。涉及删除的命令建议先执行查看命令确认目标，避免误删正在使用的服务。&lt;/p&gt;
-&lt;h2 id="一docker-基础信息"&gt;一、Docker 基础信息&lt;/h2&gt;
-&lt;p&gt;查看 Docker 版本：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看 Docker 客户端和服务端信息：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker info&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker info"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看 Docker 占用空间：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker system df&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker system df"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看 Docker 命令帮助：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker --help
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker run --help&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker --help\ndocker run --help"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="二镜像管理"&gt;二、镜像管理&lt;/h2&gt;
-&lt;p&gt;搜索镜像：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker search nginx&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker search nginx"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;拉取镜像：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker pull nginx:latest
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker pull alpine:3.23&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker pull nginx:latest\ndocker pull alpine:3.23"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看本地镜像：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker images
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker image ls&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker images\ndocker image ls"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;查看镜像详细信息：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;docker image inspect nginx:latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"docker image inspect nginx:latest"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;给镜像打标签：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Docker on 电脑自习室</title><link>https://purodn.tk/tags/docker/</link><description>Recent content in Docker on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/docker/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 安装、日志轮转与 IPv6 支持配置</title><link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link><pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid><description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。
+核心建议很简单：
+新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：
+复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：
+复制docker version 查看 Docker 服务是否能正常列出容器：
+复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：
+复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：
+复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
+适用场景：
+使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
+一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
+Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。
+这个方案适合下面这种链路：
+复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。
+为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。
+第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。
+第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：
+复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。
+前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：
+复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description></item><item><title>2026 年 Matrix 消息过期自动删除配置</title><link>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</link><pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</guid><description>这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 retention，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 expiringmessages 插件，让机器人在房间里按时间撤回消息。
+如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 retention。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。
+一、两种方案怎么选 服务器端 retention 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 homeserver.yaml 并重启 Synapse，而且房间还需要设置 m.room.retention 状态事件。
+机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 redact 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。
+简单理解：
+有 Synapse 管理权限：优先用 retention。 只有房间管理权限：可以用 maubot 机器人。 对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。 二、方案一：启用 Synapse retention 先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：
+复制nvim /root/data/docker_data/synapse/data/homeserver.yaml 在 homeserver.yaml 中加入或调整下面这段配置。注意：retention: 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。
+复制retention: enabled: true default_policy: max_lifetime: 3d allowed_lifetime_max: 3d purge_jobs: - interval: 1d 这段配置的含义是：
+enabled: true：启用 Synapse 的消息保留策略。 default_policy.</description></item><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。
+这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 8008 端口映射到宿主机 8008，方便内网客户端访问或后续接入反代。
+网络方面使用统一的 matrix bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。
+注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。
+一、安装基础环境 如果宿主机还没有 Docker，可以先更新系统并安装常用工具：
+复制apt update -y &amp;amp;&amp;amp; apt upgrade -y apt install -y curl wget sudo socat 安装 Docker：
+复制curl -fsSL https://get.docker.com -o get-docker.sh sh get-docker.sh 如果你的系统还没有 docker compose，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。</description></item><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 matrix，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。
+如果你的反代入口也接在 matrix 网络里，NPM 后台就可以直接用容器名 ntfy 作为上游地址。
+一、先确认 matrix 网络 如果前面已经创建过 matrix 网络，这一步可以跳过。否则先在宿主机终端创建：
+复制docker network create matrix 查看网络是否存在：
+复制docker network ls | grep matrix 后续需要被反代的容器，都建议统一接入这个网络。
+二、准备数据目录 这份配置把 ntfy 的缓存和配置目录挂载到宿主机：
+复制/root/data/docker_data/ntfy/data/cache /root/data/docker_data/ntfy/data/config 可以先创建目录：
+复制mkdir -p /root/data/docker_data/ntfy/data/cache mkdir -p /root/data/docker_data/ntfy/data/config 其中：
+cache 用来保存 ntfy 的缓存数据。 config 对应容器内的 /etc/ntfy，后续可以放置 ntfy 配置文件。 三、创建 docker-compose.yml 新建并编辑 docker-compose.yml：
+复制nvim docker-compose.yml 写入下面的配置：
+复制services: ntfy: image: binwiederhier/ntfy:latest container_name: ntfy command: - serve environment: - TZ=Asia/Shanghai volumes: - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy - /root/data/docker_data/ntfy/data/config:/etc/ntfy restart: unless-stopped networks: - matrix networks: matrix: external: true name: matrix 这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 matrix 网络内访问 ntfy。</description></item><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。
+这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。
+注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。
+一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：
+复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。
+可以用下面的命令确认网络是否已经存在：
+复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。
+二、创建 docker-compose.yml 新建并编辑 docker-compose.</description></item><item><title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title><link>https://purodn.tk/posts/docker/docker-command-cheatsheet/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/docker/docker-command-cheatsheet/</guid><description>本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。
+命令中的 容器名、镜像名、网络名、数据卷名 可以替换成你的实际名称。涉及删除的命令建议先执行查看命令确认目标，避免误删正在使用的服务。
+一、Docker 基础信息 查看 Docker 版本：
+复制docker version 查看 Docker 客户端和服务端信息：
+复制docker info 查看 Docker 占用空间：
+复制docker system df 查看 Docker 命令帮助：
+复制docker --help docker run --help 二、镜像管理 搜索镜像：
+复制docker search nginx 拉取镜像：
+复制docker pull nginx:latest docker pull alpine:3.23 查看本地镜像：
+复制docker images docker image ls 查看镜像详细信息：
+复制docker image inspect nginx:latest 给镜像打标签：
+复制docker tag nginx:latest my-nginx:backup 删除一个明确指定的镜像：
+复制docker image rm my-nginx:backup 强制删除一个明确指定的镜像：
+复制docker image rm -f my-nginx:backup 导出镜像为 tar 文件：</description></item></channel></rss>

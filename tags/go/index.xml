@@ -1,62 +1,18 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Go on 电脑自习室</title><link>https://purodn.tk/tags/go/</link><description>Recent content in Go on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/go/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>&lt;p&gt;&lt;code&gt;trzsz-go&lt;/code&gt; 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/trz@latest
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/trz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/root/go/bin/tsz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/root/go/bin/trz\n/root/go/bin/tsz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果只是 root 自己使用，可以把 &lt;code&gt;$HOME/go/bin&lt;/code&gt; 加入 &lt;code&gt;PATH&lt;/code&gt;。但在 FreeBSD 上，更推荐把这种全局命令放到 &lt;code&gt;/usr/local/bin&lt;/code&gt;，这样所有用户和脚本都更容易调用。&lt;/p&gt;
-&lt;h2 id="准备-go-环境"&gt;准备 Go 环境&lt;/h2&gt;
-&lt;p&gt;先确认 Go 已经可用：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"go version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 &lt;code&gt;/usr/local/go/bin/go&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;如果当前终端还找不到 &lt;code&gt;go&lt;/code&gt;，可以临时加入 PATH：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="方案一直接安装到-usrlocalbin"&gt;方案一：直接安装到 /usr/local/bin&lt;/h2&gt;
-&lt;p&gt;可以。&lt;code&gt;go install&lt;/code&gt; 支持通过 &lt;code&gt;GOBIN&lt;/code&gt; 指定输出目录，所以最干净的方式是直接把 &lt;code&gt;trz&lt;/code&gt; 和 &lt;code&gt;tsz&lt;/code&gt; 安装到 &lt;code&gt;/usr/local/bin&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;以 root 用户执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;env GOBIN&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;确认文件已经生成：&lt;/p&gt;</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>&lt;p&gt;在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。&lt;/p&gt;
-&lt;p&gt;本文以 &lt;code&gt;go1.26.0.freebsd-amd64.tar.gz&lt;/code&gt; 为示例。后续 Go 版本更新时，请先到 &lt;a href="https://go.dev/dl/"&gt;Go 官方下载页&lt;/a&gt; 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。&lt;/p&gt;
-&lt;h2 id="root-用户安装到默认路径"&gt;root 用户安装到默认路径&lt;/h2&gt;
-&lt;p&gt;如果希望 Go 对系统所有用户可用，可以用 &lt;code&gt;root&lt;/code&gt; 权限安装到 &lt;code&gt;/usr/local/go&lt;/code&gt;。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ntar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;默认解压后，Go 会位于：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/usr/local/go&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/usr/local/go"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;然后把 Go 加入环境变量：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;export PATH&lt;span style="color:#f92672"&gt;=&lt;/span&gt;$PATH:/usr/local/go/bin&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"export PATH=$PATH:/usr/local/go/bin"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果希望长期生效，可以把上面这一行写入当前用户的 &lt;code&gt;~/.profile&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;printf &lt;span style="color:#e6db74"&gt;&amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39;&lt;/span&gt; &amp;gt;&amp;gt; ~/.profile&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"printf '\\nexport PATH=$PATH:/usr/local/go/bin\\n' \u003e\u003e ~/.profile"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;写入后，让变量在当前终端立即生效：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;. ~/.profile
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;". ~/.profile\ngo version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="root-用户安装到自定义路径"&gt;root 用户安装到自定义路径&lt;/h2&gt;
-&lt;p&gt;如果你更喜欢把手动安装的软件统一放到 &lt;code&gt;/usr/local/opt/&lt;/code&gt; 下面，可以这样操作：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mkdir -p /usr/local/opt/
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /usr/local/opt/
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;tar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"mkdir -p /usr/local/opt/\nfetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz\ncd /usr/local/opt/\ntar -C /usr/local/opt/ -xzf go1.26.0.freebsd-amd64.tar.gz"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;此时 Go 的目录是：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Go on 电脑自习室</title><link>https://purodn.tk/tags/go/</link><description>Recent content in Go on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/go/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
+复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
+复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
+准备 Go 环境 先确认 Go 已经可用：
+复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
+如果当前终端还找不到 go，可以临时加入 PATH：
+复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
+以 root 用户执行：
+复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
+复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
+本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。
+root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。
+复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：
+复制/usr/local/go 然后把 Go 加入环境变量：
+复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：
+复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：
+复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：
+复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description></item></channel></rss>
