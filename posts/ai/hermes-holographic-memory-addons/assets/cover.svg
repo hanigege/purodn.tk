@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes Holographic memory add-ons cover</title>
+  <desc id="desc">A technical cover showing Hermes Agent connected to Holographic memory, profiles, skills, cron, and gateway controls.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0c1222"/>
+      <stop offset="0.52" stop-color="#132f35"/>
+      <stop offset="1" stop-color="#262016"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#182033"/>
+      <stop offset="1" stop-color="#122a2e"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.26" stroke="#7dd3fc" stroke-width="1">
+    <path d="M0 138H1200M0 246H1200M0 354H1200M0 462H1200"/>
+    <path d="M174 0V630M342 0V630M510 0V630M678 0V630M846 0V630M1014 0V630"/>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="70" y="74" width="1060" height="488" rx="8" fill="url(#panel)" stroke="#4dd0b5" stroke-opacity="0.45"/>
+    <rect x="104" y="108" width="430" height="420" rx="8" fill="#0f172a" stroke="#94a3b8" stroke-opacity="0.35"/>
+    <rect x="602" y="108" width="394" height="420" rx="8" fill="#101f21" stroke="#5eead4" stroke-opacity="0.35"/>
+  </g>
+  <text x="126" y="166" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="28" font-weight="700" fill="#f8fafc">Hermes Agent</text>
+  <text x="126" y="206" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#cbd5e1">new bot setup</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#dbeafe">
+    <text x="132" y="278">smart approvals</text>
+    <text x="132" y="334">gateway quiet mode</text>
+    <text x="132" y="390">profiles / toolsets</text>
+    <text x="132" y="446">backup checklist</text>
+  </g>
+  <g stroke="#38bdf8" stroke-width="2" fill="none" opacity="0.85">
+    <path d="M542 248C580 248 590 222 620 222"/>
+    <path d="M542 344C580 344 590 316 620 316"/>
+    <path d="M542 436C580 436 590 410 620 410"/>
+  </g>
+  <g transform="translate(672 160)">
+    <ellipse cx="128" cy="142" rx="124" ry="48" fill="#102b2c" stroke="#5eead4" stroke-width="3"/>
+    <path d="M4 142V264C4 291 60 313 128 313C196 313 252 291 252 264V142" fill="#0f2728" stroke="#5eead4" stroke-width="3"/>
+    <ellipse cx="128" cy="264" rx="124" ry="48" fill="#143436" stroke="#5eead4" stroke-width="3"/>
+    <text x="128" y="137" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24" font-weight="700" fill="#ecfeff">Holographic</text>
+    <text x="128" y="170" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#a7f3d0">SQLite fact store</text>
+    <text x="128" y="253" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#d1fae5">search · update · feedback</text>
+  </g>
+  <g fill="#facc15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">
+    <text x="628" y="492">USER.md + MEMORY.md stay active</text>
+  </g>
+  <g fill="none" stroke="#facc15" stroke-width="2" opacity="0.86">
+    <circle cx="1032" cy="166" r="34"/>
+    <path d="M1016 166h64M1032 132v68"/>
+    <circle cx="1044" cy="438" r="24"/>
+    <path d="M1028 438h48"/>
+  </g>
+  <text x="92" y="596" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#94a3b8">local memory provider · bot add-on checklist · long-term facts</text>
+</svg>

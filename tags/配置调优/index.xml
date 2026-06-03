@@ -1,19 +1,27 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>配置调优 on 电脑自习室</title>
-    <link>http://127.0.0.1:1313/tags/%E9%85%8D%E7%BD%AE%E8%B0%83%E4%BC%98/</link>
-    <description>Recent content in 配置调优 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 27 May 2026 09:26:37 +0800</lastBuildDate>
-    <atom:link href="http://127.0.0.1:1313/tags/%E9%85%8D%E7%BD%AE%E8%B0%83%E4%BC%98/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</title>
-      <link>http://127.0.0.1:1313/posts/ai/hermes-agent-handmade-tuning/</link>
-      <pubDate>Wed, 27 May 2026 09:26:37 +0800</pubDate>
-      <guid>http://127.0.0.1:1313/posts/ai/hermes-agent-handmade-tuning/</guid>
-      <description>&lt;p&gt;Hermes Agent 真正好用的状态，不是“功能全开”，而是像一台自己维护过的工作站：主模型稳、辅助模型省、Telegram 安静、记忆不过载、Skills 可复用、权限逐步放开。&lt;/p&gt;&#xA;&lt;p&gt;我又顺着官方文档和社区讨论看了一圈，结论和你前面整理的方向基本一致。官方文档本身已经把模型分成主模型和 auxiliary models；Telegram 被设计成日常聊天入口，不是调试控制台；memory 和 skills 是 Hermes 的核心能力；profiles 官方也明确用于隔离 config、API keys、memory、sessions、skills 和 gateway state。社区里比较常见的坑，则集中在 memory 过满、Telegram 输出太吵、多 profile / 多 bot 配置混乱这些地方。&lt;/p&gt;&#xA;&lt;p&gt;所以这篇不追求“把所有开关都打开”，而是给一套更适合长期自用的手搓调优思路。&lt;/p&gt;&#xA;&lt;h2 id=&#34;总体思路&#34;&gt;总体思路&lt;/h2&gt;&#xA;&lt;p&gt;先把 Hermes 拆成七层：&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;主模型负责对话、规划和工具循环。&lt;/li&gt;&#xA;&lt;li&gt;auxiliary models 负责图片、压缩、网页提取、标题、skill search 等后台任务。&lt;/li&gt;&#xA;&lt;li&gt;Telegram 只当干净聊天入口。&lt;/li&gt;&#xA;&lt;li&gt;memory 只写长期偏好和稳定事实。&lt;/li&gt;&#xA;&lt;li&gt;skills 只沉淀可重复执行的流程。&lt;/li&gt;&#xA;&lt;li&gt;权限从 approval 开始逐步放开，不直接 yolo。&lt;/li&gt;&#xA;&lt;li&gt;profiles 按用途分开，而不是一个 bot 什么都干。&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;p&gt;如果只改一个地方，我会先改模型分工和 Telegram 输出。前者决定脑子稳不稳，后者决定你愿不愿意天天用。&lt;/p&gt;&#xA;&lt;h2 id=&#34;1-模型分工主模型要稳后台模型要便宜&#34;&gt;1. 模型分工：主模型要稳，后台模型要便宜&lt;/h2&gt;&#xA;&lt;p&gt;Hermes 的模型配置不是只有一个 &lt;code&gt;model&lt;/code&gt;。官方的 &lt;a href=&#34;https://hermes-agent.nousresearch.com/docs/user-guide/configuring-models&#34;&gt;Configuring Models&lt;/a&gt; 文档把它分成两类：主模型负责主对话和工具循环，auxiliary models 负责后台子任务，例如 vision、compression、web summarization、title generation、skill search 等。&lt;/p&gt;</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>配置调优 on 电脑自习室</title><link>https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E8%B0%83%E4%BC%98/</link><description>Recent content in 配置调优 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 03 Jun 2026 20:44:07 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E8%B0%83%E4%BC%98/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</title><link>https://purodn.tk/posts/ai/hermes-holographic-memory-addons/</link><pubDate>Wed, 03 Jun 2026 20:44:07 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-holographic-memory-addons/</guid><description>&lt;p&gt;新装一个 Hermes Matrix / Telegram 机器人后，最容易纠结的是：到底先装什么功能，哪些是锦上添花，哪些会影响长期体验。&lt;/p&gt;
+&lt;p&gt;我的建议是先把顺序想清楚：&lt;strong&gt;先让机器人安静、安全、可恢复；再接 Holographic 这类本地记忆挂件；最后再考虑 Honcho、MCP、Cron、Voice、更多平台和云端记忆。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;这篇专门讲 Holographic 记忆挂件，并顺手整理一份“新机器人装完后的功能清单”。以后新机器部署完，不用再凭感觉乱开功能，按优先级一项项验收就行。&lt;/p&gt;
+&lt;h2 id="holographic-是什么"&gt;Holographic 是什么&lt;/h2&gt;
+&lt;p&gt;Holographic 是 Hermes Agent 的外部 memory provider 之一。它的定位很明确：给 Hermes 增加一个本地 SQLite 事实库，让机器人可以在内建 &lt;code&gt;USER.md&lt;/code&gt; / &lt;code&gt;MEMORY.md&lt;/code&gt; 之外，保存、搜索、关联和修正长期事实。&lt;/p&gt;
+&lt;p&gt;一句话理解：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;USER.md / MEMORY.md 负责少量高优先级记忆，
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Holographic 负责更多可检索、可维护、可打分的长期事实。&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"USER.md / MEMORY.md 负责少量高优先级记忆，\nHolographic 负责更多可检索、可维护、可打分的长期事实。"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;官方 memory provider 文档里把 Holographic 描述成本地 SQLite fact store，支持 FTS5 全文搜索、trust scoring，以及用于组合查询的 HRR 能力。它不需要额外云服务，SQLite 默认可用，NumPy 只是可选增强。&lt;/p&gt;
+&lt;p&gt;所以它很适合这些场景：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;第一次给 Hermes 接外部记忆。&lt;/li&gt;
+&lt;li&gt;希望所有记忆先落在本机，不想把个人偏好和服务器信息交给云服务。&lt;/li&gt;
+&lt;li&gt;当前主要是单机器人、单用户、单工作流。&lt;/li&gt;
+&lt;li&gt;想让机器人记住长期稳定事实，但又不想把 &lt;code&gt;MEMORY.md&lt;/code&gt; 塞爆。&lt;/li&gt;
+&lt;li&gt;需要能搜索、列出、更新、删除事实，而不是只靠系统提示里几行固定记忆。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;它不适合解决这些问题：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;多个机器人共享同一个用户画像。&lt;/li&gt;
+&lt;li&gt;团队级别的跨助手协作记忆。&lt;/li&gt;
+&lt;li&gt;想要云端同步和多设备天然共享。&lt;/li&gt;
+&lt;li&gt;想让所有聊天记录无脑进长期记忆。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;如果目标是多助手共享认知，应该看 Honcho 或其它共享记忆方案；如果目标只是先让新机器人具备可靠本地长期事实库，Holographic 是最轻的一步。&lt;/p&gt;</description></item></channel></rss>
