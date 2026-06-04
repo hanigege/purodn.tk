@@ -9,10 +9,11 @@
 &lt;li&gt;Dashboard 和 Gateway API 不要无认证暴露到公网。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 id="配置是否合理"&gt;配置是否合理&lt;/h2&gt;
-&lt;p&gt;你给的新机优化 Prompt 整体方向是合理的，适合发给新系统里的新 Matrix 机器人执行。但建议做三点修正：&lt;/p&gt;
+&lt;p&gt;你给的新机优化 Prompt 整体方向是合理的，适合发给新系统里的新 Matrix 机器人执行。但建议做四点修正：&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;&lt;code&gt;approvals.mode&lt;/code&gt; 日常固定用 &lt;code&gt;smart&lt;/code&gt;。官方配置值是 &lt;code&gt;manual&lt;/code&gt;、&lt;code&gt;smart&lt;/code&gt;、&lt;code&gt;off&lt;/code&gt;；不要写 &lt;code&gt;hermes config set approvals.mode yolo&lt;/code&gt;，也不建议为了省事把配置长期改成 &lt;code&gt;off&lt;/code&gt;。如果确实需要临时批量初始化，可以另开一次性 &lt;code&gt;hermes --yolo&lt;/code&gt; 进程，但做完仍以 &lt;code&gt;smart&lt;/code&gt; 作为长期配置。&lt;/li&gt;
 &lt;li&gt;Matrix 安全入口不只看 &lt;code&gt;allowed_rooms&lt;/code&gt;，还要重点检查 &lt;code&gt;MATRIX_ALLOWED_USERS&lt;/code&gt; 或等价配置。官方 Matrix 文档强调要设置允许用户，否则 Gateway 会按安全默认拒绝用户。&lt;/li&gt;
 &lt;li&gt;&lt;code&gt;allowed_rooms&lt;/code&gt;、&lt;code&gt;free_response_rooms&lt;/code&gt; 这类字段在不同版本里可能是字符串、逗号分隔环境变量或 YAML 列表。让机器人先读 &lt;code&gt;hermes config --help&lt;/code&gt;、&lt;code&gt;hermes config show&lt;/code&gt; 和当前配置，再决定写入形态，不要盲目手写。&lt;/li&gt;
+&lt;li&gt;Matrix 引用回复要把 &lt;code&gt;platforms.matrix.reply_to_mode&lt;/code&gt; 写成字符串 &lt;code&gt;&amp;quot;off&amp;quot;&lt;/code&gt;，并确认代码读取的是 &lt;code&gt;config.reply_to_mode&lt;/code&gt;，不是 &lt;code&gt;config.extra.reply_to_mode&lt;/code&gt;。如果 &lt;code&gt;//new&lt;/code&gt; 在 Element 里没有开新会话，还要检查 Matrix 消息层是否把 &lt;code&gt;//command&lt;/code&gt; 规范化成 &lt;code&gt;/command&lt;/code&gt;。&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;一句话版本：&lt;/p&gt;</description></item></channel></rss>
