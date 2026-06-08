@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Alpine Linux Docker Group</title>
+  <desc id="desc">A cover image showing an Alpine Linux terminal, a Docker group badge, and a permission socket flow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.48" stop-color="#155e75"/>
+      <stop offset="1" stop-color="#1f2937"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#020617" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 480 C180 405 310 510 490 448 C660 390 780 305 965 360 C1075 392 1140 438 1200 408 L1200 630 L0 630 Z" fill="#14b8a6" opacity="0.22"/>
+  <path d="M0 124 C132 166 218 108 348 142 C514 185 612 240 790 190 C955 143 1056 62 1200 106 L1200 0 L0 0 Z" fill="#67e8f9" opacity="0.14"/>
+  <g filter="url(#shadow)">
+    <rect x="96" y="92" width="1008" height="446" rx="28" fill="#0f172a"/>
+    <rect x="122" y="126" width="956" height="378" rx="18" fill="url(#panel)"/>
+  </g>
+  <g transform="translate(166 168)">
+    <rect x="0" y="0" width="506" height="294" rx="18" fill="#111827"/>
+    <rect x="0" y="0" width="506" height="46" rx="18" fill="#1f2937"/>
+    <circle cx="28" cy="23" r="7" fill="#ef4444"/>
+    <circle cx="52" cy="23" r="7" fill="#f59e0b"/>
+    <circle cx="76" cy="23" r="7" fill="#22c55e"/>
+    <text x="28" y="88" fill="#93c5fd" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26">localhost:~#</text>
+    <text x="28" y="128" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25">addgroup jay docker</text>
+    <text x="28" y="180" fill="#93c5fd" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26">jay:~$</text>
+    <text x="28" y="220" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25">docker ps</text>
+    <rect x="28" y="244" width="288" height="16" rx="8" fill="#34d399"/>
+  </g>
+  <g transform="translate(735 166)">
+    <rect x="32" y="0" width="258" height="72" rx="18" fill="#0f766e"/>
+    <text x="161" y="47" text-anchor="middle" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">docker 组</text>
+    <rect x="0" y="124" width="322" height="150" rx="24" fill="#ffffff"/>
+    <rect x="32" y="164" width="258" height="28" rx="14" fill="#1d4ed8"/>
+    <circle cx="98" cy="214" r="24" fill="#0ea5e9"/>
+    <circle cx="161" cy="214" r="24" fill="#14b8a6"/>
+    <circle cx="224" cy="214" r="24" fill="#22c55e"/>
+    <text x="161" y="318" text-anchor="middle" fill="#0f172a" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">重新登录后生效</text>
+    <path d="M161 84 L161 116" stroke="#0f172a" stroke-width="8" stroke-linecap="round"/>
+    <path d="M145 102 L161 118 L177 102" fill="none" stroke="#0f172a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="600" y="575" text-anchor="middle" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">Alpine 普通用户免 sudo 使用 Docker</text>
+</svg>

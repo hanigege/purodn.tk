@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TLS on 电脑自习室</title><link>https://purodn.tk/tags/tls/</link><description>Recent content in TLS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 20:57:38 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tls/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份三份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
-&lt;p&gt;三份原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TLS on 电脑自习室</title><link>https://purodn.tk/tags/tls/</link><description>Recent content in TLS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 20:57:38 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tls/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
+&lt;p&gt;原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="assets/Alpine_firewall.sh"&gt;Alpine_firewall.sh&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="assets/ssl_alpine.sh"&gt;ssl_alpine.sh&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="assets/alpine_root_ssh_key_manage.sh"&gt;alpine_root_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="assets/alpine_user_ssh_key_manage.sh"&gt;alpine_user_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;这些脚本会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&lt;/p&gt;
+&lt;p&gt;这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&lt;/p&gt;
 &lt;h2 id="alpine-ipv4-防火墙脚本"&gt;Alpine IPv4 防火墙脚本&lt;/h2&gt;
 &lt;p&gt;这个脚本用于安装 &lt;code&gt;iptables&lt;/code&gt; 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、&lt;code&gt;8000&lt;/code&gt;、&lt;code&gt;10521&lt;/code&gt; 等 TCP 端口，以及 UDP &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
 &lt;div class="code-block"&gt;

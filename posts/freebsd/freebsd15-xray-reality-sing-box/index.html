@@ -191,19 +191,19 @@ pass in quick inet proto udp from any to any port 443 keep state (max-src-states
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>service gost_mwss stop
 </span></span><span style=display:flex><span>sysrc gost_mwss_enable<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;NO&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"service nginx stop\nsysrc nginx_enable=\"NO\"\n\nservice gost_mwss stop\nsysrc gost_mwss_enable=\"NO\""</script></div><p>再次确认只有 Xray 占用 TCP 443：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>sockstat -4 -6 -l | egrep <span style=color:#e6db74>&#39;:(443|80|18080)&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"sockstat -4 -6 -l | egrep ':(443|80|18080)'"</script></div><p>正常情况下，Xray 应监听 <code>*:443/tcp</code>；如果有 Hysteria2，则它监听 <code>*:443/udp</code>，这不冲突。若最终改用 Gost MWSS + Nginx，则需要停用 Xray，把 <code>443/tcp</code> 交给 Nginx。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-holographic-memory-addons/><img src=/posts/ai/hermes-holographic-memory-addons/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-reinstall-user-home-nvim-ssh/><img src=/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span></a></li><li><a href=/posts/ai/hermes-profile-tools-scope-toolsets/><img src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt>
+<span class=latest-title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span></a></li><li><a href=/posts/linux/alpine-user-docker-group/><img src=/posts/linux/alpine-user-docker-group/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span></a></li><li><a href=/posts/ai/hermes-systemd-profile-gateway-conflict/><img src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt>
+<span class=latest-title>Alpine Linux 将普通用户加入 Docker 组</span></a></li><li><a href=/posts/linux/hugo-two-git-repos-purodn-purodncode/><img src=/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span></a></li><li><a href=/posts/ai/hermes-matrix-bot-new-machine-optimization/><img src=/posts/ai/hermes-matrix-bot-new-machine-optimization/assets/cover.svg alt>
+<span class=latest-title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span></a></li><li><a href=/posts/ai/hermes-holographic-memory-addons/><img src=/posts/ai/hermes-holographic-memory-addons/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Hermes Matrix 机器人新机保守优化手册</span></a></li><li><a href=/posts/ai/hermes-profiles-multi-bot-isolation/><img src=/posts/ai/hermes-profiles-multi-bot-isolation/assets/cover.svg alt>
+<span class=latest-title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span></a></li><li><a href=/posts/ai/hermes-profile-tools-scope-toolsets/><img src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Hermes Profile 多机器人隔离查询手册</span></a></li><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
+<span class=latest-title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span></a></li><li><a href=/posts/ai/hermes-systemd-profile-gateway-conflict/><img src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/cover.svg alt>
+<span class=latest-title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span></a></li><li><a href=/posts/ai/hermes-matrix-bot-new-machine-optimization/><img src=/posts/ai/hermes-matrix-bot-new-machine-optimization/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>Hermes Matrix 机器人新机保守优化手册</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

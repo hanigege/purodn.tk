@@ -182,19 +182,19 @@
 </span></span><span style=display:flex><span>networks:
 </span></span><span style=display:flex><span>  docker_bridge:
 </span></span><span style=display:flex><span>    external: true</span></span></code></pre></div><script class=code-source type=application/json>"version: '3.3'\nservices:\n    frps:\n        restart: unless-stopped\n        volumes:\n            - '/root/docker/frps/frps.toml:/etc/frp/frps.toml'\n        container_name: frps\n        image: snowdreamtech/frps\n        ports:\n            - 5443:5443\n            - 9000:9527\n        networks:\n            - docker_bridge\n        labels:\n            - \"traefik.enable=true\"\n            - \"traefik.http.routers.frps.rule=Host(`frps.你的域名.com`)\"\n            - \"traefik.http.services.frps.loadbalancer.server.port=9527\"\nnetworks:\n  docker_bridge:\n    external: true"</script></div><h3 id=四unraid模板下载>（四）unraid模板下载</h3><p><a href=https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml>https://raw.githubusercontent.com/jasonxtt/file/refs/heads/main/unraid-templates/my-traefik.xml</a></p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-holographic-memory-addons/><img src=/posts/ai/hermes-holographic-memory-addons/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-reinstall-user-home-nvim-ssh/><img src=/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span></a></li><li><a href=/posts/ai/hermes-profile-tools-scope-toolsets/><img src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt>
+<span class=latest-title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span></a></li><li><a href=/posts/linux/alpine-user-docker-group/><img src=/posts/linux/alpine-user-docker-group/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span></a></li><li><a href=/posts/ai/hermes-systemd-profile-gateway-conflict/><img src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt>
+<span class=latest-title>Alpine Linux 将普通用户加入 Docker 组</span></a></li><li><a href=/posts/linux/hugo-two-git-repos-purodn-purodncode/><img src=/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span></a></li><li><a href=/posts/ai/hermes-matrix-bot-new-machine-optimization/><img src=/posts/ai/hermes-matrix-bot-new-machine-optimization/assets/cover.svg alt>
+<span class=latest-title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span></a></li><li><a href=/posts/ai/hermes-holographic-memory-addons/><img src=/posts/ai/hermes-holographic-memory-addons/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Hermes Matrix 机器人新机保守优化手册</span></a></li><li><a href=/posts/ai/hermes-profiles-multi-bot-isolation/><img src=/posts/ai/hermes-profiles-multi-bot-isolation/assets/cover.svg alt>
+<span class=latest-title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span></a></li><li><a href=/posts/ai/hermes-profile-tools-scope-toolsets/><img src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Hermes Profile 多机器人隔离查询手册</span></a></li><li><a href=/posts/ai/hermes-config-yaml-reference/><img src=/posts/ai/hermes-config-yaml-reference/assets/cover.svg alt>
+<span class=latest-title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span></a></li><li><a href=/posts/ai/hermes-systemd-profile-gateway-conflict/><img src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>Hermes Agent config.yaml 中文配置说明</span></a></li><li><a href=/posts/linux/softether-vps-vlan/><img src=/posts/linux/softether-vps-vlan/assets/cover.svg alt>
+<span class=latest-title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span></a></li><li><a href=/posts/ai/hermes-matrix-bot-new-machine-optimization/><img src=/posts/ai/hermes-matrix-bot-new-machine-optimization/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>Hermes Matrix 机器人新机保守优化手册</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
