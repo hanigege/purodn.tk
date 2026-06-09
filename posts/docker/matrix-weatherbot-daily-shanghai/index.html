@@ -339,7 +339,7 @@
 </span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">80</span>: <span style="color:#e6db74">&#34;小阵雨&#34;</span>, <span style="color:#ae81ff">81</span>: <span style="color:#e6db74">&#34;阵雨&#34;</span>, <span style="color:#ae81ff">82</span>: <span style="color:#e6db74">&#34;强阵雨&#34;</span>, <span style="color:#ae81ff">85</span>: <span style="color:#e6db74">&#34;小阵雪&#34;</span>, <span style="color:#ae81ff">86</span>: <span style="color:#e6db74">&#34;强阵雪&#34;</span>,
 </span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">95</span>: <span style="color:#e6db74">&#34;雷雨&#34;</span>, <span style="color:#ae81ff">96</span>: <span style="color:#e6db74">&#34;雷雨伴小冰雹&#34;</span>, <span style="color:#ae81ff">99</span>: <span style="color:#e6db74">&#34;雷雨伴强冰雹&#34;</span>,
 </span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>HELP_HINT <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;发送“天气”可立即查询，发送“设置天气时间 07:30”可修改推送时间。&#34;</span>
+</span></span><span style="display:flex;"><span>HELP_HINT <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;发送“设置天气时间 07:30”可修改推送时间，发送“帮助”可查询更多功能。&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">load_json</span>(path, default):
 </span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
@@ -547,7 +547,7 @@
 </span></span><span style="display:flex;"><span>    print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;sent weather forecast to </span><span style="color:#e6db74">{</span>send_weather_to_users(config, users, <span style="color:#66d9ef">True</span>, state, today)<span style="color:#e6db74">}</span><span style="color:#e6db74"> room(s)&#34;</span>)
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;__main__&#34;</span>:
-</span></span><span style="display:flex;"><span>    main()</span></span></code></pre></div><script class="code-source" type="application/json">"#!/usr/bin/env python3\nimport datetime as dt\nimport hashlib\nimport html\nimport json\nimport os\nimport sys\nimport time\nimport urllib.error\nimport urllib.parse\nimport urllib.request\n\nCONFIG_PATH = \"/root/data/docker_data/synapse/scripts/matrix-bot-weather.json\"\nWEATHER_CODES = {\n    0: \"晴\", 1: \"大部晴朗\", 2: \"局部多云\", 3: \"阴\", 45: \"雾\", 48: \"雾凇\",\n    51: \"小毛毛雨\", 53: \"毛毛雨\", 55: \"较强毛毛雨\", 56: \"冻毛毛雨\", 57: \"较强冻毛毛雨\",\n    61: \"小雨\", 63: \"中雨\", 65: \"大雨\", 66: \"冻雨\", 67: \"强冻雨\",\n    71: \"小雪\", 73: \"中雪\", 75: \"大雪\", 77: \"雪粒\",\n    80: \"小阵雨\", 81: \"阵雨\", 82: \"强阵雨\", 85: \"小阵雪\", 86: \"强阵雪\",\n    95: \"雷雨\", 96: \"雷雨伴小冰雹\", 99: \"雷雨伴强冰雹\",\n}\nHELP_HINT = \"发送“天气”可立即查询，发送“设置天气时间 07:30”可修改推送时间。\"\n\ndef load_json(path, default):\n    try:\n        with open(path, \"r\", encoding=\"utf-8\") as f:\n            return json.load(f)\n    except FileNotFoundError:\n        return default\n\ndef save_json(path, data, mode=0o600):\n    tmp = path + \".tmp\"\n    with open(tmp, \"w\", encoding=\"utf-8\") as f:\n        json.dump(data, f, ensure_ascii=False, indent=2)\n        f.write(\"\\n\")\n    os.chmod(tmp, mode)\n    os.replace(tmp, path)\n\ndef request(method, url, token=None, data=None, timeout=30):\n    headers = {}\n    body = None\n    if token:\n        headers[\"Authorization\"] = f\"Bearer {token}\"\n    if data is not None:\n        body = json.dumps(data, ensure_ascii=False).encode(\"utf-8\")\n        headers[\"Content-Type\"] = \"application/json\"\n    req = urllib.request.Request(url, data=body, headers=headers, method=method)\n    try:\n        with urllib.request.urlopen(req, timeout=timeout) as resp:\n            raw = resp.read().decode(\"utf-8\", errors=\"replace\")\n            return resp.status, json.loads(raw) if raw else {}\n    except urllib.error.HTTPError as e:\n        raw = e.read().decode(\"utf-8\", errors=\"replace\")\n        try:\n            payload = json.loads(raw)\n        except Exception:\n            payload = {\"raw\": raw}\n        return e.code, payload\n    except Exception as e:\n        return 0, {\"error\": str(e)}\n\ndef quote(value):\n    return urllib.parse.quote(value, safe=\"\")\n\ndef token(config):\n    with open(config[\"token_path\"], \"r\", encoding=\"utf-8\") as f:\n        return f.read().strip()\n\ndef get_weather(config):\n    params = urllib.parse.urlencode({\n        \"latitude\": config[\"latitude\"],\n        \"longitude\": config[\"longitude\"],\n        \"timezone\": config.get(\"timezone\", \"Asia/Shanghai\"),\n        \"forecast_days\": 3,\n        \"daily\": \"weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max\",\n    })\n    url = \"https://api.open-meteo.com/v1/forecast?\" + params\n    with urllib.request.urlopen(url, timeout=30) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    daily = data[\"daily\"]\n    lines = [f\"{config['city']}天气预报\", \"\"]\n    today = dt.date.today().isoformat()\n    alerts = []\n    advice = []\n    for i, day in enumerate(daily[\"time\"]):\n        label = \"今天\" if day == today else (\"明天\" if i == 1 else \"后天\")\n        code = daily[\"weather_code\"][i]\n        desc = WEATHER_CODES.get(code, f\"天气代码 {code}\")\n        tmin = daily[\"temperature_2m_min\"][i]\n        tmax = daily[\"temperature_2m_max\"][i]\n        pop = daily[\"precipitation_probability_max\"][i]\n        rain = daily[\"precipitation_sum\"][i]\n        wind = daily[\"wind_speed_10m_max\"][i]\n        lines.append(\n            f\"{label} {day}: {desc}，{tmin:.0f}-{tmax:.0f}℃，\"\n            f\"降水概率 {pop}% ，降水量 {rain:.1f} mm，最大风速 {wind:.0f} km/h\"\n        )\n        if i == 0:\n            if tmax \u003e= 35:\n                alerts.append(\"高温提醒：今天最高温达到 35℃ 以上，注意防暑补水。\")\n            if tmin \u003c= 0:\n                alerts.append(\"低温提醒：今天最低温 0℃ 以下，注意防寒防冻。\")\n            if rain \u003e= 20 or pop \u003e= 70:\n                alerts.append(\"降雨提醒：今天降水概率较高或雨量较大，出门建议带伞。\")\n            if wind \u003e= 40:\n                alerts.append(\"大风提醒：今天风力偏强，骑车和户外活动注意安全。\")\n            if code in (95, 96, 99):\n                alerts.append(\"雷雨提醒：今天可能有雷雨，尽量避开强对流时段外出。\")\n            if tmax \u003e= 30:\n                advice.append(\"穿衣建议：短袖、轻薄透气衣物为主，注意防晒。\")\n            elif tmin \u003c= 8:\n                advice.append(\"穿衣建议：建议外套或薄棉服，早晚注意保暖。\")\n            elif tmin \u003c= 15:\n                advice.append(\"穿衣建议：长袖加薄外套比较稳妥。\")\n            else:\n                advice.append(\"穿衣建议：轻薄长袖或短袖均可，按体感调整。\")\n            if (tmax - tmin) \u003e= 10:\n                advice.append(\"温差提醒：昼夜温差较大，早晚可多备一件外套。\")\n            if pop \u003e= 50 or rain \u003e 0:\n                advice.append(\"出行提醒：有降水可能，建议带伞。\")\n    if alerts:\n        lines.extend([\"\", \"天气提醒：\"] + [f\"- {x}\" for x in alerts])\n    if advice:\n        lines.extend([\"\", \"生活建议：\"] + [f\"- {x}\" for x in advice])\n    lines.extend([\"\", \"数据源：Open-Meteo。\", HELP_HINT])\n    return \"\\n\".join(lines)\n\ndef send_room(config, token_value, room_id, body):\n    txn = \"weather-\" + dt.datetime.now(dt.timezone.utc).strftime(\"%Y%m%dT%H%M%S\")\n    txn += \"-\" + hashlib.sha1((room_id + body).encode(\"utf-8\")).hexdigest()[:10]\n    html_body = \"\u003cbr\u003e\".join(html.escape(line) for line in body.splitlines())\n    content = {\"msgtype\": \"m.text\", \"body\": body, \"format\": \"org.matrix.custom.html\", \"formatted_body\": html_body}\n    url = f\"{config['homeserver']}/_matrix/client/v3/rooms/{quote(room_id)}/send/m.room.message/{txn}\"\n    status, payload = request(\"PUT\", url, token_value, content)\n    if status not in (200, 201):\n        raise RuntimeError(f\"send to {room_id} failed: HTTP {status} {payload}\")\n\ndef create_dm(config, token_value, user_id):\n    status, payload = request(\"POST\", f\"{config['homeserver']}/_matrix/client/v3/createRoom\", token_value, {\n        \"preset\": \"trusted_private_chat\",\n        \"is_direct\": True,\n        \"invite\": [user_id],\n        \"name\": \"天气预报\",\n        \"topic\": \"天气查询与每日自动推送\",\n    })\n    if status not in (200, 201) or \"room_id\" not in payload:\n        raise RuntimeError(f\"create DM for {user_id} failed: HTTP {status} {payload}\")\n    return payload[\"room_id\"]\n\ndef get_room(config, token_value, user_id):\n    rooms = config.setdefault(\"direct_rooms\", {})\n    room_id = rooms.get(user_id)\n    if room_id:\n        return room_id\n    room_id = create_dm(config, token_value, user_id)\n    rooms[user_id] = room_id\n    save_json(CONFIG_PATH, config)\n    return room_id\n\ndef parse_hhmm(value):\n    hour_text, minute_text = str(value).split(\":\", 1)\n    hour = int(hour_text)\n    minute = int(minute_text)\n    if not (0 \u003c= hour \u003c= 23 and 0 \u003c= minute \u003c= 59):\n        raise ValueError(f\"invalid HH:MM value: {value}\")\n    return hour, minute\n\ndef normalized_hhmm(value):\n    hour, minute = parse_hhmm(value)\n    return f\"{hour:02d}:{minute:02d}\"\n\ndef sent_key(today, time_value):\n    return f\"{today} {normalized_hhmm(time_value)}\"\n\ndef due_users(config, now=None):\n    now = now or dt.datetime.now()\n    today = now.date().isoformat()\n    state = load_json(config[\"state_path\"], {})\n    sent = state.setdefault(\"last_sent\", {})\n    grace_minutes = int(config.get(\"schedule_grace_minutes\", 15))\n    users = []\n    for user_id, settings in config.get(\"weather_users\", {}).items():\n        if not settings.get(\"enabled\", True):\n            continue\n        time_value = settings.get(\"time\", config.get(\"default_weather_time\", \"05:00\"))\n        try:\n            hour, minute = parse_hhmm(time_value)\n        except Exception as exc:\n            print(f\"skip {user_id}: invalid weather time {time_value!r}: {exc}\", file=sys.stderr)\n            continue\n        if sent.get(user_id) == sent_key(today, time_value):\n            continue\n        scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)\n        delta_seconds = (now - scheduled).total_seconds()\n        if 0 \u003c= delta_seconds \u003c grace_minutes * 60:\n            users.append(user_id)\n    return users, state, today\n\ndef send_weather_to_users(config, user_ids, mark_sent=False, state=None, today=None):\n    token_value = token(config)\n    body = get_weather(config)\n    sent = 0\n    for user_id in user_ids:\n        room_id = get_room(config, token_value, user_id)\n        send_room(config, token_value, room_id, body)\n        sent += 1\n        if mark_sent and state is not None and today is not None:\n            user_time = config.get(\"weather_users\", {}).get(user_id, {}).get(\"time\", config.get(\"default_weather_time\", \"05:00\"))\n            state.setdefault(\"last_sent\", {})[user_id] = sent_key(today, user_time)\n        time.sleep(0.2)\n    if mark_sent and state is not None:\n        save_json(config[\"state_path\"], state)\n    return sent\n\ndef main():\n    config = load_json(CONFIG_PATH, None)\n    if not config:\n        raise SystemExit(f\"missing config: {CONFIG_PATH}\")\n    if len(sys.argv) \u003e= 2 and sys.argv[1] == \"--send-now\":\n        users = sys.argv[2:] or list(config.get(\"weather_users\", {}).keys())\n        print(f\"sent weather forecast to {send_weather_to_users(config, users)} room(s)\")\n        return\n    users, state, today = due_users(config)\n    if not users:\n        print(\"weather schedule: no due users\")\n        return\n    print(f\"sent weather forecast to {send_weather_to_users(config, users, True, state, today)} room(s)\")\n\nif __name__ == \"__main__\":\n    main()"</script>
+</span></span><span style="display:flex;"><span>    main()</span></span></code></pre></div><script class="code-source" type="application/json">"#!/usr/bin/env python3\nimport datetime as dt\nimport hashlib\nimport html\nimport json\nimport os\nimport sys\nimport time\nimport urllib.error\nimport urllib.parse\nimport urllib.request\n\nCONFIG_PATH = \"/root/data/docker_data/synapse/scripts/matrix-bot-weather.json\"\nWEATHER_CODES = {\n    0: \"晴\", 1: \"大部晴朗\", 2: \"局部多云\", 3: \"阴\", 45: \"雾\", 48: \"雾凇\",\n    51: \"小毛毛雨\", 53: \"毛毛雨\", 55: \"较强毛毛雨\", 56: \"冻毛毛雨\", 57: \"较强冻毛毛雨\",\n    61: \"小雨\", 63: \"中雨\", 65: \"大雨\", 66: \"冻雨\", 67: \"强冻雨\",\n    71: \"小雪\", 73: \"中雪\", 75: \"大雪\", 77: \"雪粒\",\n    80: \"小阵雨\", 81: \"阵雨\", 82: \"强阵雨\", 85: \"小阵雪\", 86: \"强阵雪\",\n    95: \"雷雨\", 96: \"雷雨伴小冰雹\", 99: \"雷雨伴强冰雹\",\n}\nHELP_HINT = \"发送“设置天气时间 07:30”可修改推送时间，发送“帮助”可查询更多功能。\"\n\ndef load_json(path, default):\n    try:\n        with open(path, \"r\", encoding=\"utf-8\") as f:\n            return json.load(f)\n    except FileNotFoundError:\n        return default\n\ndef save_json(path, data, mode=0o600):\n    tmp = path + \".tmp\"\n    with open(tmp, \"w\", encoding=\"utf-8\") as f:\n        json.dump(data, f, ensure_ascii=False, indent=2)\n        f.write(\"\\n\")\n    os.chmod(tmp, mode)\n    os.replace(tmp, path)\n\ndef request(method, url, token=None, data=None, timeout=30):\n    headers = {}\n    body = None\n    if token:\n        headers[\"Authorization\"] = f\"Bearer {token}\"\n    if data is not None:\n        body = json.dumps(data, ensure_ascii=False).encode(\"utf-8\")\n        headers[\"Content-Type\"] = \"application/json\"\n    req = urllib.request.Request(url, data=body, headers=headers, method=method)\n    try:\n        with urllib.request.urlopen(req, timeout=timeout) as resp:\n            raw = resp.read().decode(\"utf-8\", errors=\"replace\")\n            return resp.status, json.loads(raw) if raw else {}\n    except urllib.error.HTTPError as e:\n        raw = e.read().decode(\"utf-8\", errors=\"replace\")\n        try:\n            payload = json.loads(raw)\n        except Exception:\n            payload = {\"raw\": raw}\n        return e.code, payload\n    except Exception as e:\n        return 0, {\"error\": str(e)}\n\ndef quote(value):\n    return urllib.parse.quote(value, safe=\"\")\n\ndef token(config):\n    with open(config[\"token_path\"], \"r\", encoding=\"utf-8\") as f:\n        return f.read().strip()\n\ndef get_weather(config):\n    params = urllib.parse.urlencode({\n        \"latitude\": config[\"latitude\"],\n        \"longitude\": config[\"longitude\"],\n        \"timezone\": config.get(\"timezone\", \"Asia/Shanghai\"),\n        \"forecast_days\": 3,\n        \"daily\": \"weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max\",\n    })\n    url = \"https://api.open-meteo.com/v1/forecast?\" + params\n    with urllib.request.urlopen(url, timeout=30) as resp:\n        data = json.loads(resp.read().decode(\"utf-8\"))\n    daily = data[\"daily\"]\n    lines = [f\"{config['city']}天气预报\", \"\"]\n    today = dt.date.today().isoformat()\n    alerts = []\n    advice = []\n    for i, day in enumerate(daily[\"time\"]):\n        label = \"今天\" if day == today else (\"明天\" if i == 1 else \"后天\")\n        code = daily[\"weather_code\"][i]\n        desc = WEATHER_CODES.get(code, f\"天气代码 {code}\")\n        tmin = daily[\"temperature_2m_min\"][i]\n        tmax = daily[\"temperature_2m_max\"][i]\n        pop = daily[\"precipitation_probability_max\"][i]\n        rain = daily[\"precipitation_sum\"][i]\n        wind = daily[\"wind_speed_10m_max\"][i]\n        lines.append(\n            f\"{label} {day}: {desc}，{tmin:.0f}-{tmax:.0f}℃，\"\n            f\"降水概率 {pop}% ，降水量 {rain:.1f} mm，最大风速 {wind:.0f} km/h\"\n        )\n        if i == 0:\n            if tmax \u003e= 35:\n                alerts.append(\"高温提醒：今天最高温达到 35℃ 以上，注意防暑补水。\")\n            if tmin \u003c= 0:\n                alerts.append(\"低温提醒：今天最低温 0℃ 以下，注意防寒防冻。\")\n            if rain \u003e= 20 or pop \u003e= 70:\n                alerts.append(\"降雨提醒：今天降水概率较高或雨量较大，出门建议带伞。\")\n            if wind \u003e= 40:\n                alerts.append(\"大风提醒：今天风力偏强，骑车和户外活动注意安全。\")\n            if code in (95, 96, 99):\n                alerts.append(\"雷雨提醒：今天可能有雷雨，尽量避开强对流时段外出。\")\n            if tmax \u003e= 30:\n                advice.append(\"穿衣建议：短袖、轻薄透气衣物为主，注意防晒。\")\n            elif tmin \u003c= 8:\n                advice.append(\"穿衣建议：建议外套或薄棉服，早晚注意保暖。\")\n            elif tmin \u003c= 15:\n                advice.append(\"穿衣建议：长袖加薄外套比较稳妥。\")\n            else:\n                advice.append(\"穿衣建议：轻薄长袖或短袖均可，按体感调整。\")\n            if (tmax - tmin) \u003e= 10:\n                advice.append(\"温差提醒：昼夜温差较大，早晚可多备一件外套。\")\n            if pop \u003e= 50 or rain \u003e 0:\n                advice.append(\"出行提醒：有降水可能，建议带伞。\")\n    if alerts:\n        lines.extend([\"\", \"天气提醒：\"] + [f\"- {x}\" for x in alerts])\n    if advice:\n        lines.extend([\"\", \"生活建议：\"] + [f\"- {x}\" for x in advice])\n    lines.extend([\"\", \"数据源：Open-Meteo。\", HELP_HINT])\n    return \"\\n\".join(lines)\n\ndef send_room(config, token_value, room_id, body):\n    txn = \"weather-\" + dt.datetime.now(dt.timezone.utc).strftime(\"%Y%m%dT%H%M%S\")\n    txn += \"-\" + hashlib.sha1((room_id + body).encode(\"utf-8\")).hexdigest()[:10]\n    html_body = \"\u003cbr\u003e\".join(html.escape(line) for line in body.splitlines())\n    content = {\"msgtype\": \"m.text\", \"body\": body, \"format\": \"org.matrix.custom.html\", \"formatted_body\": html_body}\n    url = f\"{config['homeserver']}/_matrix/client/v3/rooms/{quote(room_id)}/send/m.room.message/{txn}\"\n    status, payload = request(\"PUT\", url, token_value, content)\n    if status not in (200, 201):\n        raise RuntimeError(f\"send to {room_id} failed: HTTP {status} {payload}\")\n\ndef create_dm(config, token_value, user_id):\n    status, payload = request(\"POST\", f\"{config['homeserver']}/_matrix/client/v3/createRoom\", token_value, {\n        \"preset\": \"trusted_private_chat\",\n        \"is_direct\": True,\n        \"invite\": [user_id],\n        \"name\": \"天气预报\",\n        \"topic\": \"天气查询与每日自动推送\",\n    })\n    if status not in (200, 201) or \"room_id\" not in payload:\n        raise RuntimeError(f\"create DM for {user_id} failed: HTTP {status} {payload}\")\n    return payload[\"room_id\"]\n\ndef get_room(config, token_value, user_id):\n    rooms = config.setdefault(\"direct_rooms\", {})\n    room_id = rooms.get(user_id)\n    if room_id:\n        return room_id\n    room_id = create_dm(config, token_value, user_id)\n    rooms[user_id] = room_id\n    save_json(CONFIG_PATH, config)\n    return room_id\n\ndef parse_hhmm(value):\n    hour_text, minute_text = str(value).split(\":\", 1)\n    hour = int(hour_text)\n    minute = int(minute_text)\n    if not (0 \u003c= hour \u003c= 23 and 0 \u003c= minute \u003c= 59):\n        raise ValueError(f\"invalid HH:MM value: {value}\")\n    return hour, minute\n\ndef normalized_hhmm(value):\n    hour, minute = parse_hhmm(value)\n    return f\"{hour:02d}:{minute:02d}\"\n\ndef sent_key(today, time_value):\n    return f\"{today} {normalized_hhmm(time_value)}\"\n\ndef due_users(config, now=None):\n    now = now or dt.datetime.now()\n    today = now.date().isoformat()\n    state = load_json(config[\"state_path\"], {})\n    sent = state.setdefault(\"last_sent\", {})\n    grace_minutes = int(config.get(\"schedule_grace_minutes\", 15))\n    users = []\n    for user_id, settings in config.get(\"weather_users\", {}).items():\n        if not settings.get(\"enabled\", True):\n            continue\n        time_value = settings.get(\"time\", config.get(\"default_weather_time\", \"05:00\"))\n        try:\n            hour, minute = parse_hhmm(time_value)\n        except Exception as exc:\n            print(f\"skip {user_id}: invalid weather time {time_value!r}: {exc}\", file=sys.stderr)\n            continue\n        if sent.get(user_id) == sent_key(today, time_value):\n            continue\n        scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)\n        delta_seconds = (now - scheduled).total_seconds()\n        if 0 \u003c= delta_seconds \u003c grace_minutes * 60:\n            users.append(user_id)\n    return users, state, today\n\ndef send_weather_to_users(config, user_ids, mark_sent=False, state=None, today=None):\n    token_value = token(config)\n    body = get_weather(config)\n    sent = 0\n    for user_id in user_ids:\n        room_id = get_room(config, token_value, user_id)\n        send_room(config, token_value, room_id, body)\n        sent += 1\n        if mark_sent and state is not None and today is not None:\n            user_time = config.get(\"weather_users\", {}).get(user_id, {}).get(\"time\", config.get(\"default_weather_time\", \"05:00\"))\n            state.setdefault(\"last_sent\", {})[user_id] = sent_key(today, user_time)\n        time.sleep(0.2)\n    if mark_sent and state is not None:\n        save_json(config[\"state_path\"], state)\n    return sent\n\ndef main():\n    config = load_json(CONFIG_PATH, None)\n    if not config:\n        raise SystemExit(f\"missing config: {CONFIG_PATH}\")\n    if len(sys.argv) \u003e= 2 and sys.argv[1] == \"--send-now\":\n        users = sys.argv[2:] or list(config.get(\"weather_users\", {}).keys())\n        print(f\"sent weather forecast to {send_weather_to_users(config, users)} room(s)\")\n        return\n    users, state, today = due_users(config)\n    if not users:\n        print(\"weather schedule: no due users\")\n        return\n    print(f\"sent weather forecast to {send_weather_to_users(config, users, True, state, today)} room(s)\")\n\nif __name__ == \"__main__\":\n    main()"</script>
 </div>
 <p>赋予执行权限并检查语法：</p>
 <div class="code-block">
@@ -1295,8 +1295,15 @@
 <p>普通用户只会获得天气功能，不会收到服务器监控提醒。监控提醒由 <code>matrix-bot-monitor.json</code> 的 <code>target_users</code> 单独控制，例如只发给管理员：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;target_users&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> [
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@honey:666666.xyz&#34;</span>
-</span></span><span style="display:flex;"><span>]</span></span></code></pre></div><script class="code-source" type="application/json">"\"target_users\": [\n  \"@honey:666666.xyz\"\n]"</script>
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@black:jgaga.tk&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@honey:jgaga.tk&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@admin2:jgaga.tk&#34;</span>
+</span></span><span style="display:flex;"><span>]</span></span></code></pre></div><script class="code-source" type="application/json">"\"target_users\": [\n  \"@black:jgaga.tk\",\n  \"@honey:jgaga.tk\",\n  \"@admin2:jgaga.tk\"\n]"</script>
+</div>
+<p>改完白名单后不要只看配置文件，最好发一次无损测试告警，确认每个目标用户都能建立私聊并收到提醒：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert
+</span></span><span style="display:flex;"><span>python3 -m json.tool /root/data/docker_data/synapse/scripts/matrix-bot-monitor.state.json</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert\npython3 -m json.tool /root/data/docker_data/synapse/scripts/matrix-bot-monitor.state.json"</script>
 </div>
 <p>天气用户则保存在 <code>matrix-bot-weather.json</code> 的 <code>weather_users</code> 里，每个用户可以有自己的推送时间：</p>
 <div class="code-block">
@@ -1311,6 +1318,15 @@
 </span></span><span style="display:flex;"><span>  }
 </span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"\"weather_users\": {\n  \"@honey:666666.xyz\": {\n    \"enabled\": true,\n    \"time\": \"05:00\"\n  },\n  \"@black:666666.xyz\": {\n    \"enabled\": true,\n    \"time\": \"07:30\"\n  }\n}"</script>
 </div>
+<p>如果只是给固定管理员开通默认天气提醒，当前 <code>jgaga.tk</code> 这套生产栈默认保留：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;target_users&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> [
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@honey:jgaga.tk&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@black:jgaga.tk&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;@admin2:jgaga.tk&#34;</span>
+</span></span><span style="display:flex;"><span>]</span></span></code></pre></div><script class="code-source" type="application/json">"\"target_users\": [\n  \"@honey:jgaga.tk\",\n  \"@black:jgaga.tk\",\n  \"@admin2:jgaga.tk\"\n]"</script>
+</div>
+<p><code>target_users</code> 只用于初始化默认用户；真实的开关、时间和城市仍以 <code>weather_users</code> 为准。不要把定时发送重新改回只遍历 <code>target_users</code>，否则用户自己发送“设置天气时间”和“设置城市”后，后台推送不会按个人配置生效。</p>
 <h2 id="十一手动维护用户配置">十一、手动维护用户配置</h2>
 <p>一般不需要手动维护，用户直接邀请 <code>@bot:666666.xyz</code> 后会自动加入 <code>weather_users</code>。如果需要管理员直接改配置，可以编辑：</p>
 <div class="code-block">
@@ -1336,6 +1352,7 @@
 <h2 id="十二关于加密房间">十二、关于加密房间</h2>
 <p>这个脚本使用的是普通 Matrix Client-Server API，没有实现端到端加密设备管理，也没有处理 Olm/Megolm 密钥。</p>
 <p>因此建议让机器人使用未加密私聊或未加密房间。上面的脚本没有实现 E2EE，机器人即使能加入加密房间，也不能像正常客户端那样解密和处理消息。</p>
+<p>如果旧版本已经把某个用户的天气私聊建成了加密房间，不要尝试原地关闭加密。Matrix 加密状态不能撤回，正确做法是让脚本检测 <code>m.room.encryption</code>，离开旧房间并重新创建未加密私聊，再更新 <code>direct_rooms</code> 映射。</p>
 <p>如果一定要在端到端加密房间里使用机器人，需要换成支持 E2EE 的机器人框架，例如 <code>matrix-nio[e2e]</code>，并额外处理设备信任、密钥存储和恢复。</p>
 <h2 id="十三排查命令">十三、排查命令</h2>
 <p>查看日志：</p>
@@ -1399,9 +1416,49 @@
       
       
         <li>
+          <a href="/posts/ai/claude-code-complete-tutorial/">
+            <img src="/posts/ai/claude-code-complete-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Claude Code 完全教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/matrix-public-443-ops-tools-full-source/">
+            <img src="/posts/docker/matrix-public-443-ops-tools-full-source/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">机密：Matrix 运维面板、MusicBot 和普通 Bot 小白部署手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/matrix-public-443-caddy-full-stack/">
+            <img src="/posts/docker/matrix-public-443-caddy-full-stack/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">机密：Matrix Synapse 全套公网 443 &#43; Caddy 生产搭建手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-reinstall-user-home-nvim-ssh/">
+            <img src="/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-user-docker-group/">
+            <img src="/posts/linux/alpine-user-docker-group/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Alpine Linux 将普通用户加入 Docker 组</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/docker/matrix-element-call-musicbot-radio-docker/">
             <img src="/posts/docker/matrix-element-call-musicbot-radio-docker/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</span>
           </a>
         </li>
@@ -1409,48 +1466,8 @@
         <li>
           <a href="/posts/linux/hugo-two-git-repos-purodn-purodncode/">
             <img src="/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-holographic-memory-addons/">
-            <img src="/posts/ai/hermes-holographic-memory-addons/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-profile-tools-scope-toolsets/">
-            <img src="/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-systemd-profile-gateway-conflict/">
-            <img src="/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/ubuntu-timesync-asia-shanghai/">
-            <img src="/posts/linux/ubuntu-timesync-asia-shanghai/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Ubuntu / Debian 设置北京时间与修复 NTP 同步</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/docker-container-dns-stale-after-host-dns-change/">
-            <img src="/posts/docker/docker-container-dns-stale-after-host-dns-change/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</span>
+            <span class="latest-title">Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span>
           </a>
         </li>
       

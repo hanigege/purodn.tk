@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+name="Matrix bot sync"
+description="Poll Matrix events for bot invites and weather commands"
+command="/root/data/docker_data/synapse/scripts/run-matrix-bot-sync-loop.sh"
+command_background=true
+pidfile="/run/matrix-bot-sync.pid"
+output_log="/var/log/matrix-bot-sync-loop.log"
+error_log="/var/log/matrix-bot-sync-loop.log"
+depend() {
+  need net
+  after docker
+}

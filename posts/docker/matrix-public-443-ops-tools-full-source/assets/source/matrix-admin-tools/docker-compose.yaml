@@ -1,0 +1,25 @@
+services:
+  matrix-admin-tools:
+    # 这个面板能触发媒体删除和全站通知，只监听本机回环口，公网入口必须经过 Caddy Basic Auth。
+    build: .
+    image: local/matrix-admin-tools:latest
+    container_name: matrix-admin-tools
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+      - /root/data/docker_data/_secrets/synapse-admin/access_token:/run/secrets/synapse-admin-access-token:ro
+    environment:
+      SYNAPSE_URL: "http://127.0.0.1:8008"
+      ADMIN_TOKEN_FILE: "/run/secrets/synapse-admin-access-token"
+      SERVER_NAME: "${SERVER_NAME:-jgaga.tk}"
+      DB_PATH: "/data/app.db"
+      LOG_PATH: "/logs/app.log"
+      HOST: "127.0.0.1"
+      PORT: "8190"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
