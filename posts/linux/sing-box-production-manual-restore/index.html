@@ -55,7 +55,7 @@
 </ul>
 <p>当前 SHA256：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>7d6319638ec5047bcdc434784443036b6d7f9f3fa586665feacd540192e7a142  sing-box-manual-restore-sanitized-example.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"7d6319638ec5047bcdc434784443036b6d7f9f3fa586665feacd540192e7a142  sing-box-manual-restore-sanitized-example.tar.gz"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>d4ef38e2c7c87a15f6d725a5273afeb9b812b0c82b24879c4e324411c54aa87f  sing-box-manual-restore-sanitized-example.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"d4ef38e2c7c87a15f6d725a5273afeb9b812b0c82b24879c4e324411c54aa87f  sing-box-manual-restore-sanitized-example.tar.gz"</script>
 </div>
 <p>包里默认节点已经改成一键安装后的模板值：</p>
 <div class="code-block">
@@ -66,6 +66,7 @@
 </span></span><span style="display:flex;"><span>LAN IPv4 示例   192.168.1.2</span></span></code></pre></div><script class="code-source" type="application/json">"TEMPLATE-HY2    198.51.100.10:443   change-me-hysteria2-password\nTEMPLATE-VLESS  203.0.113.10:443    00000000-0000-4000-8000-000000000001\nRule UI token   change-me-rule-ui-token\nClash secret    change-me-clash-secret\nLAN IPv4 示例   192.168.1.2"</script>
 </div>
 <p>这些值只能让配置结构完整，不能直接当真实代理节点使用。恢复后必须在 Rule UI 里改成自己的节点、token、Clash secret 和 LAN 地址。</p>
+<p>这版公开包已同步当前 Rule UI/运行时修复：<code>geosite-speedtest</code> 默认直连，避免测速流量压到代理节点；Telegram 的 geosite/geoip 规则作为核心规则保留；规则更新改为 MetaCubeX <code>.srs</code>，优先走 <code>https://scg.jgaga.tk/https://raw.githubusercontent.com/...</code>，并在宿主机下载时绕开本机 FakeIP DNS，避免规则源被解析成 <code>28.x</code> 后直连超时；前端状态和延迟刷新增加防并发保护，减少重复请求造成的运行态噪音。</p>
 <p>包内按 <code>files/</code> 保存原机器路径，核心内容包括：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>files/etc/sing-box/
