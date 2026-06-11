@@ -89,6 +89,7 @@
 </span></span><span style="display:flex;"><span>ntfy.jgaga.tk            A 192.227.236.209
 </span></span><span style="display:flex;"><span>synapse-admin.jgaga.tk   A 192.227.236.209</span></span></code></pre></div><script class="code-source" type="application/json">"jgaga.tk                 A 192.227.236.209\nmatrix.jgaga.tk          A 192.227.236.209  proxied off 或 on 均可，建议 Matrix API 先 DNS only 排障\nelement.jgaga.tk         A 192.227.236.209\ncall.jgaga.tk            A 192.227.236.209\nlivekit.jgaga.tk         A 192.227.236.209  DNS only\nmatrix-jwt.jgaga.tk      A 192.227.236.209\nturn.jgaga.tk            A 192.227.236.209  必须 DNS only\nntfy.jgaga.tk            A 192.227.236.209\nsynapse-admin.jgaga.tk   A 192.227.236.209"</script>
 </div>
+<p>如果这些 HTTP/HTTPS 子域名开 Cloudflare 橙云代理，Cloudflare 的 <code>SSL/TLS</code> 模式必须使用 <code>完整（严格）</code>。不要用 <code>灵活</code>，否则 Cloudflare 会用 HTTP 回源，Caddy 又会把 HTTP 自动 308 到同一个 HTTPS 地址，浏览器看到的就是重定向循环，表现为 <code>element.jgaga.tk</code> 打不开。</p>
 <p><code>turn.jgaga.tk</code> 必须 DNS only，因为 coturn 是 UDP/TCP TURN 服务，不是 HTTP 网站。Cloudflare 橙云代理不了 TURN。</p>
 <p>服务器上先确认 DNS 已生效：</p>
 <div class="code-block">
@@ -367,6 +368,18 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  respond 404
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">http://element.jgaga.tk {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  encode zstd gzip
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  # Cloudflare Flexible 回源会用 HTTP；这里避免 Caddy 自动 308 到同一 HTTPS 地址造成浏览器重定向循环。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  # 正常生产仍建议把 Cloudflare SSL/TLS 设为“完整（严格）”，这个块只是兜底兼容。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  @element_runtime_config path / /index.html /config*.json /manifest.json /version /sw.js
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  header @element_runtime_config Cache-Control &#34;no-store&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  @element_static_assets path /bundles/* /fonts/* /icons/* /img/* /vector-icons/*
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  header @element_static_assets Cache-Control &#34;public, max-age=31536000, immutable&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  header X-Content-Type-Options &#34;nosniff&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  reverse_proxy 127.0.0.1:8181
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">element.jgaga.tk {
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  encode zstd gzip
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  @element_runtime_config path / /index.html /config*.json /manifest.json /version /sw.js
@@ -402,7 +415,7 @@
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  header Cache-Control &#34;no-store&#34;
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  reverse_proxy 127.0.0.1:8100
 </span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span></span></span></code></pre></div><script class="code-source" type="application/json">"cat \u003e /root/data/docker_data/caddy/Caddyfile \u003c\u003c'EOF'\n(matrix_client_cors) {\n  # Matrix 客户端会从 Element Web 跨域读取这些发现端点；缺少 CORS 会被浏览器误判为 homeserver 不可达。\n  header Access-Control-Allow-Origin \"*\"\n  header Access-Control-Allow-Methods \"GET, HEAD, OPTIONS\"\n  header Access-Control-Allow-Headers \"Origin, X-Requested-With, Content-Type, Accept, Authorization\"\n}\n\nmatrix.jgaga.tk {\n  encode zstd gzip\n\n  handle /.well-known/matrix/client {\n    import matrix_client_cors\n    respond `{\"m.homeserver\":{\"base_url\":\"https://matrix.jgaga.tk\"},\"org.matrix.msc4143.rtc_foci\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  handle /.well-known/matrix/server {\n    respond `{\"m.server\":\"matrix.jgaga.tk:443\"}` 200\n  }\n\n  @matrixrtc_transports path /_matrix/client/unstable/org.matrix.msc4143/rtc/transports /_matrix/client/v1/rtc/transports\n  handle @matrixrtc_transports {\n    header Content-Type application/json\n    import matrix_client_cors\n    # Element 系列客户端有时不会带 Authorization 访问 MatrixRTC transport discovery；这里直接返回静态 LiveKit 入口。\n    respond `{\"rtc_transports\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  @client_versions path /_matrix/client/versions\n  handle @client_versions {\n    header Content-Type application/json\n    import matrix_client_cors\n    # Synapse 版本接口未必声明 msc4143；补 capability 可以避免 Element Web 误判通话不可用。\n    respond `{\"versions\":[\"v1.1\",\"v1.2\",\"v1.3\",\"v1.4\",\"v1.5\",\"v1.6\",\"v1.7\",\"v1.8\",\"v1.9\",\"v1.10\",\"v1.11\",\"v1.12\"],\"unstable_features\":{\"org.matrix.msc4143\":true}}` 200\n  }\n\n  handle /_matrix/* {\n    reverse_proxy 127.0.0.1:8008\n  }\n\n  handle /_synapse/* {\n    reverse_proxy 127.0.0.1:8008\n  }\n\n  handle /* {\n    respond 404\n  }\n}\n\njgaga.tk {\n  header Content-Type application/json\n\n  handle /.well-known/matrix/client {\n    import matrix_client_cors\n    respond `{\"m.homeserver\":{\"base_url\":\"https://matrix.jgaga.tk\"},\"org.matrix.msc4143.rtc_foci\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  handle /.well-known/matrix/server {\n    respond `{\"m.server\":\"matrix.jgaga.tk:443\"}` 200\n  }\n\n  respond 404\n}\n\nelement.jgaga.tk {\n  encode zstd gzip\n  @element_runtime_config path / /index.html /config*.json /manifest.json /version /sw.js\n  header @element_runtime_config Cache-Control \"no-store\"\n  @element_static_assets path /bundles/* /fonts/* /icons/* /img/* /vector-icons/*\n  header @element_static_assets Cache-Control \"public, max-age=31536000, immutable\"\n  header X-Content-Type-Options \"nosniff\"\n  reverse_proxy 127.0.0.1:8181\n}\n\ncall.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8081\n}\n\nlivekit.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:7880\n}\n\nmatrix-jwt.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8170\n}\n\nntfy.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8080\n}\n\nsynapse-admin.jgaga.tk {\n  encode zstd gzip\n  header Cache-Control \"no-store\"\n  reverse_proxy 127.0.0.1:8100\n}\nEOF"</script>
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span></span></span></code></pre></div><script class="code-source" type="application/json">"cat \u003e /root/data/docker_data/caddy/Caddyfile \u003c\u003c'EOF'\n(matrix_client_cors) {\n  # Matrix 客户端会从 Element Web 跨域读取这些发现端点；缺少 CORS 会被浏览器误判为 homeserver 不可达。\n  header Access-Control-Allow-Origin \"*\"\n  header Access-Control-Allow-Methods \"GET, HEAD, OPTIONS\"\n  header Access-Control-Allow-Headers \"Origin, X-Requested-With, Content-Type, Accept, Authorization\"\n}\n\nmatrix.jgaga.tk {\n  encode zstd gzip\n\n  handle /.well-known/matrix/client {\n    import matrix_client_cors\n    respond `{\"m.homeserver\":{\"base_url\":\"https://matrix.jgaga.tk\"},\"org.matrix.msc4143.rtc_foci\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  handle /.well-known/matrix/server {\n    respond `{\"m.server\":\"matrix.jgaga.tk:443\"}` 200\n  }\n\n  @matrixrtc_transports path /_matrix/client/unstable/org.matrix.msc4143/rtc/transports /_matrix/client/v1/rtc/transports\n  handle @matrixrtc_transports {\n    header Content-Type application/json\n    import matrix_client_cors\n    # Element 系列客户端有时不会带 Authorization 访问 MatrixRTC transport discovery；这里直接返回静态 LiveKit 入口。\n    respond `{\"rtc_transports\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  @client_versions path /_matrix/client/versions\n  handle @client_versions {\n    header Content-Type application/json\n    import matrix_client_cors\n    # Synapse 版本接口未必声明 msc4143；补 capability 可以避免 Element Web 误判通话不可用。\n    respond `{\"versions\":[\"v1.1\",\"v1.2\",\"v1.3\",\"v1.4\",\"v1.5\",\"v1.6\",\"v1.7\",\"v1.8\",\"v1.9\",\"v1.10\",\"v1.11\",\"v1.12\"],\"unstable_features\":{\"org.matrix.msc4143\":true}}` 200\n  }\n\n  handle /_matrix/* {\n    reverse_proxy 127.0.0.1:8008\n  }\n\n  handle /_synapse/* {\n    reverse_proxy 127.0.0.1:8008\n  }\n\n  handle /* {\n    respond 404\n  }\n}\n\njgaga.tk {\n  header Content-Type application/json\n\n  handle /.well-known/matrix/client {\n    import matrix_client_cors\n    respond `{\"m.homeserver\":{\"base_url\":\"https://matrix.jgaga.tk\"},\"org.matrix.msc4143.rtc_foci\":[{\"type\":\"livekit\",\"livekit_service_url\":\"https://matrix-jwt.jgaga.tk\"}]}` 200\n  }\n\n  handle /.well-known/matrix/server {\n    respond `{\"m.server\":\"matrix.jgaga.tk:443\"}` 200\n  }\n\n  respond 404\n}\n\nhttp://element.jgaga.tk {\n  encode zstd gzip\n  # Cloudflare Flexible 回源会用 HTTP；这里避免 Caddy 自动 308 到同一 HTTPS 地址造成浏览器重定向循环。\n  # 正常生产仍建议把 Cloudflare SSL/TLS 设为“完整（严格）”，这个块只是兜底兼容。\n  @element_runtime_config path / /index.html /config*.json /manifest.json /version /sw.js\n  header @element_runtime_config Cache-Control \"no-store\"\n  @element_static_assets path /bundles/* /fonts/* /icons/* /img/* /vector-icons/*\n  header @element_static_assets Cache-Control \"public, max-age=31536000, immutable\"\n  header X-Content-Type-Options \"nosniff\"\n  reverse_proxy 127.0.0.1:8181\n}\n\nelement.jgaga.tk {\n  encode zstd gzip\n  @element_runtime_config path / /index.html /config*.json /manifest.json /version /sw.js\n  header @element_runtime_config Cache-Control \"no-store\"\n  @element_static_assets path /bundles/* /fonts/* /icons/* /img/* /vector-icons/*\n  header @element_static_assets Cache-Control \"public, max-age=31536000, immutable\"\n  header X-Content-Type-Options \"nosniff\"\n  reverse_proxy 127.0.0.1:8181\n}\n\ncall.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8081\n}\n\nlivekit.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:7880\n}\n\nmatrix-jwt.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8170\n}\n\nntfy.jgaga.tk {\n  encode zstd gzip\n  reverse_proxy 127.0.0.1:8080\n}\n\nsynapse-admin.jgaga.tk {\n  encode zstd gzip\n  header Cache-Control \"no-store\"\n  reverse_proxy 127.0.0.1:8100\n}\nEOF"</script>
 </div>
 <p>启动：</p>
 <div class="code-block">
@@ -732,9 +745,10 @@
 <p>检查 Web 入口：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsS -I https://element.jgaga.tk | sed -n <span style="color:#e6db74">&#39;1,12p&#39;</span>
+</span></span><span style="display:flex;"><span>curl --compressed -L --max-redirs <span style="color:#ae81ff">5</span> -w <span style="color:#e6db74">&#39;element total=%{time_total} code=%{http_code} redirects=%{num_redirects}\n&#39;</span> -o /dev/null -sS https://element.jgaga.tk/
 </span></span><span style="display:flex;"><span>curl -fsS -I https://call.jgaga.tk | sed -n <span style="color:#e6db74">&#39;1,12p&#39;</span>
 </span></span><span style="display:flex;"><span>curl -fsS -I https://synapse-admin.jgaga.tk | sed -n <span style="color:#e6db74">&#39;1,12p&#39;</span>
-</span></span><span style="display:flex;"><span>curl -fsS -I https://ntfy.jgaga.tk | sed -n <span style="color:#e6db74">&#39;1,12p&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsS -I https://element.jgaga.tk | sed -n '1,12p'\ncurl -fsS -I https://call.jgaga.tk | sed -n '1,12p'\ncurl -fsS -I https://synapse-admin.jgaga.tk | sed -n '1,12p'\ncurl -fsS -I https://ntfy.jgaga.tk | sed -n '1,12p'"</script>
+</span></span><span style="display:flex;"><span>curl -fsS -I https://ntfy.jgaga.tk | sed -n <span style="color:#e6db74">&#39;1,12p&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsS -I https://element.jgaga.tk | sed -n '1,12p'\ncurl --compressed -L --max-redirs 5 -w 'element total=%{time_total} code=%{http_code} redirects=%{num_redirects}\\n' -o /dev/null -sS https://element.jgaga.tk/\ncurl -fsS -I https://call.jgaga.tk | sed -n '1,12p'\ncurl -fsS -I https://synapse-admin.jgaga.tk | sed -n '1,12p'\ncurl -fsS -I https://ntfy.jgaga.tk | sed -n '1,12p'"</script>
 </div>
 <p>最后用浏览器做人工验收：</p>
 <ol>
@@ -783,9 +797,17 @@
       
       
         <li>
+          <a href="/posts/linux/sing-box-production-manual-restore/">
+            <img src="/posts/linux/sing-box-production-manual-restore/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">sing-box 生产机纯手动备份与恢复</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/ai/claude-code-complete-tutorial/">
             <img src="/posts/ai/claude-code-complete-tutorial/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
+            <span class="latest-rank">2</span>
             <span class="latest-title">Claude Code 完全教程</span>
           </a>
         </li>
@@ -793,7 +815,7 @@
         <li>
           <a href="/posts/docker/matrix-public-443-ops-tools-full-source/">
             <img src="/posts/docker/matrix-public-443-ops-tools-full-source/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">3</span>
             <span class="latest-title">机密：Matrix 运维面板、MusicBot 和生产 Bot 小白部署手册</span>
           </a>
         </li>
@@ -801,7 +823,7 @@
         <li>
           <a href="/posts/docker/matrix-public-443-caddy-full-stack/">
             <img src="/posts/docker/matrix-public-443-caddy-full-stack/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">机密：Matrix Synapse 全套公网 443 &#43; Caddy 生产搭建手册</span>
           </a>
         </li>
@@ -809,7 +831,7 @@
         <li>
           <a href="/posts/linux/alpine-reinstall-user-home-nvim-ssh/">
             <img src="/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span>
           </a>
         </li>
@@ -817,7 +839,7 @@
         <li>
           <a href="/posts/linux/alpine-user-docker-group/">
             <img src="/posts/linux/alpine-user-docker-group/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">Alpine Linux 将普通用户加入 Docker 组</span>
           </a>
         </li>
@@ -825,16 +847,8 @@
         <li>
           <a href="/posts/docker/matrix-element-call-musicbot-radio-docker/">
             <img src="/posts/docker/matrix-element-call-musicbot-radio-docker/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/hugo-two-git-repos-purodn-purodncode/">
-            <img src="/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span>
+            <span class="latest-title">Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</span>
           </a>
         </li>
       

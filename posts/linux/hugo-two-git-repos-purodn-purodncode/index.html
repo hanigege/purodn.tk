@@ -1,113 +1,382 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码 | 电脑自习室</title><meta name=description content="记录一个 Hugo 站点的源码仓库与 public 发布仓库分离方案，并整理 .zshrc 中一键发布和一键备份源码命令的写法与排错思路。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
-<time datetime=2026-06-03>2026年6月3日</time></div><h1>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</h1><p>记录一个 Hugo 站点的源码仓库与 public 发布仓库分离方案，并整理 .zshrc 中一键发布和一键备份源码命令的写法与排错思路。</p></header><img class=article-cover src=/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg alt><div class=article-content><p>Hugo 静态站点有一个很容易混乱的地方：源码和发布产物都在同一个目录附近，但它们其实不是一类东西。</p><p>源码是 <code>content/</code>、<code>layouts/</code>、<code>assets/</code>、<code>static/</code>、<code>hugo.yaml</code> 这些文件；发布产物是 Hugo 构建后生成的 HTML、CSS、JS、图片索引和站点地图。我的站点把这两部分拆成两个 Git 仓库：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/Users/mana/Documents/codex/hugo/          Hugo 源码仓库
-</span></span><span style=display:flex><span>/Users/mana/Documents/codex/hugo/public/   GitHub Pages 发布仓库</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo/          Hugo 源码仓库\n/Users/mana/Documents/codex/hugo/public/   GitHub Pages 发布仓库"</script></div><p>这样做以后，日常操作也分成两个命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>purodn       构建 Hugo，并把 public/ 推到 GitHub Pages 仓库
-</span></span><span style=display:flex><span>purodncode   验证 Hugo 源码，并把源码推到私有源码仓库</span></span></code></pre></div><script class=code-source type=application/json>"purodn       构建 Hugo，并把 public/ 推到 GitHub Pages 仓库\npurodncode   验证 Hugo 源码，并把源码推到私有源码仓库"</script></div><p>这篇文章记录这套工作流，也顺便记一下这次 <code>purodncode</code> 失效的排查过程。</p><h2 id=为什么要分成两个仓库>为什么要分成两个仓库</h2><p>如果只维护一个仓库，很容易把 Hugo 生成物当成源码提交进去。比如这些文件和目录都不是源码：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>public/
-</span></span><span style=display:flex><span>resources/
-</span></span><span style=display:flex><span>.hugo_build.lock
-</span></span><span style=display:flex><span>categories/
-</span></span><span style=display:flex><span>css/
-</span></span><span style=display:flex><span>js/
-</span></span><span style=display:flex><span>posts/
-</span></span><span style=display:flex><span>tags/
-</span></span><span style=display:flex><span>index.html
-</span></span><span style=display:flex><span>index.json
-</span></span><span style=display:flex><span>sitemap.xml</span></span></code></pre></div><script class=code-source type=application/json>"public/\nresources/\n.hugo_build.lock\ncategories/\ncss/\njs/\nposts/\ntags/\nindex.html\nindex.json\nsitemap.xml"</script></div><p>它们要么是构建结果，要么是本地缓存。真正值得长期维护的是 Markdown 文章、文章图片、主题模板、样式脚本和站点配置。</p><p>双仓库的边界可以这样理解：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>源码仓库：保存人写的东西
-</span></span><span style=display:flex><span>发布仓库：保存 Hugo 生成给浏览器看的东西</span></span></code></pre></div><script class=code-source type=application/json>"源码仓库：保存人写的东西\n发布仓库：保存 Hugo 生成给浏览器看的东西"</script></div><p>源码仓库可以是私有仓库，里面有草稿、脚本和本地协作规则；发布仓库通常是公开仓库，GitHub Pages 直接从里面读取静态网页。</p><h2 id=目录结构>目录结构</h2><p>本地 Hugo 源码目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/Users/mana/Documents/codex/hugo</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo"</script></div><p>源码仓库远程：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>git@github.com:hanigege/purodn.tk-source-code.git</span></span></code></pre></div><script class=code-source type=application/json>"git@github.com:hanigege/purodn.tk-source-code.git"</script></div><p>本地发布目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/Users/mana/Documents/codex/hugo/public</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo/public"</script></div><p>发布仓库远程：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>git@github.com:hanigege/purodn.tk.git</span></span></code></pre></div><script class=code-source type=application/json>"git@github.com:hanigege/purodn.tk.git"</script></div><p>注意，<code>public/</code> 虽然在 Hugo 源码目录里面，但它自己也是一个独立 Git 仓库。检查源码状态时在 Hugo 根目录执行 <code>git status</code>；检查发布产物状态时要进入 <code>public/</code>，或者使用 <code>git -C public status</code>。</p><h2 id=一键发布网站purodn>一键发布网站：purodn</h2><p><code>purodn</code> 的职责只有一个：构建站点，然后提交并推送 <code>public/</code> 里的发布产物。</p><p>我把它写在 <code>~/.zshrc</code> 里：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-zsh data-lang=zsh><span style=display:flex><span>purodn<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    SRC_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/Documents/codex/hugo&#34;</span>
-</span></span><span style=display:flex><span>    PUBLIC_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$SRC_DIR<span style=color:#e6db74>/public&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    echo <span style=color:#e6db74>&#34;Building Hugo site...&#34;</span>
-</span></span><span style=display:flex><span>    cd <span style=color:#e6db74>&#34;</span>$SRC_DIR<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>||</span> <span style=color:#f92672>{</span> echo <span style=color:#e6db74>&#34;Failed to cd into </span>$SRC_DIR<span style=color:#e6db74>&#34;</span>; <span style=color:#66d9ef>return</span> 1; <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    hugo --minify --gc
-</span></span><span style=display:flex><span>    rm -rf <span style=color:#e6db74>&#34;</span>$SRC_DIR<span style=color:#e6db74>/resources&#34;</span> <span style=color:#e6db74>&#34;</span>$SRC_DIR<span style=color:#e6db74>/.hugo_build.lock&#34;</span> <span style=color:#e6db74>&#34;</span>$SRC_DIR<span style=color:#e6db74>/.DS_Store&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    echo <span style=color:#e6db74>&#34;Checking public repository...&#34;</span>
-</span></span><span style=display:flex><span>    cd <span style=color:#e6db74>&#34;</span>$PUBLIC_DIR<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>||</span> <span style=color:#f92672>{</span> echo <span style=color:#e6db74>&#34;Failed to cd into </span>$PUBLIC_DIR<span style=color:#e6db74>&#34;</span>; <span style=color:#66d9ef>return</span> 1; <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> -z <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>git status --short<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;No publish changes.&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#66d9ef>else</span>
-</span></span><span style=display:flex><span>        git add -A
-</span></span><span style=display:flex><span>        git commit -m <span style=color:#e6db74>&#34;Publish site updates&#34;</span> <span style=color:#f92672>||</span> <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;Pushing to origin main...&#34;</span>
-</span></span><span style=display:flex><span>        git push origin main <span style=color:#f92672>||</span> <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;Published successfully.&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"purodn() {\n    SRC_DIR=\"$HOME/Documents/codex/hugo\"\n    PUBLIC_DIR=\"$SRC_DIR/public\"\n\n    echo \"Building Hugo site...\"\n    cd \"$SRC_DIR\" || { echo \"Failed to cd into $SRC_DIR\"; return 1; }\n    hugo --minify --gc\n    rm -rf \"$SRC_DIR/resources\" \"$SRC_DIR/.hugo_build.lock\" \"$SRC_DIR/.DS_Store\"\n\n    echo \"Checking public repository...\"\n    cd \"$PUBLIC_DIR\" || { echo \"Failed to cd into $PUBLIC_DIR\"; return 1; }\n\n    if [ -z \"$(git status --short)\" ]; then\n        echo \"No publish changes.\"\n    else\n        git add -A\n        git commit -m \"Publish site updates\" || return 1\n        echo \"Pushing to origin main...\"\n        git push origin main || return 1\n        echo \"Published successfully.\"\n    fi\n}"</script></div><p>这个命令的关键点是：</p><ol><li>先在 Hugo 源码根目录运行 <code>hugo --minify --gc</code>。</li><li>构建完成后再进入 <code>public/</code>。</li><li>只提交 <code>public/</code> 里的变化。</li><li>没有发布产物变化时直接输出 <code>No publish changes.</code>。</li></ol><p>也就是说，<code>purodn</code> 不负责备份源码。它只负责发布网站。</p><h2 id=一键备份源码purodncode>一键备份源码：purodncode</h2><p>源码备份我单独做成脚本：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>/Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo/scripts/purodncode"</script></div><p><code>~/.zshrc</code> 里只保留一个轻量函数：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-zsh data-lang=zsh><span style=display:flex><span>purodncode<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    /bin/sh <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style=color:#e6db74>&#34;</span>$@<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"purodncode() {\n    /bin/sh \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script></div><p>脚本内容如下：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span><span style=color:#75715e>#!/bin/sh
-</span></span></span><span style=display:flex><span>set -eu
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>SITE_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/Users/mana/Documents/codex/hugo&#34;</span>
-</span></span><span style=display:flex><span>SOURCE_REMOTE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;git@github.com:hanigege/purodn.tk-source-code.git&#34;</span>
-</span></span><span style=display:flex><span>COMMIT_MESSAGE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>1<span style=color:#66d9ef>:-</span>Backup source updates<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>cd <span style=color:#e6db74>&#34;</span>$SITE_DIR<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> ! command -v hugo &gt;/dev/null 2&gt;&amp;1; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;Error: hugo command not found.&#34;</span> &gt;&amp;<span style=color:#ae81ff>2</span>
-</span></span><span style=display:flex><span>  exit <span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> ! -d <span style=color:#e6db74>&#34;</span>$SITE_DIR<span style=color:#e6db74>/.git&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;Error: </span>$SITE_DIR<span style=color:#e6db74> is not a Git repository.&#34;</span> &gt;&amp;<span style=color:#ae81ff>2</span>
-</span></span><span style=display:flex><span>  exit <span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>origin_url<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>git remote get-url origin<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> <span style=color:#e6db74>&#34;</span>$origin_url<span style=color:#e6db74>&#34;</span> !<span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;</span>$SOURCE_REMOTE<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;Error: origin is </span>$origin_url<span style=color:#e6db74>, expected </span>$SOURCE_REMOTE<span style=color:#e6db74>.&#34;</span> &gt;&amp;<span style=color:#ae81ff>2</span>
-</span></span><span style=display:flex><span>  exit <span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> -z <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>git status --short<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;No source changes.&#34;</span>
-</span></span><span style=display:flex><span>  exit <span style=color:#ae81ff>0</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;Validating Hugo source...&#34;</span>
-</span></span><span style=display:flex><span>hugo --destination /private/tmp/hugo-build --cleanDestinationDir --minify --gc
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>rm -rf <span style=color:#e6db74>&#34;</span>$SITE_DIR<span style=color:#e6db74>/resources&#34;</span> <span style=color:#e6db74>&#34;</span>$SITE_DIR<span style=color:#e6db74>/.DS_Store&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> ! lsof -nP -iTCP:1313 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  rm -f <span style=color:#e6db74>&#34;</span>$SITE_DIR<span style=color:#e6db74>/.hugo_build.lock&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;Backing up Hugo source to origin/main...&#34;</span>
-</span></span><span style=display:flex><span>git add -A
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> -z <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>git diff --cached --name-only<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
-</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;No source changes after cleanup.&#34;</span>
-</span></span><span style=display:flex><span>  exit <span style=color:#ae81ff>0</span>
-</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>git commit -m <span style=color:#e6db74>&#34;</span>$COMMIT_MESSAGE<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>git push origin main
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;Source backup completed.&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"#!/bin/sh\nset -eu\n\nSITE_DIR=\"/Users/mana/Documents/codex/hugo\"\nSOURCE_REMOTE=\"git@github.com:hanigege/purodn.tk-source-code.git\"\nCOMMIT_MESSAGE=\"${1:-Backup source updates}\"\n\ncd \"$SITE_DIR\"\n\nif ! command -v hugo \u003e/dev/null 2\u003e\u00261; then\n  echo \"Error: hugo command not found.\" \u003e\u00262\n  exit 1\nfi\n\nif [ ! -d \"$SITE_DIR/.git\" ]; then\n  echo \"Error: $SITE_DIR is not a Git repository.\" \u003e\u00262\n  exit 1\nfi\n\norigin_url=\"$(git remote get-url origin)\"\nif [ \"$origin_url\" != \"$SOURCE_REMOTE\" ]; then\n  echo \"Error: origin is $origin_url, expected $SOURCE_REMOTE.\" \u003e\u00262\n  exit 1\nfi\n\nif [ -z \"$(git status --short)\" ]; then\n  echo \"No source changes.\"\n  exit 0\nfi\n\necho \"Validating Hugo source...\"\nhugo --destination /private/tmp/hugo-build --cleanDestinationDir --minify --gc\n\nrm -rf \"$SITE_DIR/resources\" \"$SITE_DIR/.DS_Store\"\nif ! lsof -nP -iTCP:1313 -sTCP:LISTEN \u003e/dev/null 2\u003e\u00261; then\n  rm -f \"$SITE_DIR/.hugo_build.lock\"\nfi\n\necho \"Backing up Hugo source to origin/main...\"\ngit add -A\n\nif [ -z \"$(git diff --cached --name-only)\" ]; then\n  echo \"No source changes after cleanup.\"\n  exit 0\nfi\n\ngit commit -m \"$COMMIT_MESSAGE\"\ngit push origin main\n\necho \"Source backup completed.\""</script></div><p>这样拆开以后，日常操作很清楚：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>purodn</span></span></code></pre></div><script class=code-source type=application/json>"purodn"</script></div><p>表示发布网站。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>purodncode</span></span></code></pre></div><script class=code-source type=application/json>"purodncode"</script></div><p>表示备份源码。</p><p>如果想自定义源码提交信息，可以这样传参数：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>purodncode <span style=color:#e6db74>&#34;Add Hugo dual repository workflow article&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"purodncode \"Add Hugo dual repository workflow article\""</script></div><h2 id=这次-purodncode-为什么失效>这次 purodncode 为什么失效</h2><p>原来的 <code>~/.zshrc</code> 写法是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-zsh data-lang=zsh><span style=display:flex><span>purodncode<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style=color:#e6db74>&#34;</span>$@<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"purodncode() {\n    \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script></div><p>它的意思是直接执行这个脚本文件。脚本本身有执行权限，也有 shebang：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span><span style=color:#75715e>#!/bin/sh</span></span></span></code></pre></div><script class=code-source type=application/json>"#!/bin/sh"</script></div><p>但实际排查时发现一个现象：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>/Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo/scripts/purodncode"</script></div><p>直接执行失败。</p><p>而显式交给 <code>/bin/sh</code> 解释执行时正常：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class=code-source type=application/json>"/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode"</script></div><p>输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>No source changes.</span></span></code></pre></div><script class=code-source type=application/json>"No source changes."</script></div><p>所以最后把 <code>.zshrc</code> 函数改成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-zsh data-lang=zsh><span style=display:flex><span>purodncode<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    /bin/sh <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style=color:#e6db74>&#34;</span>$@<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"purodncode() {\n    /bin/sh \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script></div><p>这个写法不再依赖系统如何处理脚本文件的直接执行，而是明确告诉系统：用 <code>/bin/sh</code> 来解释这个脚本。</p><h2 id=排查这类-shell-函数问题>排查这类 shell 函数问题</h2><p>遇到 <code>.zshrc</code> 里的命令突然不能用，可以按这个顺序看。</p><p>先确认当前 shell 是否加载了函数：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>type purodncode</span></span></code></pre></div><script class=code-source type=application/json>"type purodncode"</script></div><p>正常应该看到类似输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>purodncode is a shell function from /Users/mana/.zshrc</span></span></code></pre></div><script class=code-source type=application/json>"purodncode is a shell function from /Users/mana/.zshrc"</script></div><p>如果显示 <code>command not found</code>，说明当前 shell 没有加载 <code>.zshrc</code>。可以重新加载：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>source ~/.zshrc</span></span></code></pre></div><script class=code-source type=application/json>"source ~/.zshrc"</script></div><p>再检查 <code>.zshrc</code> 语法：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>zsh -n ~/.zshrc</span></span></code></pre></div><script class=code-source type=application/json>"zsh -n ~/.zshrc"</script></div><p>没有输出通常就是语法通过。</p><p>然后分别测试“直接执行脚本”和“用 sh 执行脚本”：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>/Users/mana/Documents/codex/hugo/scripts/purodncode
-</span></span><span style=display:flex><span>/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class=code-source type=application/json>"/Users/mana/Documents/codex/hugo/scripts/purodncode\n/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode"</script></div><p>如果第二条正常，第一条异常，就可以像这次一样在 <code>.zshrc</code> 函数里显式加 <code>/bin/sh</code>。</p><h2 id=使用时要记住的边界>使用时要记住的边界</h2><p>这套流程最重要的不是命令本身，而是边界。</p><p>发布网站时：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>purodn</span></span></code></pre></div><script class=code-source type=application/json>"purodn"</script></div><p>它会更新并推送 <code>public/</code>。</p><p>备份源码时：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>purodncode</span></span></code></pre></div><script class=code-source type=application/json>"purodncode"</script></div><p>它会验证 Hugo 源码，然后提交并推送源码仓库。</p><p>不要在 Hugo 根目录提交 <code>public/</code>，也不要在 <code>public/</code> 里判断源码有没有备份。两个仓库各管各的，后面排查问题会轻松很多。</p><p>我的习惯是：</p><ol><li>写文章或改模板后，先本地预览。</li><li>确认没问题后，用 <code>purodncode</code> 备份源码。</li><li>需要公开发布时，再用 <code>purodn</code> 推送生成后的网页。</li></ol><p>这样即使某一步出问题，也能很快知道它属于源码问题、构建问题，还是发布仓库问题。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-reinstall-user-home-nvim-ssh/><img src=/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span></a></li><li><a href=/posts/linux/alpine-user-docker-group/><img src=/posts/linux/alpine-user-docker-group/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Alpine Linux 将普通用户加入 Docker 组</span></a></li><li><a href=/posts/linux/hugo-two-git-repos-purodn-purodncode/><img src=/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</span></a></li><li><a href=/posts/ai/hermes-holographic-memory-addons/><img src=/posts/ai/hermes-holographic-memory-addons/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</span></a></li><li><a href=/posts/ai/hermes-profile-tools-scope-toolsets/><img src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</span></a></li><li><a href=/posts/ai/hermes-systemd-profile-gateway-conflict/><img src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</span></a></li><li><a href=/posts/ai/hermes-matrix-bot-new-machine-optimization/><img src=/posts/ai/hermes-matrix-bot-new-machine-optimization/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>Hermes Matrix 机器人新机保守优化手册</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码 | 电脑自习室</title>
+    <meta name="description" content="记录一个 Hugo 站点的源码仓库与 public 发布仓库分离方案，并整理 .zshrc 中一键发布和一键备份源码命令的写法与排错思路。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-06-03">2026年6月3日</time>
+        </div>
+        <h1>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</h1>
+          <p>记录一个 Hugo 站点的源码仓库与 public 发布仓库分离方案，并整理 .zshrc 中一键发布和一键备份源码命令的写法与排错思路。</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/hugo-two-git-repos-purodn-purodncode/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Hugo 静态站点有一个很容易混乱的地方：源码和发布产物都在同一个目录附近，但它们其实不是一类东西。</p>
+<p>源码是 <code>content/</code>、<code>layouts/</code>、<code>assets/</code>、<code>static/</code>、<code>hugo.yaml</code> 这些文件；发布产物是 Hugo 构建后生成的 HTML、CSS、JS、图片索引和站点地图。我的站点把这两部分拆成两个 Git 仓库：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/          Hugo 源码仓库
+</span></span><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/public/   GitHub Pages 发布仓库</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo/          Hugo 源码仓库\n/Users/mana/Documents/codex/hugo/public/   GitHub Pages 发布仓库"</script>
+</div>
+<p>这样做以后，日常操作也分成两个命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>purodn       构建 Hugo，并把 public/ 推到 GitHub Pages 仓库
+</span></span><span style="display:flex;"><span>purodncode   验证 Hugo 源码，并把源码推到私有源码仓库</span></span></code></pre></div><script class="code-source" type="application/json">"purodn       构建 Hugo，并把 public/ 推到 GitHub Pages 仓库\npurodncode   验证 Hugo 源码，并把源码推到私有源码仓库"</script>
+</div>
+<p>这篇文章记录这套工作流，也顺便记一下这次 <code>purodncode</code> 失效的排查过程。</p>
+<h2 id="为什么要分成两个仓库">为什么要分成两个仓库</h2>
+<p>如果只维护一个仓库，很容易把 Hugo 生成物当成源码提交进去。比如这些文件和目录都不是源码：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>public/
+</span></span><span style="display:flex;"><span>resources/
+</span></span><span style="display:flex;"><span>.hugo_build.lock
+</span></span><span style="display:flex;"><span>categories/
+</span></span><span style="display:flex;"><span>css/
+</span></span><span style="display:flex;"><span>js/
+</span></span><span style="display:flex;"><span>posts/
+</span></span><span style="display:flex;"><span>tags/
+</span></span><span style="display:flex;"><span>index.html
+</span></span><span style="display:flex;"><span>index.json
+</span></span><span style="display:flex;"><span>sitemap.xml</span></span></code></pre></div><script class="code-source" type="application/json">"public/\nresources/\n.hugo_build.lock\ncategories/\ncss/\njs/\nposts/\ntags/\nindex.html\nindex.json\nsitemap.xml"</script>
+</div>
+<p>它们要么是构建结果，要么是本地缓存。真正值得长期维护的是 Markdown 文章、文章图片、主题模板、样式脚本和站点配置。</p>
+<p>双仓库的边界可以这样理解：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>源码仓库：保存人写的东西
+</span></span><span style="display:flex;"><span>发布仓库：保存 Hugo 生成给浏览器看的东西</span></span></code></pre></div><script class="code-source" type="application/json">"源码仓库：保存人写的东西\n发布仓库：保存 Hugo 生成给浏览器看的东西"</script>
+</div>
+<p>源码仓库可以是私有仓库，里面有草稿、脚本和本地协作规则；发布仓库通常是公开仓库，GitHub Pages 直接从里面读取静态网页。</p>
+<h2 id="目录结构">目录结构</h2>
+<p>本地 Hugo 源码目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo"</script>
+</div>
+<p>源码仓库远程：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>git@github.com:hanigege/purodn.tk-source-code.git</span></span></code></pre></div><script class="code-source" type="application/json">"git@github.com:hanigege/purodn.tk-source-code.git"</script>
+</div>
+<p>本地发布目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/public</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo/public"</script>
+</div>
+<p>发布仓库远程：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>git@github.com:hanigege/purodn.tk.git</span></span></code></pre></div><script class="code-source" type="application/json">"git@github.com:hanigege/purodn.tk.git"</script>
+</div>
+<p>注意，<code>public/</code> 虽然在 Hugo 源码目录里面，但它自己也是一个独立 Git 仓库。检查源码状态时在 Hugo 根目录执行 <code>git status</code>；检查发布产物状态时要进入 <code>public/</code>，或者使用 <code>git -C public status</code>。</p>
+<h2 id="一键发布网站purodn">一键发布网站：purodn</h2>
+<p><code>purodn</code> 的职责只有一个：构建站点，然后提交并推送 <code>public/</code> 里的发布产物。</p>
+<p>我把它写在 <code>~/.zshrc</code> 里：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-zsh" data-lang="zsh"><span style="display:flex;"><span>purodn<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    SRC_DIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/Documents/codex/hugo&#34;</span>
+</span></span><span style="display:flex;"><span>    PUBLIC_DIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$SRC_DIR<span style="color:#e6db74">/public&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;Building Hugo site...&#34;</span>
+</span></span><span style="display:flex;"><span>    cd <span style="color:#e6db74">&#34;</span>$SRC_DIR<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">||</span> <span style="color:#f92672">{</span> echo <span style="color:#e6db74">&#34;Failed to cd into </span>$SRC_DIR<span style="color:#e6db74">&#34;</span>; <span style="color:#66d9ef">return</span> 1; <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    hugo --minify --gc
+</span></span><span style="display:flex;"><span>    rm -rf <span style="color:#e6db74">&#34;</span>$SRC_DIR<span style="color:#e6db74">/resources&#34;</span> <span style="color:#e6db74">&#34;</span>$SRC_DIR<span style="color:#e6db74">/.hugo_build.lock&#34;</span> <span style="color:#e6db74">&#34;</span>$SRC_DIR<span style="color:#e6db74">/.DS_Store&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;Checking public repository...&#34;</span>
+</span></span><span style="display:flex;"><span>    cd <span style="color:#e6db74">&#34;</span>$PUBLIC_DIR<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">||</span> <span style="color:#f92672">{</span> echo <span style="color:#e6db74">&#34;Failed to cd into </span>$PUBLIC_DIR<span style="color:#e6db74">&#34;</span>; <span style="color:#66d9ef">return</span> 1; <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> -z <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>git status --short<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;No publish changes.&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>        git add -A
+</span></span><span style="display:flex;"><span>        git commit -m <span style="color:#e6db74">&#34;Publish site updates&#34;</span> <span style="color:#f92672">||</span> <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;Pushing to origin main...&#34;</span>
+</span></span><span style="display:flex;"><span>        git push origin main <span style="color:#f92672">||</span> <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;Published successfully.&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"purodn() {\n    SRC_DIR=\"$HOME/Documents/codex/hugo\"\n    PUBLIC_DIR=\"$SRC_DIR/public\"\n\n    echo \"Building Hugo site...\"\n    cd \"$SRC_DIR\" || { echo \"Failed to cd into $SRC_DIR\"; return 1; }\n    hugo --minify --gc\n    rm -rf \"$SRC_DIR/resources\" \"$SRC_DIR/.hugo_build.lock\" \"$SRC_DIR/.DS_Store\"\n\n    echo \"Checking public repository...\"\n    cd \"$PUBLIC_DIR\" || { echo \"Failed to cd into $PUBLIC_DIR\"; return 1; }\n\n    if [ -z \"$(git status --short)\" ]; then\n        echo \"No publish changes.\"\n    else\n        git add -A\n        git commit -m \"Publish site updates\" || return 1\n        echo \"Pushing to origin main...\"\n        git push origin main || return 1\n        echo \"Published successfully.\"\n    fi\n}"</script>
+</div>
+<p>这个命令的关键点是：</p>
+<ol>
+<li>先在 Hugo 源码根目录运行 <code>hugo --minify --gc</code>。</li>
+<li>构建完成后再进入 <code>public/</code>。</li>
+<li>只提交 <code>public/</code> 里的变化。</li>
+<li>没有发布产物变化时直接输出 <code>No publish changes.</code>。</li>
+</ol>
+<p>也就是说，<code>purodn</code> 不负责备份源码。它只负责发布网站。</p>
+<h2 id="一键备份源码purodncode">一键备份源码：purodncode</h2>
+<p>源码备份我单独做成脚本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo/scripts/purodncode"</script>
+</div>
+<p><code>~/.zshrc</code> 里只保留一个轻量函数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-zsh" data-lang="zsh"><span style="display:flex;"><span>purodncode<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    /bin/sh <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style="color:#e6db74">&#34;</span>$@<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"purodncode() {\n    /bin/sh \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script>
+</div>
+<p>脚本内容如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/sh
+</span></span></span><span style="display:flex;"><span>set -eu
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>SITE_DIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/Users/mana/Documents/codex/hugo&#34;</span>
+</span></span><span style="display:flex;"><span>SOURCE_REMOTE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;git@github.com:hanigege/purodn.tk-source-code.git&#34;</span>
+</span></span><span style="display:flex;"><span>COMMIT_MESSAGE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>1<span style="color:#66d9ef">:-</span>Backup source updates<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cd <span style="color:#e6db74">&#34;</span>$SITE_DIR<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> ! command -v hugo &gt;/dev/null 2&gt;&amp;1; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;Error: hugo command not found.&#34;</span> &gt;&amp;<span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>  exit <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> ! -d <span style="color:#e6db74">&#34;</span>$SITE_DIR<span style="color:#e6db74">/.git&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;Error: </span>$SITE_DIR<span style="color:#e6db74"> is not a Git repository.&#34;</span> &gt;&amp;<span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>  exit <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>origin_url<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>git remote get-url origin<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> <span style="color:#e6db74">&#34;</span>$origin_url<span style="color:#e6db74">&#34;</span> !<span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span>$SOURCE_REMOTE<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;Error: origin is </span>$origin_url<span style="color:#e6db74">, expected </span>$SOURCE_REMOTE<span style="color:#e6db74">.&#34;</span> &gt;&amp;<span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>  exit <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> -z <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>git status --short<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;No source changes.&#34;</span>
+</span></span><span style="display:flex;"><span>  exit <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;Validating Hugo source...&#34;</span>
+</span></span><span style="display:flex;"><span>hugo --destination /private/tmp/hugo-build --cleanDestinationDir --minify --gc
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>rm -rf <span style="color:#e6db74">&#34;</span>$SITE_DIR<span style="color:#e6db74">/resources&#34;</span> <span style="color:#e6db74">&#34;</span>$SITE_DIR<span style="color:#e6db74">/.DS_Store&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> ! lsof -nP -iTCP:1313 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  rm -f <span style="color:#e6db74">&#34;</span>$SITE_DIR<span style="color:#e6db74">/.hugo_build.lock&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;Backing up Hugo source to origin/main...&#34;</span>
+</span></span><span style="display:flex;"><span>git add -A
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> -z <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>git diff --cached --name-only<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;No source changes after cleanup.&#34;</span>
+</span></span><span style="display:flex;"><span>  exit <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fi</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>git commit -m <span style="color:#e6db74">&#34;</span>$COMMIT_MESSAGE<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>git push origin main
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;Source backup completed.&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"#!/bin/sh\nset -eu\n\nSITE_DIR=\"/Users/mana/Documents/codex/hugo\"\nSOURCE_REMOTE=\"git@github.com:hanigege/purodn.tk-source-code.git\"\nCOMMIT_MESSAGE=\"${1:-Backup source updates}\"\n\ncd \"$SITE_DIR\"\n\nif ! command -v hugo \u003e/dev/null 2\u003e\u00261; then\n  echo \"Error: hugo command not found.\" \u003e\u00262\n  exit 1\nfi\n\nif [ ! -d \"$SITE_DIR/.git\" ]; then\n  echo \"Error: $SITE_DIR is not a Git repository.\" \u003e\u00262\n  exit 1\nfi\n\norigin_url=\"$(git remote get-url origin)\"\nif [ \"$origin_url\" != \"$SOURCE_REMOTE\" ]; then\n  echo \"Error: origin is $origin_url, expected $SOURCE_REMOTE.\" \u003e\u00262\n  exit 1\nfi\n\nif [ -z \"$(git status --short)\" ]; then\n  echo \"No source changes.\"\n  exit 0\nfi\n\necho \"Validating Hugo source...\"\nhugo --destination /private/tmp/hugo-build --cleanDestinationDir --minify --gc\n\nrm -rf \"$SITE_DIR/resources\" \"$SITE_DIR/.DS_Store\"\nif ! lsof -nP -iTCP:1313 -sTCP:LISTEN \u003e/dev/null 2\u003e\u00261; then\n  rm -f \"$SITE_DIR/.hugo_build.lock\"\nfi\n\necho \"Backing up Hugo source to origin/main...\"\ngit add -A\n\nif [ -z \"$(git diff --cached --name-only)\" ]; then\n  echo \"No source changes after cleanup.\"\n  exit 0\nfi\n\ngit commit -m \"$COMMIT_MESSAGE\"\ngit push origin main\n\necho \"Source backup completed.\""</script>
+</div>
+<p>这样拆开以后，日常操作很清楚：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>purodn</span></span></code></pre></div><script class="code-source" type="application/json">"purodn"</script>
+</div>
+<p>表示发布网站。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"purodncode"</script>
+</div>
+<p>表示备份源码。</p>
+<p>如果想自定义源码提交信息，可以这样传参数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>purodncode <span style="color:#e6db74">&#34;Add Hugo dual repository workflow article&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"purodncode \"Add Hugo dual repository workflow article\""</script>
+</div>
+<h2 id="这次-purodncode-为什么失效">这次 purodncode 为什么失效</h2>
+<p>原来的 <code>~/.zshrc</code> 写法是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-zsh" data-lang="zsh"><span style="display:flex;"><span>purodncode<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style="color:#e6db74">&#34;</span>$@<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"purodncode() {\n    \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script>
+</div>
+<p>它的意思是直接执行这个脚本文件。脚本本身有执行权限，也有 shebang：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/sh</span></span></span></code></pre></div><script class="code-source" type="application/json">"#!/bin/sh"</script>
+</div>
+<p>但实际排查时发现一个现象：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo/scripts/purodncode"</script>
+</div>
+<p>直接执行失败。</p>
+<p>而显式交给 <code>/bin/sh</code> 解释执行时正常：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode"</script>
+</div>
+<p>输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>No source changes.</span></span></code></pre></div><script class="code-source" type="application/json">"No source changes."</script>
+</div>
+<p>所以最后把 <code>.zshrc</code> 函数改成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-zsh" data-lang="zsh"><span style="display:flex;"><span>purodncode<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    /bin/sh <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/Documents/codex/hugo/scripts/purodncode&#34;</span> <span style="color:#e6db74">&#34;</span>$@<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"purodncode() {\n    /bin/sh \"$HOME/Documents/codex/hugo/scripts/purodncode\" \"$@\"\n}"</script>
+</div>
+<p>这个写法不再依赖系统如何处理脚本文件的直接执行，而是明确告诉系统：用 <code>/bin/sh</code> 来解释这个脚本。</p>
+<h2 id="排查这类-shell-函数问题">排查这类 shell 函数问题</h2>
+<p>遇到 <code>.zshrc</code> 里的命令突然不能用，可以按这个顺序看。</p>
+<p>先确认当前 shell 是否加载了函数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>type purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"type purodncode"</script>
+</div>
+<p>正常应该看到类似输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>purodncode is a shell function from /Users/mana/.zshrc</span></span></code></pre></div><script class="code-source" type="application/json">"purodncode is a shell function from /Users/mana/.zshrc"</script>
+</div>
+<p>如果显示 <code>command not found</code>，说明当前 shell 没有加载 <code>.zshrc</code>。可以重新加载：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>source ~/.zshrc</span></span></code></pre></div><script class="code-source" type="application/json">"source ~/.zshrc"</script>
+</div>
+<p>再检查 <code>.zshrc</code> 语法：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>zsh -n ~/.zshrc</span></span></code></pre></div><script class="code-source" type="application/json">"zsh -n ~/.zshrc"</script>
+</div>
+<p>没有输出通常就是语法通过。</p>
+<p>然后分别测试“直接执行脚本”和“用 sh 执行脚本”：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/Users/mana/Documents/codex/hugo/scripts/purodncode
+</span></span><span style="display:flex;"><span>/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"/Users/mana/Documents/codex/hugo/scripts/purodncode\n/bin/sh /Users/mana/Documents/codex/hugo/scripts/purodncode"</script>
+</div>
+<p>如果第二条正常，第一条异常，就可以像这次一样在 <code>.zshrc</code> 函数里显式加 <code>/bin/sh</code>。</p>
+<h2 id="使用时要记住的边界">使用时要记住的边界</h2>
+<p>这套流程最重要的不是命令本身，而是边界。</p>
+<p>发布网站时：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>purodn</span></span></code></pre></div><script class="code-source" type="application/json">"purodn"</script>
+</div>
+<p>它会更新并推送 <code>public/</code>。</p>
+<p>备份源码时：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>purodncode</span></span></code></pre></div><script class="code-source" type="application/json">"purodncode"</script>
+</div>
+<p>它会验证 Hugo 源码，然后提交并推送源码仓库。</p>
+<p>不要在 Hugo 根目录提交 <code>public/</code>，也不要在 <code>public/</code> 里判断源码有没有备份。两个仓库各管各的，后面排查问题会轻松很多。</p>
+<p>我的习惯是：</p>
+<ol>
+<li>写文章或改模板后，先本地预览。</li>
+<li>确认没问题后，用 <code>purodncode</code> 备份源码。</li>
+<li>需要公开发布时，再用 <code>purodn</code> 推送生成后的网页。</li>
+</ol>
+<p>这样即使某一步出问题，也能很快知道它属于源码问题、构建问题，还是发布仓库问题。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/sing-box-production-manual-restore/">
+            <img src="/posts/linux/sing-box-production-manual-restore/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">sing-box 生产机纯手动备份与恢复</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/claude-code-complete-tutorial/">
+            <img src="/posts/ai/claude-code-complete-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Claude Code 完全教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/matrix-public-443-ops-tools-full-source/">
+            <img src="/posts/docker/matrix-public-443-ops-tools-full-source/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">机密：Matrix 运维面板、MusicBot 和生产 Bot 小白部署手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/matrix-public-443-caddy-full-stack/">
+            <img src="/posts/docker/matrix-public-443-caddy-full-stack/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">机密：Matrix Synapse 全套公网 443 &#43; Caddy 生产搭建手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-reinstall-user-home-nvim-ssh/">
+            <img src="/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-user-docker-group/">
+            <img src="/posts/linux/alpine-user-docker-group/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Alpine Linux 将普通用户加入 Docker 组</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/matrix-element-call-musicbot-radio-docker/">
+            <img src="/posts/docker/matrix-element-call-musicbot-radio-docker/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>
