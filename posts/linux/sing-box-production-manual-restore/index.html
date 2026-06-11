@@ -111,9 +111,8 @@
 </span></span><span style="display:flex;"><span>ls -lh sing-box-manual-restore-sanitized-example.tar.gz*
 </span></span><span style="display:flex;"><span>sha256sum -c sing-box-manual-restore-sanitized-example.tar.gz.sha256</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root\nls -lh sing-box-manual-restore-sanitized-example.tar.gz*\nsha256sum -c sing-box-manual-restore-sanitized-example.tar.gz.sha256"</script>
 </div>
-<p>本文这份公开包已经在一台刚装好的 Ubuntu 测试机 <code>10.20.20.16</code> 上按本文流程实测过：<code>systemd-resolved</code> 原装占用 53 端口，按文中步骤关闭 stub 后，复制文件、把示例 LAN IP 改为 <code>10.20.20.16</code>，执行 <code>refresh-sing-box-runtime-config</code> 和 <code>sing-box check</code>，再启动 <code>sing-box-tproxy</code>、<code>sing-box</code>、<code>singbox-rule-ui</code>、规则更新 timer，四个服务都为 active。</p>
+<p>本文这份公开包已经在一台刚装好的 Ubuntu 测试机 <code>10.20.20.16</code> 上按本文流程做过第二轮完整恢复测试。测试前机器时间已校正为北京时间，<code>systemd-resolved</code> 原装占用 53 端口；按文中步骤关闭 stub 后，解包无 <code>._</code> 元数据、无未来时间戳警告，复制文件、把示例 LAN IP 改为 <code>10.20.20.16</code>，执行 <code>refresh-sing-box-runtime-config</code> 和 <code>sing-box check</code>，再启动 <code>sing-box-tproxy</code>、<code>sing-box</code>、<code>singbox-rule-ui</code>、规则更新 timer，四个服务都为 active。</p>
 <p>实测通过的检查包括：sing-box 监听 <code>10.20.20.16:53</code> 和 <code>[fd88::1616]:53</code>，TProxy <code>9888</code>、Clash API <code>10.20.20.16:9090</code>、Rule UI <code>0.0.0.0:9091</code> 正常；<code>/api/maintenance</code>、<code>/api/state</code>、Rule UI 备份导出、Clash <code>/configs</code>、本机 DNS 查询 <code>google.com</code> / <code>apple.com</code> / <code>github.com</code> 都通过。</p>
-<p>如果新机器系统时间不准，解压时可能看到“time stamp is in the future”这类提示；这不是包损坏，先用 <code>timedatectl</code> / NTP 把系统时间同步好，再重新解压即可。</p>
 <p>看到 <code>OK</code> 再解压：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root
