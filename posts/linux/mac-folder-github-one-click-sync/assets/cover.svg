@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Mac 文件夹与 GitHub 一键同步</title>
+  <desc id="desc">Mac 本地文件夹、Git 分支和 GitHub 仓库之间的同步流程示意图</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f8fb"/>
+      <stop offset="1" stop-color="#e6edf5"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#172033" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="72" y="70" width="1056" height="490" rx="30" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="72" y="70" width="1056" height="72" rx="30" fill="#1f2937"/>
+  <circle cx="118" cy="106" r="10" fill="#ef4444"/>
+  <circle cx="150" cy="106" r="10" fill="#f59e0b"/>
+  <circle cx="182" cy="106" r="10" fill="#22c55e"/>
+  <text x="230" y="115" font-family="Menlo, Consolas, monospace" font-size="25" fill="#e5e7eb">/Users/mana/Documents/codex/file</text>
+
+  <g transform="translate(120 205)">
+    <rect width="250" height="205" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+    <path d="M42 72h166a16 16 0 0 1 16 16v72a16 16 0 0 1-16 16H42a16 16 0 0 1-16-16V72z" fill="#dbeafe" stroke="#2563eb" stroke-width="4"/>
+    <path d="M44 55h72l25 27H44a14 14 0 0 0-14 14V69a14 14 0 0 1 14-14z" fill="#bfdbfe" stroke="#2563eb" stroke-width="4"/>
+    <text x="125" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#172554">本地文件夹</text>
+    <text x="125" y="148" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="18" fill="#334155">file/</text>
+  </g>
+
+  <g transform="translate(475 205)">
+    <rect width="250" height="205" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+    <circle cx="125" cy="75" r="28" fill="#f97316"/>
+    <circle cx="73" cy="143" r="20" fill="#0f766e"/>
+    <circle cx="177" cy="143" r="20" fill="#0f766e"/>
+    <path d="M113 95 83 126M137 95l30 31" fill="none" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
+    <text x="125" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#7c2d12">Git 提交</text>
+    <text x="125" y="174" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="18" fill="#334155">main</text>
+  </g>
+
+  <g transform="translate(830 205)">
+    <rect width="250" height="205" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+    <circle cx="125" cy="88" r="48" fill="#111827"/>
+    <path d="M105 104c-17 5-17-8-24-11m48 36v-25c0-7-2-12-6-15 20-2 41-10 41-43 0-10-4-18-10-25 1-2 4-12-1-25 0 0-8-3-27 10a93 93 0 0 0-49 0C58-3 50 0 50 0c-5 13-2 23-1 25-6 7-10 15-10 25 0 33 21 41 41 43-3 3-5 8-5 15v21" transform="translate(44 47) scale(.82)" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="125" y="154" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#111827">GitHub 仓库</text>
+    <text x="125" y="184" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="18" fill="#334155">origin/main</text>
+  </g>
+
+  <path d="M386 307h72" fill="none" stroke="#2563eb" stroke-width="10" stroke-linecap="round"/>
+  <path d="m458 307-24-18v36z" fill="#2563eb"/>
+  <path d="M741 307h72" fill="none" stroke="#2563eb" stroke-width="10" stroke-linecap="round"/>
+  <path d="m813 307-24-18v36z" fill="#2563eb"/>
+
+  <rect x="323" y="455" width="554" height="58" rx="14" fill="#ecfeff" stroke="#0891b2" stroke-width="3"/>
+  <text x="600" y="493" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="26" fill="#155e75">./push.sh = pull --rebase + commit + push</text>
+</svg>

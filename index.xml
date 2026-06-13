@@ -1,4 +1,30 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 08 Jun 2026 09:28:46 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title><link>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link><pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid><description>&lt;p&gt;这次是在 VPS 上通过 &lt;a href="https://github.com/bin456789/reinstall"&gt;bin456789/reinstall&lt;/a&gt; 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 &lt;code&gt;jay&lt;/code&gt;，也配置了登录密码。系统起来以后，确实可以用 &lt;code&gt;jay&lt;/code&gt; 这个普通用户 SSH 登录。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>&lt;p&gt;这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&lt;/p&gt;
+&lt;p&gt;最终效果是：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/Users/mana/Documents/codex/file/ 本地同步文件夹
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git@github.com:hanigege/file.git GitHub 远程仓库
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;push.sh 一键同步脚本&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/Users/mana/Documents/codex/file/ 本地同步文件夹\ngit@github.com:hanigege/file.git GitHub 远程仓库\npush.sh 一键同步脚本"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;日常只需要做两件事：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /Users/mana/Documents/codex/file
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;./push.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cd /Users/mana/Documents/codex/file\n./push.sh"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。&lt;/p&gt;
+&lt;h2 id="准备工作"&gt;准备工作&lt;/h2&gt;
+&lt;p&gt;Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。&lt;/p&gt;
+&lt;p&gt;先在终端检查 Git：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git --version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"git --version"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 &lt;code&gt;git --version&lt;/code&gt; 确认 Git 可用。&lt;/p&gt;
+&lt;p&gt;然后确认当前 Mac 能通过 SSH 连接 GitHub：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ssh -T git@github.com&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"ssh -T git@github.com"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果看到类似 &lt;code&gt;successfully authenticated&lt;/code&gt; 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。&lt;/p&gt;
+&lt;h2 id="在-github-创建空仓库"&gt;在 GitHub 创建空仓库&lt;/h2&gt;
+&lt;p&gt;打开 GitHub 网站，点击右上角的 &lt;code&gt;+&lt;/code&gt;，选择 &lt;code&gt;New repository&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title><link>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link><pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid><description>&lt;p&gt;这次是在 VPS 上通过 &lt;a href="https://github.com/bin456789/reinstall"&gt;bin456789/reinstall&lt;/a&gt; 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 &lt;code&gt;jay&lt;/code&gt;，也配置了登录密码。系统起来以后，确实可以用 &lt;code&gt;jay&lt;/code&gt; 这个普通用户 SSH 登录。&lt;/p&gt;
 &lt;p&gt;问题出在登录后才发现：&lt;code&gt;/home/&lt;/code&gt; 下面没有正常的 &lt;code&gt;jay&lt;/code&gt; 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：&lt;/p&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk update
