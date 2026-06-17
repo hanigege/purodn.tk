@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">PVE LXC sing-box sysctl UDP tuning</title>
+  <desc id="desc">A Proxmox host with an LXC sing-box gateway, UDP QUIC traffic, BBR, queues and kernel buffers.</desc>
+  <rect width="1200" height="675" fill="#f7fafc"/>
+  <rect x="0" y="0" width="1200" height="675" fill="#12313a"/>
+  <path d="M0 514 C160 474 262 570 430 522 C588 477 650 380 812 422 C1008 474 1025 601 1200 552 L1200 675 L0 675 Z" fill="#2f7d78"/>
+  <path d="M0 565 C172 538 270 626 438 585 C616 542 709 470 874 516 C1020 557 1070 622 1200 604 L1200 675 L0 675 Z" fill="#93c5bd"/>
+
+  <text x="72" y="92" fill="#f8fafc" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="44" font-weight="800">PVE LXC sing-box</text>
+  <text x="72" y="140" fill="#c7e7e2" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="28">sysctl · UDP · BBR · GSO</text>
+
+  <rect x="70" y="214" width="304" height="276" rx="8" fill="#e8f4f2" stroke="#94d2c8" stroke-width="3"/>
+  <rect x="92" y="244" width="260" height="58" rx="6" fill="#143842"/>
+  <text x="116" y="281" fill="#e2f7f3" font-family="Menlo, Consolas, monospace" font-size="25">Proxmox VE</text>
+  <rect x="104" y="332" width="216" height="86" rx="6" fill="#ffffff" stroke="#57afa5" stroke-width="2"/>
+  <text x="128" y="367" fill="#12313a" font-family="Menlo, Consolas, monospace" font-size="24">LXC</text>
+  <text x="128" y="399" fill="#24615b" font-family="Menlo, Consolas, monospace" font-size="22">sing-box</text>
+
+  <rect x="760" y="214" width="324" height="276" rx="8" fill="#fef7e7" stroke="#f2b84b" stroke-width="3"/>
+  <text x="796" y="270" fill="#3a2a12" font-family="Menlo, Consolas, monospace" font-size="25">net.core.rmem</text>
+  <text x="796" y="320" fill="#3a2a12" font-family="Menlo, Consolas, monospace" font-size="25">udp_rmem_min</text>
+  <text x="796" y="370" fill="#3a2a12" font-family="Menlo, Consolas, monospace" font-size="25">fq + bbr</text>
+  <text x="796" y="420" fill="#3a2a12" font-family="Menlo, Consolas, monospace" font-size="25">GSO / GRO</text>
+
+  <path d="M390 342 C482 260 608 260 700 342" fill="none" stroke="#f8fafc" stroke-width="8" stroke-linecap="round"/>
+  <path d="M700 342 l-38 -17 l11 41 z" fill="#f8fafc"/>
+  <path d="M390 394 C505 468 604 468 716 394" fill="none" stroke="#ffe08a" stroke-width="8" stroke-linecap="round" stroke-dasharray="16 16"/>
+  <path d="M390 394 l38 17 l-11 -41 z" fill="#ffe08a"/>
+
+  <circle cx="545" cy="334" r="46" fill="#ffffff"/>
+  <text x="508" y="345" fill="#12313a" font-family="Menlo, Consolas, monospace" font-size="25" font-weight="700">UDP</text>
+  <circle cx="612" cy="404" r="42" fill="#ffe08a"/>
+  <text x="583" y="414" fill="#12313a" font-family="Menlo, Consolas, monospace" font-size="23" font-weight="700">QUIC</text>
+
+  <text x="72" y="603" fill="#f8fafc" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="30" font-weight="700">透明代理网关的内核参数整理</text>
+</svg>

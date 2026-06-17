@@ -3,8 +3,8 @@
   <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>sing-box 生产机纯手动备份与恢复 | 电脑自习室</title>
-    <meta name="description" content="不用 GitHub 仓库，只拿生产机备份包，在第三方 Linux 新机器上手动恢复 sing-box 网关、Rule UI、TProxy、DNS 53 端口和 systemd 服务。">
+    <title>sing-box 生产机一键备份与恢复 | 电脑自习室</title>
+    <meta name="description" content="不用 GitHub 仓库，只从生产机生成离线备份包，再用一键脚本在新 Linux 机器上恢复 sing-box 网关、Rule UI、TProxy、DNS 53 端口和 systemd 服务。">
       <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
   </head>
   <body>
@@ -37,392 +37,295 @@
     <article class="article">
       <header class="article-header">
         <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-06-11">2026年6月11日</time>
+          <time datetime="2026-06-15">2026年6月15日</time>
         </div>
-        <h1>sing-box 生产机纯手动备份与恢复</h1>
-          <p>不用 GitHub 仓库，只拿生产机备份包，在第三方 Linux 新机器上手动恢复 sing-box 网关、Rule UI、TProxy、DNS 53 端口和 systemd 服务。</p>
+        <h1>sing-box 生产机一键备份与恢复</h1>
+          <p>不用 GitHub 仓库，只从生产机生成离线备份包，再用一键脚本在新 Linux 机器上恢复 sing-box 网关、Rule UI、TProxy、DNS 53 端口和 systemd 服务。</p>
       </header>
           <img class="article-cover" src="/posts/linux/sing-box-production-manual-restore/assets/cover.svg" alt="">
 
       <div class="article-content">
-        <p>这篇文章记录的是一次真实生产机的手动备份和恢复方案。目标很简单：不依赖 GitHub 仓库，不跑一键安装脚本，只拿一份备份包，在第三方新机器上尽量完整恢复 sing-box 网关、Rule UI、TProxy、DNS 53 端口和 systemd 服务。</p>
-<p>本文提供一份从当前生产机 <code>10.20.20.6</code> 提取、再本地脱敏后的恢复包。它保留生产机实际运行的 Rule UI、helper 脚本、systemd 单元、规则集、TProxy/sysctl 文件、9091 Rule UI、9090 Clash API 配置和仓库验证过的 sing-box 二进制；同时移除了真实代理节点、Rule UI token、Clash secret、生产 IPv6 FakeIP 前缀、生产自定义规则列表、运行缓存和历史 <code>.bak</code>/<code>backups</code> 文件。</p>
-<p>恢复包不随公开文章发布。请从你自己的可信备份位置获取 <code>.tar.gz</code> 和对应 <code>.sha256</code>，恢复前必须先校验哈希。</p>
-<p>这份脱敏包恢复后的初始状态和 GitHub 仓库一键安装的安全默认值保持一致：只有 <code>TEMPLATE-HY2</code>、<code>TEMPLATE-VLESS</code> 两个模板节点，自定义白名单/黑名单/灰名单/DDNS 规则为空，Rule UI token 是 <code>change-me-rule-ui-token</code>，Clash secret 是 <code>change-me-clash-secret</code>。启动前或启动后必须把这些占位值换成自己的真实值。</p>
-<p>当前主仓库已经固定启用 FakeIP QUIC 保护：系统只拦截发往 FakeIP 网段的 UDP/443，让浏览器回落到 TCP，减少 QUIC 长连接占满代理带宽和连接表；真实游戏/语音 UDP 不受影响。这个策略属于网关稳定性边界，不再在 UI 中提供关闭入口。</p>
-<p>当前 Rule UI 还提供“启用 IPv6 FakeIP / AAAA”开关。默认开启时，国外域名会同时返回 IPv4 FakeIP 和 IPv6 FakeIP；关闭后，LAN DNS 入站只返回 IPv4 FakeIP 的 A 记录，并对 AAAA 明确拒绝。这个开关适合排查运营商或前端软路由 IPv6 绕路、游戏延迟偏高的问题；它不会关闭新机器自身 IPv6，也不会改 RouterOS 的 IPv6 配置。</p>
-<p>本文这份包已经在一台干净的 Ubuntu 25.04 amd64 测试机上按下文流程恢复通过。测试机地址为 <code>10.20.20.16</code>，网卡为 <code>eth0</code>，IPv6 DNS 监听地址为 <code>fd88::1616</code>；最终 <code>sing-box</code>、<code>sing-box-tproxy</code>、<code>singbox-rule-ui</code>、规则更新 timer 均为 active，53/9090/9091/9888 端口正常监听。</p>
-<h2 id="在新机器上准备恢复包">在新机器上准备恢复包</h2>
-<p>把下载好的备份包和校验文件放到新机器的 <code>/root/</code>，例如：</p>
+        <p>这篇文章讲一件事：<strong>不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。</strong></p>
+<p>我把流程整理成两个脚本：</p>
+<ul>
+<li><a href="assets/backup-sing-box-production.sh">backup-sing-box-production.sh</a>：在旧生产机执行，生成 <code>.tar.gz</code> 和 <code>.sha256</code>。</li>
+<li><a href="assets/restore-sing-box-production.sh">restore-sing-box-production.sh</a>：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。</li>
+</ul>
+<p>恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，<strong>它不是公开下载包</strong>。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。</p>
+<h2 id="能恢复什么">能恢复什么</h2>
+<p>当前脚本按本地生产结构收集并恢复这些内容：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root
-</span></span><span style="display:flex;"><span>ls -lh sing-box-production-manual-restore-20260611.tar.gz*
-</span></span><span style="display:flex;"><span>sha256sum -c sing-box-production-manual-restore-20260611.tar.gz.sha256</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root\nls -lh sing-box-production-manual-restore-20260611.tar.gz*\nsha256sum -c sing-box-production-manual-restore-20260611.tar.gz.sha256"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/etc/sing-box/                                  # 主配置、UI 管理配置、自定义规则、token
+</span></span><span style="display:flex;"><span>/opt/singbox-rule-ui/                           # 9091 Rule UI 后端和静态前端
+</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box                         # sing-box 二进制
+</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box-gateway-info            # 查看 UI 地址和 token
+</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box-gateway-uninstall       # 卸载辅助脚本
+</span></span><span style="display:flex;"><span>/usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json
+</span></span><span style="display:flex;"><span>/usr/local/sbin/refresh-sing-box-tproxy-setup   # 按当前网卡/IP 重生成 TProxy 脚本
+</span></span><span style="display:flex;"><span>/usr/local/sbin/sing-box-tproxy-setup           # 应用 nftables 与策略路由
+</span></span><span style="display:flex;"><span>/usr/local/sbin/update-sing-box-rules-jsdelivr  # 更新 geosite/geoip 与 Telegram CIDR
+</span></span><span style="display:flex;"><span>/usr/local/sbin/monitor-sing-box-runtime        # 运行状态自愈检查
+</span></span><span style="display:flex;"><span>/etc/systemd/system/*.service 和 *.timer
+</span></span><span style="display:flex;"><span>/etc/sysctl.d/99-sing-box-tproxy.conf
+</span></span><span style="display:flex;"><span>/etc/systemd/journald.conf.d/90-sing-box-gateway.conf</span></span></code></pre></div><script class="code-source" type="application/json">"/etc/sing-box/                                  # 主配置、UI 管理配置、自定义规则、token\n/opt/singbox-rule-ui/                           # 9091 Rule UI 后端和静态前端\n/usr/local/bin/sing-box                         # sing-box 二进制\n/usr/local/bin/sing-box-gateway-info            # 查看 UI 地址和 token\n/usr/local/bin/sing-box-gateway-uninstall       # 卸载辅助脚本\n/usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json\n/usr/local/sbin/refresh-sing-box-tproxy-setup   # 按当前网卡/IP 重生成 TProxy 脚本\n/usr/local/sbin/sing-box-tproxy-setup           # 应用 nftables 与策略路由\n/usr/local/sbin/update-sing-box-rules-jsdelivr  # 更新 geosite/geoip 与 Telegram CIDR\n/usr/local/sbin/monitor-sing-box-runtime        # 运行状态自愈检查\n/etc/systemd/system/*.service 和 *.timer\n/etc/sysctl.d/99-sing-box-tproxy.conf\n/etc/systemd/journald.conf.d/90-sing-box-gateway.conf"</script>
 </div>
-<p>看到 <code>OK</code> 再解压：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root
-</span></span><span style="display:flex;"><span>tar -xzpf sing-box-production-manual-restore-20260611.tar.gz
-</span></span><span style="display:flex;"><span>cd sing-box-production-manual-restore-20260611</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root\ntar -xzpf sing-box-production-manual-restore-20260611.tar.gz\ncd sing-box-production-manual-restore-20260611"</script>
-</div>
-<p>先看清包里的路径，不要急着覆盖：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>find files -maxdepth <span style="color:#ae81ff">4</span> -type f | sort | sed -n <span style="color:#e6db74">&#39;1,120p&#39;</span>
-</span></span><span style="display:flex;"><span>sed -n <span style="color:#e6db74">&#39;1,120p&#39;</span> manifest/restore-package.txt 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>sed -n <span style="color:#e6db74">&#39;1,120p&#39;</span> README-BACKUP.txt 2&gt;/dev/null <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"find files -maxdepth 4 -type f | sort | sed -n '1,120p'\nsed -n '1,120p' manifest/restore-package.txt 2\u003e/dev/null || true\nsed -n '1,120p' README-BACKUP.txt 2\u003e/dev/null || true"</script>
-</div>
-<p>包内通常按 <code>files/</code> 保存原机器路径，核心内容包括：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>files/etc/sing-box/
-</span></span><span style="display:flex;"><span>files/opt/singbox-rule-ui/
-</span></span><span style="display:flex;"><span>files/usr/local/bin/sing-box
-</span></span><span style="display:flex;"><span>files/usr/local/bin/sing-box-gateway-info
-</span></span><span style="display:flex;"><span>files/usr/local/bin/sing-box-gateway-uninstall
-</span></span><span style="display:flex;"><span>files/usr/local/sbin/refresh-sing-box-runtime-config
-</span></span><span style="display:flex;"><span>files/usr/local/sbin/sing-box-tproxy-setup
-</span></span><span style="display:flex;"><span>files/usr/local/sbin/update-sing-box-rules-jsdelivr
-</span></span><span style="display:flex;"><span>files/etc/systemd/system/sing-box.service
-</span></span><span style="display:flex;"><span>files/etc/systemd/system/sing-box-tproxy.service
-</span></span><span style="display:flex;"><span>files/etc/systemd/system/singbox-rule-ui.service
-</span></span><span style="display:flex;"><span>files/etc/systemd/system/update-sing-box-rules-jsdelivr.service
-</span></span><span style="display:flex;"><span>files/etc/systemd/system/update-sing-box-rules-jsdelivr.timer
-</span></span><span style="display:flex;"><span>files/etc/sysctl.d/99-sing-box-tproxy.conf
-</span></span><span style="display:flex;"><span>manifest/
-</span></span><span style="display:flex;"><span>README-BACKUP.txt</span></span></code></pre></div><script class="code-source" type="application/json">"files/etc/sing-box/\nfiles/opt/singbox-rule-ui/\nfiles/usr/local/bin/sing-box\nfiles/usr/local/bin/sing-box-gateway-info\nfiles/usr/local/bin/sing-box-gateway-uninstall\nfiles/usr/local/sbin/refresh-sing-box-runtime-config\nfiles/usr/local/sbin/sing-box-tproxy-setup\nfiles/usr/local/sbin/update-sing-box-rules-jsdelivr\nfiles/etc/systemd/system/sing-box.service\nfiles/etc/systemd/system/sing-box-tproxy.service\nfiles/etc/systemd/system/singbox-rule-ui.service\nfiles/etc/systemd/system/update-sing-box-rules-jsdelivr.service\nfiles/etc/systemd/system/update-sing-box-rules-jsdelivr.timer\nfiles/etc/sysctl.d/99-sing-box-tproxy.conf\nmanifest/\nREADME-BACKUP.txt"</script>
-</div>
-<p><code>/etc/sing-box/</code> 是运行配置、管理 JSON、规则集、UI token、运行配置和 9091 后端所需的 Clash API 配置；<code>/opt/singbox-rule-ui/</code> 是 Rule UI 后端和前端；<code>/usr/local/bin/</code> 里有 sing-box 和信息/卸载辅助命令；<code>/usr/local/sbin/</code> 里的脚本负责运行时重渲染、TProxy/nftables 和规则更新；systemd 单元和 sysctl 文件决定服务启动顺序与 TProxy 内核参数。</p>
-<h2 id="适用的新机器">适用的新机器</h2>
-<p>恢复包里的 sing-box 二进制来自生产机，只能用于同架构机器。先在原机器或备份 manifest 里确认：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sing-box version</span></span></code></pre></div><script class="code-source" type="application/json">"sing-box version"</script>
-</div>
+<p>也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 <code>config.json</code>。</p>
+<h2 id="适用条件">适用条件</h2>
 <p>新机器建议满足：</p>
 <ul>
-<li>Linux，架构要和备份包里的 <code>/usr/local/bin/sing-box</code> 一致。</li>
-<li>使用 systemd。</li>
-<li>有 root 权限。</li>
-<li>已安装 <code>python3</code>、<code>iproute2</code>、<code>nftables</code>、<code>tar</code>、<code>coreutils</code>。</li>
-<li>网卡名、LAN IPv4、LAN IPv6 和生产机一致时恢复最省事；如果不一致，要按后文修改。</li>
+<li>Debian 12/13 或 Ubuntu 22.04/24.04/25.04。</li>
+<li>systemd 正常可用。</li>
+<li>root 权限可用。</li>
+<li>CPU 架构和旧生产机一致，例如旧机器是 <code>x86_64</code>，新机器也应是 <code>x86_64</code>。</li>
+<li>用于 LAN DNS 的 <code>53</code> 端口没有被其它 DNS 服务长期占用。</li>
 </ul>
-<p>Ubuntu/Debian 可以先装基础依赖：</p>
+<p>如果旧生产机是 amd64，新机器是 arm64，不要直接恢复备份包里的 <code>/usr/local/bin/sing-box</code>。配置可以参考，但二进制必须换成同版本 arm64，再重新 <code>sing-box check</code>。</p>
+<h2 id="旧生产机先确认状态">旧生产机：先确认状态</h2>
+<p>在旧生产机上先确认服务是好的。否则你只是把坏状态打包带走。</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
-</span></span><span style="display:flex;"><span>apt install -y python3 iproute2 nftables tar coreutils</span></span></code></pre></div><script class="code-source" type="application/json">"apt update\napt install -y python3 iproute2 nftables tar coreutils"</script>
-</div>
-<p>如果是 ARM/aarch64 新机器，不要直接用 amd64 备份包里的 <code>/usr/local/bin/sing-box</code>。配置和 UI 可以参考恢复，但 sing-box 二进制必须换成同版本、同配置兼容的 ARM 版本，再重新 <code>sing-box check</code>。</p>
-<h2 id="先检查并改掉敏感值">先检查并改掉敏感值</h2>
-<p>这份公开包已经把真实节点、Rule UI token 和 Clash secret 替换成占位值。恢复到新机器前，至少先确认这些文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sed -n <span style="color:#e6db74">&#39;1,160p&#39;</span> /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/nodes.json
-</span></span><span style="display:flex;"><span>sed -n <span style="color:#e6db74">&#39;1,120p&#39;</span> /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/groups.json
-</span></span><span style="display:flex;"><span>cat /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/rule-ui/token</span></span></code></pre></div><script class="code-source" type="application/json">"sed -n '1,160p' /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/nodes.json\nsed -n '1,120p' /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/groups.json\ncat /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/rule-ui/token"</script>
-</div>
-<p>如果你想先恢复 UI，再通过网页改节点，可以先保留包里的模板节点，等服务启动后在 Rule UI 里删除或改成新机器要使用的真实节点。</p>
-<p>如果你要在恢复前直接改文件，先编辑：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/nodes.json
-</span></span><span style="display:flex;"><span>nano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/groups.json
-</span></span><span style="display:flex;"><span>nano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/base.json</span></span></code></pre></div><script class="code-source" type="application/json">"nano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/nodes.json\nnano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/groups.json\nnano /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/manager/base.json"</script>
-</div>
-<p><code>nodes.json</code> 里默认只有模板节点；<code>groups.json</code> 里默认节点指向 <code>TEMPLATE-HY2</code>；<code>base.json</code> 里确认 LAN IPv4 是否要换成新机器地址。Rule UI token 和 Clash secret 必须改掉：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#e6db74">&#39;换成你自己的-Rule-UI-token&#39;</span> &gt; /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/rule-ui/token
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># Clash secret 在 base.json/config.json 的 experimental.clash_api.secret 里，恢复后也可以在 UI 或文件里改。</span></span></span></code></pre></div><script class="code-source" type="application/json">"printf '%s\\n' '换成你自己的-Rule-UI-token' \u003e /root/sing-box-production-manual-restore-20260611/files/etc/sing-box/rule-ui/token\n# Clash secret 在 base.json/config.json 的 experimental.clash_api.secret 里，恢复后也可以在 UI 或文件里改。"</script>
-</div>
-<h2 id="停掉可能冲突的服务">停掉可能冲突的服务</h2>
-<p>如果新机器以前装过 sing-box 或其它 DNS 服务，先停掉。没有这些服务时命令报错可以忽略：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl stop singbox-rule-ui.service 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>systemctl stop sing-box.service 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>systemctl stop sing-box-tproxy.service 2&gt;/dev/null <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl stop singbox-rule-ui.service 2\u003e/dev/null || true\nsystemctl stop sing-box.service 2\u003e/dev/null || true\nsystemctl stop sing-box-tproxy.service 2\u003e/dev/null || true"</script>
-</div>
-<p>检查 53 端口是谁占着：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:53\b&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"ss -ltnup | grep -E ':53\\b' || true"</script>
-</div>
-<p>如果看到 <code>systemd-resolved</code> 占用 <code>127.0.0.53:53</code> 或 <code>0.0.0.0:53</code>，按下面处理：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /etc/systemd/resolved.conf.d
-</span></span><span style="display:flex;"><span>cat &gt;/etc/systemd/resolved.conf.d/sing-box-disable-stub.conf <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Resolve]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">DNSStubListener=no
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -i
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>systemctl restart systemd-resolved
-</span></span><span style="display:flex;"><span>sleep <span style="color:#ae81ff">2</span>
-</span></span><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:53\b&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /etc/systemd/resolved.conf.d\ncat \u003e/etc/systemd/resolved.conf.d/sing-box-disable-stub.conf \u003c\u003c'EOF'\n[Resolve]\nDNSStubListener=no\nEOF\n\nsystemctl restart systemd-resolved\nsleep 2\nss -ltnup | grep -E ':53\\b' || true"</script>
+</span></span><span style="display:flex;"><span>hostname
+</span></span><span style="display:flex;"><span>uname -m
+</span></span><span style="display:flex;"><span>uname -r
+</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box version
+</span></span><span style="display:flex;"><span>systemctl is-active sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.timer monitor-sing-box-runtime.timer
+</span></span><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:(53|9090|9091|9888)\b&#39;</span> <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box check -c /etc/sing-box/config.json</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -i\n\nhostname\nuname -m\nuname -r\n/usr/local/bin/sing-box version\nsystemctl is-active sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.timer monitor-sing-box-runtime.timer\nss -ltnup | grep -E ':(53|9090|9091|9888)\\b' || true\n/usr/local/bin/sing-box check -c /etc/sing-box/config.json"</script>
 </div>
-<p>这里不要把 <code>/etc/resolv.conf</code> 改成公共 DNS，也不要乱删 resolv.conf。目的只是释放本机 53 端口，让 sing-box 监听 LAN DNS。</p>
-<p>如果 53 端口被 <code>dnsmasq</code>、<code>bind9</code>、<code>unbound</code>、<code>AdGuardHome</code> 或其它服务占用，要先停掉或改它们的监听端口。sing-box 恢复后必须独占用于网关 DNS 的 53 端口。</p>
-<h2 id="还原文件">还原文件</h2>
-<p>先给新机器现有文件做一个本地备份：</p>
+<p>正常目标：</p>
+<ul>
+<li><code>sing-box check</code> 通过。</li>
+<li><code>sing-box</code>、<code>sing-box-tproxy</code>、<code>singbox-rule-ui</code> 是 active。</li>
+<li><code>update-sing-box-rules-jsdelivr.timer</code> 和 <code>monitor-sing-box-runtime.timer</code> 至少应能正常查询。</li>
+<li><code>53</code>、<code>9090</code>、<code>9091</code>、<code>9888</code> 端口符合你当前生产机预期。</li>
+</ul>
+<h2 id="旧生产机一键生成备份包">旧生产机：一键生成备份包</h2>
+<p>把备份脚本放到旧生产机：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>backup_stamp<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>mkdir -p /root/pre-sing-box-restore-$backup_stamp
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span> -e /etc/sing-box <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a /etc/sing-box /root/pre-sing-box-restore-$backup_stamp/
-</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span> -e /opt/singbox-rule-ui <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a /opt/singbox-rule-ui /root/pre-sing-box-restore-$backup_stamp/
-</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span> -e /usr/local/bin/sing-box <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a /usr/local/bin/sing-box /root/pre-sing-box-restore-$backup_stamp/
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> f in sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.service update-sing-box-rules-jsdelivr.timer; <span style="color:#66d9ef">do</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">[</span> -e /etc/systemd/system/$f <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a /etc/systemd/system/$f /root/pre-sing-box-restore-$backup_stamp/
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">done</span></span></span></code></pre></div><script class="code-source" type="application/json">"backup_stamp=$(date +%Y%m%d-%H%M%S)\nmkdir -p /root/pre-sing-box-restore-$backup_stamp\n\n[ -e /etc/sing-box ] \u0026\u0026 cp -a /etc/sing-box /root/pre-sing-box-restore-$backup_stamp/\n[ -e /opt/singbox-rule-ui ] \u0026\u0026 cp -a /opt/singbox-rule-ui /root/pre-sing-box-restore-$backup_stamp/\n[ -e /usr/local/bin/sing-box ] \u0026\u0026 cp -a /usr/local/bin/sing-box /root/pre-sing-box-restore-$backup_stamp/\nfor f in sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.service update-sing-box-rules-jsdelivr.timer; do\n  [ -e /etc/systemd/system/$f ] \u0026\u0026 cp -a /etc/systemd/system/$f /root/pre-sing-box-restore-$backup_stamp/\ndone"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root
+</span></span><span style="display:flex;"><span>nano backup-sing-box-production.sh</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root\nnano backup-sing-box-production.sh"</script>
 </div>
-<p>然后按原路径复制。下面几行要在解压后的 <code>sing-box-production-manual-restore-20260611</code> 目录里执行：</p>
+<p>把 <a href="assets/backup-sing-box-production.sh">backup-sing-box-production.sh</a> 的内容粘进去，然后执行：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/sing-box-production-manual-restore-20260611
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>cp -a files/etc/sing-box /etc/
-</span></span><span style="display:flex;"><span>cp -a files/opt/singbox-rule-ui /opt/
-</span></span><span style="display:flex;"><span>cp -a files/usr/local/bin/sing-box /usr/local/bin/
-</span></span><span style="display:flex;"><span>cp -a files/usr/local/bin/sing-box-gateway-info /usr/local/bin/
-</span></span><span style="display:flex;"><span>cp -a files/usr/local/bin/sing-box-gateway-uninstall /usr/local/bin/
-</span></span><span style="display:flex;"><span>cp -a files/usr/local/sbin/* /usr/local/sbin/
-</span></span><span style="display:flex;"><span>cp -a files/etc/sysctl.d/99-sing-box-tproxy.conf /etc/sysctl.d/
-</span></span><span style="display:flex;"><span>cp -a files/etc/systemd/system/* /etc/systemd/system/
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>chown -R root:root /etc/sing-box /opt/singbox-rule-ui
-</span></span><span style="display:flex;"><span>chown root:root /usr/local/bin/sing-box /usr/local/bin/sing-box-gateway-info /usr/local/bin/sing-box-gateway-uninstall /usr/local/sbin/*
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /usr/local/bin/sing-box /usr/local/bin/sing-box-gateway-info /usr/local/bin/sing-box-gateway-uninstall
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /usr/local/sbin/refresh-sing-box-runtime-config
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /usr/local/sbin/sing-box-tproxy-setup
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /usr/local/sbin/update-sing-box-rules-jsdelivr</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/sing-box-production-manual-restore-20260611\n\ncp -a files/etc/sing-box /etc/\ncp -a files/opt/singbox-rule-ui /opt/\ncp -a files/usr/local/bin/sing-box /usr/local/bin/\ncp -a files/usr/local/bin/sing-box-gateway-info /usr/local/bin/\ncp -a files/usr/local/bin/sing-box-gateway-uninstall /usr/local/bin/\ncp -a files/usr/local/sbin/* /usr/local/sbin/\ncp -a files/etc/sysctl.d/99-sing-box-tproxy.conf /etc/sysctl.d/\ncp -a files/etc/systemd/system/* /etc/systemd/system/\n\nchown -R root:root /etc/sing-box /opt/singbox-rule-ui\nchown root:root /usr/local/bin/sing-box /usr/local/bin/sing-box-gateway-info /usr/local/bin/sing-box-gateway-uninstall /usr/local/sbin/*\nchmod 755 /usr/local/bin/sing-box /usr/local/bin/sing-box-gateway-info /usr/local/bin/sing-box-gateway-uninstall\nchmod 755 /usr/local/sbin/refresh-sing-box-runtime-config\nchmod 755 /usr/local/sbin/sing-box-tproxy-setup\nchmod 755 /usr/local/sbin/update-sing-box-rules-jsdelivr"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod +x /root/backup-sing-box-production.sh
+</span></span><span style="display:flex;"><span>/root/backup-sing-box-production.sh</span></span></code></pre></div><script class="code-source" type="application/json">"chmod +x /root/backup-sing-box-production.sh\n/root/backup-sing-box-production.sh"</script>
 </div>
-<h2 id="修改新机器地址">修改新机器地址</h2>
-<p>备份包里的默认监听地址是脱敏恢复包的占位值，不一定等于新机器地址：</p>
+<p>默认输出在 <code>/root/</code>：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>默认 LAN IPv4: 10.20.20.6
-</span></span><span style="display:flex;"><span>默认 LAN IPv6 DNS: fd00::6
-</span></span><span style="display:flex;"><span>DNS: 53
-</span></span><span style="display:flex;"><span>TProxy: 9888
-</span></span><span style="display:flex;"><span>Rule UI: 0.0.0.0:9091
-</span></span><span style="display:flex;"><span>Clash API: 10.20.20.6:9090</span></span></code></pre></div><script class="code-source" type="application/json">"默认 LAN IPv4: 10.20.20.6\n默认 LAN IPv6 DNS: fd00::6\nDNS: 53\nTProxy: 9888\nRule UI: 0.0.0.0:9091\nClash API: 10.20.20.6:9090"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/sing-box-production-manual-restore-20260615-103000.tar.gz
+</span></span><span style="display:flex;"><span>/root/sing-box-production-manual-restore-20260615-103000.tar.gz.sha256</span></span></code></pre></div><script class="code-source" type="application/json">"/root/sing-box-production-manual-restore-20260615-103000.tar.gz\n/root/sing-box-production-manual-restore-20260615-103000.tar.gz.sha256"</script>
 </div>
-<p>先找出新机器自己的地址。IPv4 通常看 <code>ip route get 1.1.1.1</code> 里的 <code>src</code>；IPv6 如果不需要 LAN IPv6 DNS，可以后面留空或删掉 <code>dns-in-v6</code>，小白环境建议先用机器已有的内网 IPv6：</p>
+<p>如果想改输出目录：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip -o -4 addr show scope global
-</span></span><span style="display:flex;"><span>ip -o -6 addr show scope global
-</span></span><span style="display:flex;"><span>ip route get 1.1.1.1</span></span></code></pre></div><script class="code-source" type="application/json">"ip -o -4 addr show scope global\nip -o -6 addr show scope global\nip route get 1.1.1.1"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>BACKUP_OUTPUT_DIR<span style="color:#f92672">=</span>/root/backups /root/backup-sing-box-production.sh</span></span></code></pre></div><script class="code-source" type="application/json">"BACKUP_OUTPUT_DIR=/root/backups /root/backup-sing-box-production.sh"</script>
 </div>
-<p>假设新机器 IPv4 是 <code>10.20.20.16</code>，要监听的 IPv6 DNS 地址是 <code>fd88::1616</code>，用下面命令替换配置里的监听地址。这里用 Python 做纯文本替换，避免 <code>sed</code> 遇到 IPv6 冒号、斜杠或不同发行版参数差异时出错：</p>
+<p>脚本会自动生成 <code>manifest/</code>，里面记录原机器架构、sing-box 版本、systemd 单元、监听端口、路由表和 nft 规则，方便恢复前后核对。</p>
+<h2 id="传到新机器">传到新机器</h2>
+<p>从旧生产机复制到新机器：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>old_v4<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;10.20.20.6&#39;</span>
-</span></span><span style="display:flex;"><span>new_v4<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;10.20.20.16&#39;</span>
-</span></span><span style="display:flex;"><span>old_v6<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;fd00::6&#39;</span>
-</span></span><span style="display:flex;"><span>new_v6<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;fd88::1616&#39;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>grep -R <span style="color:#e6db74">&#34;</span>$old_v4<span style="color:#e6db74">\|</span>$old_v6<span style="color:#e6db74">&#34;</span> /etc/sing-box /usr/local/sbin -n <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>python3 - <span style="color:#e6db74">&lt;&lt;PY
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">from pathlib import Path
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">paths = [
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Path(&#39;/etc/sing-box/config.json&#39;),
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Path(&#39;/etc/sing-box/manager/base.json&#39;),
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Path(&#39;/usr/local/sbin/sing-box-tproxy-setup&#39;),
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Path(&#39;/usr/local/sbin/refresh-sing-box-runtime-config&#39;),
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">for path in paths:
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    text = path.read_text(encoding=&#39;utf-8&#39;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    text = text.replace(&#39;$old_v4&#39;, &#39;$new_v4&#39;).replace(&#39;$old_v6&#39;, &#39;$new_v6&#39;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    path.write_text(text, encoding=&#39;utf-8&#39;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"old_v4='10.20.20.6'\nnew_v4='10.20.20.16'\nold_v6='fd00::6'\nnew_v6='fd88::1616'\n\ngrep -R \"$old_v4\\|$old_v6\" /etc/sing-box /usr/local/sbin -n || true\n\npython3 - \u003c\u003cPY\nfrom pathlib import Path\npaths = [\n    Path('/etc/sing-box/config.json'),\n    Path('/etc/sing-box/manager/base.json'),\n    Path('/usr/local/sbin/sing-box-tproxy-setup'),\n    Path('/usr/local/sbin/refresh-sing-box-runtime-config'),\n]\nfor path in paths:\n    text = path.read_text(encoding='utf-8')\n    text = text.replace('$old_v4', '$new_v4').replace('$old_v6', '$new_v6')\n    path.write_text(text, encoding='utf-8')\nPY"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>scp /root/sing-box-production-manual-restore-*.tar.gz* root@新机器IP:/root/</span></span></code></pre></div><script class="code-source" type="application/json">"scp /root/sing-box-production-manual-restore-*.tar.gz* root@新机器IP:/root/"</script>
 </div>
-<p>再检查网卡名。生产脚本里是 <code>eth0</code>：</p>
+<p>也可以用 U 盘、SFTP、内网文件服务器或 Syncthing。原则只有一个：<code>.tar.gz</code> 和 <code>.sha256</code> 必须一起带走。</p>
+<h2 id="新机器准备恢复脚本">新机器：准备恢复脚本</h2>
+<p>在新机器上：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -i
+</span></span><span style="display:flex;"><span>cd /root
+</span></span><span style="display:flex;"><span>nano restore-sing-box-production.sh</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -i\ncd /root\nnano restore-sing-box-production.sh"</script>
+</div>
+<p>把 <a href="assets/restore-sing-box-production.sh">restore-sing-box-production.sh</a> 的内容粘进去：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod +x /root/restore-sing-box-production.sh</span></span></code></pre></div><script class="code-source" type="application/json">"chmod +x /root/restore-sing-box-production.sh"</script>
+</div>
+<p>先看新机器 IP 和网卡：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip -br link
-</span></span><span style="display:flex;"><span>grep -n <span style="color:#e6db74">&#39;^IFACE=&#39;</span> /usr/local/sbin/sing-box-tproxy-setup</span></span></code></pre></div><script class="code-source" type="application/json">"ip -br link\ngrep -n '^IFACE=' /usr/local/sbin/sing-box-tproxy-setup"</script>
+</span></span><span style="display:flex;"><span>ip -o -4 addr show scope global
+</span></span><span style="display:flex;"><span>ip -o -6 addr show scope global
+</span></span><span style="display:flex;"><span>ip route get 1.1.1.1</span></span></code></pre></div><script class="code-source" type="application/json">"ip -br link\nip -o -4 addr show scope global\nip -o -6 addr show scope global\nip route get 1.1.1.1"</script>
 </div>
-<p>如果新机器网卡不是 <code>eth0</code>，例如是 <code>ens18</code>：</p>
+<h2 id="新机器一键恢复">新机器：一键恢复</h2>
+<p>最常见用法：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sed -i <span style="color:#e6db74">&#39;s/^IFACE=.*/IFACE=&#34;ens18&#34;/&#39;</span> /usr/local/sbin/sing-box-tproxy-setup</span></span></code></pre></div><script class="code-source" type="application/json">"sed -i 's/^IFACE=.*/IFACE=\"ens18\"/' /usr/local/sbin/sing-box-tproxy-setup"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
 </div>
-<p>FakeIP 网段和 TProxy 规则不能随便改。公开恢复包默认 IPv4 FakeIP 是 <code>28.0.0.0/8</code>，IPv6 FakeIP 是 <code>2001:2::/64</code>；除非你完全理解 RouterOS、sing-box DNS fakeip 和 nftables 三边关系，否则不要只改一处。</p>
-<p>如果恢复后想先强制外网域名走 IPv4 FakeIP，可以在 Rule UI 的 FakeIP 区域关闭“启用 IPv6 FakeIP / AAAA”，或者直接在 <code>/etc/sing-box/manager/groups.json</code> 的 <code>fakeip</code> 里确认：</p>
+<p>脚本会显示它识别到的旧 LAN IPv4、新 LAN IPv4、是否替换 IPv6 DNS、是否更换 token，然后要求输入 <code>yes</code> 才继续。</p>
+<p>如果你希望完全非交互执行：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;ipv6_enabled&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#66d9ef">false</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"ipv6_enabled\": false"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ASSUME_YES<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"ASSUME_YES=1 /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
 </div>
-<p>改完后执行 <code>/usr/local/sbin/refresh-sing-box-runtime-config</code> 和 <code>sing-box check</code>。关闭这个开关只改变 LAN DNS 的返回策略，不会删掉 TProxy 脚本里的 IPv6 兜底规则；以后要恢复 IPv6 FakeIP 时，再在 UI 里打开并保存。</p>
-<h2 id="检查配置">检查配置</h2>
-<p>先让运行时配置按当前 UI 管理文件重新渲染：</p>
+<p>如果自动识别的新 IP 不对，手动指定：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/sbin/refresh-sing-box-runtime-config</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/sbin/refresh-sing-box-runtime-config"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>NEW_LAN_IPV4<span style="color:#f92672">=</span>10.20.20.16 /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"NEW_LAN_IPV4=10.20.20.16 /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
 </div>
-<p>检查 sing-box 配置：</p>
+<p>如果自动识别旧生产机 IP 不对，旧生产机是 <code>10.20.20.6</code>，新机器是 <code>10.20.20.16</code>：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/bin/sing-box check -c /etc/sing-box/config.json</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/bin/sing-box check -c /etc/sing-box/config.json"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>OLD_LAN_IPV4<span style="color:#f92672">=</span>10.20.20.6 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>NEW_LAN_IPV4<span style="color:#f92672">=</span>10.20.20.16 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"OLD_LAN_IPV4=10.20.20.6 \\\nNEW_LAN_IPV4=10.20.20.16 \\\n/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
 </div>
-<p>如果这里失败，不要启动服务。常见原因是：</p>
-<ul>
-<li>新机器 IP 或 IPv6 地址没有改完整。</li>
-<li>网卡名不对。</li>
-<li>备份包是 amd64，机器却是 ARM。</li>
-<li>配置里的规则文件没复制完整。</li>
-</ul>
-<h2 id="启动-systemd-服务">启动 systemd 服务</h2>
-<p>加载并启用服务：</p>
+<p>如果旧 IPv6 DNS 监听地址也要替换：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl daemon-reload
-</span></span><span style="display:flex;"><span>systemctl enable sing-box-tproxy.service sing-box.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.timer
-</span></span><span style="display:flex;"><span>systemctl restart sing-box-tproxy.service
-</span></span><span style="display:flex;"><span>systemctl restart sing-box.service
-</span></span><span style="display:flex;"><span>systemctl restart singbox-rule-ui.service
-</span></span><span style="display:flex;"><span>systemctl restart update-sing-box-rules-jsdelivr.timer</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl daemon-reload\nsystemctl enable sing-box-tproxy.service sing-box.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.timer\nsystemctl restart sing-box-tproxy.service\nsystemctl restart sing-box.service\nsystemctl restart singbox-rule-ui.service\nsystemctl restart update-sing-box-rules-jsdelivr.timer"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>OLD_LAN_IPV6_DNS<span style="color:#f92672">=</span>fd00::6 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>NEW_LAN_IPV6_DNS<span style="color:#f92672">=</span>fd88::1616 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"OLD_LAN_IPV6_DNS=fd00::6 \\\nNEW_LAN_IPV6_DNS=fd88::1616 \\\n/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
 </div>
-<p>检查状态：</p>
+<p>如果备份包曾经离开可信环境，建议恢复时重新生成 Rule UI token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ROTATE_RULE_UI_TOKEN<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"ROTATE_RULE_UI_TOKEN=1 /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
+</div>
+<p>如果你不确定 IPv6 FakeIP 路由有没有配好，可以先关闭 IPv6 FakeIP / AAAA，只跑 IPv4 FakeIP：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>DISABLE_IPV6_FAKEIP<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"DISABLE_IPV6_FAKEIP=1 /root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
+</div>
+<p>这些选项可以组合：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ASSUME_YES<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>OLD_LAN_IPV4<span style="color:#f92672">=</span>10.20.20.6 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>NEW_LAN_IPV4<span style="color:#f92672">=</span>10.20.20.16 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>OLD_LAN_IPV6_DNS<span style="color:#f92672">=</span>fd00::6 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>NEW_LAN_IPV6_DNS<span style="color:#f92672">=</span>fd88::1616 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>ROTATE_RULE_UI_TOKEN<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>DISABLE_IPV6_FAKEIP<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span>/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz</span></span></code></pre></div><script class="code-source" type="application/json">"ASSUME_YES=1 \\\nOLD_LAN_IPV4=10.20.20.6 \\\nNEW_LAN_IPV4=10.20.20.16 \\\nOLD_LAN_IPV6_DNS=fd00::6 \\\nNEW_LAN_IPV6_DNS=fd88::1616 \\\nROTATE_RULE_UI_TOKEN=1 \\\nDISABLE_IPV6_FAKEIP=1 \\\n/root/restore-sing-box-production.sh /root/sing-box-production-manual-restore-20260615-103000.tar.gz"</script>
+</div>
+<h2 id="恢复脚本会做什么">恢复脚本会做什么</h2>
+<p>恢复脚本的顺序是：</p>
+<ol>
+<li>安装或提示基础依赖：<code>python3</code>、<code>iproute2</code>、<code>nftables</code>、<code>rsync</code>、<code>dnsutils</code>、<code>openssl</code> 等。</li>
+<li>校验 <code>.sha256</code>，解压备份包到 <code>/root/</code>。</li>
+<li>检查包里是否有 <code>/etc/sing-box</code> 和 <code>/opt/singbox-rule-ui</code>。</li>
+<li>识别新机器 LAN IPv4，识别备份包里的旧 LAN IPv4。</li>
+<li>备份新机器现有文件到 <code>/root/pre-sing-box-restore-时间戳/</code>。</li>
+<li>停止旧的 sing-box 服务和 timer，清理旧 nft TProxy 表。</li>
+<li>如果 <code>systemd-resolved</code> 占用 53，关闭它的本地 stub，只释放端口，不改 <code>/etc/resolv.conf</code> 上游。</li>
+<li>把备份包里的文件复制回原路径。</li>
+<li>替换旧 IPv4 到新 IPv4；按环境变量替换 IPv6 DNS。</li>
+<li>按需要重新生成 Rule UI token，按需要关闭 IPv6 FakeIP。</li>
+<li>执行 <code>refresh-sing-box-tproxy-setup</code>、<code>refresh-sing-box-runtime-config</code> 和 <code>sing-box check</code>。</li>
+<li>启动并启用 <code>sing-box</code>、<code>sing-box-tproxy</code>、<code>singbox-rule-ui</code>、规则更新 timer 和运行自愈 timer。</li>
+</ol>
+<p>如果 <code>sing-box check</code> 不通过，脚本会停在启动服务之前。</p>
+<h2 id="恢复后验证">恢复后验证</h2>
+<p>脚本最后会输出服务状态、监听端口、Rule UI token 和访问地址。你也可以手动确认：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl status --no-pager sing-box-tproxy.service
 </span></span><span style="display:flex;"><span>systemctl status --no-pager sing-box.service
 </span></span><span style="display:flex;"><span>systemctl status --no-pager singbox-rule-ui.service
-</span></span><span style="display:flex;"><span>systemctl status --no-pager update-sing-box-rules-jsdelivr.timer</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl status --no-pager sing-box-tproxy.service\nsystemctl status --no-pager sing-box.service\nsystemctl status --no-pager singbox-rule-ui.service\nsystemctl status --no-pager update-sing-box-rules-jsdelivr.timer"</script>
+</span></span><span style="display:flex;"><span>systemctl list-timers --all | grep -E <span style="color:#e6db74">&#39;update-sing-box-rules|monitor-sing-box-runtime&#39;</span> <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:(53|9090|9091|9888)\b&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl status --no-pager sing-box-tproxy.service\nsystemctl status --no-pager sing-box.service\nsystemctl status --no-pager singbox-rule-ui.service\nsystemctl list-timers --all | grep -E 'update-sing-box-rules|monitor-sing-box-runtime' || true\nss -ltnup | grep -E ':(53|9090|9091|9888)\\b' || true"</script>
 </div>
-<p>检查端口：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:(53|9090|9091|9888)\b&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"ss -ltnup | grep -E ':(53|9090|9091|9888)\\b' || true"</script>
-</div>
-<p>正常情况下你应该看到：</p>
-<ul>
-<li>sing-box 监听 LAN IPv4/IPv6 的 <code>53</code>。</li>
-<li>sing-box 监听 Clash API <code>9090</code>。</li>
-<li>Rule UI 监听 <code>9091</code>。</li>
-<li>TProxy 端口 <code>9888</code> 由 sing-box 使用。</li>
-</ul>
-<h2 id="验证-dns-和-ui">验证 DNS 和 UI</h2>
-<p>从新机器本机验证 DNS。这里要查 <code>sing-box</code> 实际监听的 LAN IP，不要查 <code>127.0.0.1</code>，因为本项目默认不让 sing-box 监听 localhost：</p>
+<p>用新机器自己的 LAN IPv4 测 DNS，不要测 <code>127.0.0.1</code>：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>new_v4<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;10.20.20.16&#39;</span>
-</span></span><span style="display:flex;"><span>dig @$new_v4 apple.com A
-</span></span><span style="display:flex;"><span>dig @$new_v4 example.com A</span></span></code></pre></div><script class="code-source" type="application/json">"new_v4='10.20.20.16'\ndig @$new_v4 apple.com A\ndig @$new_v4 example.com A"</script>
+</span></span><span style="display:flex;"><span>dig @<span style="color:#e6db74">&#34;</span>$new_v4<span style="color:#e6db74">&#34;</span> apple.com A +short
+</span></span><span style="display:flex;"><span>dig @<span style="color:#e6db74">&#34;</span>$new_v4<span style="color:#e6db74">&#34;</span> www.google.com A +short
+</span></span><span style="display:flex;"><span>dig @<span style="color:#e6db74">&#34;</span>$new_v4<span style="color:#e6db74">&#34;</span> www.google.com AAAA +short</span></span></code></pre></div><script class="code-source" type="application/json">"new_v4='10.20.20.16'\ndig @\"$new_v4\" apple.com A +short\ndig @\"$new_v4\" www.google.com A +short\ndig @\"$new_v4\" www.google.com AAAA +short"</script>
 </div>
-<p>如果关闭了“启用 IPv6 FakeIP / AAAA”，再验证一个国外域名的 A 和 AAAA。A 应该返回 <code>28.x.x.x</code> 这类 IPv4 FakeIP，AAAA 应该为空：</p>
+<p>如果关闭了 IPv6 FakeIP，国外域名的 A 应该返回 <code>28.x.x.x</code> 这类 IPv4 FakeIP，AAAA 通常为空或被拒绝。</p>
+<p>打开 Rule UI：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>dig @$new_v4 www.google.com A +short
-</span></span><span style="display:flex;"><span>dig @$new_v4 www.google.com AAAA +short</span></span></code></pre></div><script class="code-source" type="application/json">"dig @$new_v4 www.google.com A +short\ndig @$new_v4 www.google.com AAAA +short"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://新机器IP:9091/</span></span></code></pre></div><script class="code-source" type="application/json">"http://新机器IP:9091/"</script>
 </div>
-<p>如果仍然看到 <code>2001:2::/64</code> 或其它 IPv6 FakeIP，说明 UI 管理配置还没有重新渲染，或者客户端没有使用这台新机器的 DNS。</p>
-<p>如果没有 <code>dig</code>，Ubuntu/Debian 可以装：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt install -y dnsutils</span></span></code></pre></div><script class="code-source" type="application/json">"apt install -y dnsutils"</script>
-</div>
-<p>也可以先用 <code>sing-box-gateway-info</code> 确认访问地址和密钥：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sing-box-gateway-info</span></span></code></pre></div><script class="code-source" type="application/json">"sing-box-gateway-info"</script>
-</div>
-<p>从局域网电脑访问：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Rule UI:  http://新机器IP:9091/
-</span></span><span style="display:flex;"><span>Clash API: http://新机器IP:9090/
-</span></span><span style="display:flex;"><span>DNS: 新机器IP:53</span></span></code></pre></div><script class="code-source" type="application/json">"Rule UI:  http://新机器IP:9091/\nClash API: http://新机器IP:9090/\nDNS: 新机器IP:53"</script>
-</div>
-<p>Rule UI 登录 token 获取命令：</p>
+<p>登录 token：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /etc/sing-box/rule-ui/token</span></span></code></pre></div><script class="code-source" type="application/json">"cat /etc/sing-box/rule-ui/token"</script>
 </div>
-<p>如果你想换一个自己的 token：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> /etc/sing-box/rule-ui
-</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#e6db74">&#39;换成你自己的-Rule-UI-token&#39;</span> &gt; /etc/sing-box/rule-ui/token
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /etc/sing-box/rule-ui/token
-</span></span><span style="display:flex;"><span>systemctl restart singbox-rule-ui.service
-</span></span><span style="display:flex;"><span>cat /etc/sing-box/rule-ui/token</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 755 /etc/sing-box/rule-ui\nprintf '%s\\n' '换成你自己的-Rule-UI-token' \u003e /etc/sing-box/rule-ui/token\nchmod 600 /etc/sing-box/rule-ui/token\nsystemctl restart singbox-rule-ui.service\ncat /etc/sing-box/rule-ui/token"</script>
-</div>
-<p>打开 <code>http://新机器IP:9091/</code> 后，把上面输出的 token 粘贴进去登录。生产使用前建议换成新的长随机 token。</p>
-<p>Clash secret 获取命令：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import json
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">cfg=json.load(open(&#39;/etc/sing-box/config.json&#39;))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(cfg.get(&#39;experimental&#39;, {}).get(&#39;clash_api&#39;, {}).get(&#39;secret&#39;, &#39;&#39;))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"python3 - \u003c\u003c'PY'\nimport json\ncfg=json.load(open('/etc/sing-box/config.json'))\nprint(cfg.get('experimental', {}).get('clash_api', {}).get('secret', ''))\nPY"</script>
-</div>
-<p>如果要改 Clash secret，可以直接编辑 <code>/etc/sing-box/manager/base.json</code> 和 <code>/etc/sing-box/config.json</code> 里的 <code>experimental.clash_api.secret</code>，然后执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/sbin/refresh-sing-box-runtime-config
-</span></span><span style="display:flex;"><span>/usr/local/bin/sing-box check -c /etc/sing-box/config.json
-</span></span><span style="display:flex;"><span>systemctl restart sing-box.service</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/sbin/refresh-sing-box-runtime-config\n/usr/local/bin/sing-box check -c /etc/sing-box/config.json\nsystemctl restart sing-box.service"</script>
-</div>
-<h2 id="路由器侧要改什么">路由器侧要改什么</h2>
-<p>新机器恢复成功后，路由器或客户端必须把 DNS 指向新机器。否则 sing-box 就算已经监听 53，客户端也不会用它。</p>
-<p>如果你用 RouterOS 做主路由，还要确认：</p>
+<p>进 UI 后至少看这几处：</p>
 <ul>
-<li>DHCP 下发的 DNS 是新机器 IPv4。</li>
-<li>IPv6 客户端如果要用网关 DNS，RA/DHCPv6 也要指向新机器 IPv6。</li>
-<li>FakeIP IPv4 网段要路由到新机器。</li>
-<li>如果启用 IPv6 FakeIP，FakeIP IPv6 网段要路由到新机器；如果关闭“启用 IPv6 FakeIP / AAAA”，客户端正常域名访问会被压到 IPv4 FakeIP 路径，但 RouterOS 自身 IPv6 开关仍按你的网络规划单独处理。</li>
-<li>FastTrack 不要抢先放行本该进 TProxy 的连接。</li>
+<li>节点页能打开。</li>
+<li>默认节点不是空的。</li>
+<li>规则页能保存。</li>
+<li>维护页能看到服务状态。</li>
+<li>日志和连接列表能读取。</li>
 </ul>
-<p>这篇文章只讲 Linux 机器恢复。RouterOS 规则要按你自己的网段、接口和 FakeIP 池调整，不要直接复制旧生产环境的私有地址到另一个网络。</p>
-<h2 id="回滚">回滚</h2>
-<p>如果启动后不对，先停服务：</p>
+<h2 id="路由器侧要改什么">路由器侧要改什么</h2>
+<p>新机器服务跑起来以后，客户端还不会自动使用它。你还要在前端路由器、RouterOS、OpenWrt 或客户端上做这些事：</p>
+<ul>
+<li>DHCP 下发的 DNS 指向新 sing-box 机器 IPv4，或在软路由上把客户端 DNS 转发到新机器。</li>
+<li>如果启用 IPv6 DNS，RA/RDNSS 或 DHCPv6 的 DNS 要按你的网络规划指向新机器 IPv6。</li>
+<li>FakeIP IPv4 网段，例如 <code>28.0.0.0/8</code>，要路由到新机器。</li>
+<li>如果启用 IPv6 FakeIP，IPv6 FakeIP <code>/64</code> 也要路由到新机器。</li>
+<li>FastTrack、硬件加速、旁路由捷径规则不能抢先放行本该进 TProxy 的 FakeIP 流量。</li>
+</ul>
+<p>这篇文章不直接给可复制的 RouterOS 全量规则，因为每个人的 bridge、LAN 网段、IPv6 前缀、路由表名都不同。原则是：客户端拿到 FakeIP 后，下一跳必须回到 sing-box 机器。</p>
+<h2 id="常见问题">常见问题</h2>
+<h3 id="53-端口启动失败">53 端口启动失败</h3>
+<p>看占用：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl stop singbox-rule-ui.service
-</span></span><span style="display:flex;"><span>systemctl stop sing-box.service
-</span></span><span style="display:flex;"><span>systemctl stop sing-box-tproxy.service
-</span></span><span style="display:flex;"><span>nft delete table inet singbox_tproxy 2&gt;/dev/null <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl stop singbox-rule-ui.service\nsystemctl stop sing-box.service\nsystemctl stop sing-box-tproxy.service\nnft delete table inet singbox_tproxy 2\u003e/dev/null || true"</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -ltnup | grep -E <span style="color:#e6db74">&#39;:53\b&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"ss -ltnup | grep -E ':53\\b' || true"</script>
 </div>
-<p>恢复你开头保存的本地备份：</p>
+<p>如果是 <code>systemd-resolved</code>，关闭 <code>DNSStubListener</code>。如果是其它 DNS 服务，停掉或改端口。sing-box 做 LAN DNS 时必须拿到 53。</p>
+<h3 id="ui-打不开">UI 打不开</h3>
+<p>检查 9091 和服务日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -ltnup | grep <span style="color:#e6db74">&#39;:9091\b&#39;</span> <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>journalctl -u singbox-rule-ui.service -n <span style="color:#ae81ff">100</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"ss -ltnup | grep ':9091\\b' || true\njournalctl -u singbox-rule-ui.service -n 100 --no-pager"</script>
+</div>
+<p>确认防火墙没有拦 9091，且 <code>singbox-rule-ui.service</code> 的 <code>RULE_UI_HOST=0.0.0.0</code>。</p>
+<h3 id="sing-box-反复重启">sing-box 反复重启</h3>
+<p>先看配置检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/bin/sing-box check -c /etc/sing-box/config.json
+</span></span><span style="display:flex;"><span>journalctl -u sing-box.service -n <span style="color:#ae81ff">160</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/bin/sing-box check -c /etc/sing-box/config.json\njournalctl -u sing-box.service -n 160 --no-pager"</script>
+</div>
+<p>常见原因是 JSON 改坏、节点字段缺失、规则文件缺失、监听 IP 不存在。</p>
+<h3 id="tproxy-不生效">TProxy 不生效</h3>
+<p>检查脚本和 nft：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/sbin/refresh-sing-box-tproxy-setup
+</span></span><span style="display:flex;"><span>systemctl restart sing-box-tproxy.service
+</span></span><span style="display:flex;"><span>nft list ruleset | grep -n <span style="color:#e6db74">&#39;singbox_tproxy&#39;</span> -A80
+</span></span><span style="display:flex;"><span>ip rule show
+</span></span><span style="display:flex;"><span>ip route show table <span style="color:#ae81ff">100</span></span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/sbin/refresh-sing-box-tproxy-setup\nsystemctl restart sing-box-tproxy.service\nnft list ruleset | grep -n 'singbox_tproxy' -A80\nip rule show\nip route show table 100"</script>
+</div>
+<p>如果 nft 表存在但客户端仍不走代理，重点查前端路由器有没有把 FakeIP 网段送到 sing-box。</p>
+<h3 id="规则更新失败">规则更新失败</h3>
+<p>手动跑一次：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>RULE_UPDATE_RESTART<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span> /usr/local/sbin/update-sing-box-rules-jsdelivr
+</span></span><span style="display:flex;"><span>journalctl -u update-sing-box-rules-jsdelivr.service -n <span style="color:#ae81ff">120</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"RULE_UPDATE_RESTART=0 /usr/local/sbin/update-sing-box-rules-jsdelivr\njournalctl -u update-sing-box-rules-jsdelivr.service -n 120 --no-pager"</script>
+</div>
+<p>当前规则更新脚本会绕开本机 FakeIP DNS，优先使用配置的镜像源，失败时保留旧规则。不要因为一次下载失败就删除旧规则文件。</p>
+<h2 id="回滚">回滚</h2>
+<p>恢复脚本每次都会先备份新机器现有文件，目录类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/pre-sing-box-restore-20260615-103000/</span></span></code></pre></div><script class="code-source" type="application/json">"/root/pre-sing-box-restore-20260615-103000/"</script>
+</div>
+<p>如果恢复失败，先停服务并清理 TProxy：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl stop monitor-sing-box-runtime.timer 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>systemctl stop update-sing-box-rules-jsdelivr.timer 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>systemctl stop singbox-rule-ui.service 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>systemctl stop sing-box.service 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>systemctl stop sing-box-tproxy.service 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>nft delete table inet singbox_tproxy 2&gt;/dev/null <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl stop monitor-sing-box-runtime.timer 2\u003e/dev/null || true\nsystemctl stop update-sing-box-rules-jsdelivr.timer 2\u003e/dev/null || true\nsystemctl stop singbox-rule-ui.service 2\u003e/dev/null || true\nsystemctl stop sing-box.service 2\u003e/dev/null || true\nsystemctl stop sing-box-tproxy.service 2\u003e/dev/null || true\nnft delete table inet singbox_tproxy 2\u003e/dev/null || true"</script>
+</div>
+<p>再找到恢复前备份：</p>
 <div class="code-block">
   <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ls -ld /root/pre-sing-box-restore-*</span></span></code></pre></div><script class="code-source" type="application/json">"ls -ld /root/pre-sing-box-restore-*"</script>
 </div>
-<p>找到对应目录后再手动复制回去。不要在没确认目录的情况下盲目删除 <code>/etc/sing-box</code> 或 <code>/opt/singbox-rule-ui</code>。</p>
-<h2 id="重新生成生产包的命令">重新生成生产包的命令</h2>
-<p>下面这段是给自己重新生成<strong>私有生产包</strong>用的，不适合原样放到公开文章下载。生成后必须删除历史备份和运行缓存，并把真实节点、Rule UI token、Clash secret、生产 IPv6 FakeIP 前缀替换成模板值，才能公开分发。以后如果要重新从生产机生成同类包，可以在生产机 root 下执行：</p>
+<p>按实际目录手动复制回去。不要在没确认备份目录前删除 <code>/etc/sing-box</code> 或 <code>/opt/singbox-rule-ui</code>。</p>
+<p>如果这台新机器本来就是干净机器，只想清掉本次恢复，也可以运行：</p>
 <div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>stamp<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>work<span style="color:#f92672">=</span>/tmp/sing-box-production-manual-restore-$stamp
-</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/etc&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/opt&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/etc/systemd/system&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/usr/local/bin&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/usr/local/sbin&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;backup_created=</span>$stamp<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;source_host=</span><span style="color:#66d9ef">$(</span>hostname<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;source_kernel=</span><span style="color:#66d9ef">$(</span>uname -a<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;sing_box_version_begin&#34;</span>
-</span></span><span style="display:flex;"><span>  /usr/local/bin/sing-box version <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;sing_box_version_end&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/host-info.txt&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>systemctl cat sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.service update-sing-box-rules-jsdelivr.timer &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/systemd-units-expanded.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>systemctl status --no-pager sing-box.service sing-box-tproxy.service singbox-rule-ui.service sing-box-tproxy.service update-sing-box-rules-jsdelivr.timer &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/systemd-status.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>ss -ltnup &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/listeners.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>ip rule show &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/ip-rule.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>ip route show table all &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/ip-route-all.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>nft list ruleset &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/nft-ruleset.txt&#34;</span> 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>cp -a /etc/sing-box <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/etc/&#34;</span>
-</span></span><span style="display:flex;"><span>cp -a /opt/singbox-rule-ui <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/opt/&#34;</span>
-</span></span><span style="display:flex;"><span>cp -a /usr/local/bin/sing-box <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/usr/local/bin/&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> f in /usr/local/sbin/refresh-sing-box-runtime-config /usr/local/sbin/sing-box-tproxy-setup /usr/local/sbin/update-sing-box-rules-jsdelivr /usr/local/sbin/bootstrap-sing-box-config /usr/local/sbin/refresh-sing-box-tproxy-setup.disabled-20260606-radvd; <span style="color:#66d9ef">do</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">[</span> -e <span style="color:#e6db74">&#34;</span>$f<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a <span style="color:#e6db74">&#34;</span>$f<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/usr/local/sbin/&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">done</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> f in /etc/systemd/system/sing-box.service /etc/systemd/system/sing-box-tproxy.service /etc/systemd/system/singbox-rule-ui.service /etc/systemd/system/update-sing-box-rules-jsdelivr.service /etc/systemd/system/update-sing-box-rules-jsdelivr.timer; <span style="color:#66d9ef">do</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">[</span> -e <span style="color:#e6db74">&#34;</span>$f<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cp -a <span style="color:#e6db74">&#34;</span>$f<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files/etc/systemd/system/&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">done</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>find <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/files&#34;</span> -printf <span style="color:#e6db74">&#34;%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n&#34;</span> | sed <span style="color:#e6db74">&#34;s#</span>$work<span style="color:#e6db74">/##&#34;</span> | sort &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/manifest/file-list.txt&#34;</span>
-</span></span><span style="display:flex;"><span>cat &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">/README-BACKUP.txt&#34;</span> <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">这是生产 sing-box 网关的纯手动恢复备份包。
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">恢复时不要依赖 GitHub 仓库；按文章流程把 files/ 下的路径复制回新机器。
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">敏感信息包含节点、Rule UI token、Clash secret、规则和生产 UI，请只放在可信机器。
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>cd /tmp
-</span></span><span style="display:flex;"><span>tar -czpf <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>basename <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>sha256sum <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>basename <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> &gt; <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz.sha256&#34;</span>
-</span></span><span style="display:flex;"><span>ls -lh <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz&#34;</span> <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz.sha256&#34;</span>
-</span></span><span style="display:flex;"><span>cat <span style="color:#e6db74">&#34;</span>$work<span style="color:#e6db74">.tar.gz.sha256&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"stamp=$(date +%Y%m%d-%H%M%S)\nwork=/tmp/sing-box-production-manual-restore-$stamp\nmkdir -p \"$work/manifest\" \"$work/files/etc\" \"$work/files/opt\" \"$work/files/etc/systemd/system\" \"$work/files/usr/local/bin\" \"$work/files/usr/local/sbin\"\n\n{\n  echo \"backup_created=$stamp\"\n  echo \"source_host=$(hostname)\"\n  echo \"source_kernel=$(uname -a)\"\n  echo \"sing_box_version_begin\"\n  /usr/local/bin/sing-box version || true\n  echo \"sing_box_version_end\"\n} \u003e \"$work/manifest/host-info.txt\"\n\nsystemctl cat sing-box.service sing-box-tproxy.service singbox-rule-ui.service update-sing-box-rules-jsdelivr.service update-sing-box-rules-jsdelivr.timer \u003e \"$work/manifest/systemd-units-expanded.txt\" 2\u003e\u00261 || true\nsystemctl status --no-pager sing-box.service sing-box-tproxy.service singbox-rule-ui.service sing-box-tproxy.service update-sing-box-rules-jsdelivr.timer \u003e \"$work/manifest/systemd-status.txt\" 2\u003e\u00261 || true\nss -ltnup \u003e \"$work/manifest/listeners.txt\" 2\u003e\u00261 || true\nip rule show \u003e \"$work/manifest/ip-rule.txt\" 2\u003e\u00261 || true\nip route show table all \u003e \"$work/manifest/ip-route-all.txt\" 2\u003e\u00261 || true\nnft list ruleset \u003e \"$work/manifest/nft-ruleset.txt\" 2\u003e\u00261 || true\n\ncp -a /etc/sing-box \"$work/files/etc/\"\ncp -a /opt/singbox-rule-ui \"$work/files/opt/\"\ncp -a /usr/local/bin/sing-box \"$work/files/usr/local/bin/\"\nfor f in /usr/local/sbin/refresh-sing-box-runtime-config /usr/local/sbin/sing-box-tproxy-setup /usr/local/sbin/update-sing-box-rules-jsdelivr /usr/local/sbin/bootstrap-sing-box-config /usr/local/sbin/refresh-sing-box-tproxy-setup.disabled-20260606-radvd; do\n  [ -e \"$f\" ] \u0026\u0026 cp -a \"$f\" \"$work/files/usr/local/sbin/\"\ndone\nfor f in /etc/systemd/system/sing-box.service /etc/systemd/system/sing-box-tproxy.service /etc/systemd/system/singbox-rule-ui.service /etc/systemd/system/update-sing-box-rules-jsdelivr.service /etc/systemd/system/update-sing-box-rules-jsdelivr.timer; do\n  [ -e \"$f\" ] \u0026\u0026 cp -a \"$f\" \"$work/files/etc/systemd/system/\"\ndone\n\nfind \"$work/files\" -printf \"%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\\n\" | sed \"s#$work/##\" | sort \u003e \"$work/manifest/file-list.txt\"\ncat \u003e \"$work/README-BACKUP.txt\" \u003c\u003c'EOF'\n这是生产 sing-box 网关的纯手动恢复备份包。\n恢复时不要依赖 GitHub 仓库；按文章流程把 files/ 下的路径复制回新机器。\n敏感信息包含节点、Rule UI token、Clash secret、规则和生产 UI，请只放在可信机器。\nEOF\n\ncd /tmp\ntar -czpf \"$work.tar.gz\" \"$(basename \"$work\")\"\nsha256sum \"$(basename \"$work.tar.gz\")\" \u003e \"$work.tar.gz.sha256\"\nls -lh \"$work.tar.gz\" \"$work.tar.gz.sha256\"\ncat \"$work.tar.gz.sha256\""</script>
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/usr/local/bin/sing-box-gateway-uninstall</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/bin/sing-box-gateway-uninstall"</script>
 </div>
-<p>把 <code>.tar.gz</code> 和 <code>.sha256</code> 一起复制走，恢复前永远先校验。</p>
 <h2 id="最后检查清单">最后检查清单</h2>
-<p>恢复完成后，至少确认这些项：</p>
+<p>恢复完成后逐项确认：</p>
 <ul>
-<li><code>sha256sum -c</code> 通过。</li>
-<li><code>sing-box check -c /etc/sing-box/config.json</code> 通过。</li>
-<li><code>systemctl status</code> 里 <code>sing-box</code>、<code>sing-box-tproxy</code>、<code>singbox-rule-ui</code> 都正常。</li>
-<li><code>ss -ltnup</code> 里 53 端口由 sing-box 占用。</li>
-<li>Rule UI 能打开，token 能登录。</li>
-<li>Rule UI 能打开，运行状态里的连接、日志和规则能读取；9090 Clash API 仅作为后端数据源可用。</li>
-<li>局域网客户端 DNS 已指向新机器。</li>
-<li>RouterOS 或主路由已把 FakeIP 网段送到新机器。</li>
+<li><code>.tar.gz</code> 通过 <code>sha256sum -c</code> 校验。</li>
+<li>新机器架构和备份包里的 sing-box 二进制一致。</li>
+<li><code>/usr/local/bin/sing-box check -c /etc/sing-box/config.json</code> 通过。</li>
+<li><code>sing-box.service</code>、<code>sing-box-tproxy.service</code>、<code>singbox-rule-ui.service</code> 正常 active。</li>
+<li><code>update-sing-box-rules-jsdelivr.timer</code> 和 <code>monitor-sing-box-runtime.timer</code> 已启用。</li>
+<li><code>ss -ltnup</code> 能看到 53、9090、9091、9888。</li>
+<li><code>dig @新机器IP www.google.com A</code> 能返回 FakeIP。</li>
+<li>Rule UI 能登录，节点、规则、维护页、日志和连接列表能打开。</li>
+<li>客户端或前端路由器的 DNS 已指向新机器。</li>
+<li>FakeIP IPv4/IPv6 网段已经路由回新机器。</li>
 </ul>
-<p>这套流程的核心不是“复制文件就完事”，而是恢复运行边界：文件、二进制、systemd、53 端口、TProxy、路由器 DNS/路由必须一起对齐。</p>
+<p>只要文件、二进制、systemd、TProxy、DNS 和上游路由器这几层都对齐，新机器就能按旧生产机的方式接管。</p>
 
       </div>
     </article>
@@ -444,17 +347,33 @@
       
       
         <li>
+          <a href="/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/">
+            <img src="/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span>
+          </a>
+        </li>
+      
+        <li>
           <a href="/posts/linux/sing-box-production-manual-restore/">
             <img src="/posts/linux/sing-box-production-manual-restore/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">sing-box 生产机纯手动备份与恢复</span>
+            <span class="latest-rank">2</span>
+            <span class="latest-title">sing-box 生产机一键备份与恢复</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/mac-folder-github-one-click-sync/">
+            <img src="/posts/linux/mac-folder-github-one-click-sync/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Mac 本地文件夹与 GitHub 仓库一键同步完整教程</span>
           </a>
         </li>
       
         <li>
           <a href="/posts/ai/claude-code-complete-tutorial/">
             <img src="/posts/ai/claude-code-complete-tutorial/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
+            <span class="latest-rank">4</span>
             <span class="latest-title">Claude Code 完全教程</span>
           </a>
         </li>
@@ -462,7 +381,7 @@
         <li>
           <a href="/posts/docker/matrix-public-443-ops-tools-full-source/">
             <img src="/posts/docker/matrix-public-443-ops-tools-full-source/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
+            <span class="latest-rank">5</span>
             <span class="latest-title">机密：Matrix 运维面板、MusicBot 和生产 Bot 小白部署手册</span>
           </a>
         </li>
@@ -470,7 +389,7 @@
         <li>
           <a href="/posts/docker/matrix-public-443-caddy-full-stack/">
             <img src="/posts/docker/matrix-public-443-caddy-full-stack/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
+            <span class="latest-rank">6</span>
             <span class="latest-title">机密：Matrix Synapse 全套公网 443 &#43; Caddy 生产搭建手册</span>
           </a>
         </li>
@@ -478,24 +397,8 @@
         <li>
           <a href="/posts/linux/alpine-reinstall-user-home-nvim-ssh/">
             <img src="/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/alpine-user-docker-group/">
-            <img src="/posts/linux/alpine-user-docker-group/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">Alpine Linux 将普通用户加入 Docker 组</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/docker/matrix-element-call-musicbot-radio-docker/">
-            <img src="/posts/docker/matrix-element-call-musicbot-radio-docker/assets/cover.svg" alt="">
             <span class="latest-rank">7</span>
-            <span class="latest-title">Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</span>
+            <span class="latest-title">Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</span>
           </a>
         </li>
       

@@ -1,4 +1,21 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>&lt;p&gt;这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>&lt;p&gt;这篇整理 PVE 宿主机或 LXC 容器里跑 &lt;code&gt;sing-box&lt;/code&gt; 旁路由、透明代理、网关时常用的 Linux 网络参数。重点不是“把所有看起来能加速的参数都塞进 &lt;code&gt;/etc/sysctl.conf&lt;/code&gt;”，而是把确实有意义的部分收敛下来：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;TCP 出站使用 BBR 和 &lt;code&gt;fq&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;转发场景打开 IPv4 / IPv6 forwarding&lt;/li&gt;
+&lt;li&gt;提高监听队列、网卡 backlog、TCP / UDP 缓冲上限&lt;/li&gt;
+&lt;li&gt;针对 Hysteria2、TUIC、QUIC 这类 UDP 流量检查丢包和 offload&lt;/li&gt;
+&lt;li&gt;避开已经过时、无效或容易造成副作用的旧 ShadowSocks 时代参数&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;如果是在 PVE 里跑非特权 LXC，参数要分层处理。宿主机负责桥接、队列、物理网卡、PVE 防火墙路径和全局转发环境；LXC 里运行的 &lt;code&gt;sing-box&lt;/code&gt; 才是真正发起代理 TCP / UDP 出站连接的一方，因此容器内也要保留一份能在当前命名空间生效的性能参数。不要只调 PVE 宿主机，也不要把宿主机完整 sysctl 生硬复制到容器里。&lt;/p&gt;
+&lt;h2 id="1-先确认环境"&gt;1. 先确认环境&lt;/h2&gt;
+&lt;p&gt;先看内核、拥塞控制和当前队列算法：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;uname -r
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.ipv4.tcp_available_congestion_control
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.ipv4.tcp_congestion_control
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.core.default_qdisc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"uname -r\nsysctl net.ipv4.tcp_available_congestion_control\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.core.default_qdisc"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;如果可用算法里有 &lt;code&gt;bbr&lt;/code&gt;，就不要再继续使用 &lt;code&gt;hybla&lt;/code&gt;。&lt;code&gt;hybla&lt;/code&gt; 是早期面向高延迟链路的算法，放在现代代理网关上通常不是首选。&lt;code&gt;sing-box&lt;/code&gt; 作为网关时，TCP 出站、规则下载、系统更新、普通 HTTPS 连接都会受拥塞控制影响，BBR 更适合现在的公网线路。&lt;/p&gt;</description></item><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>&lt;p&gt;这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&lt;/p&gt;
 &lt;p&gt;最终效果是：&lt;/p&gt;
 &lt;div class="code-block"&gt;
  &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/Users/mana/Documents/codex/file/ 本地同步文件夹
