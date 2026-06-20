@@ -1,18 +1,25 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PVE on 电脑自习室</title><link>https://purodn.tk/tags/pve/</link><description>Recent content in PVE on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/pve/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>&lt;p&gt;这篇整理 PVE 宿主机或 LXC 容器里跑 &lt;code&gt;sing-box&lt;/code&gt; 旁路由、透明代理、网关时常用的 Linux 网络参数。重点不是“把所有看起来能加速的参数都塞进 &lt;code&gt;/etc/sysctl.conf&lt;/code&gt;”，而是把确实有意义的部分收敛下来：&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PVE on 电脑自习室</title><link>https://purodn.tk/tags/pve/</link><description>Recent content in PVE on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/pve/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>&lt;p&gt;这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;在 PVE 宿主机添加宿主机网络参数。&lt;/li&gt;
+&lt;li&gt;在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 &lt;code&gt;rp_filter&lt;/code&gt; 已关闭。&lt;/li&gt;
+&lt;li&gt;在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。&lt;/li&gt;
+&lt;li&gt;按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;下面示例使用：&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;TCP 出站使用 BBR 和 &lt;code&gt;fq&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;转发场景打开 IPv4 / IPv6 forwarding&lt;/li&gt;
-&lt;li&gt;提高监听队列、网卡 backlog、TCP / UDP 缓冲上限&lt;/li&gt;
-&lt;li&gt;针对 Hysteria2、TUIC、QUIC 这类 UDP 流量检查丢包和 offload&lt;/li&gt;
-&lt;li&gt;避开已经过时、无效或容易造成副作用的旧 ShadowSocks 时代参数&lt;/li&gt;
+&lt;li&gt;LXC ID：&lt;code&gt;101&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;PVE 网桥：&lt;code&gt;vmbr0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;容器 IPv4：&lt;code&gt;10.20.20.6/24&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;IPv4 网关：&lt;code&gt;10.20.20.1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;容器 IPv6：&lt;code&gt;fd88::6666/64&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;IPv6 网关：&lt;code&gt;fd88::1111&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;容器网卡 MAC：&lt;code&gt;BC:24:11:1E:91:3C&lt;/code&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;如果是在 PVE 里跑非特权 LXC，参数要分层处理。宿主机负责桥接、队列、物理网卡、PVE 防火墙路径和全局转发环境；LXC 里运行的 &lt;code&gt;sing-box&lt;/code&gt; 才是真正发起代理 TCP / UDP 出站连接的一方，因此容器内也要保留一份能在当前命名空间生效的性能参数。不要只调 PVE 宿主机，也不要把宿主机完整 sysctl 生硬复制到容器里。&lt;/p&gt;
-&lt;h2 id="1-先确认环境"&gt;1. 先确认环境&lt;/h2&gt;
-&lt;p&gt;先看内核、拥塞控制和当前队列算法：&lt;/p&gt;
+&lt;p&gt;这些值只是示例，必须按你自己的 &lt;code&gt;pct config &amp;lt;CTID&amp;gt;&lt;/code&gt; 输出替换。&lt;/p&gt;
+&lt;h2 id="1-先获取自己的变量"&gt;1. 先获取自己的变量&lt;/h2&gt;
+&lt;p&gt;所有 &lt;code&gt;pct&lt;/code&gt; 命令都在 &lt;strong&gt;PVE 宿主机 Shell&lt;/strong&gt; 执行，不是在 LXC 容器里执行。&lt;/p&gt;
+&lt;p&gt;先列出容器，确认 sing-box 所在的 LXC ID：&lt;/p&gt;
 &lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;uname -r
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.ipv4.tcp_available_congestion_control
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.ipv4.tcp_congestion_control
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysctl net.core.default_qdisc&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"uname -r\nsysctl net.ipv4.tcp_available_congestion_control\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.core.default_qdisc"&lt;/script&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pct list&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pct list"&lt;/script&gt;
 &lt;/div&gt;
-&lt;p&gt;如果可用算法里有 &lt;code&gt;bbr&lt;/code&gt;，就不要再继续使用 &lt;code&gt;hybla&lt;/code&gt;。&lt;code&gt;hybla&lt;/code&gt; 是早期面向高延迟链路的算法，放在现代代理网关上通常不是首选。&lt;code&gt;sing-box&lt;/code&gt; 作为网关时，TCP 出站、规则下载、系统更新、普通 HTTPS 连接都会受拥塞控制影响，BBR 更适合现在的公网线路。&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;假设 sing-box 容器 ID 是 &lt;code&gt;101&lt;/code&gt;，查看它当前的网卡配置：&lt;/p&gt;</description></item></channel></rss>
