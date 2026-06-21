@@ -2,18 +2,18 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Hysteria 2 on 电脑自习室</title>
-    <link>http://127.0.0.1:1313/tags/hysteria-2/</link>
+    <link>http://0.0.0.0:1313/tags/hysteria-2/</link>
     <description>Recent content in Hysteria 2 on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate>
-    <atom:link href="http://127.0.0.1:1313/tags/hysteria-2/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0.0.0.0:1313/tags/hysteria-2/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
-      <link>http://127.0.0.1:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
+      <link>http://0.0.0.0:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
       <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
-      <guid>http://127.0.0.1:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
-      <description>&lt;p&gt;这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 &lt;strong&gt;旁路网关&lt;/strong&gt;，还是 &lt;strong&gt;TProxy + FakeIP 透明代理入口&lt;/strong&gt;。&lt;/p&gt;&#xA;&lt;p&gt;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、&lt;code&gt;rp_filter&lt;/code&gt; 都容易越调越乱。&lt;/p&gt;&#xA;&lt;p&gt;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox &lt;code&gt;sysctl&lt;/code&gt;、OpenRC 限制和实际验证，统一看主文：&lt;/p&gt;&#xA;&lt;p&gt;&lt;a href=&#34;http://127.0.0.1:1313/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/&#34;&gt;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;这篇不再重复具体配置，避免两篇文章参数互相打架。&lt;/p&gt;&#xA;&lt;h2 id=&#34;一先判断-sing-box-的角色&#34;&gt;一、先判断 sing-box 的角色&lt;/h2&gt;&#xA;&lt;p&gt;最简单的判断标准：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;客户端默认网关 = Alpine LXC 的 IP    -&amp;gt; 网关模式&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;客户端默认网关 = 主路由的 IP          -&amp;gt; TProxy + FakeIP 入口模式&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;客户端默认网关 = Alpine LXC 的 IP    -\u003e 网关模式\n客户端默认网关 = 主路由的 IP          -\u003e TProxy + FakeIP 入口模式&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&lt;/p&gt;</description>
+      <guid>http://0.0.0.0:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
+      <description>&lt;p&gt;这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 &lt;strong&gt;旁路网关&lt;/strong&gt;，还是 &lt;strong&gt;TProxy + FakeIP 透明代理入口&lt;/strong&gt;。&lt;/p&gt;&#xA;&lt;p&gt;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、&lt;code&gt;rp_filter&lt;/code&gt; 都容易越调越乱。&lt;/p&gt;&#xA;&lt;p&gt;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox &lt;code&gt;sysctl&lt;/code&gt;、OpenRC 限制和实际验证，统一看主文：&lt;/p&gt;&#xA;&lt;p&gt;&lt;a href=&#34;http://0.0.0.0:1313/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/&#34;&gt;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;这篇不再重复具体配置，避免两篇文章参数互相打架。&lt;/p&gt;&#xA;&lt;h2 id=&#34;一先判断-sing-box-的角色&#34;&gt;一、先判断 sing-box 的角色&lt;/h2&gt;&#xA;&lt;p&gt;最简单的判断标准：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;客户端默认网关 = Alpine LXC 的 IP    -&amp;gt; 网关模式&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;客户端默认网关 = 主路由的 IP          -&amp;gt; TProxy + FakeIP 入口模式&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;客户端默认网关 = Alpine LXC 的 IP    -\u003e 网关模式\n客户端默认网关 = 主路由的 IP          -\u003e TProxy + FakeIP 入口模式&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

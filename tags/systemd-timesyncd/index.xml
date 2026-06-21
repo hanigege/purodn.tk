@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Systemd-Timesyncd on 电脑自习室</title>
-    <link>http://127.0.0.1:1313/tags/systemd-timesyncd/</link>
+    <link>http://0.0.0.0:1313/tags/systemd-timesyncd/</link>
     <description>Recent content in Systemd-Timesyncd on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Tue, 02 Jun 2026 14:20:00 +0800</lastBuildDate>
-    <atom:link href="http://127.0.0.1:1313/tags/systemd-timesyncd/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0.0.0.0:1313/tags/systemd-timesyncd/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title>
-      <link>http://127.0.0.1:1313/posts/linux/ubuntu-timesync-asia-shanghai/</link>
+      <link>http://0.0.0.0:1313/posts/linux/ubuntu-timesync-asia-shanghai/</link>
       <pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate>
-      <guid>http://127.0.0.1:1313/posts/linux/ubuntu-timesync-asia-shanghai/</guid>
+      <guid>http://0.0.0.0:1313/posts/linux/ubuntu-timesync-asia-shanghai/</guid>
       <description>&lt;p&gt;这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 &lt;code&gt;systemd-timesyncd&lt;/code&gt; 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。&lt;/p&gt;&#xA;&lt;p&gt;目标有两个：&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;系统本地时间显示为北京时间。&lt;/li&gt;&#xA;&lt;li&gt;NTP 服务真正同步成功，而不是只把时区改成 &lt;code&gt;Asia/Shanghai&lt;/code&gt;。&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h2 id=&#34;检查当前时间状态&#34;&gt;检查当前时间状态&lt;/h2&gt;&#xA;&lt;p&gt;先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;timedatectl&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;date&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;timedatectl\ndate&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：&lt;/p&gt;&#xA;&lt;div class=&#34;code-block&#34;&gt;&#xA;  &lt;button class=&#34;copy-code&#34; type=&#34;button&#34;&gt;复制&lt;/button&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;Local time: Tue 2026-06-02 14:16:50 UTC&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;Universal time: Tue 2026-06-02 14:16:50 UTC&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;Time zone: Etc/UTC (UTC, +0000)&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;System clock synchronized: no&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;NTP service: active&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class=&#34;code-source&#34; type=&#34;application/json&#34;&gt;&#34;Local time: Tue 2026-06-02 14:16:50 UTC\nUniversal time: Tue 2026-06-02 14:16:50 UTC\nTime zone: Etc/UTC (UTC, +0000)\nSystem clock synchronized: no\nNTP service: active&#34;&lt;/script&gt;&#xA;&lt;/div&gt;&#xA;&lt;p&gt;这里容易误判：&lt;code&gt;NTP service: active&lt;/code&gt; 只表示服务开着，不代表已经校时成功。真正要看的是：&lt;/p&gt;</description>
     </item>
   </channel>

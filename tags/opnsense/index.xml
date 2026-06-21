@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>OPNsense on 电脑自习室</title><link>https://purodn.tk/tags/opnsense/</link><description>Recent content in OPNsense on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/opnsense/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox OPNsense 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid><description>&lt;p&gt;开始前先确认两个地址：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;10.0.0.2&lt;/code&gt; 需要替换为你自己的 SMbox IP。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;10.0.0.1&lt;/code&gt; 需要替换为你自己的 OPNsense IP。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="修改-dns-下发为主路由"&gt;修改 DNS 下发为主路由&lt;/h2&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-01.png" alt="OPNsense DNS 下发配置"&gt;&lt;/p&gt;
+&lt;h2 id="新建网关配置"&gt;新建网关配置&lt;/h2&gt;
+&lt;p&gt;按下图新建一个网关配置：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-02.png" alt="OPNsense 新建网关配置"&gt;&lt;/p&gt;
+&lt;h2 id="打开防火墙别名"&gt;打开防火墙别名&lt;/h2&gt;
+&lt;p&gt;打开 &lt;code&gt;防火墙 -&amp;gt; 别名&lt;/code&gt;，新建两个别名：&lt;code&gt;proxy_cidr&lt;/code&gt; 和 &lt;code&gt;proxy_device&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;proxy_cidr&lt;/code&gt; 为需要代理的 IP 地址：&lt;/p&gt;
+&lt;div class="code-block"&gt;
+ &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;198.18.0.0/15
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.56.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.4.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.8.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.16.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.12.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;149.154.160.0/20
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.105.192.0/23
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;91.108.20.0/22
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;185.76.151.0/24&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"198.18.0.0/15\n91.108.56.0/22\n91.108.4.0/22\n91.108.8.0/22\n91.108.16.0/22\n91.108.12.0/22\n149.154.160.0/20\n91.105.192.0/23\n91.108.20.0/22\n185.76.151.0/24"&lt;/script&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-03.png" alt="OPNsense proxy_cidr 别名"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;proxy_device&lt;/code&gt; 为需要代理设备的 MAC 地址。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;任何时候不要把 SMbox 的 IP 加入到 &lt;code&gt;proxy_device&lt;/code&gt; 中，否则会引起环回导致崩溃。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-04.png" alt="OPNsense proxy_device 别名"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-05.png" alt="OPNsense 别名列表"&gt;&lt;/p&gt;
+&lt;h2 id="打开-nat-转发并新建规则"&gt;打开 NAT 转发并新建规则&lt;/h2&gt;
+&lt;p&gt;打开 &lt;code&gt;NAT -&amp;gt; 转发 -&amp;gt; 新建规则&lt;/code&gt;，按下图配置：&lt;/p&gt;
+&lt;p&gt;&lt;img src="assets/smbox-opnsense-06.png" alt="OPNsense NAT 转发规则"&gt;&lt;/p&gt;</description></item></channel></rss>
