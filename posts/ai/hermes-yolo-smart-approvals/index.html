@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔 | 电脑自习室</title>
+    <meta name="description" content="说明 Hermes Agent 里 approvals.mode smart、临时 --yolo、worktree、checkpoints、Git checkpoint 和工具权限限制的区别，给出日常配置和高风险任务的安全边界。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-05-30">2026年5月30日</time>
+        </div>
+        <h1>Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔</h1>
+          <p>说明 Hermes Agent 里 approvals.mode smart、临时 --yolo、worktree、checkpoints、Git checkpoint 和工具权限限制的区别，给出日常配置和高风险任务的安全边界。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-yolo-smart-approvals/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Hermes 里的 YOLO 很诱人：少点确认，任务能连续跑，Agent 不会每隔几步就停下来问一句“可以吗”。但它真正适合的用法不是“永远全开”，而是按任务风险分层：日常用 <code>smart</code>，一次性可信任务临时 <code>--yolo</code>，改代码时配合 git worktree 和 checkpoints，生产机器和真实数据目录里不要裸奔。</p>
+<p>一句话版本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>smart 日常用，--yolo 临时用，配合 git/worktree/checkpoints/容器兜底，不建议全局 off。</span></span></code></pre></div><script class="code-source" type="application/json">"smart 日常用，--yolo 临时用，配合 git/worktree/checkpoints/容器兜底，不建议全局 off。"</script>
+</div>
+<h2 id="先分清三个概念">先分清三个概念</h2>
+<p>Hermes 的审批策略大致可以按风险从低到高理解：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>常见命令</th>
+<th>适合场景</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>手动审批</td>
+<td><code>approvals.mode manual</code></td>
+<td>新环境、生产机器、你还不信任任务时</td>
+<td>最安全，但打断多</td>
+</tr>
+<tr>
+<td>智能审批</td>
+<td><code>approvals.mode smart</code></td>
+<td>日常默认模式</td>
+<td>低风险自动放行，高风险仍确认</td>
+</tr>
+<tr>
+<td>YOLO / 跳过审批</td>
+<td><code>--yolo</code> 或 <code>approvals.mode off</code></td>
+<td>临时任务、隔离目录、测试环境</td>
+<td>最顺手，也最容易误伤</td>
+</tr>
+</tbody>
+</table>
+<p>这里最重要的一点是：<code>--yolo</code> 是临时启动参数，退出当前任务就结束；<code>approvals.mode off</code> 是配置级别的长期跳过审批。后者不要随手开在主力机器上。</p>
+<h2 id="日常推荐approvalsmode-smart">日常推荐：approvals.mode smart</h2>
+<p>日常使用最推荐 <code>smart</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>它的效果是：</p>
+<ul>
+<li>低风险命令自动放行。</li>
+<li>高风险命令仍然提示确认。</li>
+<li>比纯手动少打断。</li>
+<li>比 YOLO 或 <code>off</code> 更安全。</li>
+</ul>
+<p>比如读取文件、列目录、跑普通检查这类动作，通常不需要你一直点确认；但涉及删除、覆盖、系统服务、敏感路径或其他高风险行为时，仍会停下来让你确认。</p>
+<p>设置完可以查看配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config show | sed -n <span style="color:#e6db74">&#39;/^approvals:/,/^[^ ]/p&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes config show | sed -n '/^approvals:/,/^[^ ]/p'"</script>
+</div>
+<p>期望看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">approvals</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">mode</span>: <span style="color:#ae81ff">smart</span></span></span></code></pre></div><script class="code-source" type="application/json">"approvals:\n  mode: smart"</script>
+</div>
+<p>如果是 Telegram Gateway，配置改完后建议重启或让新会话重新读取配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway restart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway restart"</script>
+</div>
+<p>或在 Telegram 里执行当前版本支持的重启命令，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/restart</span></span></code></pre></div><script class="code-source" type="application/json">"/restart"</script>
+</div>
+<h2 id="临时-yolo只给一次任务放权">临时 YOLO：只给一次任务放权</h2>
+<p>如果你确定当前任务可信，而且目录是测试目录、临时目录或干净 repo，可以临时启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --yolo</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --yolo"</script>
+</div>
+<p>适合这类任务：</p>
+<ul>
+<li>在临时目录里生成脚本。</li>
+<li>在测试项目里连续修改和跑测试。</li>
+<li>让 Agent 自动整理一批无敏感数据的文件。</li>
+<li>新装机器上批量初始化配置，但你已经知道每一步大概会做什么。</li>
+</ul>
+<p>临时 <code>--yolo</code> 的好处是边界清楚：这个 Hermes 进程结束后，权限就没了。它不像 <code>approvals.mode off</code> 那样留在全局配置里，未来每个任务都默认跳过确认。</p>
+<p>不适合这样用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd ~
+</span></span><span style="display:flex;"><span>hermes --yolo</span></span></code></pre></div><script class="code-source" type="application/json">"cd ~\nhermes --yolo"</script>
+</div>
+<p>家目录里通常有 <code>.ssh</code>、<code>.config</code>、浏览器数据、token、密钥和大量没有版本控制的文件。让 Agent 在这里无确认自由操作，风险太高。</p>
+<h2 id="改代码yolo-配-worktree">改代码：YOLO 配 worktree</h2>
+<p>改代码时，更稳的组合是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --yolo --worktree</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --yolo --worktree"</script>
+</div>
+<p>或者短参数：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -w --yolo</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -w --yolo"</script>
+</div>
+<p>效果是让 Agent 在独立 git worktree 里工作，而不是直接污染主工作区。这样它可以更大胆地重构、跑测试、改多个文件；如果结果不满意，可以丢掉 worktree，而主分支仍然保持干净。</p>
+<p>适合：</p>
+<ul>
+<li>大范围重构。</li>
+<li>迁移框架或目录结构。</li>
+<li>批量修 lint/test。</li>
+<li>让 Agent 尝试一个你还不确定的实现方向。</li>
+</ul>
+<p>不适合：</p>
+<ul>
+<li>没有 git 的目录。</li>
+<li>里面有大量用户数据的目录。</li>
+<li>生产服务正在读取的工作区。</li>
+</ul>
+<h2 id="开-yolo-前先做-checkpoint">开 YOLO 前先做 checkpoint</h2>
+<p>如果不用 worktree，至少先保证当前状态可回滚。</p>
+<p>最稳的是提交一个 checkpoint：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git status
+</span></span><span style="display:flex;"><span>git add .
+</span></span><span style="display:flex;"><span>git commit -m <span style="color:#e6db74">&#34;checkpoint before yolo agent&#34;</span>
+</span></span><span style="display:flex;"><span>hermes --yolo</span></span></code></pre></div><script class="code-source" type="application/json">"git status\ngit add .\ngit commit -m \"checkpoint before yolo agent\"\nhermes --yolo"</script>
+</div>
+<p>如果暂时不想提交，也可以保存 patch：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git diff &gt; /tmp/before-agent.patch</span></span></code></pre></div><script class="code-source" type="application/json">"git diff \u003e /tmp/before-agent.patch"</script>
+</div>
+<p>这样 Agent 改坏后，你至少知道“坏之前”是什么样子。没有 checkpoint 的 YOLO，通常不是技术问题，而是心理压力问题：你会不知道哪些变化是它改的，哪些变化是原来就有的。</p>
+<h2 id="用-hermes-checkpoints-做可回滚会话">用 Hermes checkpoints 做可回滚会话</h2>
+<p>Hermes 还可以配合文件系统 checkpoints：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes chat --checkpoints</span></span></code></pre></div><script class="code-source" type="application/json">"hermes chat --checkpoints"</script>
+</div>
+<p>会话里也可以手动打快照：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/snapshot</span></span></code></pre></div><script class="code-source" type="application/json">"/snapshot"</script>
+</div>
+<p>如果结果不对，可以回滚：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/rollback</span></span></code></pre></div><script class="code-source" type="application/json">"/rollback"</script>
+</div>
+<p>这种模式适合“我想让你大胆改，但我要能撤销”的任务。它和 git 不冲突：git 管源码历史，Hermes checkpoint 管一次 Agent 会话里的文件系统快照。重要代码仓库里，两者一起用更安心。</p>
+<p>一个高风险改代码任务可以这样起手：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git status
+</span></span><span style="display:flex;"><span>git add .
+</span></span><span style="display:flex;"><span>git commit -m <span style="color:#e6db74">&#34;checkpoint before yolo agent&#34;</span>
+</span></span><span style="display:flex;"><span>hermes --yolo --worktree --checkpoints</span></span></code></pre></div><script class="code-source" type="application/json">"git status\ngit add .\ngit commit -m \"checkpoint before yolo agent\"\nhermes --yolo --worktree --checkpoints"</script>
+</div>
+<p>这套组合的意思是：</p>
+<ul>
+<li>git commit 保护当前主工作区。</li>
+<li>worktree 让 Agent 在隔离副本里改。</li>
+<li>checkpoints 让会话内也能撤回。</li>
+<li>YOLO 让 Agent 连续执行，不被低价值确认打断。</li>
+</ul>
+<h2 id="不要在生产机器上全局-yolo">不要在生产机器上全局 YOLO</h2>
+<p>比较安全的使用边界：</p>
+<table>
+<thead>
+<tr>
+<th>可以考虑</th>
+<th>不建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>repo 副本</td>
+<td>生产服务器</td>
+</tr>
+<tr>
+<td>临时目录</td>
+<td>用户真实数据目录</td>
+</tr>
+<tr>
+<td>Docker 或 dev container</td>
+<td><code>~/.ssh</code>、<code>~/.config</code> 附近</td>
+</tr>
+<tr>
+<td>git worktree</td>
+<td>密码、token、cookie 文件附近</td>
+</tr>
+<tr>
+<td>测试环境</td>
+<td>没有 git 的大目录</td>
+</tr>
+<tr>
+<td>专门的 agent 机器</td>
+<td>正在跑业务的服务目录</td>
+</tr>
+</tbody>
+</table>
+<p>生产机器上尤其要小心。很多操作看起来只是“顺手修一下”，实际可能碰到服务重启、配置覆盖、证书、DNS、数据库、权限、日志清理和备份目录。这里更适合 <code>smart</code> 或手动审批，而不是全局 <code>off</code>。</p>
+<h2 id="用-tools-收窄能力">用 tools 收窄能力</h2>
+<p>有时你不是想放开所有权限，只是想少点审批。那就不要只盯着 YOLO，还可以收窄工具集。</p>
+<p>查看工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools
+</span></span><span style="display:flex;"><span>hermes tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools\nhermes tools list"</script>
+</div>
+<p>如果只是写代码，通常只需要：</p>
+<ul>
+<li><code>terminal</code></li>
+<li><code>file</code></li>
+<li><code>skills</code></li>
+<li><code>session_search</code></li>
+</ul>
+<p>可以考虑关闭暂时不需要的能力：</p>
+<ul>
+<li><code>browser</code></li>
+<li><code>web</code></li>
+<li><code>messaging</code></li>
+<li><code>image_gen</code></li>
+<li><code>homeassistant</code></li>
+<li><code>discord_admin</code></li>
+</ul>
+<p>具体命令以你当前版本的 <code>hermes tools --help</code> 为准。思路是：让 Agent 在需要的领域里顺手，在不需要的领域里少碰。</p>
+<h2 id="几套推荐配置">几套推荐配置</h2>
+<p>日常默认：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>大胆执行一次可信任务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --yolo</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --yolo"</script>
+</div>
+<p>改代码并隔离工作区：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --yolo --worktree</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --yolo --worktree"</script>
+</div>
+<p>高风险改代码，先做 Git checkpoint：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git status
+</span></span><span style="display:flex;"><span>git add .
+</span></span><span style="display:flex;"><span>git commit -m <span style="color:#e6db74">&#34;checkpoint before yolo agent&#34;</span>
+</span></span><span style="display:flex;"><span>hermes --yolo --worktree --checkpoints</span></span></code></pre></div><script class="code-source" type="application/json">"git status\ngit add .\ngit commit -m \"checkpoint before yolo agent\"\nhermes --yolo --worktree --checkpoints"</script>
+</div>
+<p>只适合隔离环境的全局 YOLO：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode off"</script>
+</div>
+<p>全局 <code>off</code> 只建议放在 Docker、测试 VM、专门的 agent 机器或一次性沙盒里。主力电脑、生产服务器、真实数据目录，不建议这么配。</p>
+<p>如果开过全局 YOLO，恢复日常模式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<h2 id="一个实用判断法">一个实用判断法</h2>
+<p>开 YOLO 前问自己三个问题：</p>
+<ol>
+<li>这个目录删错了，我能不能接受？</li>
+<li>当前状态有没有 git、backup 或 checkpoint？</li>
+<li>Agent 这次任务需不需要碰系统服务、密钥、用户数据或生产配置？</li>
+</ol>
+<p>如果三个答案里有任何一个让你犹豫，就用 <code>smart</code>，或者先建 worktree、容器、临时目录，再开 YOLO。</p>
+<h2 id="我的默认建议">我的默认建议</h2>
+<p>如果是日常聊天、写脚本、轻量维护：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>如果是一次明确的开发任务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --yolo --worktree --checkpoints</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --yolo --worktree --checkpoints"</script>
+</div>
+<p>如果是在生产机器上：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>然后让高风险命令继续确认。</p>
+<p>YOLO 的价值不是“让 Agent 什么都能干”，而是让它在你已经设好边界的地方少被打断。真正舒服的用法，是把风险关进笼子里，再让 Agent 跑快一点。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/">
+            <img src="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/moon-bridge-config-tutorial/">
+            <img src="/posts/ai/moon-bridge-config-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-opnsense-config/">
+            <img src="/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">SMbox OPNsense 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-routeros-config/">
+            <img src="/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">SMbox RouterOS 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/smbox-alpine-install/">
+            <img src="/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">安装 Alpine 系统教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/routeros-mangle-small-packet-generator/">
+            <img src="/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">RouterOS Mangle 小包优先规则与带宽配置生成器</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

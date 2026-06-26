@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#bc8cff"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#238636"/>
+      <stop offset="20%" stop-color="#238636"/>
+      <stop offset="20%" stop-color="#da3633"/>
+      <stop offset="40%" stop-color="#da3633"/>
+      <stop offset="40%" stop-color="#d29922"/>
+      <stop offset="60%" stop-color="#d29922"/>
+      <stop offset="60%" stop-color="#30363d"/>
+      <stop offset="100%" stop-color="#30363d"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.03">
+    <line x1="0" y1="0" x2="0" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="200" y1="0" x2="200" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="400" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="600" y1="0" x2="600" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="800" y1="0" x2="800" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="1000" y1="0" x2="1000" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="105" x2="1200" y2="105" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="210" x2="1200" y2="210" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="315" x2="1200" y2="315" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="420" x2="1200" y2="420" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="525" x2="1200" y2="525" stroke="#58a6ff" stroke-width="0.5"/>
+    <line x1="0" y1="630" x2="1200" y2="630" stroke="#58a6ff" stroke-width="0.5"/>
+  </g>
+
+  <!-- Terminal window -->
+  <rect x="80" y="80" width="1040" height="470" rx="12" fill="#1c2128" stroke="#30363d" stroke-width="2"/>
+
+  <!-- Terminal title bar -->
+  <rect x="80" y="80" width="1040" height="40" rx="12" fill="#21262d"/>
+  <rect x="80" y="100" width="1040" height="20" fill="#21262d"/>
+  <rect x="80" y="80" width="1040" height="40" rx="12" fill="url(#bar)" opacity="0.15"/>
+  <rect x="80" y="80" width="1040" height="40" rx="12" fill="#21262d" opacity="0.8"/>
+
+  <!-- Window buttons -->
+  <circle cx="110" cy="100" r="6" fill="#da3633"/>
+  <circle cx="135" cy="100" r="6" fill="#d29922"/>
+  <circle cx="160" cy="100" r="6" fill="#238636"/>
+
+  <!-- Title text -->
+  <text x="600" y="106" text-anchor="middle" fill="#8b949e" font-family="monospace" font-size="14">hermes TUI — code profile</text>
+
+  <!-- Terminal content -->
+  <!-- Prompt line 1 -->
+  <text x="110" y="155" fill="#58a6ff" font-family="monospace" font-size="15" font-weight="bold">hermes@dev:~$</text>
+  <text x="270" y="155" fill="#e6edf3" font-family="monospace" font-size="15">hermes</text>
+
+  <!-- Output line 1 -->
+  <text x="110" y="185" fill="#8b949e" font-family="monospace" font-size="14">╭──────────────────────────────────────</text>
+  <text x="110" y="205" fill="#8b949e" font-family="monospace" font-size="14">│ Welcome to Hermes TUI v0.8.2</text>
+  <text x="110" y="225" fill="#8b949e" font-family="monospace" font-size="14">│ Model: deepseek-v4-flash</text>
+  <text x="110" y="245" fill="#8b949e" font-family="monospace" font-size="14">│ Type / for commands, Tab for autocomplete</text>
+  <text x="110" y="265" fill="#8b949e" font-family="monospace" font-size="14">╰──────────────────────────────────────</text>
+
+  <!-- Prompt line 2 -->
+  <text x="110" y="300" fill="#58a6ff" font-family="monospace" font-size="15" font-weight="bold">hermes@dev:~$</text>
+  <text x="270" y="300" fill="#e6edf3" font-family="monospace" font-size="15">/plan</text>
+  <text x="320" y="300" fill="#ff7b72" font-family="monospace" font-size="13"># 计划模式 — 仅分析，不执行</text>
+
+  <!-- Output line showing plan -->
+  <text x="130" y="330" fill="#d2a8ff" font-family="monospace" font-size="14">┃ 📋 计划已保存: ~/.hermes/plans/plan-20260626.md</text>
+
+  <!-- / command dropdown suggestion -->
+  <rect x="240" y="345" width="460" height="130" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="240" y="345" width="460" height="28" rx="6" fill="#21262d"/>
+  <rect x="240" y="365" width="460" height="8" fill="#21262d"/>
+
+  <text x="256" y="364" fill="#8b949e" font-family="monospace" font-size="12">Commands (type to filter):</text>
+
+  <text x="256" y="392" fill="#58a6ff" font-family="monospace" font-size="13">/plan</text>
+  <text x="370" y="392" fill="#8b949e" font-family="monospace" font-size="12">Plan mode — analyse only</text>
+
+  <text x="256" y="412" fill="#e6edf3" font-family="monospace" font-size="13">/review</text>
+  <text x="370" y="412" fill="#8b949e" font-family="monospace" font-size="12">Code review</text>
+
+  <text x="256" y="432" fill="#e6edf3" font-family="monospace" font-size="13">/model</text>
+  <text x="370" y="432" fill="#8b949e" font-family="monospace" font-size="12">Switch model</text>
+
+  <text x="256" y="452" fill="#e6edf3" font-family="monospace" font-size="13">/yolo</text>
+  <text x="370" y="452" fill="#8b949e" font-family="monospace" font-size="12">YOLO mode — skip approvals</text>
+
+  <!-- Footer prompt line -->
+  <text x="110" y="500" fill="#58a6ff" font-family="monospace" font-size="15" font-weight="bold">hermes@dev:~$</text>
+  <text x="270" y="500" fill="#e6edf3" font-family="monospace" font-size="15">/</text>
+
+  <!-- Blinking cursor -->
+  <rect x="282" y="487" width="10" height="18" rx="2" fill="#e6edf3" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0;0.8" dur="1s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Accent line -->
+  <rect x="80" y="555" width="1040" height="4" fill="url(#accent)" rx="2" opacity="0.4"/>
+
+  <!-- Bottom text -->
+  <text x="600" y="585" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="20" font-weight="bold">Tab → autocomplete · /plan · /review · /yolo</text>
+  <text x="600" y="610" text-anchor="middle" fill="#8b949e" font-family="monospace" font-size="13">Hermes TUI · Terminal CLI Commands Reference</text>
+
+  <!-- Decorative dots -->
+  <circle cx="1120" cy="550" r="2" fill="#58a6ff" opacity="0.3"/>
+  <circle cx="1135" cy="540" r="1.5" fill="#bc8cff" opacity="0.3"/>
+  <circle cx="1145" cy="555" r="1" fill="#58a6ff" opacity="0.2"/>
+</svg>

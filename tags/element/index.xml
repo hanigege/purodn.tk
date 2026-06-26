@@ -1,19 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Element on 电脑自习室</title><link>https://purodn.tk/tags/element/</link><description>Recent content in Element on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/element/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Matrix 机器人新机保守优化手册</title><link>https://purodn.tk/posts/ai/hermes-matrix-bot-new-machine-optimization/</link><pubDate>Tue, 02 Jun 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-matrix-bot-new-machine-optimization/</guid><description>&lt;p&gt;这篇用于新装 Hermes Agent 后，给 Matrix 机器人做一轮保守优化。目标不是把权限全部放开，而是让机器人在 Element 里更安静、更可控、更容易长期运行。&lt;/p&gt;
-&lt;p&gt;核心原则：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Matrix 里只显示最终回答、必要心跳和少量工作进度。&lt;/li&gt;
-&lt;li&gt;使用 &lt;code&gt;smart&lt;/code&gt; 审批，危险操作仍要确认，不启用长期全局 YOLO/off。&lt;/li&gt;
-&lt;li&gt;限制 Matrix 入口范围，只让可信用户、可信房间触发机器人。&lt;/li&gt;
-&lt;li&gt;Gateway 使用 systemd user 服务长期运行，必要时启用 linger。&lt;/li&gt;
-&lt;li&gt;配置、环境变量、sessions、memory、skills、cron、logs、auth/state 都要纳入备份。&lt;/li&gt;
-&lt;li&gt;Dashboard 和 Gateway API 不要无认证暴露到公网。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="配置是否合理"&gt;配置是否合理&lt;/h2&gt;
-&lt;p&gt;你给的新机优化 Prompt 整体方向是合理的，适合发给新系统里的新 Matrix 机器人执行。但建议做四点修正：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;code&gt;approvals.mode&lt;/code&gt; 日常固定用 &lt;code&gt;smart&lt;/code&gt;。官方配置值是 &lt;code&gt;manual&lt;/code&gt;、&lt;code&gt;smart&lt;/code&gt;、&lt;code&gt;off&lt;/code&gt;；不要写 &lt;code&gt;hermes config set approvals.mode yolo&lt;/code&gt;，也不建议为了省事把配置长期改成 &lt;code&gt;off&lt;/code&gt;。如果确实需要临时批量初始化，可以另开一次性 &lt;code&gt;hermes --yolo&lt;/code&gt; 进程，但做完仍以 &lt;code&gt;smart&lt;/code&gt; 作为长期配置。&lt;/li&gt;
-&lt;li&gt;Matrix 安全入口不只看 &lt;code&gt;allowed_rooms&lt;/code&gt;，还要重点检查 &lt;code&gt;MATRIX_ALLOWED_USERS&lt;/code&gt; 或等价配置。官方 Matrix 文档强调要设置允许用户，否则 Gateway 会按安全默认拒绝用户。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;allowed_rooms&lt;/code&gt;、&lt;code&gt;free_response_rooms&lt;/code&gt; 这类字段在不同版本里可能是字符串、逗号分隔环境变量或 YAML 列表。让机器人先读 &lt;code&gt;hermes config --help&lt;/code&gt;、&lt;code&gt;hermes config show&lt;/code&gt; 和当前配置，再决定写入形态，不要盲目手写。&lt;/li&gt;
-&lt;li&gt;Matrix 引用回复要把 &lt;code&gt;platforms.matrix.reply_to_mode&lt;/code&gt; 写成字符串 &lt;code&gt;&amp;quot;off&amp;quot;&lt;/code&gt;，并确认代码读取的是 &lt;code&gt;config.reply_to_mode&lt;/code&gt;，不是 &lt;code&gt;config.extra.reply_to_mode&lt;/code&gt;。如果 &lt;code&gt;//new&lt;/code&gt; 在 Element 里没有开新会话，还要检查 Matrix 消息层是否把 &lt;code&gt;//command&lt;/code&gt; 规范化成 &lt;code&gt;/command&lt;/code&gt;。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;一句话版本：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Element on 电脑自习室</title><link>https://purodn.tk/tags/element/</link><description>Recent content in Element on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/element/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Matrix 机器人新机保守优化手册</title><link>https://purodn.tk/posts/ai/hermes-matrix-bot-new-machine-optimization/</link><pubDate>Tue, 02 Jun 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-matrix-bot-new-machine-optimization/</guid><description>这篇用于新装 Hermes Agent 后，给 Matrix 机器人做一轮保守优化。目标不是把权限全部放开，而是让机器人在 Element 里更安静、更可控、更容易长期运行。
+核心原则：
+Matrix 里只显示最终回答、必要心跳和少量工作进度。 使用 smart 审批，危险操作仍要确认，不启用长期全局 YOLO/off。 限制 Matrix 入口范围，只让可信用户、可信房间触发机器人。 Gateway 使用 systemd user 服务长期运行，必要时启用 linger。 配置、环境变量、sessions、memory、skills、cron、logs、auth/state 都要纳入备份。 Dashboard 和 Gateway API 不要无认证暴露到公网。 配置是否合理 你给的新机优化 Prompt 整体方向是合理的，适合发给新系统里的新 Matrix 机器人执行。但建议做四点修正：
+approvals.mode 日常固定用 smart。官方配置值是 manual、smart、off；不要写 hermes config set approvals.mode yolo，也不建议为了省事把配置长期改成 off。如果确实需要临时批量初始化，可以另开一次性 hermes --yolo 进程，但做完仍以 smart 作为长期配置。 Matrix 安全入口不只看 allowed_rooms，还要重点检查 MATRIX_ALLOWED_USERS 或等价配置。官方 Matrix 文档强调要设置允许用户，否则 Gateway 会按安全默认拒绝用户。 allowed_rooms、free_response_rooms 这类字段在不同版本里可能是字符串、逗号分隔环境变量或 YAML 列表。让机器人先读 hermes config --help、hermes config show 和当前配置，再决定写入形态，不要盲目手写。 Matrix 引用回复要把 platforms.</description></item></channel></rss>

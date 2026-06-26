@@ -1,28 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>MacOS on 电脑自习室</title><link>https://purodn.tk/tags/macos/</link><description>Recent content in MacOS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/macos/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>&lt;p&gt;本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&lt;/p&gt;
-&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
-&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
- &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/QTZRFvTacwU?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
- &lt;/div&gt;
-
-&lt;p&gt;这套配置包含：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;lazy.nvim&lt;/code&gt; 插件管理器&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;onedark.nvim&lt;/code&gt; 护眼深色主题&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;nvim-tree.lua&lt;/code&gt; 文件树&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;nvim-osc52&lt;/code&gt; 远程复制&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;conform.nvim&lt;/code&gt; 代码格式化&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;jq&lt;/code&gt; JSON 格式化工具&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;prettier&lt;/code&gt; 前端、Markdown 与 YAML 格式化工具&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;;t&lt;/code&gt; 智能切换文件树&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;;f&lt;/code&gt; 手动格式化&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;;w&lt;/code&gt; 保存并自动格式化&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="一安装-neovim"&gt;一、安装 Neovim&lt;/h2&gt;
-&lt;p&gt;要求 Neovim 版本不低于 &lt;code&gt;0.10.0&lt;/code&gt;。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。&lt;/p&gt;
-&lt;h3 id="debian--ubuntu"&gt;Debian / Ubuntu&lt;/h3&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt update
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo apt install -y neovim git curl
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim --version | grep ^NVIM&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sudo apt update\nsudo apt install -y neovim git curl\nnvim --version | grep ^NVIM"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 &lt;code&gt;neovim&lt;/code&gt; 仍可能停留在 &lt;code&gt;0.9.x&lt;/code&gt;：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>MacOS on 电脑自习室</title><link>https://purodn.tk/tags/macos/</link><description>Recent content in MacOS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/macos/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。
+视频演示 这套配置包含：
+lazy.nvim 插件管理器 onedark.nvim 护眼深色主题 nvim-tree.lua 文件树 nvim-osc52 远程复制 conform.nvim 代码格式化 jq JSON 格式化工具 prettier 前端、Markdown 与 YAML 格式化工具 ;t 智能切换文件树 ;f 手动格式化 ;w 保存并自动格式化 一、安装 Neovim 要求 Neovim 版本不低于 0.10.0。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。
+Debian / Ubuntu 复制sudo apt update sudo apt install -y neovim git curl nvim --version | grep ^NVIM Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 neovim 仍可能停留在 0.9.x：</description></item></channel></rss>

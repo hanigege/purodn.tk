@@ -1,25 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>QUIC on 电脑自习室</title><link>https://purodn.tk/tags/quic/</link><description>Recent content in QUIC on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/quic/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>&lt;p&gt;这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;在 PVE 宿主机添加宿主机网络参数。&lt;/li&gt;
-&lt;li&gt;在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 &lt;code&gt;rp_filter&lt;/code&gt; 已关闭。&lt;/li&gt;
-&lt;li&gt;在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。&lt;/li&gt;
-&lt;li&gt;按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;下面示例使用：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;LXC ID：&lt;code&gt;101&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;PVE 网桥：&lt;code&gt;vmbr0&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;容器 IPv4：&lt;code&gt;10.20.20.6/24&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;IPv4 网关：&lt;code&gt;10.20.20.1&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;容器 IPv6：&lt;code&gt;fd88::6666/64&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;IPv6 网关：&lt;code&gt;fd88::1111&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;容器网卡 MAC：&lt;code&gt;BC:24:11:1E:91:3C&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;这些值只是示例，必须按你自己的 &lt;code&gt;pct config &amp;lt;CTID&amp;gt;&lt;/code&gt; 输出替换。&lt;/p&gt;
-&lt;h2 id="1-先获取自己的变量"&gt;1. 先获取自己的变量&lt;/h2&gt;
-&lt;p&gt;所有 &lt;code&gt;pct&lt;/code&gt; 命令都在 &lt;strong&gt;PVE 宿主机 Shell&lt;/strong&gt; 执行，不是在 LXC 容器里执行。&lt;/p&gt;
-&lt;p&gt;先列出容器，确认 sing-box 所在的 LXC ID：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pct list&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pct list"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;假设 sing-box 容器 ID 是 &lt;code&gt;101&lt;/code&gt;，查看它当前的网卡配置：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>QUIC on 电脑自习室</title><link>https://purodn.tk/tags/quic/</link><description>Recent content in QUIC on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/quic/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：
+在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：
+LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。
+1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。
+先列出容器，确认 sing-box 所在的 LXC ID：
+复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description></item></channel></rss>

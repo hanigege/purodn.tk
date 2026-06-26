@@ -1,18 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>DeepSeek on 电脑自习室</title><link>https://purodn.tk/tags/deepseek/</link><description>Recent content in DeepSeek on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 24 Jun 2026 06:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/deepseek/index.xml" rel="self" type="application/rss+xml"/><item><title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</title><link>https://purodn.tk/posts/ai/moon-bridge-config-tutorial/</link><pubDate>Wed, 24 Jun 2026 06:30:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/moon-bridge-config-tutorial/</guid><description>&lt;h2 id="概述"&gt;概述&lt;/h2&gt;
-&lt;p&gt;Codex 桌面应用从 v0.142 开始仅支持 Responses API（&lt;code&gt;/v1/responses&lt;/code&gt;）协议，而 DeepSeek 官方只提供 Chat Completions API（&lt;code&gt;/v1/chat/completions&lt;/code&gt;）。两种协议互不兼容，无法直连。&lt;/p&gt;
-&lt;p&gt;&lt;a href="https://github.com/ZhiYi-R/moon-bridge"&gt;Moon Bridge&lt;/a&gt; 是一个轻量本地代理，运行在 Mac 上，负责将 Codex 发出的 Responses 请求实时翻译为 DeepSeek 能理解的 Chat 请求，使得在 Codex 桌面 App 中直接使用 DeepSeek 模型成为可能。&lt;/p&gt;
-&lt;p&gt;通讯拓扑如下：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code&gt;Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API"&lt;/script&gt;
-&lt;/div&gt;
-&lt;hr&gt;
-&lt;h2 id="前置条件"&gt;前置条件&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;macOS 操作系统&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://brew.sh/"&gt;Homebrew&lt;/a&gt; 包管理器（用于安装 Go）&lt;/li&gt;
-&lt;li&gt;DeepSeek API Key（从 &lt;a href="https://platform.deepseek.com/"&gt;DeepSeek 开发者平台&lt;/a&gt; 获取）&lt;/li&gt;
-&lt;/ul&gt;
-&lt;hr&gt;
-&lt;h2 id="安装步骤"&gt;安装步骤&lt;/h2&gt;
-&lt;h3 id="第一步安装-go-语言"&gt;第一步：安装 Go 语言&lt;/h3&gt;
-&lt;p&gt;Moon Bridge 使用 Go 编写，需要先安装 Go 运行环境：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>DeepSeek on 电脑自习室</title><link>https://purodn.tk/tags/deepseek/</link><description>Recent content in DeepSeek on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 24 Jun 2026 06:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/deepseek/index.xml" rel="self" type="application/rss+xml"/><item><title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</title><link>https://purodn.tk/posts/ai/moon-bridge-config-tutorial/</link><pubDate>Wed, 24 Jun 2026 06:30:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/moon-bridge-config-tutorial/</guid><description>概述 Codex 桌面应用从 v0.142 开始仅支持 Responses API（/v1/responses）协议，而 DeepSeek 官方只提供 Chat Completions API（/v1/chat/completions）。两种协议互不兼容，无法直连。
+Moon Bridge 是一个轻量本地代理，运行在 Mac 上，负责将 Codex 发出的 Responses 请求实时翻译为 DeepSeek 能理解的 Chat 请求，使得在 Codex 桌面 App 中直接使用 DeepSeek 模型成为可能。
+通讯拓扑如下：
+复制Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API 前置条件 macOS 操作系统 Homebrew 包管理器（用于安装 Go） DeepSeek API Key（从 DeepSeek 开发者平台 获取） 安装步骤 第一步：安装 Go 语言 Moon Bridge 使用 Go 编写，需要先安装 Go 运行环境：
+复制brew install go 验证安装：
+复制go version # 输出示例：go version go1.</description></item></channel></rss>

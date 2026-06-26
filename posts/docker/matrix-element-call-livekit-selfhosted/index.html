@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matrix 安装 Element Call 加密通话组件教程：使用单域名 | 电脑自习室</title>
+    <meta name="description" content="在家庭服务器上自建 Element Call 所需的 Matrix LiveKit JWT 身份验证服务和 LiveKit SFU，并配置 Synapse、Nginx 反向代理、防火墙端口与 MatrixRTC 后端公告。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2025-05-02">2025年5月2日</time>
+        </div>
+        <h1>Matrix 安装 Element Call 加密通话组件教程：使用单域名</h1>
+          <p>在家庭服务器上自建 Element Call 所需的 Matrix LiveKit JWT 身份验证服务和 LiveKit SFU，并配置 Synapse、Nginx 反向代理、防火墙端口与 MatrixRTC 后端公告。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/matrix-element-call-livekit-selfhosted/assets/matrixrtc-flow.png" alt="">
+
+      <div class="article-content">
+        <p><a href="https://matrix.org/">Matrix</a> 通信网络协议最常用的客户端 Element 过去一直使用免费的 Jitsi 作为群组视频会议组件。一对一音视频通话则相对复杂：如果双方客户端具有公网 IP，则可以建立点对点连接；否则需要通话发起方的服务端<a href="https://element-hq.github.io/synapse/latest/turn-howto.html">托管</a> TURN 服务来绕过网络地址转换 (NAT)，中继 WebRTC 连接。</p>
+<p>现在这一情况已得到改善。Elment.io 开源了原生的 Matrix 视频会议应用程序 <a href="https://github.com/element-hq/element-call">element-call</a>。它的优势在于端到端加密、流畅性，以及基于 <a href="https://livekit.io/">LiveKit</a> 的可扩展后端；缺点是与 Jitsi 相比功能仍较为简陋，例如缺少背景虚化、主持功能等。</p>
+<p>Element Call 客户端组件现已内置于 Element 桌面和网页端，并在新一代移动端 Element X 上作为唯一的通话组件。这意味着从 Jitsi 和 TURN 发起的呼叫无法在 X 移动端显示。该组件需要连接到 MatrixRTC 后端才能使用。根据<a href="https://element.io/blog/this-week-in-matrix-2025-04-11/">官方博客</a> ，从 2025 年 5 月开始，Element 将不再为社区提供免费的 MatrixRTC 后端服务，因此 Matrix 站长需要自行搭建。不过这并不是紧迫的任务，因为 Element X 功能尚不完善，还不足以完全替代旧的移动端。</p>
+<p>本教程适用于在家庭服务器（如 NAS）上自建该服务。</p>
+<h2 id="服务概述">服务概述</h2>
+<p>Element Call 包含两个服务：<a href="https://github.com/element-hq/lk-jwt-service">Matrix Livekit JWT</a> 身份验证服务和 <a href="https://github.com/livekit/livekit">Livekit SFU</a> WebSocket 信令连接。它们的通信流程如下：</p>
+<p><img src="assets/matrixrtc-flow.png" alt="MatrixRTC 后端通信流程"></p>
+<p>当用户从客户端发起呼叫时，首先会访问 matrix 域名的 <code>/.well-known/matrix/client</code> 路径查找后端 Livekit JWT 服务地址。JWT 将为指定房间生成具有特定身份的 JWT 令牌，随后客户端与 Livekit SFU 建立安全的 WebSocket 通信，SFU 使用 WebRTC 端口进行实时语音或视频对话。</p>
+<p>因此，Livekit JWT 需要向客户端开放一个 Web 端口，Livekit SFU 需要开放一个 WebSocket 端口。此外，Livekit SFU 还需要开放一组 UDP 端口范围（或单个 UDP 端口，但不建议）和一个 TCP 端口用于 WebRTC。如果 Livekit SFU 使用内置的 TURN 服务器，则还需开放 TURN 端口（本教程将使用第三方服务替代）。</p>
+<h2 id="使用-turn-改善连接非必要">使用 TURN 改善连接（非必要）</h2>
+<p>由于家庭网络的公网地址不固定，且运营商可能在上游机房施加限制（如阻止 UDP 连接），LiveKit 可以使用后备的 TURN 服务改善连接质量。LiveKit 包含一个嵌入式 TURN 服务器，但这个服务器与 LiveKit 身份绑定，没有独立的用户密码，无法单独提供（例如作为 Synapse 内置的通话服务）。LiveKit 也可以使用第三方 TURN 服务，如 Coturn，这需要一台 VPS；或者使用 Cloudflare TURN 服务器。结合 Cloudflare 优质的 CDN 线路带宽，即使在网络高峰期也能保证视频通话质量。况且 LiveKit 并不完全依赖 TURN，免费的 1000GB 流量已绰绰有余。</p>
+<p>在 Cloudflare Dashboard 创建服务后，按照步骤使用 API 创建 TURN 的用户名和凭证。需要注意的是，通过 API 创建的令牌可能有有效期限制。尽管 TLS 参数可以设置较大的数值，但默认过期时间仅为一天。如果确实如此，则需要编写脚本每天重新创建令牌，并将其更新到 LiveKit 和 Matrix homeserver 中。</p>
+<h2 id="配置-livekit">配置 LiveKit</h2>
+<h3 id="生成配置">生成配置</h3>
+<p>使用 LiveKit 的配置生成工具为您的域创建自定义配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker pull livekit/generate
+</span></span><span style="display:flex;"><span>docker run --rm -it -v$PWD:/output livekit/generate</span></span></code></pre></div><script class="code-source" type="application/json">"docker pull livekit/generate\ndocker run --rm -it -v$PWD:/output livekit/generate"</script>
+</div>
+<p>选项可随意设置，该工具仅用于生成密钥和令牌。密钥将填入配置中，令牌用于测试，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>root@xxx:~# docker run --rm -it -v /synapse/livekit:/output livekit/generate
+</span></span><span style="display:flex;"><span>Generating config for production LiveKit deployment
+</span></span><span style="display:flex;"><span>✔ LiveKit Server only
+</span></span><span style="display:flex;"><span>Primary domain name (i.e. livekit.myhost.com): livekit.example.com
+</span></span><span style="display:flex;"><span>TURN domain name (i.e. livekit-turn.myhost.com): turn.example.com
+</span></span><span style="display:flex;"><span>✔ Let&#39;s Encrypt (no account required)
+</span></span><span style="display:flex;"><span>✔ latest
+</span></span><span style="display:flex;"><span>✔ no - (we&#39;ll bundle Redis)
+</span></span><span style="display:flex;"><span>✔ Skip
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Server URL: wss://example.com
+</span></span><span style="display:flex;"><span>API Key: xxxxxx
+</span></span><span style="display:flex;"><span>API Secret: xxxxx
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Here&#39;s a test token generated with your keys: xxxxx
+</span></span><span style="display:flex;"><span>...</span></span></code></pre></div><script class="code-source" type="application/json">"root@xxx:~# docker run --rm -it -v /synapse/livekit:/output livekit/generate\nGenerating config for production LiveKit deployment\n✔ LiveKit Server only\nPrimary domain name (i.e. livekit.myhost.com): livekit.example.com\nTURN domain name (i.e. livekit-turn.myhost.com): turn.example.com\n✔ Let's Encrypt (no account required)\n✔ latest\n✔ no - (we'll bundle Redis)\n✔ Skip\n\nServer URL: wss://example.com\nAPI Key: xxxxxx\nAPI Secret: xxxxx\n\nHere's a test token generated with your keys: xxxxx\n..."</script>
+</div>
+<h3 id="修改-livekityaml-配置">修改 livekit.yaml 配置</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># livekit sfu 的 websocket 端口</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">port</span>: <span style="color:#ae81ff">7880</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">bind_addresses</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;0.0.0.0&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rtc</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># livekit sfu 的 tcp 端口</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tcp_port</span>: <span style="color:#ae81ff">17882</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># livekit sfu 的 webrtc udp 端口范围</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port_range_start</span>: <span style="color:#ae81ff">50201</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port_range_end</span>: <span style="color:#ae81ff">50400</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 对于大多数云环境，如果主机有公网 IP 但进程无法直接访问，应将 use_external_ip 设置为 true。</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># LiveKit 会尝试使用 STUN 发现真实 IP，并将该 IP 通告给客户端。</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">use_external_ip</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 第三方 turn，推荐 cloudflare 或 coturn</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">turn_servers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">host</span>: <span style="color:#ae81ff">turn.cloudflare.com</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">port</span>: <span style="color:#ae81ff">3478</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># tls, tcp, or udp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">protocol</span>: <span style="color:#ae81ff">udp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># Livekit 配置第三方TURN服务不支持静态共享密钥</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 用从 cloudflare api 中获取的用户名和凭证</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">username</span>: <span style="color:#e6db74">&#34;xxx&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">credential</span>: <span style="color:#e6db74">&#34;xxx&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">level</span>: <span style="color:#ae81ff">info</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">keys</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 这个生成的不要动</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">key</span>: <span style="color:#e6db74">&#34;yoursecretkey&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># redis:</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#   # redis 有助于从故障中恢复，不必要</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#   address: localhost:6379</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#   db: 5</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#   # username: xxx</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#   # password: xxx</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 内建的 turn，默认不启用</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">domain</span>: <span style="color:#ae81ff">localhost</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cert_file</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">key_file</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tls_port</span>: <span style="color:#ae81ff">5349</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">udp_port</span>: <span style="color:#ae81ff">443</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">external_tls</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"# livekit sfu 的 websocket 端口\nport: 7880\nbind_addresses:\n  - \"0.0.0.0\"\nrtc:\n  # livekit sfu 的 tcp 端口\n  tcp_port: 17882\n  # livekit sfu 的 webrtc udp 端口范围\n  port_range_start: 50201\n  port_range_end: 50400\n  # 对于大多数云环境，如果主机有公网 IP 但进程无法直接访问，应将 use_external_ip 设置为 true。\n  # LiveKit 会尝试使用 STUN 发现真实 IP，并将该 IP 通告给客户端。\n  use_external_ip: true\n  # 第三方 turn，推荐 cloudflare 或 coturn\n  turn_servers:\n    - host: turn.cloudflare.com\n      port: 3478\n      # tls, tcp, or udp\n      protocol: udp\n      # Livekit 配置第三方TURN服务不支持静态共享密钥\n      # 用从 cloudflare api 中获取的用户名和凭证\n      username: \"xxx\"\n      credential: \"xxx\"\nlogging:\n  level: info\nkeys:\n  # 这个生成的不要动\n  key: \"yoursecretkey\"\n# redis:\n#   # redis 有助于从故障中恢复，不必要\n#   address: localhost:6379\n#   db: 5\n#   # username: xxx\n#   # password: xxx\n# 内建的 turn，默认不启用\nturn:\n  enabled: false\n  domain: localhost\n  cert_file: \"\"\n  key_file: \"\"\n  tls_port: 5349\n  udp_port: 443\n  external_tls: true"</script>
+</div>
+<h2 id="修改-matrix-配置">修改 Matrix 配置</h2>
+<p>在 Synapse homeserver.yaml 中：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">experimental_features</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># MSC3266：房间摘要 API。用于跨服务器敲门功能</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc3266_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># MSC4222：syncv2 state_after 所需。允许客户端</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 正确追踪房间状态。</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc4222_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># MSC4140：延迟事件需要正确的呼叫参与信令。如果禁用，很可能你会在矩阵房间里被卡住</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc4140_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 按照 MSC4140，允许已发送事件的最大延迟时长。</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">max_event_delay_duration</span>: <span style="color:#ae81ff">24h</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rc_message</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 这需要至少匹配端到端加密密钥共享的频率，并留有一定余量</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 注意密钥共享事件是突发性的</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">per_second</span>: <span style="color:#ae81ff">0.5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">burst_count</span>: <span style="color:#ae81ff">30</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rc_delayed_event_mgmt</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 这需要至少匹配心跳频率，并留有一定余量</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 当前心跳为每 5 秒一次，换算为 0.2 次/秒</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">per_second</span>: <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">burst_count</span>: <span style="color:#ae81ff">20</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果你想用 Cloudflare TURN 服务器作为 Matrix 旧客户端的通话服务，配置下面的参数。</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果改用本站 coturn Docker Compose 方案，则 turn_uris 换成自建 coturn 域名，</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># coturn relay 端口统一按 50000-50200/udp 放行。</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_uris</span>: [<span style="color:#e6db74">&#34;turn:turn.cloudflare.com:3478?transport=udp&#34;</span>,<span style="color:#e6db74">&#34;turn:turn.cloudflare.com:3478?transport=tcp&#34;</span>,<span style="color:#e6db74">&#34;turns:turn.cloudflare.com:5349?transport=tcp&#34;</span>,<span style="color:#e6db74">&#34;turn:turn.cloudflare.com:53?transport=udp&#34;</span>,<span style="color:#e6db74">&#34;turn:turn.cloudflare.com:80?transport=tcp&#34;</span>,<span style="color:#e6db74">&#34;turns:turn.cloudflare.com:443?transport=tcp&#34;</span>]
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_username</span>: <span style="color:#e6db74">&#34;xxx&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_password</span>: <span style="color:#e6db74">&#34;xxx&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"experimental_features:\n  # MSC3266：房间摘要 API。用于跨服务器敲门功能\n  msc3266_enabled: true\n  # MSC4222：syncv2 state_after 所需。允许客户端\n  # 正确追踪房间状态。\n  msc4222_enabled: true\n  # MSC4140：延迟事件需要正确的呼叫参与信令。如果禁用，很可能你会在矩阵房间里被卡住\n  msc4140_enabled: true\n\n# 按照 MSC4140，允许已发送事件的最大延迟时长。\nmax_event_delay_duration: 24h\n\nrc_message:\n  # 这需要至少匹配端到端加密密钥共享的频率，并留有一定余量\n  # 注意密钥共享事件是突发性的\n  per_second: 0.5\n  burst_count: 30\nrc_delayed_event_mgmt:\n  # 这需要至少匹配心跳频率，并留有一定余量\n  # 当前心跳为每 5 秒一次，换算为 0.2 次/秒\n  per_second: 1\n  burst_count: 20\n# 如果你想用 Cloudflare TURN 服务器作为 Matrix 旧客户端的通话服务，配置下面的参数。\n# 如果改用本站 coturn Docker Compose 方案，则 turn_uris 换成自建 coturn 域名，\n# coturn relay 端口统一按 50000-50200/udp 放行。\nturn_uris: [\"turn:turn.cloudflare.com:3478?transport=udp\",\"turn:turn.cloudflare.com:3478?transport=tcp\",\"turns:turn.cloudflare.com:5349?transport=tcp\",\"turn:turn.cloudflare.com:53?transport=udp\",\"turn:turn.cloudflare.com:80?transport=tcp\",\"turns:turn.cloudflare.com:443?transport=tcp\"]\nturn_username: \"xxx\"\nturn_password: \"xxx\""</script>
+</div>
+<h2 id="创建容器">创建容器</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># 在 matrix synapse 的 docker-compose.yaml 项目组中添加这些服务，或者单独创建它们</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">auth-service</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/element-hq/lk-jwt-service:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">element-call-jwt</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">hostname</span>: <span style="color:#ae81ff">auth-server</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># host 模式下不需要端口映射，如果是 bridge 模式则需要</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_JWT_PORT=8080</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 这里填入 LIVEKIT SFU 的 WebSocket 反向代理后的地址</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_URL=https://matrix.homeserver:port/livekit/sfu</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 两种 WebSocket 地址模式，和上一种模式的区别是上一种模式将 sfu 服务反代到 matrix homeserver 的路径，而这个地址则是在单独的 nginx server 中反代 sfu，具体见下文</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># - LIVEKIT_URL=ws://yourdomain:port:7880</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_KEY=和 livekit.yaml 配置一致</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_SECRET=和 livekit.yaml 配置一致</span>
+</span></span><span style="display:flex;"><span>     <span style="color:#75715e">## - LIVEKIT_LOCAL_HOMESERVERS=domain.com #限制可使用的家庭服务器，逗号分隔</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ports:</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#   - 8070:8080</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">livekit</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">livekit/livekit-server:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">element-call-livekit</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 推荐用 host 模式避免映射大量端口</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: --<span style="color:#ae81ff">config /etc/livekit.yaml</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ports:</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#   - 7880:7880/tcp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#   - 17882:17882/tcp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#   - 50201-50400:50201-50400/udp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./livekit/livekit.yaml:/etc/livekit.yaml:ro</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 可选服务</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># redis:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   image: redis:7-alpine</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   command: redis-server /etc/redis.conf</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   restart: unless-stopped</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   network_mode: &#34;host&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   volumes:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#     - ./redis.conf:/etc/redis.conf</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 在 matrix synapse 的 docker-compose.yaml 项目组中添加这些服务，或者单独创建它们\n  auth-service:\n    image: ghcr.io/element-hq/lk-jwt-service:latest\n    container_name: element-call-jwt\n    hostname: auth-server\n    # host 模式下不需要端口映射，如果是 bridge 模式则需要\n    network_mode: host\n    environment:\n      - LIVEKIT_JWT_PORT=8080\n      # 这里填入 LIVEKIT SFU 的 WebSocket 反向代理后的地址\n      - LIVEKIT_URL=https://matrix.homeserver:port/livekit/sfu\n      # 两种 WebSocket 地址模式，和上一种模式的区别是上一种模式将 sfu 服务反代到 matrix homeserver 的路径，而这个地址则是在单独的 nginx server 中反代 sfu，具体见下文\n      # - LIVEKIT_URL=ws://yourdomain:port:7880\n      - LIVEKIT_KEY=和 livekit.yaml 配置一致\n      - LIVEKIT_SECRET=和 livekit.yaml 配置一致\n     ## - LIVEKIT_LOCAL_HOMESERVERS=domain.com #限制可使用的家庭服务器，逗号分隔\n    restart: unless-stopped\n    # ports:\n    #   - 8070:8080\n  livekit:\n    image: livekit/livekit-server:latest\n    container_name: element-call-livekit\n    # 推荐用 host 模式避免映射大量端口\n    network_mode: host\n    command: --config /etc/livekit.yaml\n    # ports:\n    #   - 7880:7880/tcp\n    #   - 17882:17882/tcp\n    #   - 50201-50400:50201-50400/udp\n    restart: unless-stopped\n    volumes:\n      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro\n  # 可选服务\n  # redis:\n  #   image: redis:7-alpine\n  #   command: redis-server /etc/redis.conf\n  #   restart: unless-stopped\n  #   network_mode: \"host\"\n  #   volumes:\n  #     - ./redis.conf:/etc/redis.conf"</script>
+</div>
+<p>执行 <code>docker compose up -d</code> 创建容器。</p>
+<h2 id="配置-nginx-反向代理防火墙及端口转发家庭服务器">配置 Nginx 反向代理、防火墙及端口转发（家庭服务器）</h2>
+<p>由于客户端需要从外部访问服务端，因此需要为 Livekit JWT 的 Web 端口和 Livekit SFU 的 WebSocket 端口设置反向代理。</p>
+<p>在家庭服务器上，有两种反向代理方式：一种是为每个端口指定单独的代理端口；另一种是在 nginx 原有端口代理 server 中添加代理路径。本教程介绍第二种方法：将 JWT 和 SFU 端口代理挂载到 matrix homeserver 的 nginx server 指定路径下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">location</span> <span style="color:#e6db74">^~</span> <span style="color:#e6db74">/livekit/jwt/</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">Host</span> $host;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Real-IP</span> $remote_addr;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Forwarded-For</span> $proxy_add_x_forwarded_for;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Forwarded-Proto</span> $scheme;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># JWT Service running at port 8080
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> <span style="color:#e6db74">http://localhost:8080/</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">location</span> <span style="color:#e6db74">^~</span> <span style="color:#e6db74">/livekit/sfu/</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">Host</span> $host;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Real-IP</span> $remote_addr;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Forwarded-For</span> $proxy_add_x_forwarded_for;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">X-Forwarded-Proto</span> $scheme;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_send_timeout</span> <span style="color:#ae81ff">120</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_read_timeout</span> <span style="color:#ae81ff">120</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_buffering</span> <span style="color:#66d9ef">off</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">Accept-Encoding</span> <span style="color:#e6db74">gzip</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">Upgrade</span> $http_upgrade;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_set_header</span> <span style="color:#e6db74">Connection</span> <span style="color:#e6db74">&#34;upgrade&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># LiveKit SFU websocket connection running at port 7880
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> <span style="color:#e6db74">http://localhost:7880/</span>;
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"location ^~ /livekit/jwt/ {\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n    # JWT Service running at port 8080\n    proxy_pass http://localhost:8080/;\n}\nlocation ^~ /livekit/sfu/ {\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n    proxy_send_timeout 120;\n    proxy_read_timeout 120;\n    proxy_buffering off;\n    proxy_set_header Accept-Encoding gzip;\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection \"upgrade\";\n    # LiveKit SFU websocket connection running at port 7880\n    proxy_pass http://localhost:7880/;\n}"</script>
+</div>
+<p>执行 <code>nginx -t</code> 和 <code>nginx -s reload</code>。</p>
+<p>注意：在这种反向代理模式下，proxy_pass 的地址需要在端口最后添加斜杠 <code>/</code>。在 Nginx 的 <code>proxy_pass</code> 指令中，末尾是否包含斜杠会影响请求的转发行为。我们希望当客户端请求如 <code>https://matrix.example.com:8448/livekit/sfu/get</code> 地址时，nginx 将其转发到 <code>http://localhost:7880/get</code>，即忽略路径 <code>/livekit/sfu</code>。如果末尾不加 <code>/</code>，nginx 转发会变成完整路径追加：<code>http://localhost:7880/livekit/sfu/get</code>。客户端访问 SFU、JWT 服务器时的地址为 matrix 的 homeserver 端口（如 <code>https://matrix.example.com:8448</code>）加上中间路径（如 <code>/livekit/sfu</code>）和请求路由（如 <code>/get</code>）。nginx 转发时去掉中间路径，SFU 服务的路径由上面 docker 创建时的 <code>LIVEKIT_URL</code> 变量指定，而 JWT 服务的路径由下面 MatrixRTC 后端公告指定。</p>
+<p>不要忘记配置网络防火墙开放端口。如果是家庭服务器，还需要在路由器上设置端口转发。</p>
+<p>本文参数和后续 Docker Compose 文章保持一致：LiveKit 的 UDP 媒体端口使用 <code>50201-50400/udp</code>，LiveKit TCP fallback 使用 <code>17882/tcp</code>。如果同时部署自建 coturn，coturn relay 使用 <code>50000-50200/udp</code>，两段连续且不重叠。</p>
+<p>配置完成后，可以访问 <a href="https://livekit.io/connection-test">LiveKit Connection Tester</a> 网站测试 livekit sfu 服务是否正常，使用前面配置生成的 tokens。</p>
+<p><img src="assets/livekit-connection-tester.png" alt="LiveKit Connection Tester"></p>
+<h2 id="配置-matrixrtc-后端公告">配置 MatrixRTC 后端公告</h2>
+<p>Element Call 在建立端到端通信前需要访问 matrix 域名的 <code>/.well-known/matrix/client</code> 路径查找后端 livekit 服务地址，例如 <code>https://example.com/.well-known/matrix/client</code>。由于家庭网络无法开放 443 标准 HTTPS 端口，与前面 TURN 配置类似，这需要一台 VPS 提供相应配置，用 nginx 返回 json 并反向代理 matrix 的 homeserver。</p>
+<p>这里推荐一种免费方案：Cloudflare Worker。前提是在 Cloudflare 托管自己的域名 DNS 解析服务。进入 Dashboard -&gt; Workers 和 Pages 创建服务。在 worker.js 中写入以下脚本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">export</span> <span style="color:#66d9ef">default</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">async</span> <span style="color:#a6e22e">fetch</span>(<span style="color:#a6e22e">request</span>, <span style="color:#a6e22e">env</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">handleRequest</span>(<span style="color:#a6e22e">request</span>)
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">export</span> <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">handleRequest</span>(<span style="color:#a6e22e">request</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URL</span>(<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">url</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">headers</span> <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;content-type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;application/json;charset=UTF-8&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;Access-Control-Allow-Origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;Access-Control-Allow-Methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, POST, PUT, DELETE, OPTIONS&#34;</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">//your.domain:port
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">serverJson</span> <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.server&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;your.domain:port&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">clientJson</span> <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.homeserver&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;https://your.domain:port&#34;</span>
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;org.matrix.msc4143.rtc_foci&#34;</span><span style="color:#f92672">:</span>[
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;livekit&#34;</span>,
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;livekit_service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;https://your.domain:port/livekit/jwt&#34;</span>
+</span></span><span style="display:flex;"><span>            },
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;livekit&#34;</span>,
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;livekit_service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;https://livekit-jwt.call.matrix.org&#34;</span>
+</span></span><span style="display:flex;"><span>            },
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;nextgen_new_foci_type&#34;</span>,
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;props_for_nextgen_foci&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;val&#34;</span>
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        ]
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">msg</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span>.<span style="color:#a6e22e">endsWith</span>(<span style="color:#e6db74">&#34;.well-known/matrix/server&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">msg</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#a6e22e">serverJson</span>)
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span>.<span style="color:#a6e22e">endsWith</span>(<span style="color:#e6db74">&#34;.well-known/matrix/client&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">msg</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#a6e22e">clientJson</span>)
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">msg</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#a6e22e">msg</span>, <span style="color:#a6e22e">headers</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#e6db74">&#39;Not Found.&#39;</span>, { <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">404</span> })
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"export default {\n  async fetch(request, env) {\n    return await handleRequest(request)\n  }\n}\nexport async function handleRequest(request){\n    const url = new URL(request.url)\n    const headers = {\n        headers: {\n            \"content-type\": \"application/json;charset=UTF-8\",\n            \"Access-Control-Allow-Origin\": \"*\",\n            \"Access-Control-Allow-Methods\": \"GET, POST, PUT, DELETE, OPTIONS\"\n        }\n    }\n    //your.domain:port\n    const serverJson = {\n        \"m.server\": \"your.domain:port\"\n    }\n    const clientJson = {\n        \"m.homeserver\": {\n            \"base_url\": \"https://your.domain:port\"\n        },\n        \"org.matrix.msc4143.rtc_foci\":[\n            {\n                \"type\": \"livekit\",\n                \"livekit_service_url\": \"https://your.domain:port/livekit/jwt\"\n            },\n            {\n                \"type\": \"livekit\",\n                \"livekit_service_url\": \"https://livekit-jwt.call.matrix.org\"\n            },\n            {\n                \"type\": \"nextgen_new_foci_type\",\n                \"props_for_nextgen_foci\": \"val\"\n            }\n        ]\n    }\n    var msg\n    if (url.pathname.endsWith(\".well-known/matrix/server\")) {\n        msg = JSON.stringify(serverJson)\n    }\n    if (url.pathname.endsWith(\".well-known/matrix/client\")) {\n        msg = JSON.stringify(clientJson)\n    }\n    if (msg) {\n        return new Response(msg, headers);\n    } else {\n        return new Response('Not Found.', { status: 404 })\n    }\n}"</script>
+</div>
+<p>将 <code>your.domain:port</code> 替换为自己的 matrix 服务器地址。这个脚本还提供 <code>.well-known/matrix/server</code> 配置。每天 100,000 个请求的限额足够小型站点使用。</p>
+<p>然后在该 Worker 的设置 -&gt; 域和路由中，添加自定义路由：<code>https://your.domain/.well-known/matrix/*</code>。</p>
+<p>您可以在浏览器访问 <code>https://your.domain/.well-known/matrix/client</code> 地址，查看是否返回 Worker 中填写的 json 配置。一般来说，部署后会立即生效。</p>
+<hr>
+<p>现在 Element Call 应该可以正常使用了。Element Web/Desktop 客户端上可能需要开启相应的实验性设置。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/">
+            <img src="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/moon-bridge-config-tutorial/">
+            <img src="/posts/ai/moon-bridge-config-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-opnsense-config/">
+            <img src="/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">SMbox OPNsense 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-routeros-config/">
+            <img src="/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">SMbox RouterOS 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/smbox-alpine-install/">
+            <img src="/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">安装 Alpine 系统教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/routeros-mangle-small-packet-generator/">
+            <img src="/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">RouterOS Mangle 小包优先规则与带宽配置生成器</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

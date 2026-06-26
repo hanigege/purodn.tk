@@ -1,183 +1,23 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>防火墙 on 电脑自习室</title><link>https://purodn.tk/tags/%E9%98%B2%E7%81%AB%E5%A2%99/</link><description>Recent content in 防火墙 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E9%98%B2%E7%81%AB%E5%A2%99/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>&lt;p&gt;FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。&lt;/p&gt;
-&lt;p&gt;这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;默认拒绝入站，允许出站。&lt;/li&gt;
-&lt;li&gt;自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。&lt;/li&gt;
-&lt;li&gt;按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。&lt;/li&gt;
-&lt;li&gt;对 TCP 高频连接启用 &lt;code&gt;overload &amp;lt;blacklist&amp;gt;&lt;/code&gt; 自动拉黑，并定期释放过期黑名单。&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="先启用-pf"&gt;先启用 PF&lt;/h2&gt;
-&lt;p&gt;用 root 用户执行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pf_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sysrc pflog_enable&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;YES&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"sysrc pf_enable=\"YES\"\nsysrc pflog_enable=\"YES\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果是首次启用，先不要急着 &lt;code&gt;service pf start&lt;/code&gt;。PF 服务启动时会读取 &lt;code&gt;/etc/pf.conf&lt;/code&gt;，如果这个文件不存在或不可读，就会看到：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable.&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable."&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。&lt;/p&gt;
-&lt;p&gt;如果你的 SSH 不是 22 端口，把最后一行里的 &lt;code&gt;22&lt;/code&gt; 换成你实际的 SSH 端口：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cat &amp;gt; /etc/pf.conf &lt;span style="color:#e6db74"&gt;&amp;lt;&amp;lt;&amp;#39;EOF&amp;#39;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set skip on lo0
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;set block-policy drop
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;scrub in all fragment reassemble
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;block in all
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass out all keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto icmp all icmp-type echoreq keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;pass in quick inet proto tcp from any to any port 22 keep state
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;EOF&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cat \u003e /etc/pf.conf \u003c\u003c'EOF'\nset skip on lo0\nset block-policy drop\nscrub in all fragment reassemble\n\nblock in all\npass out all keep state\n\npass in quick inet proto icmp all icmp-type echoreq keep state\npass in quick inet proto tcp from any to any port 22 keep state\nEOF"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;先检查语法：&lt;/p&gt;</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
-&lt;p&gt;原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href="assets/Alpine_firewall.sh"&gt;Alpine_firewall.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/ssl_alpine.sh"&gt;ssl_alpine.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/alpine_root_ssh_key_manage.sh"&gt;alpine_root_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/alpine_user_ssh_key_manage.sh"&gt;alpine_user_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&lt;/p&gt;
-&lt;h2 id="alpine-ipv4-防火墙脚本"&gt;Alpine IPv4 防火墙脚本&lt;/h2&gt;
-&lt;p&gt;这个脚本用于安装 &lt;code&gt;iptables&lt;/code&gt; 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、&lt;code&gt;8000&lt;/code&gt;、&lt;code&gt;10521&lt;/code&gt; 等 TCP 端口，以及 UDP &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#!/bin/sh
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 针对 sing-box 性能优化 &amp;amp; 安全加固&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set -e
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 颜色输出&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;info&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[32m[INFO]\033[0m&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;warn&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[33m[WARN]\033[0m&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 安装 iptables 及其服务组件...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk add --no-cache iptables iptables-openrc
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 清空旧规则并预设安全策略...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -F
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -X
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 默认策略：严防死守&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P FORWARD DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P OUTPUT ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 注入严谨优先级规则...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 2. 第二优先级：本地回环 (127.0.0.1)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -i lo -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 3. 开放 TCP 业务端口&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;for&lt;/span&gt; port in &lt;span style="color:#ae81ff"&gt;22&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;80&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;8000&lt;/span&gt; 10521; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; iptables -A INPUT -p tcp --dport $port -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;done&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 4. 开放 sing-box UDP 监听端口&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p udp --dport &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst &lt;span style="color:#ae81ff"&gt;5&lt;/span&gt; -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp -j DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 正在持久化并启动服务...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine 必须先保存到文件，否则 start 可能会加载旧配置&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/init.d/iptables save
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 设置开机自启&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-update add iptables default
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 重启服务以确保内存规则与文件同步&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-service iptables restart
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;\n\033[32m✅ IPv4 防火墙加固完成！\033[0m&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -L INPUT -n -v
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"#!/bin/sh\n# ============================================================\n# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)\n# 针对 sing-box 性能优化 \u0026 安全加固\n# ============================================================\n\nset -e\n\n# 颜色输出\ninfo='\\033[32m[INFO]\\033[0m'\nwarn='\\033[33m[WARN]\\033[0m'\n\necho -e \"$info 安装 iptables 及其服务组件...\"\napk add --no-cache iptables iptables-openrc\n\necho -e \"$info 清空旧规则并预设安全策略...\"\n# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线\niptables -P INPUT ACCEPT\niptables -F\niptables -X\n\n# 默认策略：严防死守\niptables -P INPUT DROP\niptables -P FORWARD DROP\niptables -P OUTPUT ACCEPT\n\necho -e \"$info 注入严谨优先级规则...\"\n\n# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）\niptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n\n# 2. 第二优先级：本地回环 (127.0.0.1)\niptables -A INPUT -i lo -j ACCEPT\n\n# 3. 开放 TCP 业务端口\nfor port in 22 80 443 8000 10521; do\n iptables -A INPUT -p tcp --dport $port -j ACCEPT\ndone\n\n# 4. 开放 sing-box UDP 监听端口\niptables -A INPUT -p udp --dport 443 -j ACCEPT\n\n# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击\niptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT\niptables -A INPUT -p icmp -j DROP\n\necho -e \"$info 正在持久化并启动服务...\"\n# Alpine 必须先保存到文件，否则 start 可能会加载旧配置\n/etc/init.d/iptables save\n\n# 设置开机自启\nrc-update add iptables default\n\n# 重启服务以确保内存规则与文件同步\nrc-service iptables restart\n\necho -e \"\\n\\033[32m✅ IPv4 防火墙加固完成！\\033[0m\"\necho \"-------------------------------------------\"\niptables -L INPUT -n -v\necho \"-------------------------------------------\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="alpine-ssl-证书申请脚本"&gt;Alpine SSL 证书申请脚本&lt;/h2&gt;
-&lt;p&gt;这个脚本使用 &lt;code&gt;acme.sh&lt;/code&gt; 和 Let&amp;rsquo;s Encrypt，通过 standalone 模式申请证书，并把证书安装到 &lt;code&gt;/etc/ssl/&amp;lt;domain&amp;gt;/&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>RouterOS NAT 回流与防火墙规则备份</title><link>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</link><pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</guid><description>&lt;h3 id="内网的dst-nat要加外网接口如pppoe-out1"&gt;内网的dst-nat要加外网接口如pppoe-out1&lt;/h3&gt;
-&lt;h3 id="1-为什么需要回流"&gt;1. 为什么需要回流？&lt;/h3&gt;
-&lt;p&gt;当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。&lt;/p&gt;
-&lt;h3 id="2-完整的-ros-nat-脚本包含-web-回流"&gt;2. 完整的 ROS NAT 脚本（包含 Web 回流）&lt;/h3&gt;
-&lt;h5 id="请根据你的实际端口修改-12335-web-和-21-ftp-等"&gt;请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。&lt;/h5&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code class="language-routeros" data-lang="routeros"&gt;/ip firewall nat
-# --- 基础规则 ---
-# 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发）
-add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&amp;#34;Standard Internet Access&amp;#34;
-# --- 端口转发 (DST-NAT) ---
-# 2. DERP 转发
-add chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=&amp;#34;DERP TCP&amp;#34;
-add chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=&amp;#34;DERP STUN&amp;#34;
-# 3. Web 服务转发 (示例)
-add chain=dstnat protocol=tcp dst-port=12335 action=dst-nat to-addresses=10.20.20.x to-ports=12335 comment=&amp;#34;web&amp;#34;
-# 4. FTP 服务转发 (示例)
-add chain=dstnat protocol=tcp dst-port=21 action=dst-nat to-addresses=10.20.20.x to-ports=21 comment=&amp;#34;vsftpd&amp;#34;
-# --- 回流规则 (Hairpin NAT) ---
-# 只有当内网访问内网服务器时才触发。建议将所有内网服务器放在一个规则里，或者逐个添加。
-# 给 DERP 添加回流
-add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=tcp dst-port=12340 action=masquerade comment=&amp;#34;Hairpin DERP TCP&amp;#34;
-add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=udp dst-port=3478 action=masquerade comment=&amp;#34;Hairpin DERP STUN&amp;#34;
-# 给 Web 服务添加回流 (假设内网 IP 为 10.20.20.5)
-add chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.5 protocol=tcp dst-port=12335 action=masquerade comment=&amp;#34;Hairpin Web&amp;#34;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"/ip firewall nat\n# --- 基础规则 ---\n# 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发）\nadd chain=srcnat action=masquerade out-interface=pppoe-out1 comment=\"Standard Internet Access\"\n# --- 端口转发 (DST-NAT) ---\n# 2. DERP 转发\nadd chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=\"DERP TCP\"\nadd chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=\"DERP STUN\"\n# 3. Web 服务转发 (示例)\nadd chain=dstnat protocol=tcp dst-port=12335 action=dst-nat to-addresses=10.20.20.x to-ports=12335 comment=\"web\"\n# 4. FTP 服务转发 (示例)\nadd chain=dstnat protocol=tcp dst-port=21 action=dst-nat to-addresses=10.20.20.x to-ports=21 comment=\"vsftpd\"\n# --- 回流规则 (Hairpin NAT) ---\n# 只有当内网访问内网服务器时才触发。建议将所有内网服务器放在一个规则里，或者逐个添加。\n# 给 DERP 添加回流\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=tcp dst-port=12340 action=masquerade comment=\"Hairpin DERP TCP\"\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.4 protocol=udp dst-port=3478 action=masquerade comment=\"Hairpin DERP STUN\"\n# 给 Web 服务添加回流 (假设内网 IP 为 10.20.20.5)\nadd chain=srcnat src-address=10.20.20.0/24 dst-address=10.20.20.5 protocol=tcp dst-port=12335 action=masquerade comment=\"Hairpin Web\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;h3 id="3-操作建议使用地址列表简化回流"&gt;3. 操作建议：使用“地址列表”简化回流&lt;/h3&gt;
-&lt;p&gt;如果你有很多内网服务器需要回流，一条条加 srcnat 很麻烦。你可以这样做：&lt;/p&gt;</description></item><item><title>01.RouterOS 联网基本配置及 IPv4 防火墙</title><link>https://purodn.tk/posts/routeros/routeros-01-connectivity/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-01-connectivity/</guid><description>&lt;h2 id="本文介绍routeros拨号配置dhcp服务器配置dns开启ipv4防火墙等通网的基础配置桥接接口bridge1拨号接口pppoe-out1名称若不同则自行替换"&gt;本文介绍RouterOS拨号、配置DHCP服务器、配置DNS、开启IPv4防火墙等通网的基础配置。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换&lt;/h2&gt;
-&lt;h4 id="1-pppoe-拨号"&gt;1. PPPoE 拨号&lt;/h4&gt;
-&lt;p&gt;手动配置pppoe-out1接口拨号，User填入宽带账号，Password填入宽带密码。如果不使用运营商提供的DNS可不勾选User Peed DNS。
-&lt;img src="assets/routeros-01-connectivity-01.png" alt=""&gt;
-注：接口前出现“R”代表拨号成功。拨号成功后建议先禁用，待防火墙配置完毕后再开启!
-&lt;img src="assets/routeros-01-connectivity-02.png" alt=""&gt;&lt;/p&gt;
-&lt;h4 id="2-dhcp-服务器"&gt;2. DHCP 服务器&lt;/h4&gt;
-&lt;p&gt;配置DHCP服务器，DHCP IP范围为10.0.0.100-10.0.0.250，网关和DNS默认为ROS。如果希望全局配置透明代理，dns-server可配置为mosdns&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip pool add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-pool1 ranges&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.100-10.0.0.250
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dhcp-server add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-server1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1 address-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv4-pool1 lease-time&lt;span style="color:#f92672"&gt;=&lt;/span&gt;1d
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dhcp-server network add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.0/24 gateway&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1 dns-server&lt;span style="color:#f92672"&gt;=&lt;/span&gt;10.0.0.1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip pool add name=dhcpv4-pool1 ranges=10.0.0.100-10.0.0.250\n/ip dhcp-server add name=dhcpv4-server1 interface=bridge1 address-pool=dhcpv4-pool1 lease-time=1d\n/ip dhcp-server network add address=10.0.0.0/24 gateway=10.0.0.1 dns-server=10.0.0.1"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p style="color: #d97706;"&gt;（可选）如果某些无线设备隔夜待机后出现本地DNS偶发解析失败，可以尝试开启 &lt;code&gt;Add ARP For Leases&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ip dhcp-server set dhcpv4-server1 add-arp&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ip dhcp-server set dhcpv4-server1 add-arp=yes"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这个选项会让RouterOS根据DHCP租约自动添加ARP记录。它不是直接修改DNS解析逻辑，而是帮助路由器更稳定地维护“IP地址 -&amp;gt; MAC地址”的对应关系。部分手机在长时间待机、Wi-Fi省电、租约续期或随机MAC场景下，可能出现ARP缓存老化或邻居表状态不稳定，表现出来就像能连上Wi-Fi，但访问本地DNS时偶发失败。开启后，只要手机仍通过DHCP拿到租约，ROS就会根据租约补上对应ARP记录，因此这类设备可能恢复正常，而其它设备因为自身网络栈或省电策略不同，本来就不会触发这个问题。&lt;/p&gt;
-&lt;p&gt;如果要进一步限制只有DHCP租约设备可以通信，通常还会配合接口的 &lt;code&gt;arp=reply-only&lt;/code&gt; 使用；普通家庭网络只为解决个别设备隔夜DNS异常时，可以先只开 &lt;code&gt;add-arp=yes&lt;/code&gt; 观察。&lt;/p&gt;</description></item><item><title>02.RouterOS 开启 IPv6 并配置防火墙</title><link>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</guid><description>&lt;h2 id="本文介绍routeros如何开启ipv6"&gt;本文介绍RouterOS如何开启IPV6&lt;/h2&gt;
-&lt;p&gt;以NAT6模式为例，ipv6内网网段默认为dc00::/64，Routeros bridge1的IPv6内网地址为dc00::1111/64。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换&lt;/p&gt;
-&lt;h4 id="1-开启-ipv6"&gt;1. 开启 IPv6&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 settings set disable-ipv6&lt;span style="color:#f92672"&gt;=&lt;/span&gt;no&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 settings set disable-ipv6=no"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="2-获取-ipv6-前缀"&gt;2. 获取 IPv6 前缀&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 dhcp-client add interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;pppoe-out1 pool-name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-gua-pool1 pool-prefix-length&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;60&lt;/span&gt; request&lt;span style="color:#f92672"&gt;=&lt;/span&gt;prefix&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 dhcp-client add interface=pppoe-out1 pool-name=dhcpv6-gua-pool1 pool-prefix-length=60 request=prefix"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="3-添加-ula-地址池"&gt;3. 添加 ULA 地址池&lt;/h4&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 pool add name&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-ula-pool1 prefix&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::/64 prefix-length&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;64&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 pool add name=dhcpv6-ula-pool1 prefix=dc00::/64 prefix-length=64"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="4-计算并配置地址"&gt;4. 计算并配置地址&lt;/h4&gt;
-&lt;p&gt;使用wan网卡的MAC地址计算标准EUI-64地址（非必须，简单操作则在下一步中输入::1即可）
-&lt;a href="https://eui64-calc.princelle.org/"&gt;https://eui64-calc.princelle.org/&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;使用上面计算得到的后缀（例如::BF24:12FF:FEE1:E81B）配置pppoe-out1的GUA地址&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 address add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;::BF24:12FF:FEE1:E81B/64 from-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-gua-pool1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;pppoe-out1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 address add address=::BF24:12FF:FEE1:E81B/64 from-pool=dhcpv6-gua-pool1 interface=pppoe-out1"&lt;/script&gt;
-&lt;/div&gt;
-&lt;ul&gt;
-&lt;li&gt;配置bridge1的ula地址，默认dc00::1111（可自行修改）&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/ipv6 address add address&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dc00::1111/64 from-pool&lt;span style="color:#f92672"&gt;=&lt;/span&gt;dhcpv6-ula-pool1 interface&lt;span style="color:#f92672"&gt;=&lt;/span&gt;bridge1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/ipv6 address add address=dc00::1111/64 from-pool=dhcpv6-ula-pool1 interface=bridge1"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h4 id="5-配置-nat6"&gt;5. 配置 NAT6&lt;/h4&gt;
-&lt;p&gt;配置动态源地址伪装（开启NAT6）,建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>防火墙 on 电脑自习室</title><link>https://purodn.tk/tags/%E9%98%B2%E7%81%AB%E5%A2%99/</link><description>Recent content in 防火墙 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E9%98%B2%E7%81%AB%E5%A2%99/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
+这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
+默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
+复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
+复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。
+如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：
+复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
+原始脚本也保存在本文同级 assets/ 目录中：
+Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
+Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
+复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description></item><item><title>RouterOS NAT 回流与防火墙规则备份</title><link>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</link><pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</guid><description>内网的dst-nat要加外网接口如pppoe-out1 1. 为什么需要回流？ 当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。
+2. 完整的 ROS NAT 脚本（包含 Web 回流） 请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。 复制/ip firewall nat # --- 基础规则 --- # 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发） add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&amp;#34;Standard Internet Access&amp;#34; # --- 端口转发 (DST-NAT) --- # 2. DERP 转发 add chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=&amp;#34;DERP TCP&amp;#34; add chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=&amp;#34;DERP STUN&amp;#34; # 3.</description></item><item><title>01.RouterOS 联网基本配置及 IPv4 防火墙</title><link>https://purodn.tk/posts/routeros/routeros-01-connectivity/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-01-connectivity/</guid><description>本文介绍RouterOS拨号、配置DHCP服务器、配置DNS、开启IPv4防火墙等通网的基础配置。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换 1. PPPoE 拨号 手动配置pppoe-out1接口拨号，User填入宽带账号，Password填入宽带密码。如果不使用运营商提供的DNS可不勾选User Peed DNS。 注：接口前出现“R”代表拨号成功。拨号成功后建议先禁用，待防火墙配置完毕后再开启! 2. DHCP 服务器 配置DHCP服务器，DHCP IP范围为10.0.0.100-10.0.0.250，网关和DNS默认为ROS。如果希望全局配置透明代理，dns-server可配置为mosdns
+复制/ip pool add name=dhcpv4-pool1 ranges=10.0.0.100-10.0.0.250 /ip dhcp-server add name=dhcpv4-server1 interface=bridge1 address-pool=dhcpv4-pool1 lease-time=1d /ip dhcp-server network add address=10.0.0.0/24 gateway=10.0.0.1 dns-server=10.0.0.1 （可选）如果某些无线设备隔夜待机后出现本地DNS偶发解析失败，可以尝试开启 Add ARP For Leases：
+复制/ip dhcp-server set dhcpv4-server1 add-arp=yes 这个选项会让RouterOS根据DHCP租约自动添加ARP记录。它不是直接修改DNS解析逻辑，而是帮助路由器更稳定地维护“IP地址 -&amp;gt; MAC地址”的对应关系。部分手机在长时间待机、Wi-Fi省电、租约续期或随机MAC场景下，可能出现ARP缓存老化或邻居表状态不稳定，表现出来就像能连上Wi-Fi，但访问本地DNS时偶发失败。开启后，只要手机仍通过DHCP拿到租约，ROS就会根据租约补上对应ARP记录，因此这类设备可能恢复正常，而其它设备因为自身网络栈或省电策略不同，本来就不会触发这个问题。
+如果要进一步限制只有DHCP租约设备可以通信，通常还会配合接口的 arp=reply-only 使用；普通家庭网络只为解决个别设备隔夜DNS异常时，可以先只开 add-arp=yes 观察。
+需要注意，接口改成 arp=reply-only 后，ROS只会响应ARP表里已有记录的设备。没有通过DHCP获取租约、也没有手动添加静态ARP记录的设备，可能会出现能连上交换机或Wi-Fi，但无法访问网关、无法上网、无法解析DNS的情况。比如手动配置静态IP的NAS、AP、打印机、摄像头、服务器、旁路由等设备，如果没有在ROS里做静态DHCP租约，或者没有对应的静态ARP记录，就可能突然失联。更稳妥的做法是先把这些固定设备改成静态DHCP租约，让它们仍然通过DHCP拿固定地址，再考虑开启 arp=reply-only。
+3. DNS 配置DNS，即ROS的上游DNS，先设置223.5.5.5，也可自定义填入运营商分配DNS服务器等
+复制/ip dns set servers=223.5.5.5 allow-remote-requests=yes max-concurrent-queries=4096 max-concurrent-tcp-sessions=512 cache-size=8192 cache-max-ttl=04:00:00 4. 源地址伪装 配置源地址伪装，建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”
+复制/ip firewall nat add action=masquerade chain=srcnat comment=&amp;#34;defconf: masquerade IPv4&amp;#34; 至此打开pppoe接口即可通网，但建议继续配置完防火墙再通网！</description></item><item><title>02.RouterOS 开启 IPv6 并配置防火墙</title><link>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</guid><description>本文介绍RouterOS如何开启IPV6 以NAT6模式为例，ipv6内网网段默认为dc00::/64，Routeros bridge1的IPv6内网地址为dc00::1111/64。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换
+1. 开启 IPv6 复制/ipv6 settings set disable-ipv6=no 2. 获取 IPv6 前缀 复制/ipv6 dhcp-client add interface=pppoe-out1 pool-name=dhcpv6-gua-pool1 pool-prefix-length=60 request=prefix 3. 添加 ULA 地址池 复制/ipv6 pool add name=dhcpv6-ula-pool1 prefix=dc00::/64 prefix-length=64 4. 计算并配置地址 使用wan网卡的MAC地址计算标准EUI-64地址（非必须，简单操作则在下一步中输入::1即可） https://eui64-calc.princelle.org/
+使用上面计算得到的后缀（例如::BF24:12FF:FEE1:E81B）配置pppoe-out1的GUA地址 复制/ipv6 address add address=::BF24:12FF:FEE1:E81B/64 from-pool=dhcpv6-gua-pool1 interface=pppoe-out1 配置bridge1的ula地址，默认dc00::1111（可自行修改） 复制/ipv6 address add address=dc00::1111/64 from-pool=dhcpv6-ula-pool1 interface=bridge1 5. 配置 NAT6 配置动态源地址伪装（开启NAT6）,建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”
+复制/ipv6 firewall nat add action=masquerade chain=srcnat 6. 配置 ND 禁用默认ND配置，新建配置。默认不广播IPV6 DNS。
+复制/ipv6 nd set [ find default=yes ] advertise-dns=no disabled=yes /ipv6 nd add advertise-dns=no advertise-mac-address=no interface=bridge1 managed-address-configuration=yes other-configuration=yes ra-interval=5m-15m 7.</description></item></channel></rss>

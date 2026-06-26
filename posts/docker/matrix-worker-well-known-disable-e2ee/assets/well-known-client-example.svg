@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1094" height="822" viewBox="0 0 1094 822" role="img" aria-labelledby="title desc">
+  <title id="title">Sanitized Matrix well-known client JSON</title>
+  <desc id="desc">A browser-like view showing a sanitized Matrix well-known client JSON response.</desc>
+  <rect width="1094" height="822" fill="#101010"/>
+  <rect width="1094" height="88" fill="#2d2608"/>
+  <circle cx="50" cy="44" r="18" fill="none" stroke="#d8d0a8" stroke-width="4"/>
+  <path d="M56 34 L44 44 L56 54" fill="none" stroke="#d8d0a8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="128" y="58" font-family="Inter, Arial, sans-serif" font-size="34" fill="#f4f0dc">example.com/.well-known/matrix/client</text>
+  <rect y="88" width="1094" height="52" fill="#3a3a3a"/>
+  <text x="30" y="126" font-family="Inter, Arial, sans-serif" font-size="26" fill="#f4f4f4">JSON 输出</text>
+  <text x="0" y="194" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">{</text>
+  <text x="30" y="244" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"m.homeserver": {</text>
+  <text x="62" y="284" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"base_url": "https://matrix.example.com:12335"</text>
+  <text x="30" y="324" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">},</text>
+  <text x="30" y="374" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"org.matrix.msc4143.rtc_foci": [</text>
+  <text x="62" y="414" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">{</text>
+  <text x="94" y="454" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"type": "livekit",</text>
+  <text x="94" y="494" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"livekit_service_url": "https://matrix-jwt.example.com:12336"</text>
+  <text x="62" y="534" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">}</text>
+  <text x="30" y="574" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">],</text>
+  <text x="30" y="624" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"io.element.e2ee": {</text>
+  <text x="62" y="664" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"default": false,</text>
+  <text x="62" y="704" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"force_disable": true,</text>
+  <text x="62" y="744" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">"secure_backup_required": false</text>
+  <text x="30" y="784" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">}</text>
+  <text x="0" y="814" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#f8f8f8">}</text>
+</svg>

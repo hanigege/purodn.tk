@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="hap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#009639"/>
+      <stop offset="100%" stop-color="#00c853"/>
+    </linearGradient>
+    <linearGradient id="ngx" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#009639"/>
+      <stop offset="100%" stop-color="#269539"/>
+    </linearGradient>
+    <linearGradient id="ipt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e65100"/>
+      <stop offset="100%" stop-color="#ff6d00"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.05" stroke="#fff" stroke-width="0.5">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+  <text x="600" y="90" text-anchor="middle" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="36" font-weight="700" letter-spacing="1">中转机搭建配置全面指南</text>
+  <text x="600" y="130" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="18" letter-spacing="2">HAProxy · Nginx · iptables 三种中转方案详解与对比</text>
+  <g stroke="#475569" stroke-width="2" stroke-dasharray="6,4">
+    <line x1="80" y1="300" x2="400" y2="300"/>
+    <line x1="800" y1="300" x2="1120" y2="300"/>
+  </g>
+  <polygon points="400,293 380,300 400,307" fill="#475569"/>
+  <polygon points="1120,293 1100,300 1120,307" fill="#475569"/>
+  <rect x="30" y="255" width="50" height="90" rx="6" fill="#334155"/>
+  <rect x="38" y="263" width="34" height="8" rx="2" fill="#60a5fa"/>
+  <rect x="38" y="277" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="38" y="289" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="38" y="301" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="38" y="313" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="38" y="325" width="24" height="6" rx="2" fill="#475569"/>
+  <text x="55" y="370" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">客户端</text>
+  <rect x="400" y="220" width="400" height="160" rx="12" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="600" y="250" text-anchor="middle" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="14" font-weight="600" letter-spacing="2">中 转 机</text>
+  <rect x="420" y="265" width="116" height="48" rx="8" fill="url(#hap)" opacity="0.15"/>
+  <rect x="420" y="265" width="116" height="48" rx="8" stroke="url(#hap)" stroke-width="1.5" fill="none"/>
+  <text x="478" y="285" text-anchor="middle" fill="#4ade80" font-family="monospace" font-size="13" font-weight="700">HAProxy</text>
+  <text x="478" y="301" text-anchor="middle" fill="#86efac" font-family="system-ui,sans-serif" font-size="10">专业四层负载均衡</text>
+  <rect x="542" y="265" width="116" height="48" rx="8" fill="url(#ngx)" opacity="0.15"/>
+  <rect x="542" y="265" width="116" height="48" rx="8" stroke="url(#ngx)" stroke-width="1.5" fill="none"/>
+  <text x="600" y="285" text-anchor="middle" fill="#4ade80" font-family="monospace" font-size="13" font-weight="700">Nginx</text>
+  <text x="600" y="301" text-anchor="middle" fill="#86efac" font-family="system-ui,sans-serif" font-size="10">Stream 模块 TCP/UDP</text>
+  <rect x="664" y="265" width="116" height="48" rx="8" fill="url(#ipt)" opacity="0.15"/>
+  <rect x="664" y="265" width="116" height="48" rx="8" stroke="url(#ipt)" stroke-width="1.5" fill="none"/>
+  <text x="722" y="285" text-anchor="middle" fill="#fb923c" font-family="monospace" font-size="13" font-weight="700">iptables</text>
+  <text x="722" y="301" text-anchor="middle" fill="#fdba74" font-family="system-ui,sans-serif" font-size="10">内核级直通转发</text>
+  <rect x="1120" y="255" width="50" height="90" rx="6" fill="#334155"/>
+  <rect x="1128" y="263" width="34" height="8" rx="2" fill="#34d399"/>
+  <rect x="1128" y="277" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="1128" y="289" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="1128" y="301" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="1128" y="313" width="34" height="6" rx="2" fill="#475569"/>
+  <rect x="1128" y="325" width="24" height="6" rx="2" fill="#475569"/>
+  <text x="1145" y="370" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">落地机</text>
+  <rect x="30" y="410" width="370" height="200" rx="10" fill="#1e293b" stroke="#009639" stroke-width="1" opacity="0.9"/>
+  <text x="215" y="440" text-anchor="middle" fill="#4ade80" font-family="monospace" font-size="15" font-weight="700">HAProxy</text>
+  <text x="215" y="462" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 健康检查 / Web 面板</text>
+  <text x="215" y="480" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 多策略负载均衡</text>
+  <text x="215" y="498" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 高可用 / 自动剔除</text>
+  <text x="215" y="516" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✗ 原生不支持 UDP</text>
+  <rect x="415" y="410" width="370" height="200" rx="10" fill="#1e293b" stroke="#269539" stroke-width="1" opacity="0.9"/>
+  <text x="600" y="440" text-anchor="middle" fill="#4ade80" font-family="monospace" font-size="15" font-weight="700">Nginx Stream</text>
+  <text x="600" y="462" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ TCP / UDP 双栈支持</text>
+  <text x="600" y="480" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 可复用已有 Web 服务</text>
+  <text x="600" y="498" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 支持 SNI 分流</text>
+  <text x="600" y="516" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✗ 无内置健康检查面板</text>
+  <rect x="800" y="410" width="370" height="200" rx="10" fill="#1e293b" stroke="#ff6d00" stroke-width="1" opacity="0.9"/>
+  <text x="985" y="440" text-anchor="middle" fill="#fb923c" font-family="monospace" font-size="15" font-weight="700">iptables</text>
+  <text x="985" y="462" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 内核级直通 / 零开销</text>
+  <text x="985" y="480" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ TCP-Brutal 端到端保留</text>
+  <text x="985" y="498" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✔ 端口跳跃抗 QoS</text>
+  <text x="985" y="516" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="11">✗ 无健康检查 / 无面板</text>
+  <text x="600" y="620" text-anchor="middle" fill="#475569" font-family="system-ui,sans-serif" font-size="11">客户端 → 中转机（HAProxy / Nginx / iptables）→ 落地机</text>
+</svg>

@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matrix 非标准端口用 Cloudflare Worker 让 Element 默认不加密房间 | 电脑自习室</title>
+    <meta name="description" content="记录在 Synapse 只开放非标准 HTTPS 端口时，如何用 Cloudflare Worker 承接标准 443 的 Matrix well-known 请求，并让支持该配置的 Element 客户端默认创建不加密房间。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-25">2026年5月25日</time>
+        </div>
+        <h1>Matrix 非标准端口用 Cloudflare Worker 让 Element 默认不加密房间</h1>
+          <p>记录在 Synapse 只开放非标准 HTTPS 端口时，如何用 Cloudflare Worker 承接标准 443 的 Matrix well-known 请求，并让支持该配置的 Element 客户端默认创建不加密房间。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/matrix-worker-well-known-disable-e2ee/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Matrix 客户端在登录和发现 Homeserver 时，会优先访问服务器名下面的标准 well-known 地址：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com/.well-known/matrix/client"</script>
+</div>
+<p>这个入口默认就是 HTTPS 443。即使 Synapse 实际监听在非标准端口，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://matrix.example.com:12335</span></span></code></pre></div><script class="code-source" type="application/json">"https://matrix.example.com:12335"</script>
+</div>
+<p>客户端发现配置时仍然会先找 <code>https://example.com/.well-known/matrix/client</code>。所以没有本机 443，或者 443 不能直接给 Matrix 使用时，可以让 Cloudflare Worker 在 Cloudflare 边缘承接这个标准入口，再把真实 Homeserver 地址公告给客户端。</p>
+<p>本文同时记录一个常见需求：通过 <code>/.well-known/matrix/client</code> 给 Element 客户端下发 E2EE 策略，让支持该配置的 Element 客户端默认不创建加密房间，并隐藏或禁用加密入口。</p>
+<p><img src="assets/well-known-client-example.svg" alt="脱敏后的 well-known 返回示意"></p>
+<h2 id="能解决什么">能解决什么</h2>
+<p>这套方案解决的是两个问题：</p>
+<ol>
+<li>服务器本机没有标准 443，Synapse 只能放在自定义 HTTPS 端口。</li>
+<li>希望 Element 客户端读取 well-known 后，默认不启用端到端加密。</li>
+</ol>
+<p>最终访问链路是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Element 客户端
+</span></span><span style="display:flex;"><span>  -&gt; https://example.com/.well-known/matrix/client
+</span></span><span style="display:flex;"><span>  -&gt; Cloudflare Worker 返回 JSON
+</span></span><span style="display:flex;"><span>  -&gt; m.homeserver.base_url 指向 https://matrix.example.com:12335</span></span></code></pre></div><script class="code-source" type="application/json">"Element 客户端\n  -\u003e https://example.com/.well-known/matrix/client\n  -\u003e Cloudflare Worker 返回 JSON\n  -\u003e m.homeserver.base_url 指向 https://matrix.example.com:12335"</script>
+</div>
+<p>如果还部署了 MatrixRTC / LiveKit，也可以在同一个 JSON 里继续公告 JWT 服务地址。</p>
+<h2 id="不能解决什么">不能解决什么</h2>
+<p><code>io.element.e2ee</code> 是 Element 客户端配置，不是 Matrix 协议层面的服务器强制规则。</p>
+<p>它的效果取决于客户端是否读取并遵守这个字段：</p>
+<table>
+<thead>
+<tr>
+<th>客户端</th>
+<th>预期效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Element Web / Desktop</td>
+<td>通常最容易生效</td>
+</tr>
+<tr>
+<td>Element Android / iOS</td>
+<td>需要按具体版本测试</td>
+</tr>
+<tr>
+<td>Element X</td>
+<td>需要按具体版本测试</td>
+</tr>
+<tr>
+<td>其它 Matrix 客户端</td>
+<td>可能完全忽略</td>
+</tr>
+<tr>
+<td>自定义客户端或脚本</td>
+<td>仍可能直接发送 <code>m.room.encryption</code> 事件</td>
+</tr>
+</tbody>
+</table>
+<p>所以这不是“服务端铁闸”。它更适合用来做默认行为控制：让普通用户的新房间默认不加密，减少后续媒体清理、密钥恢复、历史设备验证带来的复杂问题。</p>
+<p>如果要求服务端绝对拒绝所有加密事件，就需要 Synapse 模块、反向代理过滤或自定义客户端。但这类方案容易影响客户端建房、邀请、升级房间等流程，兼容性风险更高。</p>
+<h2 id="cloudflare-dns">Cloudflare DNS</h2>
+<p>假设服务器名是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>example.com</span></span></code></pre></div><script class="code-source" type="application/json">"example.com"</script>
+</div>
+<p>真实 Synapse 登录地址是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://matrix.example.com:12335</span></span></code></pre></div><script class="code-source" type="application/json">"https://matrix.example.com:12335"</script>
+</div>
+<p>需要保证：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>用途</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>example.com</code></td>
+<td>只承接 <code>/.well-known/matrix/*</code></td>
+<td>橙云，交给 Worker 路由</td>
+</tr>
+<tr>
+<td><code>matrix.example.com</code></td>
+<td>Synapse HTTPS 入口</td>
+<td>视部署方式决定，通常 DNS only 加自定义端口</td>
+</tr>
+<tr>
+<td><code>matrix-jwt.example.com</code></td>
+<td>LiveKit JWT 服务</td>
+<td>如果使用 MatrixRTC / LiveKit 才需要</td>
+</tr>
+</tbody>
+</table>
+<p>Worker 只处理 <code>example.com</code> 下的 well-known，不需要代理 Synapse 的真实流量。</p>
+<h2 id="worker-代码">Worker 代码</h2>
+<p>在 Cloudflare Dashboard 进入 <code>Workers 和 Pages</code>，创建一个 Worker，例如命名为：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>matrix-well-known</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-well-known"</script>
+</div>
+<p>然后把 Worker 代码改成下面这样。下面这份是按现有 <code>work.js</code> 结构整理后的完整版本，只是在 <code>/.well-known/matrix/client</code> 返回里补上了 <code>io.element.e2ee</code>。示例里的域名全部替换成自己的域名和端口。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">homeserverUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">jwtUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix-jwt.example.com:12336&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">federationServer</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">json</span>(<span style="color:#a6e22e">data</span>) {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#a6e22e">data</span>), {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;content-type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;application/json; charset=utf-8&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;cache-control&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;pragma&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-cache&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;expires&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;0&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  });
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">export</span> <span style="color:#66d9ef">default</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">async</span> <span style="color:#a6e22e">fetch</span>(<span style="color:#a6e22e">request</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URL</span>(<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">url</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">method</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;OPTIONS&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#66d9ef">null</span>, {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">204</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/client&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.homeserver&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">homeserverUrl</span>
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;org.matrix.msc4143.rtc_foci&#34;</span><span style="color:#f92672">:</span> [
+</span></span><span style="display:flex;"><span>          {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;livekit&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;livekit_service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">jwtUrl</span>
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>        ],
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;io.element.rtc&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;livekit&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">jwtUrl</span>
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;io.element.e2ee&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;default&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;force_disable&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;secure_backup_required&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/server&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.server&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">federationServer</span>
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#e6db74">&#34;Not Found&#34;</span>, { <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">404</span> });
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>};</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.example.com:12335\";\nconst jwtUrl = \"https://matrix-jwt.example.com:12336\";\nconst federationServer = \"matrix.example.com:12335\";\n\nfunction json(data) {\n  return new Response(JSON.stringify(data), {\n    headers: {\n      \"content-type\": \"application/json; charset=utf-8\",\n      \"access-control-allow-origin\": \"*\",\n      \"access-control-allow-methods\": \"GET, OPTIONS\",\n      \"cache-control\": \"no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0\",\n      \"pragma\": \"no-cache\",\n      \"expires\": \"0\"\n    }\n  });\n}\n\nexport default {\n  async fetch(request) {\n    const url = new URL(request.url);\n\n    if (request.method === \"OPTIONS\") {\n      return new Response(null, {\n        status: 204,\n        headers: {\n          \"access-control-allow-origin\": \"*\",\n          \"access-control-allow-methods\": \"GET, OPTIONS\"\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/client\") {\n      return json({\n        \"m.homeserver\": {\n          \"base_url\": homeserverUrl\n        },\n        \"org.matrix.msc4143.rtc_foci\": [\n          {\n            \"type\": \"livekit\",\n            \"livekit_service_url\": jwtUrl\n          }\n        ],\n        \"io.element.rtc\": {\n          \"livekit\": {\n            \"service_url\": jwtUrl\n          }\n        },\n        \"io.element.e2ee\": {\n          \"default\": false,\n          \"force_disable\": true,\n          \"secure_backup_required\": false\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/server\") {\n      return json({\n        \"m.server\": federationServer\n      });\n    }\n\n    return new Response(\"Not Found\", { status: 404 });\n  }\n};"</script>
+</div>
+<p>实际使用时，通常只需要改最上面的三行常量：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">homeserverUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">jwtUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix-jwt.example.com:12336&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">federationServer</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;matrix.example.com:12335&#34;</span>;</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.example.com:12335\";\nconst jwtUrl = \"https://matrix-jwt.example.com:12336\";\nconst federationServer = \"matrix.example.com:12335\";"</script>
+</div>
+<p>把 <code>matrix.example.com</code>、<code>matrix-jwt.example.com</code> 和端口替换成自己的真实地址即可。后面的 <code>m.homeserver</code>、<code>io.element.e2ee</code>、<code>org.matrix.msc4143.rtc_foci</code> 这些字段名不要改，客户端识别的就是这些固定字段。</p>
+<p>如果没有部署 LiveKit，可以删除 <code>jwtUrl</code>、<code>org.matrix.msc4143.rtc_foci</code> 和 <code>io.element.rtc</code> 相关内容，只保留 <code>m.homeserver</code> 与 <code>io.element.e2ee</code>。</p>
+<h2 id="只保留登录与禁用加密的精简版">只保留登录与禁用加密的精简版</h2>
+<p>不使用 LiveKit 时，精简版如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">homeserverUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">federationServer</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;matrix.example.com:12335&#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">json</span>(<span style="color:#a6e22e">data</span>) {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#a6e22e">data</span>, <span style="color:#66d9ef">null</span>, <span style="color:#ae81ff">2</span>), {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;content-type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;application/json; charset=utf-8&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;cache-control&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;pragma&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-cache&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;expires&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;0&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  });
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">export</span> <span style="color:#66d9ef">default</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">async</span> <span style="color:#a6e22e">fetch</span>(<span style="color:#a6e22e">request</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URL</span>(<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">url</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">method</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;OPTIONS&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#66d9ef">null</span>, {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">204</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/client&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.homeserver&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">homeserverUrl</span>
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;io.element.e2ee&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;default&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;force_disable&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;secure_backup_required&#34;</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/server&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.server&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">federationServer</span>
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#e6db74">&#34;Not Found&#34;</span>, { <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">404</span> });
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>};</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.example.com:12335\";\nconst federationServer = \"matrix.example.com:12335\";\n\nfunction json(data) {\n  return new Response(JSON.stringify(data, null, 2), {\n    headers: {\n      \"content-type\": \"application/json; charset=utf-8\",\n      \"access-control-allow-origin\": \"*\",\n      \"access-control-allow-methods\": \"GET, OPTIONS\",\n      \"cache-control\": \"no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0\",\n      \"pragma\": \"no-cache\",\n      \"expires\": \"0\"\n    }\n  });\n}\n\nexport default {\n  async fetch(request) {\n    const url = new URL(request.url);\n\n    if (request.method === \"OPTIONS\") {\n      return new Response(null, {\n        status: 204,\n        headers: {\n          \"access-control-allow-origin\": \"*\",\n          \"access-control-allow-methods\": \"GET, OPTIONS\"\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/client\") {\n      return json({\n        \"m.homeserver\": {\n          \"base_url\": homeserverUrl\n        },\n        \"io.element.e2ee\": {\n          \"default\": false,\n          \"force_disable\": true,\n          \"secure_backup_required\": false\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/server\") {\n      return json({\n        \"m.server\": federationServer\n      });\n    }\n\n    return new Response(\"Not Found\", { status: 404 });\n  }\n};"</script>
+</div>
+<h2 id="worker-路由">Worker 路由</h2>
+<p>Worker 代码保存后，在 Cloudflare 当前站点里添加路由：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>example.com/.well-known/matrix/*</span></span></code></pre></div><script class="code-source" type="application/json">"example.com/.well-known/matrix/*"</script>
+</div>
+<p>有些界面会要求写完整 URL，也可以写成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com/.well-known/matrix/*</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com/.well-known/matrix/*"</script>
+</div>
+<p>关键点是：客户端访问的必须是标准 443 入口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com/.well-known/matrix/client"</script>
+</div>
+<p>不要让用户手动访问：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com:12335/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com:12335/.well-known/matrix/client"</script>
+</div>
+<p><code>12335</code> 是真实 Synapse 服务端口，不是 well-known 的发现入口。</p>
+<h2 id="验证返回内容">验证返回内容</h2>
+<p>浏览器打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com/.well-known/matrix/client"</script>
+</div>
+<p>应该能看到类似返回：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;m.homeserver&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;base_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;org.matrix.msc4143.rtc_foci&#34;</span>: [
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;livekit&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;livekit_service_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix-jwt.example.com:12336&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  ],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;io.element.rtc&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;livekit&#34;</span>: {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;service_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix-jwt.example.com:12336&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;io.element.e2ee&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;default&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;force_disable&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;secure_backup_required&#34;</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"m.homeserver\": {\n    \"base_url\": \"https://matrix.example.com:12335\"\n  },\n  \"org.matrix.msc4143.rtc_foci\": [\n    {\n      \"type\": \"livekit\",\n      \"livekit_service_url\": \"https://matrix-jwt.example.com:12336\"\n    }\n  ],\n  \"io.element.rtc\": {\n    \"livekit\": {\n      \"service_url\": \"https://matrix-jwt.example.com:12336\"\n    }\n  },\n  \"io.element.e2ee\": {\n    \"default\": false,\n    \"force_disable\": true,\n    \"secure_backup_required\": false\n  }\n}"</script>
+</div>
+<p>也可以用命令检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -i https://example.com/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"curl -i https://example.com/.well-known/matrix/client"</script>
+</div>
+<p>重点看四件事：</p>
+<ol>
+<li>HTTP 状态码是 <code>200</code>。</li>
+<li>有 <code>access-control-allow-origin: *</code>。</li>
+<li><code>m.homeserver.base_url</code> 指向真实 Synapse 地址。</li>
+<li>存在 <code>io.element.e2ee.force_disable: true</code>。</li>
+</ol>
+<p>如果 <code>/.well-known/matrix/server</code> 也由 Worker 返回，可以继续检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -i https://example.com/.well-known/matrix/server</span></span></code></pre></div><script class="code-source" type="application/json">"curl -i https://example.com/.well-known/matrix/server"</script>
+</div>
+<p>预期内容类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;m.server&#34;</span>: <span style="color:#e6db74">&#34;matrix.example.com:12335&#34;</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"m.server\": \"matrix.example.com:12335\"\n}"</script>
+</div>
+<h2 id="element-客户端测试">Element 客户端测试</h2>
+<p>Worker 返回正确后，建议按这个顺序测试：</p>
+<ol>
+<li>完全退出 Element。</li>
+<li>清除客户端缓存，或者换一个干净浏览器配置。</li>
+<li>重新登录 <code>example.com</code> 这个服务器名。</li>
+<li>添加好友，让客户端自动创建私聊房间。</li>
+<li>新建群聊房间。</li>
+<li>检查新房间是否默认未加密。</li>
+<li>检查设置里是否还能手动开启加密。</li>
+</ol>
+<p>如果客户端已经登录过，它可能缓存了 well-known 结果。只刷新 Worker 代码不一定马上影响现有会话，测试时最好重新登录。</p>
+<h2 id="和-synapse-配置的关系">和 Synapse 配置的关系</h2>
+<p>Synapse 的 <code>homeserver.yaml</code> 里，<code>public_baseurl</code> 仍然应该指向真实客户端访问地址，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">public_baseurl</span>: <span style="color:#e6db74">&#34;https://matrix.example.com:12335/&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"public_baseurl: \"https://matrix.example.com:12335/\""</script>
+</div>
+<p>如果你希望新建房间默认不加密，还可以在 Synapse 配置里明确关闭服务端默认加密策略：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">encryption_enabled_by_default_for_room_type</span>: <span style="color:#66d9ef">off</span></span></span></code></pre></div><script class="code-source" type="application/json">"encryption_enabled_by_default_for_room_type: off"</script>
+</div>
+<p>这只是默认值，不是强制禁止。真正的客户端侧提示和入口控制，仍然来自 Worker 返回的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;io.element.e2ee&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;force_disable&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;secure_backup_required&#34;</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"\"io.element.e2ee\": {\n  \"default\": false,\n  \"force_disable\": true,\n  \"secure_backup_required\": false\n}"</script>
+</div>
+<h2 id="常见问题">常见问题</h2>
+<h3 id="为什么必须走-443">为什么必须走 443</h3>
+<p>Matrix 客户端发现服务器配置时，会访问服务器名的标准 HTTPS well-known 地址。也就是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://example.com/.well-known/matrix/client</span></span></code></pre></div><script class="code-source" type="application/json">"https://example.com/.well-known/matrix/client"</script>
+</div>
+<p>这里没有端口时就是 443。很多客户端不会去猜 <code>12335</code> 这种自定义端口，所以需要 Cloudflare Worker、Nginx、Caddy 或其它标准 443 服务帮它返回 JSON。</p>
+<h3 id="synapse-还需要监听-443-吗">Synapse 还需要监听 443 吗</h3>
+<p>不需要。Synapse 可以继续放在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://matrix.example.com:12335</span></span></code></pre></div><script class="code-source" type="application/json">"https://matrix.example.com:12335"</script>
+</div>
+<p>只要 Worker 返回的 <code>m.homeserver.base_url</code> 正确，客户端就会根据公告地址去连接真实 Synapse。</p>
+<h3 id="这样能彻底禁止加密房间吗">这样能彻底禁止加密房间吗</h3>
+<p>不能彻底禁止。它是 Element 客户端配置，不是 Synapse 服务端强制拒绝。</p>
+<p>这套方式的目标是让常规 Element 用户的默认体验变成“不加密”，并尽量隐藏或禁用加密入口。对于不遵守 Element 配置的客户端，仍然可能创建加密房间。</p>
+<h3 id="为什么不继续用-synapse-模块强制禁止">为什么不继续用 Synapse 模块强制禁止</h3>
+<p>Synapse 模块可以更强硬，但客户端兼容性更差。部分 Element 版本在建房、邀请、添加好友时会卡住或报错，因为客户端以为自己可以发加密事件，服务端却直接拒绝。</p>
+<p>Worker well-known 的方式更温和，改动也更容易回滚。</p>
+<h3 id="已经登录的客户端为什么没变化">已经登录的客户端为什么没变化</h3>
+<p>客户端可能缓存了 well-known。建议退出重登，或者清理客户端数据后再测。</p>
+<h3 id="媒体清理和这个配置有什么关系">媒体清理和这个配置有什么关系</h3>
+<p>如果房间不加密，服务端能更清楚地识别媒体类型和消息行为，后续做媒体清理、过期提醒、问题排查会更稳。</p>
+<p>如果房间已经加密，服务端只能看到加密事件和媒体引用，客户端在媒体文件被清理后再次打开，仍可能出现比较生硬的报错提示。这也是很多自建 Matrix 服务器希望默认关闭 E2EE 的原因之一。</p>
+<h2 id="推荐落地方式">推荐落地方式</h2>
+<p>生产环境里建议按这个顺序做：</p>
+<ol>
+<li>先用 Cloudflare Worker 返回标准 443 的 <code>/.well-known/matrix/client</code>。</li>
+<li>在 Worker JSON 里加入 <code>io.element.e2ee</code>。</li>
+<li>Synapse 保持简单配置，不加载强制禁止加密模块。</li>
+<li>用 Element Web、Element Desktop、Element Android、Element X 分别测试。</li>
+<li>接受少数客户端不遵守该配置的边界，不再用服务端硬拦截破坏兼容性。</li>
+</ol>
+<p>这不是最强硬的方案，但通常是自建 Matrix 里更稳、更容易维护的一条路。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/">
+            <img src="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/moon-bridge-config-tutorial/">
+            <img src="/posts/ai/moon-bridge-config-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-opnsense-config/">
+            <img src="/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">SMbox OPNsense 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-routeros-config/">
+            <img src="/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">SMbox RouterOS 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/smbox-alpine-install/">
+            <img src="/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">安装 Alpine 系统教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/routeros-mangle-small-packet-generator/">
+            <img src="/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">RouterOS Mangle 小包优先规则与带宽配置生成器</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

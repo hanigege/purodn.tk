@@ -1,63 +1,23 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>DNS on 电脑自习室</title><link>https://purodn.tk/tags/dns/</link><description>Recent content in DNS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/dns/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox RouterOS 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid><description>&lt;p&gt;&lt;code&gt;10.0.0.2&lt;/code&gt; 是 SMbox 的 IP。&lt;/p&gt;
-&lt;p&gt;如果配置了 IPv6，在 &lt;code&gt;IPv6 -&amp;gt; ND -&amp;gt; bridge&lt;/code&gt; 取消勾选 &lt;code&gt;Advertise DNS&lt;/code&gt;。&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;&lt;strong&gt;配置思路：两步缺一不可&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;SMbox 的分流需要 &lt;strong&gt;DNS&lt;/strong&gt; 和 &lt;strong&gt;路由&lt;/strong&gt; 两步配合才能生效。&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;第一步 DNS 分流：把需要代理的域名解析成 FakeIP（&lt;code&gt;198.18.0.0/15&lt;/code&gt; 段）。&lt;/li&gt;
-&lt;li&gt;第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h2 id="第一步dns-分流两种模式二选一"&gt;第一步：DNS 分流（两种模式二选一）&lt;/h2&gt;
-&lt;p&gt;下面两种模式效果一致，根据自己情况二选一即可。&lt;/p&gt;
-&lt;h3 id="方式一推荐lan-dhcp-下发-smbox-的-ip"&gt;方式一（推荐）：LAN DHCP 下发 SMbox 的 IP&lt;/h3&gt;
-&lt;p&gt;LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。&lt;/p&gt;</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>&lt;p&gt;本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&lt;/p&gt;
-&lt;h2 id="视频演示"&gt;视频演示&lt;/h2&gt;
-&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
- &lt;iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/f4ShA57AAco?autoplay=0&amp;amp;controls=1&amp;amp;end=0&amp;amp;loop=0&amp;amp;mute=0&amp;amp;start=0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" title="YouTube video"&gt;&lt;/iframe&gt;
- &lt;/div&gt;
-
-&lt;h2 id="一在-proxmox-ve-中创建-debian-13-虚拟机"&gt;一、在 Proxmox VE 中创建 Debian 13 虚拟机&lt;/h2&gt;
-&lt;p&gt;进入 Proxmox VE Shell，执行社区脚本：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;bash -c &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#66d9ef"&gt;$(&lt;/span&gt;curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh&lt;span style="color:#66d9ef"&gt;)&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"bash -c \"$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;用户名和密码&lt;/li&gt;
-&lt;li&gt;IP 地址&lt;/li&gt;
-&lt;li&gt;DNS&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;填写完成后点击“重生成镜像”，然后重启虚拟机。&lt;/p&gt;
-&lt;p&gt;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 &lt;code&gt;host&lt;/code&gt;。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&lt;/p&gt;</description></item><item><title>mosdns 安装教程</title><link>https://purodn.tk/posts/linux/mosdns-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/mosdns-install/</guid><description>&lt;blockquote&gt;
-&lt;p&gt;本文介绍 mosdns（Tom魔改版） 安装使用的方法&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;[TOC]&lt;/p&gt;
-&lt;h3 id="一脚本部署-mosdns"&gt;一、脚本部署 mosdns&lt;/h3&gt;
-&lt;blockquote&gt;
-&lt;p&gt;需从github下载配置文件，自行准备科学环境&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x /mnt/main_install.sh &lt;span style="color:#f92672"&gt;&amp;amp;&amp;amp;&lt;/span&gt; /mnt/main_install.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh \u0026\u0026 chmod +x /mnt/main_install.sh \u0026\u0026 /mnt/main_install.sh"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;步骤 2： 输入 5 ，再输入 1 ，安装mosdns&lt;/p&gt;
-&lt;p&gt;&lt;img src="assets/mosdns-install-01.png" alt=""&gt;
-&lt;img src="assets/mosdns-install-02.png" alt=""&gt;&lt;/p&gt;
-&lt;p&gt;步骤 3： 按提示输入以下信息：&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890）&lt;/li&gt;
-&lt;li&gt;输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666)&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;&lt;img src="assets/mosdns-install-03.png" alt=""&gt;&lt;/p&gt;
-&lt;p&gt;步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099&lt;/p&gt;
-&lt;h5 id="mosdns-ui-界面预览"&gt;MosDNS UI 界面预览&lt;/h5&gt;
-&lt;p&gt;&lt;img src="assets/mosdns-install-04.png" alt=""&gt;
-&lt;img src="assets/mosdns-install-05.png" alt=""&gt;
-&lt;img src="assets/mosdns-install-06.png" alt=""&gt;
-&lt;img src="assets/mosdns-install-07.png" alt=""&gt;
-&lt;img src="assets/mosdns-install-08.png" alt=""&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;更多 mosdns 和 UI 设置问题：加入 TG 群咨询
-点击加入 TG 群&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>DNS on 电脑自习室</title><link>https://purodn.tk/tags/dns/</link><description>Recent content in DNS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/dns/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox RouterOS 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid><description>10.0.0.2 是 SMbox 的 IP。
+如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。
+配置思路：两步缺一不可
+SMbox 的分流需要 DNS 和 路由 两步配合才能生效。
+第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。
+第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。
+方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。
+视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：
+用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。
+还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。
+二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：
+复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：
+复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description></item><item><title>mosdns 安装教程</title><link>https://purodn.tk/posts/linux/mosdns-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/mosdns-install/</guid><description>本文介绍 mosdns（Tom魔改版） 安装使用的方法
+[TOC]
+一、脚本部署 mosdns 需从github下载配置文件，自行准备科学环境
+步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本
+复制wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &amp;amp;&amp;amp; chmod +x /mnt/main_install.sh &amp;amp;&amp;amp; /mnt/main_install.sh 步骤 2： 输入 5 ，再输入 1 ，安装mosdns
+步骤 3： 按提示输入以下信息：
+sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890） 输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666) 步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099
+MosDNS UI 界面预览 更多 mosdns 和 UI 设置问题：加入 TG 群咨询 点击加入 TG 群
+二、手动部署 mosdns 配置 systemd 开机自启（Debian/Ubuntu）：
+步骤 1： 下载 service 文件</description></item></channel></rss>

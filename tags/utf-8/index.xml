@@ -1,21 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>UTF-8 on 电脑自习室</title><link>https://purodn.tk/tags/utf-8/</link><description>Recent content in UTF-8 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 11 May 2025 13:48:46 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/utf-8/index.xml" rel="self" type="application/rss+xml"/><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>&lt;p&gt;FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 &lt;code&gt;/etc/login.conf&lt;/code&gt; 新增中文登录类，并把用户切换到这个登录类。&lt;/p&gt;
-&lt;h2 id="编辑-etcloginconf"&gt;编辑 &lt;code&gt;/etc/login.conf&lt;/code&gt;&lt;/h2&gt;
-&lt;p&gt;打开 &lt;code&gt;/etc/login.conf&lt;/code&gt;，在文件结尾处添加下面这段配置。我个人一般会放在 &lt;code&gt;russian&lt;/code&gt; 段落后面，方便以后查找。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;chinese|Chinese Users Accounts:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :charset&lt;span style="color:#f92672"&gt;=&lt;/span&gt;UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :lang&lt;span style="color:#f92672"&gt;=&lt;/span&gt;zh_CN.UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :setenv&lt;span style="color:#f92672"&gt;=&lt;/span&gt;LC_ALL&lt;span style="color:#f92672"&gt;=&lt;/span&gt;zh_CN.UTF-8:&lt;span style="color:#ae81ff"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; :tc&lt;span style="color:#f92672"&gt;=&lt;/span&gt;default:&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"chinese|Chinese Users Accounts:\\\n :charset=UTF-8:\\\n :lang=zh_CN.UTF-8:\\\n :setenv=LC_ALL=zh_CN.UTF-8:\\\n :tc=default:"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="重新生成-loginconf-数据库"&gt;重新生成 login.conf 数据库&lt;/h2&gt;
-&lt;p&gt;保存文件后，运行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cap_mkdb /etc/login.conf&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cap_mkdb /etc/login.conf"&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="修改-root-用户登录类"&gt;修改 root 用户登录类&lt;/h2&gt;
-&lt;p&gt;如果要让 &lt;code&gt;root&lt;/code&gt; 使用刚才新增的 &lt;code&gt;chinese&lt;/code&gt; 登录类，运行：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;pw usermod root -L chinese&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"pw usermod root -L chinese"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;重新登录终端后，中文 locale 配置就会生效。&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>UTF-8 on 电脑自习室</title><link>https://purodn.tk/tags/utf-8/</link><description>Recent content in UTF-8 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 11 May 2025 13:48:46 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/utf-8/index.xml" rel="self" type="application/rss+xml"/><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。
+编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。
+复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：
+复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：
+复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description></item></channel></rss>

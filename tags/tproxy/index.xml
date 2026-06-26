@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>TProxy on 电脑自习室</title>
+    <link>http://10.20.20.19:1313/tags/tproxy/</link>
+    <description>Recent content in TProxy on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate>
+    <atom:link href="http://10.20.20.19:1313/tags/tproxy/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
+      <link>http://10.20.20.19:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
+      <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
+      <guid>http://10.20.20.19:1313/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
+      <description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。&#xA;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。&#xA;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：&#xA;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&#xA;这篇不再重复具体配置，避免两篇文章参数互相打架。&#xA;一、先判断 sing-box 的角色 最简单的判断标准：&#xA;复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&#xA;二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。&#xA;典型链路：&#xA;复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description>
+    </item>
+    <item>
+      <title>sing-box 生产机一键备份与恢复</title>
+      <link>http://10.20.20.19:1313/posts/linux/sing-box-production-manual-restore/</link>
+      <pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate>
+      <guid>http://10.20.20.19:1313/posts/linux/sing-box-production-manual-restore/</guid>
+      <description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。&#xA;我把流程整理成两个脚本：&#xA;backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。&#xA;能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：&#xA;复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description>
+    </item>
+    <item>
+      <title>sing-box FakeIP &#43; TProxy 旁路网关部署草稿</title>
+      <link>http://10.20.20.19:1313/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link>
+      <pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate>
+      <guid>http://10.20.20.19:1313/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid>
+      <description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。&#xA;目标 把一台 Linux 机器做成家庭网络旁路透明网关：&#xA;DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：&#xA;生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description>
+    </item>
+  </channel>
+</rss>

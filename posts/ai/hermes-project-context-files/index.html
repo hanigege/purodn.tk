@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流 | 电脑自习室</title>
+    <meta name="description" content="整理 Hermes 在不同项目中识别 AGENTS.md、CLAUDE.md 和 .cursorrules 的使用方式，并说明如何通过项目路径、/new、/title、profile 和 skill 避免 Telegram 单窗口上下文混乱。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-01">2026年6月1日</time>
+        </div>
+        <h1>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</h1>
+          <p>整理 Hermes 在不同项目中识别 AGENTS.md、CLAUDE.md 和 .cursorrules 的使用方式，并说明如何通过项目路径、/new、/title、profile 和 skill 避免 Telegram 单窗口上下文混乱。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-project-context-files/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Hermes 也可以像 Codex 一样读取项目级上下文文件。区别在于：Telegram 对话本身只有一个窗口，Hermes 必须先知道“本轮任务要操作哪个项目目录”，才能进入项目、读取规则，再按规则做事。</p>
+<p>这篇文章整理一套适合日常使用的约定：每个项目放自己的 <code>AGENTS.md</code>，每次下任务时带上项目路径，必要时用 <code>/new</code> 和 <code>/title</code> 分隔上下文。这样不管是写 Hugo 文章、检查 Matrix 容器，还是维护某个 Docker Compose 项目，Hermes 都能把不同项目的规则分开处理。</p>
+<h2 id="hermes-支持哪些项目上下文文件">Hermes 支持哪些项目上下文文件</h2>
+<p>Hermes 会识别项目目录里的上下文文件，常见包括：</p>
+<ul>
+<li><code>AGENTS.md</code></li>
+<li><code>CLAUDE.md</code></li>
+<li><code>.cursorrules</code></li>
+</ul>
+<p>这些文件的作用是告诉机器人：这个项目是什么、文件怎么放、哪些命令必须验证、哪些目录禁止删除、哪些信息不能输出。</p>
+<p>要注意的是，Hermes 需要先知道当前项目路径。比如 Telegram 里的默认工作目录可能是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/hermesuser/.hermes/profiles/code</span></span></code></pre></div><script class="code-source" type="application/json">"/home/hermesuser/.hermes/profiles/code"</script>
+</div>
+<p>这个目录只是 Hermes profile 的运行目录，不一定是你的业务项目。如果只说“去改那个项目”，Hermes 不会自动知道应该读取哪个项目的 <code>AGENTS.md</code>。</p>
+<p>正确的说法是直接给出项目路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。</span></span></code></pre></div><script class="code-source" type="application/json">"小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。"</script>
+</div>
+<p>Hermes 收到后，推荐按这个顺序工作：</p>
+<ol>
+<li>进入指定项目目录。</li>
+<li>读取 <code>AGENTS.md</code>、<code>CLAUDE.md</code> 或相关 <code>README</code>。</li>
+<li>查看 <code>git status</code> 和项目结构。</li>
+<li>按项目规则修改。</li>
+<li>运行验证命令。</li>
+<li>汇报修改内容、验证结果和剩余风险。</li>
+</ol>
+<h2 id="下任务时怎么区分不同项目">下任务时怎么区分不同项目</h2>
+<p>最稳的格式是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目：/path/to/project
+</span></span><span style="display:flex;"><span>任务：做 xxx</span></span></code></pre></div><script class="code-source" type="application/json">"项目：/path/to/project\n任务：做 xxx"</script>
+</div>
+<p>例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目：/home/hermesuser/wiki
+</span></span><span style="display:flex;"><span>任务：新增一篇 RouterOS 备份说明。</span></span></code></pre></div><script class="code-source" type="application/json">"项目：/home/hermesuser/wiki\n任务：新增一篇 RouterOS 备份说明。"</script>
+</div>
+<p>或者：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目：/home/hermesuser/data/docker_data/matrix
+</span></span><span style="display:flex;"><span>任务：检查 compose 配置和最近日志。</span></span></code></pre></div><script class="code-source" type="application/json">"项目：/home/hermesuser/data/docker_data/matrix\n任务：检查 compose 配置和最近日志。"</script>
+</div>
+<p>这类写法会把项目路径明确锁定到本轮任务里。Hermes 后续读取上下文文件、执行命令和解释结果，都应该围绕这个目录展开。</p>
+<h2 id="推荐的项目目录结构">推荐的项目目录结构</h2>
+<p>一个长期维护的项目，建议至少有这些文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/project-name/
+</span></span><span style="display:flex;"><span>├── AGENTS.md
+</span></span><span style="display:flex;"><span>├── README.md
+</span></span><span style="display:flex;"><span>├── docker-compose.yml
+</span></span><span style="display:flex;"><span>├── .env.example
+</span></span><span style="display:flex;"><span>├── scripts/
+</span></span><span style="display:flex;"><span>├── docs/
+</span></span><span style="display:flex;"><span>└── ...</span></span></code></pre></div><script class="code-source" type="application/json">"/project-name/\n├── AGENTS.md\n├── README.md\n├── docker-compose.yml\n├── .env.example\n├── scripts/\n├── docs/\n└── ..."</script>
+</div>
+<p><code>AGENTS.md</code> 用来写给 Hermes 的项目规则，<code>README.md</code> 写给人看，<code>.env.example</code> 只放变量名和示例值，不放真实密钥。</p>
+<p>一个 Docker 运维项目的 <code>AGENTS.md</code> 可以这样写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span># AGENTS.md
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">## 项目说明
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>这是 Matrix / LiveKit 部署项目。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">## 工作规则
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 修改前先看 git status。
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 不要提交真实密钥。
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> Docker 项目文件放在本目录。
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 修改 compose 后必须运行 docker compose config。
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 改完要给出验证命令和真实结果。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">## 常用命令
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> docker compose ps
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> docker compose logs --tail=100
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> docker compose config
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">## 禁止事项
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 不要删除 data/、postgres/、media_store/。
+</span></span><span style="display:flex;"><span>- 不要在最终回复里输出 token/password。</span></span></code></pre></div><script class="code-source" type="application/json">"# AGENTS.md\n\n## 项目说明\n\n这是 Matrix / LiveKit 部署项目。\n\n## 工作规则\n\n- 修改前先看 git status。\n- 不要提交真实密钥。\n- Docker 项目文件放在本目录。\n- 修改 compose 后必须运行 docker compose config。\n- 改完要给出验证命令和真实结果。\n\n## 常用命令\n\n- docker compose ps\n- docker compose logs --tail=100\n- docker compose config\n\n## 禁止事项\n\n- 不要删除 data/、postgres/、media_store/。\n- 不要在最终回复里输出 token/password。"</script>
+</div>
+<p>以后你只要说：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>小工，进这个项目处理一下。</span></span></code></pre></div><script class="code-source" type="application/json">"小工，进这个项目处理一下。"</script>
+</div>
+<p>只要上下文里已经明确“这个项目”是哪一个，Hermes 就应该按这个目录里的 <code>AGENTS.md</code> 规则来。</p>
+<h2 id="telegram-单窗口怎么避免混乱">Telegram 单窗口怎么避免混乱</h2>
+<p>Telegram 只有一个聊天窗口时，最容易发生的问题是：上一轮还在写 Wiki，下一轮突然检查 Synapse 日志，机器人可能仍然带着旧项目的上下文。</p>
+<p>可以按轻重使用下面几种办法。</p>
+<h2 id="方法一每次带项目路径">方法一：每次带项目路径</h2>
+<p>这是最简单、最实用的办法。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目 /home/hermesuser/wiki：帮我整理 RouterOS 备份文档。</span></span></code></pre></div><script class="code-source" type="application/json">"项目 /home/hermesuser/wiki：帮我整理 RouterOS 备份文档。"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目 /home/hermesuser/data/docker_data/synapse：帮我检查容器日志。</span></span></code></pre></div><script class="code-source" type="application/json">"项目 /home/hermesuser/data/docker_data/synapse：帮我检查容器日志。"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目 /home/hermesuser/data/docker_data/livekit：帮我升级 compose。</span></span></code></pre></div><script class="code-source" type="application/json">"项目 /home/hermesuser/data/docker_data/livekit：帮我升级 compose。"</script>
+</div>
+<p>每次任务开头都写清项目，Hermes 就能把工作目录和项目规则绑定到本轮任务。</p>
+<h2 id="方法二切项目时使用-new">方法二：切项目时使用 /new</h2>
+<p>如果你准备从一个项目切到另一个项目，建议先发：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/new</span></span></code></pre></div><script class="code-source" type="application/json">"/new"</script>
+</div>
+<p>然后再发：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>项目：/home/hermesuser/wiki
+</span></span><span style="display:flex;"><span>任务：把今天 Matrix 备份流程写成文档。</span></span></code></pre></div><script class="code-source" type="application/json">"项目：/home/hermesuser/wiki\n任务：把今天 Matrix 备份流程写成文档。"</script>
+</div>
+<p><code>/new</code> 的作用是开启新的上下文，减少旧任务对新任务的干扰。尤其是从“运维排错”切到“写文章”、从“生产服务器”切到“本地仓库”时，很值得用。</p>
+<h2 id="方法三用-title-标记当前会话">方法三：用 /title 标记当前会话</h2>
+<p>如果这个 Telegram 会话会长期围绕一个主题使用，可以给它取标题：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/title matrix-livekit部署</span></span></code></pre></div><script class="code-source" type="application/json">"/title matrix-livekit部署"</script>
+</div>
+<p>或者：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/title wiki-routeros文档</span></span></code></pre></div><script class="code-source" type="application/json">"/title wiki-routeros文档"</script>
+</div>
+<p>这样以后翻历史记录时更容易知道这一段对话主要处理了哪个项目。</p>
+<h2 id="方法四长期项目用不同-profile">方法四：长期项目用不同 profile</h2>
+<p>如果项目之间权限、工具、模型、Telegram Token 或记忆完全不同，可以拆成不同 Hermes profile：</p>
+<ul>
+<li><code>code</code> profile：通用开发和运维。</li>
+<li><code>matrix</code> profile：专门处理 Matrix / Synapse。</li>
+<li><code>wiki</code> profile：专门维护知识库。</li>
+</ul>
+<p>不过这属于更重的隔离方式。日常使用时，先做到“项目路径 + <code>AGENTS.md</code> + <code>/new</code>”通常已经足够。</p>
+<h2 id="skill-和-agentsmd-怎么分工">Skill 和 AGENTS.md 怎么分工</h2>
+<p>Hermes 的 skill 是全局能力，项目里的 <code>AGENTS.md</code> 是本项目规则。两者不冲突，最好分工使用。</p>
+<p>可以这样理解：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>解决什么问题</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Skill</td>
+<td>这类任务通常怎么做</td>
+<td>Matrix / LiveKit 部署、Hugo 文章流程、Hysteria2 节点部署</td>
+</tr>
+<tr>
+<td>AGENTS.md</td>
+<td>这个项目具体怎么做</td>
+<td>哪些目录不能删、哪个仓库要提交、修改后跑什么验证</td>
+</tr>
+</tbody>
+</table>
+<p>例如：</p>
+<ul>
+<li>Matrix / LiveKit / coturn / NPM：触发 <code>matrix-livekit-deploy</code>。</li>
+<li>Synapse server notice：触发 <code>synapse-server-notice-sender</code>。</li>
+<li>Synapse Docker 备份恢复仓库：触发 <code>synapse-docker-recovery-backup</code>。</li>
+<li>Hysteria2 节点：触发 <code>debian13-hysteria2-node</code>。</li>
+<li>Gost / MWSS / Nginx / FreeBSD Reality：触发 <code>gost-mwss-nginx-deploy</code>。</li>
+<li>Hugo 文章：触发 <code>hugo-post-workflow</code>。</li>
+</ul>
+<p>真正执行时，应先看项目 <code>AGENTS.md</code>，再结合对应 skill。skill 解决“这类事的经验流程”，<code>AGENTS.md</code> 解决“这个项目的边界和规矩”。</p>
+<h2 id="推荐的实际工作流">推荐的实际工作流</h2>
+<p>长期来看，可以给每个项目都放一个 <code>AGENTS.md</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/hermesuser/wiki/AGENTS.md
+</span></span><span style="display:flex;"><span>/home/hermesuser/data/docker_data/synapse/AGENTS.md
+</span></span><span style="display:flex;"><span>/home/hermesuser/data/docker_data/livekit/AGENTS.md
+</span></span><span style="display:flex;"><span>/home/hermesuser/data/docker_data/npm/AGENTS.md</span></span></code></pre></div><script class="code-source" type="application/json">"/home/hermesuser/wiki/AGENTS.md\n/home/hermesuser/data/docker_data/synapse/AGENTS.md\n/home/hermesuser/data/docker_data/livekit/AGENTS.md\n/home/hermesuser/data/docker_data/npm/AGENTS.md"</script>
+</div>
+<p>然后每次找 Hermes 时这样说：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>小工，项目 /home/hermesuser/wiki，先看 AGENTS.md，然后把今天 Matrix 备份流程写成文档。</span></span></code></pre></div><script class="code-source" type="application/json">"小工，项目 /home/hermesuser/wiki，先看 AGENTS.md，然后把今天 Matrix 备份流程写成文档。"</script>
+</div>
+<p>或者：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>小工，项目 /home/hermesuser/data/docker_data/synapse，先看 AGENTS.md，检查一下 Synapse 是否正常。</span></span></code></pre></div><script class="code-source" type="application/json">"小工，项目 /home/hermesuser/data/docker_data/synapse，先看 AGENTS.md，检查一下 Synapse 是否正常。"</script>
+</div>
+<p>Hermes 应按下面的顺序处理：</p>
+<ol>
+<li>进入项目目录。</li>
+<li>读取 <code>AGENTS.md</code>。</li>
+<li>查看 git 状态、文件结构和关键配置。</li>
+<li>执行任务。</li>
+<li>运行验证命令。</li>
+<li>汇报改了什么、验证结果和剩余风险。</li>
+</ol>
+<h2 id="一句话约定">一句话约定</h2>
+<p>你这边用“项目路径、<code>/new</code>、<code>/title</code>、每个项目的 <code>AGENTS.md</code>”区分项目。</p>
+<p>Hermes 这边用“当前任务指定的工作目录、项目上下文文件、当前会话上下文、已安装 skills 和必要的历史检索”区分项目。</p>
+<p>最稳的口诀是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>每次给 Hermes：项目路径 + 任务。</span></span></code></pre></div><script class="code-source" type="application/json">"每次给 Hermes：项目路径 + 任务。"</script>
+</div>
+<p>这样即使 Telegram 只有一个窗口，多个项目也不会轻易串线。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/">
+            <img src="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/moon-bridge-config-tutorial/">
+            <img src="/posts/ai/moon-bridge-config-tutorial/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-opnsense-config/">
+            <img src="/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">SMbox OPNsense 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/smbox-routeros-config/">
+            <img src="/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">SMbox RouterOS 配置教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/smbox-alpine-install/">
+            <img src="/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">安装 Alpine 系统教程</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/routeros/routeros-mangle-small-packet-generator/">
+            <img src="/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">RouterOS Mangle 小包优先规则与带宽配置生成器</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

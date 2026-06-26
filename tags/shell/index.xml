@@ -1,148 +1,20 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Shell on 电脑自习室</title><link>https://purodn.tk/tags/shell/</link><description>Recent content in Shell on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/shell/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>&lt;p&gt;这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&lt;/p&gt;
-&lt;p&gt;最终效果是：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/Users/mana/Documents/codex/file/ 本地同步文件夹
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git@github.com:hanigege/file.git GitHub 远程仓库
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;push.sh 一键同步脚本&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"/Users/mana/Documents/codex/file/ 本地同步文件夹\ngit@github.com:hanigege/file.git GitHub 远程仓库\npush.sh 一键同步脚本"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;日常只需要做两件事：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd /Users/mana/Documents/codex/file
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;./push.sh&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"cd /Users/mana/Documents/codex/file\n./push.sh"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。&lt;/p&gt;
-&lt;h2 id="准备工作"&gt;准备工作&lt;/h2&gt;
-&lt;p&gt;Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。&lt;/p&gt;
-&lt;p&gt;先在终端检查 Git：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git --version&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"git --version"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 &lt;code&gt;git --version&lt;/code&gt; 确认 Git 可用。&lt;/p&gt;
-&lt;p&gt;然后确认当前 Mac 能通过 SSH 连接 GitHub：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ssh -T git@github.com&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"ssh -T git@github.com"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果看到类似 &lt;code&gt;successfully authenticated&lt;/code&gt; 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。&lt;/p&gt;
-&lt;h2 id="在-github-创建空仓库"&gt;在 GitHub 创建空仓库&lt;/h2&gt;
-&lt;p&gt;打开 GitHub 网站，点击右上角的 &lt;code&gt;+&lt;/code&gt;，选择 &lt;code&gt;New repository&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>&lt;p&gt;这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&lt;/p&gt;
-&lt;p&gt;原始脚本也保存在本文同级 &lt;code&gt;assets/&lt;/code&gt; 目录中：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href="assets/Alpine_firewall.sh"&gt;Alpine_firewall.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/ssl_alpine.sh"&gt;ssl_alpine.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/alpine_root_ssh_key_manage.sh"&gt;alpine_root_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="assets/alpine_user_ssh_key_manage.sh"&gt;alpine_user_ssh_key_manage.sh&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&lt;/p&gt;
-&lt;h2 id="alpine-ipv4-防火墙脚本"&gt;Alpine IPv4 防火墙脚本&lt;/h2&gt;
-&lt;p&gt;这个脚本用于安装 &lt;code&gt;iptables&lt;/code&gt; 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、&lt;code&gt;8000&lt;/code&gt;、&lt;code&gt;10521&lt;/code&gt; 等 TCP 端口，以及 UDP &lt;code&gt;443&lt;/code&gt;。&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#!/bin/sh
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 针对 sing-box 性能优化 &amp;amp; 安全加固&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ============================================================&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;set -e
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 颜色输出&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;info&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[32m[INFO]\033[0m&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;warn&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;\033[33m[WARN]\033[0m&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 安装 iptables 及其服务组件...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apk add --no-cache iptables iptables-openrc
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 清空旧规则并预设安全策略...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -F
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -X
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 默认策略：严防死守&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P INPUT DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P FORWARD DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -P OUTPUT ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 注入严谨优先级规则...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 2. 第二优先级：本地回环 (127.0.0.1)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -i lo -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 3. 开放 TCP 业务端口&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;for&lt;/span&gt; port in &lt;span style="color:#ae81ff"&gt;22&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;80&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;8000&lt;/span&gt; 10521; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; iptables -A INPUT -p tcp --dport $port -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;done&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 4. 开放 sing-box UDP 监听端口&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p udp --dport &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst &lt;span style="color:#ae81ff"&gt;5&lt;/span&gt; -j ACCEPT
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -A INPUT -p icmp -j DROP
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;$info&lt;span style="color:#e6db74"&gt; 正在持久化并启动服务...&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Alpine 必须先保存到文件，否则 start 可能会加载旧配置&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/init.d/iptables save
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 设置开机自启&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-update add iptables default
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# 重启服务以确保内存规则与文件同步&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rc-service iptables restart
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo -e &lt;span style="color:#e6db74"&gt;&amp;#34;\n\033[32m✅ IPv4 防火墙加固完成！\033[0m&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;iptables -L INPUT -n -v
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;echo &lt;span style="color:#e6db74"&gt;&amp;#34;-------------------------------------------&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"#!/bin/sh\n# ============================================================\n# Alpine Linux 严谨版防火墙脚本 (IPv4 专用)\n# 针对 sing-box 性能优化 \u0026 安全加固\n# ============================================================\n\nset -e\n\n# 颜色输出\ninfo='\\033[32m[INFO]\\033[0m'\nwarn='\\033[33m[WARN]\\033[0m'\n\necho -e \"$info 安装 iptables 及其服务组件...\"\napk add --no-cache iptables iptables-openrc\n\necho -e \"$info 清空旧规则并预设安全策略...\"\n# 关键：先设为 ACCEPT，防止清理规则瞬间 SSH 掉线\niptables -P INPUT ACCEPT\niptables -F\niptables -X\n\n# 默认策略：严防死守\niptables -P INPUT DROP\niptables -P FORWARD DROP\niptables -P OUTPUT ACCEPT\n\necho -e \"$info 注入严谨优先级规则...\"\n\n# 1. 第一优先级：已建立的连接（确保 sing-box 现有流量直接通过，性能最高）\niptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n\n# 2. 第二优先级：本地回环 (127.0.0.1)\niptables -A INPUT -i lo -j ACCEPT\n\n# 3. 开放 TCP 业务端口\nfor port in 22 80 443 8000 10521; do\n iptables -A INPUT -p tcp --dport $port -j ACCEPT\ndone\n\n# 4. 开放 sing-box UDP 监听端口\niptables -A INPUT -p udp --dport 443 -j ACCEPT\n\n# 5. ICMP (Ping) 控制：允许有限度的探测，拒绝洪水攻击\niptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT\niptables -A INPUT -p icmp -j DROP\n\necho -e \"$info 正在持久化并启动服务...\"\n# Alpine 必须先保存到文件，否则 start 可能会加载旧配置\n/etc/init.d/iptables save\n\n# 设置开机自启\nrc-update add iptables default\n\n# 重启服务以确保内存规则与文件同步\nrc-service iptables restart\n\necho -e \"\\n\\033[32m✅ IPv4 防火墙加固完成！\\033[0m\"\necho \"-------------------------------------------\"\niptables -L INPUT -n -v\necho \"-------------------------------------------\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;h2 id="alpine-ssl-证书申请脚本"&gt;Alpine SSL 证书申请脚本&lt;/h2&gt;
-&lt;p&gt;这个脚本使用 &lt;code&gt;acme.sh&lt;/code&gt; 和 Let&amp;rsquo;s Encrypt，通过 standalone 模式申请证书，并把证书安装到 &lt;code&gt;/etc/ssl/&amp;lt;domain&amp;gt;/&lt;/code&gt;。&lt;/p&gt;</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>&lt;p&gt;&lt;code&gt;tmux&lt;/code&gt; 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&lt;/p&gt;
-&lt;p&gt;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&lt;/p&gt;
-&lt;h2 id="写入配置文件"&gt;写入配置文件&lt;/h2&gt;
-&lt;p&gt;编辑 &lt;code&gt;~/.tmux.conf&lt;/code&gt;：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;nvim ~/.tmux.conf&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"nvim ~/.tmux.conf"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果没有安装 &lt;code&gt;nvim&lt;/code&gt;，也可以使用 &lt;code&gt;vim&lt;/code&gt; 或 &lt;code&gt;nano&lt;/code&gt;。&lt;/p&gt;
-&lt;p&gt;写入下面这份配置：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;pre tabindex="0"&gt;&lt;code class="language-tmux" data-lang="tmux"&gt;# --- 基础设置 ---
-set -g mouse off
-set -g base-index 1
-set -g pane-base-index 1
-set -g renumber-windows on
-
-# --- 状态栏美化（通用无乱码版） ---
-set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34;
-set -g status-left-length 30
-set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34;
-
-# 1. 开启 vi 风格的复制模式
-setw -g mode-keys vi
-
-# 2. 绑定 y 键为复制（并同步到系统剪贴板）
-# 注意：tmux 3.2+ 版本配合 set-clipboard on 效果最佳
-bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
-
-# 3. 确保开启剪贴板透传支持
-set -s set-clipboard on
-
-# 颜色与转义支持（至关重要）
-set -g default-terminal &amp;#34;xterm-256color&amp;#34;
-set-option -ga terminal-overrides &amp;#34;,xterm-256color:Tc&amp;#34;
-
-# tmux 重新读取配置文件：Ctrl+a，然后按 r
-bind r source-file ~/.tmux.conf \; display-message &amp;#34;Config reloaded!&amp;#34;
-
-# --- 快捷键优化 ---
-# 把前缀键从 Ctrl+b 改成 Ctrl+a
-unbind C-b
-set -g prefix C-a
-bind C-a send-prefix
-
-# 绑定 Ctrl+a 后接 Ctrl+l：发送清屏指令给 Shell，并清空 tmux 当前 pane 的历史记录
-bind C-l send-keys C-l \; clear-history \; display-message &amp;#34;Screen and scrollback buffer cleared!&amp;#34;&lt;/code&gt;&lt;/pre&gt;&lt;script class="code-source" type="application/json"&gt;"# --- 基础设置 ---\nset -g mouse off\nset -g base-index 1\nset -g pane-base-index 1\nset -g renumber-windows on\n\n# --- 状态栏美化（通用无乱码版） ---\nset -g status-style \"bg=#282c34,fg=#abb2bf\"\nset -g status-left-length 30\nset -g status-left \"#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] \"\n\n# 1. 开启 vi 风格的复制模式\nsetw -g mode-keys vi\n\n# 2. 绑定 y 键为复制（并同步到系统剪贴板）\n# 注意：tmux 3.2+ 版本配合 set-clipboard on 效果最佳\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# 3. 确保开启剪贴板透传支持\nset -s set-clipboard on\n\n# 颜色与转义支持（至关重要）\nset -g default-terminal \"xterm-256color\"\nset-option -ga terminal-overrides \",xterm-256color:Tc\"\n\n# tmux 重新读取配置文件：Ctrl+a，然后按 r\nbind r source-file ~/.tmux.conf \\; display-message \"Config reloaded!\"\n\n# --- 快捷键优化 ---\n# 把前缀键从 Ctrl+b 改成 Ctrl+a\nunbind C-b\nset -g prefix C-a\nbind C-a send-prefix\n\n# 绑定 Ctrl+a 后接 Ctrl+l：发送清屏指令给 Shell，并清空 tmux 当前 pane 的历史记录\nbind C-l send-keys C-l \\; clear-history \\; display-message \"Screen and scrollback buffer cleared!\""&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;如果你更习惯 tmux 默认的 &lt;code&gt;Ctrl+b&lt;/code&gt;，可以删掉“快捷键优化”中的这几行：&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Shell on 电脑自习室</title><link>https://purodn.tk/tags/shell/</link><description>Recent content in Shell on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/shell/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。
+最终效果是：
+复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：
+复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。
+准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。
+先在终端检查 Git：
+复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。
+然后确认当前 Mac 能通过 SSH 连接 GitHub：
+复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。
+在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。
+仓库名称填写：</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
+原始脚本也保存在本文同级 assets/ 目录中：
+Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
+Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
+复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
+下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
+写入配置文件 编辑 ~/.tmux.conf：
+复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
+写入下面这份配置：
+复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item></channel></rss>

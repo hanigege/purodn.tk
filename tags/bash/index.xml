@@ -1,15 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Bash on 电脑自习室</title><link>https://purodn.tk/tags/bash/</link><description>Recent content in Bash on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 23:11:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/bash/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>&lt;p&gt;这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 &lt;code&gt;tar.gz&lt;/code&gt;，通过 SSH 上传到另一台服务器的 &lt;code&gt;/srv/backup&lt;/code&gt;，再由那台服务器上的 Syncthing 继续同步到备份端。&lt;/p&gt;
-&lt;p&gt;这个方案适合下面这种链路：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"业务服务器 A -\u003e SSH 上传 -\u003e Syncthing 源端 B:/srv/backup -\u003e Syncthing 同步 -\u003e 备份端 C:/srv/backup"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。&lt;/p&gt;
-&lt;h2 id="为什么要这样写"&gt;为什么要这样写&lt;/h2&gt;
-&lt;p&gt;直接把备份文件 &lt;code&gt;scp&lt;/code&gt; 到 &lt;code&gt;/srv/backup&lt;/code&gt; 也能用，但有两个细节容易踩坑。&lt;/p&gt;
-&lt;p&gt;第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 &lt;code&gt;mv&lt;/code&gt; 到 &lt;code&gt;/srv/backup&lt;/code&gt;。同一文件系统内的 &lt;code&gt;mv&lt;/code&gt; 基本是原子操作，Syncthing 看到的是最终文件。&lt;/p&gt;
-&lt;p&gt;第二，Syncthing 现在以普通 &lt;code&gt;syncthing&lt;/code&gt; 用户运行。远端文件最好统一成：&lt;/p&gt;
-&lt;div class="code-block"&gt;
- &lt;button class="copy-code" type="button"&gt;复制&lt;/button&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;syncthing:syncthing
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;0644&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;script class="code-source" type="application/json"&gt;"syncthing:syncthing\n0644"&lt;/script&gt;
-&lt;/div&gt;
-&lt;p&gt;这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 &lt;code&gt;root:root&lt;/code&gt; 且权限为 &lt;code&gt;0644&lt;/code&gt;，通常也能读；但如果脚本或系统 umask 让文件变成 &lt;code&gt;0600&lt;/code&gt;，Syncthing 就读不到了。&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Bash on 电脑自习室</title><link>https://purodn.tk/tags/bash/</link><description>Recent content in Bash on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 23:11:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/bash/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。
+这个方案适合下面这种链路：
+复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。
+为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。
+第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。
+第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：
+复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。
+前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：
+复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description></item></channel></rss>

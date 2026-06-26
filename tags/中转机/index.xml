@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>中转机 on 电脑自习室</title>
+    <link>http://10.20.20.19:1313/tags/%E4%B8%AD%E8%BD%AC%E6%9C%BA/</link>
+    <description>Recent content in 中转机 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 25 Jun 2026 20:00:00 +0800</lastBuildDate>
+    <atom:link href="http://10.20.20.19:1313/tags/%E4%B8%AD%E8%BD%AC%E6%9C%BA/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</title>
+      <link>http://10.20.20.19:1313/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</link>
+      <pubDate>Thu, 25 Jun 2026 20:00:00 +0800</pubDate>
+      <guid>http://10.20.20.19:1313/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</guid>
+      <description>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比 前言：为什么需要中转机和负载均衡 中转机（Relay / Transit）在代理场景中扮演着流量枢纽的角色。将一台带宽大、线路好的机器作为入口，把接收到的流量按特定规则分发给背后的多台落地机，核心目的是解决单点故障和资源利用率问题。&#xA;为什么要做负载均衡？&#xA;流量与带宽聚合：当落地机流量配额有限（比如每台 500G），通过多台聚合可以跑满中转机的大流量（比如 3T），避免浪费。 高可用（防失联）：当某台落地机 IP 被封、宕机或流量耗尽时，中转机自动将其剔除，流量无缝切换到其他存活的落地机上，客户端无感知。 本文聚焦三种主流的中转转发方案——HAProxy、Nginx Stream 模块、iptables，逐一给出完整的配置教程，并在最后做横向对比和场景推荐。&#xA;重要概念：理解中转机端口与落地机端口 开始阅读前，先理清中转架构中两个关键端口的区别：&#xA;中转机端口：中转机上监听的端口，客户端直接连接这个端口。比如下文中的 8080、10521（TCP）、10522（UDP）。 落地机端口：落地机上代理服务真实运行的端口。比如下文例子中的 8388、443。这个数字取决于你的落地机上跑的是什么服务： 如果落地机跑的是 Hysteria2，默认端口是 443 如果落地机跑的是 VLESS-Reality，默认端口是 443 如果落地机跑的是 Shadowsocks，常见端口是 8388 如果落地机跑的是 Trojan，常见端口是 443 中转机的工作就是：客户端连接中转机的端口 → 中转机原封不动转给落地机的端口。 下文配置中出现的 8388、443、19527 都只是示例，实际使用时必须替换成你落地机上代理服务的真实端口。&#xA;方案一：HAProxy（专业四层负载均衡器） HAProxy 是业界标准的 TCP/HTTP 负载均衡器，原生健康检查、自动剔除故障节点、Web 流量面板一应俱全，适合对高可用要求严格的场景。&#xA;安装 复制apt update apt install haproxy -y 完整配置 将以下内容写入 /etc/haproxy/haproxy.cfg（注意替换为你真实的落地机 IP 和端口）：&#xA;复制# /etc/haproxy/haproxy.cfg global maxconn 51200 # 全局最大连接数，确保高并发不瓶颈 daemon # 后台守护进程运行 defaults mode tcp # 默认模式设为纯 TCP 四层转发 option tcplog timeout connect 5s timeout client 10m timeout server 10m # 核心：中转机代理端口与落地机负载均衡池 listen proxy_relay bind *:8080 # 中转机对外暴露的监听端口 mode tcp balance roundrobin # 负载均衡策略：轮询 # 落地机节点列表（替换为你真实的落地机 IP 和端口） # check：开启主动健康检查 # inter 5s：每 5 秒检查一次 # rise 2：成功 2 次认为节点恢复正常 # fall 3：失败 3 次认为节点宕机并自动剔除 server node1 1.</description>
+    </item>
+  </channel>
+</rss>
