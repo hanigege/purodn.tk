@@ -11,19 +11,19 @@
 注：Dst.Address List选择第一步添加的域名，转发端口依然是8443</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ipv6 firewall nat add action<span style=color:#f92672>=</span>dst-nat chain<span style=color:#f92672>=</span>dstnat dst-address-list<span style=color:#f92672>=</span>ros.11111.xyz dst-port<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span> in-interface<span style=color:#f92672>=</span>bridge1 protocol<span style=color:#f92672>=</span>tcp to-address<span style=color:#f92672>=</span>dc00::6666/128 to-ports<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span></span></span></code></pre></div><script class=code-source type=application/json>"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-address-list=ros.11111.xyz dst-port=8443 in-interface=bridge1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"</script></div><p><img src=assets/routeros-05-hairpin-nat-02.png alt></p><h3 id=4-回流伪装>4. 回流伪装</h3><ul><li>为来自内网的回流流量添加动态伪装
 注：dc00::/64为内网IPv6段</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ipv6 firewall nat add action<span style=color:#f92672>=</span>masquerade chain<span style=color:#f92672>=</span>srcnat dst-port<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span> out-interface<span style=color:#f92672>=</span>bridge1 protocol<span style=color:#f92672>=</span>tcp src-address<span style=color:#f92672>=</span>dc00::/64</span></span></code></pre></div><script class=code-source type=application/json>"/ipv6 firewall nat add action=masquerade chain=srcnat dst-port=8443 out-interface=bridge1 protocol=tcp src-address=dc00::/64"</script></div><p><img src=assets/routeros-05-hairpin-nat-03.png alt></p><h3 id=5-回家节点说明>5. 回家节点说明</h3><p>若手机使用hy2回家，在家里WIFI下回家节点不通，参照回流操作即可
 <img src=assets/routeros-05-hairpin-nat-04.png alt></p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>2</span>
 <span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>3</span>
+<span class=latest-rank>2</span>
 <span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

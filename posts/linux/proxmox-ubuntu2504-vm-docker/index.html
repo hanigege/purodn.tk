@@ -41,19 +41,19 @@
 </span></span><span style=display:flex><span>systemctl status qemu-guest-agent --no-pager
 </span></span><span style=display:flex><span>docker ps
 </span></span><span style=display:flex><span>docker compose version</span></span></code></pre></div><script class=code-source type=application/json>"hostnamectl\nip addr\ndf -h\nlsblk\nsystemctl status ssh --no-pager\nsystemctl status qemu-guest-agent --no-pager\ndocker ps\ndocker compose version"</script></div><p>Proxmox VE 页面中也应确认：</p><ul><li>VM 的 IP 能被 Guest Agent 正确读取。</li><li>Cloud-Init 设置与预期一致。</li><li>系统盘容量已经扩展到目标大小。</li><li>Dockge 或 Portainer 端口没有暴露到不可信网络。</li></ul><h2 id=常见问题>常见问题</h2><h3 id=修改-cloud-init-后是否必须重建-vm>修改 Cloud-Init 后是否必须重建 VM？</h3><p>不需要。可以关闭虚拟机，修改 Cloud-Init 页面中的用户、密码、网络等配置，然后点击 <code>Regenerate Image</code>，再启动虚拟机。</p><h3 id=systemctl-restart-sshd-报错怎么办><code>systemctl restart sshd</code> 报错怎么办？</h3><p>Ubuntu 上服务名通常是 <code>ssh</code>，可以执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart ssh</span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart ssh"</script></div><h3 id=静态-ip-不通怎么办>静态 IP 不通怎么办？</h3><p>先在 Cloud-Init 中把 <code>IP Config (net0)</code> 临时改为 DHCP：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>ip=dhcp</span></span></code></pre></div><script class=code-source type=application/json>"ip=dhcp"</script></div><p>点击 <code>Regenerate Image</code> 后重启 VM。确认网络正常后，再根据网关、掩码和 DNS 改回静态地址。</p><h3 id=dockge-和-portainer-是否需要同时安装>Dockge 和 Portainer 是否需要同时安装？</h3><p>不一定。Dockge 更偏向管理 Compose 项目，Portainer 更偏向 Docker 资源和容器管理。二者可以同时存在，但端口、权限和反向代理规则需要分开规划。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>2</span>
 <span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>3</span>
+<span class=latest-rank>2</span>
 <span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
