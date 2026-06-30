@@ -1,4 +1,20 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>AI on 电脑自习室</title><link>https://purodn.tk/categories/ai/</link><description>Recent content in AI on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 26 Jun 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/categories/ai/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes TUI 终端 CLI 命令速查</title><link>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</link><pubDate>Fri, 26 Jun 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</guid><description>什么是 Hermes TUI Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>AI on 电脑自习室</title><link>https://purodn.tk/categories/ai/</link><description>Recent content in AI on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 30 Jun 2026 09:39:49 +0800</lastBuildDate><atom:link href="https://purodn.tk/categories/ai/index.xml" rel="self" type="application/rss+xml"/><item><title>AI助手多轮分工协作完全指南</title><link>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</link><pubDate>Tue, 30 Jun 2026 09:39:49 +0800</pubDate><guid>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</guid><description>你是不是也这样过？
+把一份写了三天三夜的需求文档发给AI，说&amp;quot;帮我全部做完&amp;quot;。 等了一个小时，AI吐出一大坨代码，看着挺像那么回事。 一跑——数据库表少了字段，前端页面没响应式，支付接口根本调不通。 你想改一个小问题，AI说&amp;quot;改这一行会影响另外五个文件&amp;quot;。
+然后你陷入了无穷的返工循环。
+这不是你笨。这是用错了方法。
+这篇文章不讲虚的，直接给你一套经过验证的方法论——多轮分工协作法。哪怕你对编程一窍不通，照着做，也能让AI助手帮你把项目稳稳当当地做出来。
+为什么&amp;quot;一口气做完&amp;quot;是最大的坑？ 很多人第一次用AI做项目，习惯把全部需求一次性扔过去。这就像：
+你把一整栋楼的图纸拍给施工队队长，说&amp;quot;明天我来看房&amp;quot;。 队长一个人从头干到尾——打地基的时候想着装窗户，装窗户的时候想着刷漆。 最后地基歪了，窗户关不上，漆也刷花了。
+AI也是一个人，它只有一个&amp;quot;大脑&amp;quot;（上下文窗口）。当你把几十页需求一次性塞给它：
+问题 后果 上下文爆炸 做到第5个模块时，已经忘了第1个模块的结构 自己审自己 AI默认自己写的没错，边界情况漏一堆 牵一发动全身 想改一个字段，AI要重读全部代码，改着改着把别的地方搞坏了 返工成本极高 做完了才发现方向不对，等于全部重来 那正确姿势是什么？分轮迭代，每轮只做一件事，做完审查再下一轮。
+三种协作模式，选最适合你的 方案A：AI全包内循环（⭐⭐⭐⭐⭐ 推荐） 一句话描述：AI一个人当项目经理+程序员+QA，每干一步自己审查自己，不通过就循环修，修到满意再下一步。
+适合：大多数项目，不需要额外的工具链。
+工作流程：
+复制你 → 发第1轮任务 ↓ AI拆解 → 派coding小工A → A写完 ↓ AI审查A的代码 → 发现问题 ↓ AI派fix小工B → B修完 ↓ AI再审查 → 通过了 ✅ ↓ 汇报给你：&amp;#34;第1轮完成，请确认&amp;#34; ↓ 你说&amp;#34;通过&amp;#34; → AI进第2轮 优点：全自动化，你只需要发任务+确认结果，不用在中间传话。每轮交付的都是经过审查的成品。
+缺点：需要AI平台本身支持&amp;quot;派子任务&amp;quot;能力（如 Hermes Agent 的 delegate_task）。
+方案B：跨profile文件协作（⭐⭐⭐） 一句话描述：让不同的AI机器人各管一摊，通过共享文件夹交换成果。
+适合：不同机器人有不同配置（比如一个有自己的API key，一个有自己的工具链）。
+工作流程：</description></item><item><title>Hermes TUI 终端 CLI 命令速查</title><link>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</link><pubDate>Fri, 26 Jun 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</guid><description>什么是 Hermes TUI Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：
 复制# 直接用 hermes 命令进入 TUI（如果配置了默认 profile） hermes # 或指定 profile hermes chat --profile code # 或者使用单独的子命令 hermes tui 进入 TUI 后，你会看到类似聊天软件的界面——上方是对话历史，底部是输入框。在输入框里，你可以随时按 Tab 看到所有可用命令的自动补全列表。
 核心特性：
 全终端操作，无需鼠标 自动补全覆盖所有命令和已安装 skill 计划模式安全预览再执行 会话管理方便回溯历史 常用快捷键 快捷键 作用 / 调出斜杠命令自动补全下拉菜单 Tab 接受自动建议 / 补全斜杠命令 ↑ / ↓ 浏览历史消息（按方向键循环） Ctrl+C 中断当前 AI 输出 Ctrl+D 退出 TUI Ctrl+L 清屏（保留会话历史） Ctrl+U 清空当前输入行 Ctrl+W 删除光标前一个单词 提示：按 / 后会自动弹出补全菜单，显示所有可用的斜杠命令。如果装了多个 skill，菜单会很长——直接输入关键字过滤即可。
