@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Agent on 电脑自习室</title>
-    <link>http://10.20.20.19:1313/tags/agent/</link>
+    <link>http://0.0.0.0:1313/tags/agent/</link>
     <description>Recent content in Agent on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Tue, 09 Jun 2026 10:55:00 +0800</lastBuildDate>
-    <atom:link href="http://10.20.20.19:1313/tags/agent/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0.0.0.0:1313/tags/agent/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Claude Code 完全教程</title>
-      <link>http://10.20.20.19:1313/posts/ai/claude-code-complete-tutorial/</link>
+      <link>http://0.0.0.0:1313/posts/ai/claude-code-complete-tutorial/</link>
       <pubDate>Tue, 09 Jun 2026 10:55:00 +0800</pubDate>
-      <guid>http://10.20.20.19:1313/posts/ai/claude-code-complete-tutorial/</guid>
+      <guid>http://0.0.0.0:1313/posts/ai/claude-code-complete-tutorial/</guid>
       <description>原始飞书文档：Claude Code完全教程【视频文档】。本文为导入整理版，原文标注 5 月 14 日修改。&#xA;一、初步上手 1. 部署前准备 首先需要下载和安装一个 Agent IDE（智能体集成开发环境）。&#xA;推荐使用以下免费 IDE，无需购买会员，使用免费额度即可完成后续 Claude Code 部署：&#xA;Agent IDE 下载地址 Cursor 官网下载 Google Anti-gravity 官网下载 Trae 官网下载（cn）/ 官网下载（en） 以 Cursor 为例，下载进入后，可以构建如下开发环境布局：&#xA;2. 安装 Claude Code 方式 1：终端命令行安装（需魔法上网） 根据自身系统，选择对应代码，在 IDE 终端输入并回车。&#xA;Windows 步骤 1：在 IDE 终端用 WinGet 先安装 Git，遇到选项直接输入 y。&#xA;复制winget install Git.Git 步骤 2：在 IDE 终端输入代码，下载 Claude Code。&#xA;Windows PowerShell：&#xA;复制irm https://claude.ai/install.ps1 | iex Windows CMD：&#xA;复制curl -fsSL https://claude.ai/install.cmd -o install.</description>
     </item>
   </channel>

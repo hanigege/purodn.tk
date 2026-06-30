@@ -1,6 +1,6 @@
 services:
   matrix-admin-tools:
-    # 这个面板能触发媒体删除和全站通知，只监听本机回环口，公网入口必须经过 Caddy Basic Auth。
+    # 公网标准 443 生产机，通过本地 Caddy 统一反向代理。
     build: .
     image: local/matrix-admin-tools:latest
     container_name: matrix-admin-tools
@@ -10,13 +10,38 @@ services:
       - ./data:/data
       - ./logs:/logs
       - /root/data/docker_data/_secrets/synapse-admin/access_token:/run/secrets/synapse-admin-access-token:ro
+      - /root/data/docker_data/_secrets/synapse-admin/admin-user:/run/secrets/admin-user:ro
+      - /root/data/docker_data/_secrets/synapse-admin/admin-password:/run/secrets/admin-password:ro
+      # Telegram Bot Token — 如不需电报导入贴纸可注释掉
+      - /root/data/docker_data/_secrets/synapse-admin/telegram-bot-token:/run/secrets/telegram-bot-token:ro
+      # 自动给所有用户写入贴纸组件后，需要在确有变更时重启 Synapse 让账号数据缓存刷新。
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       SYNAPSE_URL: "http://127.0.0.1:8008"
       ADMIN_TOKEN_FILE: "/run/secrets/synapse-admin-access-token"
-      SERVER_NAME: "${SERVER_NAME:-jgaga.tk}"
+      AUTH_USER: "admin"
+      AUTH_PASSWORD_FILE: "/run/secrets/admin-password"
+      SERVER_NAME: "example.com"
       DB_PATH: "/data/app.db"
       LOG_PATH: "/logs/app.log"
-      HOST: "127.0.0.1"
+      # 历史贴纸库仅用于一次性迁移，日常运行不再依赖；后续贴纸管理完全走本地 app.db。
+      LEGACY_STICKER_DB_PATH: ""
+      # 客户端最终访问的 stickerpicker 公网地址；标准 443 端口不加端口号。
+      STICKER_WIDGET_PUBLIC_URL: "https://stickers.example.com/stickerpicker/"
+      # 前端静态资源由当前容器直接托管，路径保持可配置，避免写死目录结构。
+      STICKER_WEB_ROOT: "/opt/matrix-tools/stickerpicker-web"
+      STICKER_ROUTE_PREFIX: "/stickerpicker"
+      # Telegram 贴纸导入器从这里读取 Bot token；这样新环境部署时只需要准备 secret 文件，不需要改应用代码。
+      TELEGRAM_BOT_TOKEN_FILE: "/run/secrets/telegram-bot-token"
+      SYNAPSE_DB_CONTAINER: "postgres16"
+      SYNAPSE_DB_USER: "synapse_user"
+      SYNAPSE_DB_PASSWORD: "your_synapse_db_password"
+      SYNAPSE_DB_NAME: "synapse"
+      SYNAPSE_CONTAINER: "matrix-synapse"
+      STICKER_AUTO_SYNC_SECONDS: "300"
+      # 贴纸组件默认只面向真实用户账号；这里显式排除运维号/机器人，便于跨环境复用。
+      STICKER_SYNC_EXCLUDE_LOCALPARTS: "bot,musicbot,media_purge_admin"
+      HOST: "0.0.0.0"
       PORT: "8190"
     logging:
       driver: "json-file"
