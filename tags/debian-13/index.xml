@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Debian 13 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/debian-13/</link>
+    <link>http://10.20.20.19:1313/tags/debian-13/</link>
     <description>Recent content in Debian 13 on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Tue, 26 May 2026 12:35:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/debian-13/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://10.20.20.19:1313/tags/debian-13/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
-      <link>http://0.0.0.0:1313/posts/linux/debian13-hysteria2-sing-box-production/</link>
+      <link>http://10.20.20.19:1313/posts/linux/debian13-hysteria2-sing-box-production/</link>
       <pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/debian13-hysteria2-sing-box-production/</guid>
+      <guid>http://10.20.20.19:1313/posts/linux/debian13-hysteria2-sing-box-production/</guid>
       <description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。&#xA;示例里使用占位符：&#xA;项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：&#xA;域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description>
     </item>
   </channel>
