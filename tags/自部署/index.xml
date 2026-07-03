@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>自部署 on 电脑自习室</title>
-    <link>http://10.20.20.19:1313/tags/%E8%87%AA%E9%83%A8%E7%BD%B2/</link>
+    <link>http://0.0.0.0:1313/tags/%E8%87%AA%E9%83%A8%E7%BD%B2/</link>
     <description>Recent content in 自部署 on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Sat, 27 Jun 2026 21:00:00 +0800</lastBuildDate>
-    <atom:link href="http://10.20.20.19:1313/tags/%E8%87%AA%E9%83%A8%E7%BD%B2/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0.0.0.0:1313/tags/%E8%87%AA%E9%83%A8%E7%BD%B2/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</title>
-      <link>http://10.20.20.19:1313/posts/linux/build-matrix-synapse-production/</link>
+      <link>http://0.0.0.0:1313/posts/linux/build-matrix-synapse-production/</link>
       <pubDate>Sat, 27 Jun 2026 21:00:00 +0800</pubDate>
-      <guid>http://10.20.20.19:1313/posts/linux/build-matrix-synapse-production/</guid>
+      <guid>http://0.0.0.0:1313/posts/linux/build-matrix-synapse-production/</guid>
       <description>前言 为什么你需要这个教程？&#xA;你在网上看到的 Matrix 教程大多只教你跑起一个 Synapse 容器就完了。但现实中你要面对：反向代理、SSL 证书、数据库、TURN 服务器、语音视频通话（LiveKit）、域名发现（.well-known）、端口被封的各种骚操作。本文就是照着我们的生产环境一步步整理出来的，你照做就能得到一套和我们现在用的一模一样的完整部署。&#xA;本教程特色：&#xA;✅ 全实战 —— 所有配置直接从生产服务器原文复制，没有魔改 ✅ 小白友好 —— 从「去名字商买域名」开始说，每个命令都解释干什么用 ✅ 域名可替换 —— 每处用到域名的位置都会有 💡 提示，你用自己域名时知道改哪里 ✅ 密码自动生成 —— 所有密钥密码都给出生成命令，不会让你想破头 ✅ 完整栈 —— 不只是聊天，语音视频通话、管理后台、通知推送、动态域名全部配齐 你需要准备的东西 硬件 项目 最低要求 建议 CPU 2 核 4 核 内存 4 GB 8 GB 硬盘 40 GB 80 GB+ 系统 Debian 12 / Ubuntu 22.04+ Debian 12 这是给 5~10 人小家庭/团队用的。人多了再往上加配置。&#xA;🎯 域名 只需要一个域名就能搞定全部！ 我们用子域名来区分不同服务。&#xA;以我们生产环境用的 116160.xyz 为例，你需要创建这些 DNS 记录（A 记录都指向你服务器的公网 IP）：</description>
     </item>
   </channel>

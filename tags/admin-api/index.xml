@@ -2,24 +2,24 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Admin API on 电脑自习室</title>
-    <link>http://10.20.20.19:1313/tags/admin-api/</link>
+    <link>http://0.0.0.0:1313/tags/admin-api/</link>
     <description>Recent content in Admin API on 电脑自习室</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Fri, 22 May 2026 10:20:00 +0800</lastBuildDate>
-    <atom:link href="http://10.20.20.19:1313/tags/admin-api/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://0.0.0.0:1313/tags/admin-api/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Matrix Synapse Server Notices：给用户发送媒体清理规则通知</title>
-      <link>http://10.20.20.19:1313/posts/docker/synapse-server-notices-media-policy/</link>
+      <link>http://0.0.0.0:1313/posts/docker/synapse-server-notices-media-policy/</link>
       <pubDate>Fri, 22 May 2026 10:20:00 +0800</pubDate>
-      <guid>http://10.20.20.19:1313/posts/docker/synapse-server-notices-media-policy/</guid>
+      <guid>http://0.0.0.0:1313/posts/docker/synapse-server-notices-media-policy/</guid>
       <description>自建 Matrix Synapse 做媒体维护之前，最好先告诉用户规则。否则用户只知道“为什么不建议发大文件”，不知道服务器正在控制媒体仓库体积。&#xA;这里说的 media_store 不是“视频文件夹”。它是 Synapse 的媒体仓库，聊天里上传或缓存下来的媒体类内容都会放到这里。常见内容包括：&#xA;聊天图片、截图、表情包、动图和视频。 语音消息、音频文件、PDF、压缩包、文档等普通附件。 用户头像和房间头像。 Synapse 为图片、视频等生成的缩略图。 远程服务器媒体缓存，也就是本服用户查看过的其他服务器上的图片或文件副本。 URL 预览缓存，例如链接预览抓取到的图片和缩略图。 所以媒体维护规则影响的不是某一种文件，而是整个 Synapse 媒体仓库。本地上传的大图片、动图、视频、语音、文档和压缩包都会按大小和时间进入清理规则；远程服务器媒体缓存会定期清理；头像和房间头像也建议控制在 5MiB 以内，避免变成长期的大媒体负担。&#xA;本文目标是用 Synapse 官方的 Server Notices 给本服用户发送一条系统通知，内容类似：&#xA;复制5MiB 以内文件长期保留 超过 5MiB 的文件，90 天后清理 超过 100MiB 的超大文件 7 天后清理 重要文件请自行保存 这里不是做“每次上传都实时提醒”。实时拦截上传需要额外模块或反代日志分析，复杂度更高。Server Notices 更适合做上线公告、规则变更通知和新用户补发。&#xA;关于头像这条规则要先说清楚：清理脚本使用 keep_profiles=true，会尽量保留仍被用户头像、房间头像等 profile image 使用的媒体。通知里写“头像和房间头像建议不要超过 5MiB”，主要是为了减少客户端加载压力和长期存储负担。&#xA;官方参考：&#xA;Server Notices 配置说明：https://element-hq.github.io/synapse/latest/server_notices.html Server Notices Admin API：https://element-hq.github.io/synapse/latest/admin_api/server_notices.html 一、准备信息 下面示例统一使用这些占位值：&#xA;复制Matrix server_name: 666666.xyz Synapse 本机地址: http://127.0.0.1:8008 管理员 token 文件: /root/.config/synapse-admin/access_token Server Notices 系统账号: @server:666666.</description>
     </item>
     <item>
       <title>Matrix Synapse media_store 分层清理：保留小文件，自动清大文件</title>
-      <link>http://10.20.20.19:1313/posts/docker/synapse-media-store-cleanup-admin-api/</link>
+      <link>http://0.0.0.0:1313/posts/docker/synapse-media-store-cleanup-admin-api/</link>
       <pubDate>Thu, 21 May 2026 20:52:48 +0800</pubDate>
-      <guid>http://10.20.20.19:1313/posts/docker/synapse-media-store-cleanup-admin-api/</guid>
+      <guid>http://0.0.0.0:1313/posts/docker/synapse-media-store-cleanup-admin-api/</guid>
       <description>自建 Matrix Synapse 跑久之后，/root/data/docker_data/synapse/data/media_store/ 可能比数据库还大。更容易让人困惑的是：明明已经在 Element 聊天窗口里手动删除过图片、视频或消息，服务端磁盘却没有明显变小。&#xA;这是正常现象。Matrix 里的消息事件、媒体文件和媒体缩略图不是同一个东西。客户端里删除或撤回消息，通常只是让房间事件变成 redaction 状态；Synapse 的媒体仓库仍然可能保留本地上传文件、缩略图、远程媒体缓存和 URL 预览缓存。要控制磁盘，应该单独管理 media store。&#xA;本文整理一套适合个人或小团队 Synapse 的生产策略：&#xA;限制以后单个上传大小，避免再出现几百 MB 甚至 1GB 的媒体文件。 5MiB 以内文件长期保留，尽量保护语音、小图和普通小文件。 超过 5MiB 的文件 90 天后清理，超过 100MiB 的超大文件 7 天后清理。 远程媒体缓存 7 天后自动清理。 加密房间里的过期大文件被清理后，旧消息点开可能显示不可用；需要提前告知用户清理规则。 孤立文件不做即时硬删；需要做时先报告、再隔离、最后延迟删除。 官方参考：&#xA;Synapse 配置手册：max_upload_size 与 media_retention&#xA;https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html Synapse Media Admin API：删除本地媒体、清理远程缓存&#xA;https://element-hq.github.io/synapse/latest/admin_api/media_admin_api.html 一、先确认到底谁占空间 不要一上来就删数据库。先看目录大小：&#xA;复制du -h -d 2 /root/data/docker_data/synapse 2&amp;gt;/dev/null | sort -h 如果输出类似：&#xA;复制64M /root/data/docker_data/synapse/postgres 9.6G /root/data/docker_data/synapse/data/media_store 9.7G /root/data/docker_data/synapse 说明大头不是聊天数据库，而是媒体仓库。</description>
     </item>
   </channel>
