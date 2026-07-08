@@ -22,15 +22,7 @@
 复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
 创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
 下面以用户名 admin 为例：
-复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD 普通用户下安装 Hysteria2 服务端</title><link>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</link><pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</guid><description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。
-普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。
-截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。
-1. 安装 tmux 启动脚本依赖 tmux，需要先安装：
-复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。
-2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：
-复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：
-复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：
-复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
+复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
 这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
 一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
 下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。

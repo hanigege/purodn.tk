@@ -40,10 +40,7 @@ DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真
 先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
 这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
 整体结构如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。
-复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。
-示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：
-项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。
 架构说明 访问链路如下：
 复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：
 项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：
@@ -66,15 +63,7 @@ VPS 用户：选择 1.官方核心 机场用户：选择 3.reF1nd 核心 步骤 
 步骤 7： 安装成功后，输入 proxytool 管理服务
 步骤 8： 打开 UI 面板
 访问提示的地址，输入 sing-box 所在 VM 的 IP:9090 即可打开 UI 面板。
-脚本也可安装 mihomo 裸核，自行探索。</description></item><item><title>FreeBSD 普通用户下安装 Hysteria2 服务端</title><link>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</link><pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</guid><description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。
-普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。
-截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。
-1. 安装 tmux 启动脚本依赖 tmux，需要先安装：
-复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。
-2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：
-复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：
-复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：
-复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
+脚本也可安装 mihomo 裸核，自行探索。</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
 本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。
 root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。
 复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：

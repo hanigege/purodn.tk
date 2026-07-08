@@ -2,10 +2,7 @@
 先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
 这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
 整体结构如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。
-复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。
-示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：
-项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description></item><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
 这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
 默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
 复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
@@ -20,11 +17,7 @@
 复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
 以 root 用户执行：
 复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
-复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>FreeBSD 15 下配置 Hysteria2 服务器端</title><link>https://purodn.tk/posts/freebsd/freebsd15-hysteria2-server/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-hysteria2-server/</guid><description>本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 salamander 混淆。
-截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。
-1. 部署思路 最稳妥的服务端配置思路是：
-监听 UDP 443，这也是官方默认 HTTP/3 端口。 使用 TLS 证书；如果没有正式域名，可以先用自签证书。 使用 masquerade.proxy 伪装成正常网站。 个人自用时，服务端不写 bandwidth 和 ignoreClientBandwidth，把带宽参数交给客户端。 不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。 如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 obfs.type: salamander。 官方文档里说明，listen 省略时会默认监听 :443，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 listen: :443。
-2. 安装 Hysteria2 最新版 建议用 root 用户操作。监听 443 这类 1024 以下端口也需要 root 权限，或额外配置权限。</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
+复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
 本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
 准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
 本文后续示例假设证书和私钥已经放在下面的位置：
@@ -33,15 +26,7 @@
 复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
 创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
 下面以用户名 admin 为例：
-复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD 普通用户下安装 Hysteria2 服务端</title><link>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</link><pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</guid><description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。
-普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。
-截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。
-1. 安装 tmux 启动脚本依赖 tmux，需要先安装：
-复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。
-2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：
-复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：
-复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：
-复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
+复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
 这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
 一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
 下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。
