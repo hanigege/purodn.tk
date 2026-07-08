@@ -7,14 +7,7 @@
 复制你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息 特点：
 最安全，不会干扰正在执行的操作 延迟最高——可能等几分钟 消息不会丢失，依次处理 适用场景：
 代理在执行批量任务，你不需要中途介入 你只想提交一个后续请求，不着急 代理正在驱动多个子任务（delegate_task），打断可能导致子任务被取消 配置方式：
-复制# config.yaml [display] busy_input_mode = &amp;#34;queue&amp;#34; 复制# CLI 终端 /busy queue 🎯 Steer — 引导模式 效果： 你的消息会在当前工具调用完成后立即插入处理，处理完毕后继续当前任务，不会中断整个工作流。</description></item><item><title>Hermes 灾难恢复手册 — 从零手动重建所有服务</title><link>https://purodn.tk/posts/ai/hermes-disaster-recovery-manual/</link><pubDate>Fri, 03 Jul 2026 10:37:41 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-disaster-recovery-manual/</guid><description>如果你的 Hermes bot 全部失联，网页端也连不上，别慌。这份教程教你从头手动恢复，每一步都有完整的命令，复制粘贴就能跑。
-适用场景 所有 Hermes bot 都不回复消息 SSH 还能连上服务器 GitHub 还能访问（备份仓库在线） 前提 服务器 IP：10.20.20.19 登录用户：hermesuser 备份仓库：git@github.com:hanigege/hermes.git 第一步：SSH 登录服务器 在你的电脑上打开终端（Windows 用 PowerShell 或 CMD），输入：
-复制ssh hermesuser@10.20.20.19 登录成功后会看到类似这样的提示：
-复制hermesuser@hermes:~$ 第二步：确认系统状态 先看看系统跑了多久、磁盘空间够不够：
-复制uptime df -h 磁盘应该还有 至少 10G 空闲。如果空间不够，先清理一下。
-第三步：从 GitHub 克隆备份仓库并一键恢复 📦 仓库里有什么：
-hermes-agent/ 全部源码（4000+ 文件）✅ config.yaml + .env 配置文件 ✅ systemd-templates/ 优化版服务模板 ✅ scripts/recover.sh 一键恢复脚本 ✅ ❌ venv/（需要重建） ❌ sessions/（聊天历史，体积大，不备份） 把整个 Hermes 配置和代码从 GitHub 拉下来，然后跑恢复脚本——仅需两步：
-复制# 第一步：克隆仓库 cd ~ git clone git@github.</description></item><item><title>AI助手多轮分工协作完全指南</title><link>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</link><pubDate>Tue, 30 Jun 2026 09:39:49 +0800</pubDate><guid>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</guid><description>你是不是也这样过？
+复制# config.yaml [display] busy_input_mode = &amp;#34;queue&amp;#34; 复制# CLI 终端 /busy queue 🎯 Steer — 引导模式 效果： 你的消息会在当前工具调用完成后立即插入处理，处理完毕后继续当前任务，不会中断整个工作流。</description></item><item><title>AI助手多轮分工协作完全指南</title><link>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</link><pubDate>Tue, 30 Jun 2026 09:39:49 +0800</pubDate><guid>https://purodn.tk/posts/ai/ai-agent-orchestration-guide/</guid><description>你是不是也这样过？
 把一份写了三天三夜的需求文档发给AI，说&amp;quot;帮我全部做完&amp;quot;。 等了一个小时，AI吐出一大坨代码，看着挺像那么回事。 一跑——数据库表少了字段，前端页面没响应式，支付接口根本调不通。 你想改一个小问题，AI说&amp;quot;改这一行会影响另外五个文件&amp;quot;。
 然后你陷入了无穷的返工循环。
 这不是你笨。这是用错了方法。

@@ -30,17 +30,17 @@
 </span></span><span style=display:flex><span><span style=color:#75715e># 会显示类似：Busy input mode: steer</span></span></span></code></pre></div><script class=code-source type=application/json>"# CLI 终端中\n/busy status\n\n# 或在终端中查看\ngrep busy_input_mode ~/.hermes/config.yaml\ngrep busy_text_mode ~/.hermes/config.yaml\n\n# 当前有效状态（CLI）\n# 会显示类似：Busy input mode: steer"</script></div><hr><h2 id=代码实现参考>代码实现参考</h2><p>如果你想了解底层实现，关键源码位置如下：</p><ul><li><strong>CLI 模式定义：</strong> <code>cli.py</code> 第 2955-2964 行</li><li><strong>Gateway 模式加载：</strong> <code>gateway/run.py</code> 第 2994-3015 行（<code>_load_busy_input_mode</code> / <code>_load_busy_text_mode</code>）</li><li><strong>Gateway 运行时调度：</strong> <code>gateway/run.py</code> 第 3200-3240 行</li><li><strong>Slash 命令注册：</strong> <code>hermes_cli/commands.py</code>（<code>/busy</code> CLI-only, <code>/steer</code> 两端可用）</li></ul><p>核心逻辑只有几十行，感兴趣的读者可以直接阅读源码。</p><hr><h2 id=写在最后>写在最后</h2><p>Busy Input Modes 是 Hermes Agent 提供的一个非常实用的特性，它让你从被动等待变为主动引导。选对模式，能大幅提升人机协作效率。</p><p>如果你还在犹豫选哪个：<strong>先试 Steer。</strong> 它既不会错过你的消息，也不会打断正在进行的工作，是最中庸也最实用的选择。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
 <button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>3</span>
 <span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>SMbox RouterOS 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

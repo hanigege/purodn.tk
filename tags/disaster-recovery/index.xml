@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Disaster-Recovery on 电脑自习室</title><link>https://purodn.tk/tags/disaster-recovery/</link><description>Recent content in Disaster-Recovery on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 03 Jul 2026 10:37:41 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/disaster-recovery/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes 灾难恢复手册 — 从零手动重建所有服务</title><link>https://purodn.tk/posts/ai/hermes-disaster-recovery-manual/</link><pubDate>Fri, 03 Jul 2026 10:37:41 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-disaster-recovery-manual/</guid><description>如果你的 Hermes bot 全部失联，网页端也连不上，别慌。这份教程教你从头手动恢复，每一步都有完整的命令，复制粘贴就能跑。
-适用场景 所有 Hermes bot 都不回复消息 SSH 还能连上服务器 GitHub 还能访问（备份仓库在线） 前提 服务器 IP：10.20.20.19 登录用户：hermesuser 备份仓库：git@github.com:hanigege/hermes.git 第一步：SSH 登录服务器 在你的电脑上打开终端（Windows 用 PowerShell 或 CMD），输入：
-复制ssh hermesuser@10.20.20.19 登录成功后会看到类似这样的提示：
-复制hermesuser@hermes:~$ 第二步：确认系统状态 先看看系统跑了多久、磁盘空间够不够：
-复制uptime df -h 磁盘应该还有 至少 10G 空闲。如果空间不够，先清理一下。
-第三步：从 GitHub 克隆备份仓库并一键恢复 📦 仓库里有什么：
-hermes-agent/ 全部源码（4000+ 文件）✅ config.yaml + .env 配置文件 ✅ systemd-templates/ 优化版服务模板 ✅ scripts/recover.sh 一键恢复脚本 ✅ ❌ venv/（需要重建） ❌ sessions/（聊天历史，体积大，不备份） 把整个 Hermes 配置和代码从 GitHub 拉下来，然后跑恢复脚本——仅需两步：
-复制# 第一步：克隆仓库 cd ~ git clone git@github.</description></item></channel></rss>
