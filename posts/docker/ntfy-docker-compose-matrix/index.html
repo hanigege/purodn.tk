@@ -1,245 +1,54 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络 | 电脑自习室</title>
-    <meta name="description" content="记录 ntfy 的 Docker Compose 部署方式：挂载本地缓存和配置目录，并统一接入 matrix 外部网络，方便后续通过 Nginx Proxy Manager 反代。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Docker</span>
-          <time datetime="2026-05-18">2026年5月18日</time>
-        </div>
-        <h1>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</h1>
-          <p>记录 ntfy 的 Docker Compose 部署方式：挂载本地缓存和配置目录，并统一接入 matrix 外部网络，方便后续通过 Nginx Proxy Manager 反代。</p>
-      </header>
-          <img class="article-cover" src="/posts/docker/ntfy-docker-compose-matrix/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 <code>matrix</code>，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。</p>
-<p>如果你的反代入口也接在 <code>matrix</code> 网络里，NPM 后台就可以直接用容器名 <code>ntfy</code> 作为上游地址。</p>
-<h2 id="一先确认-matrix-网络">一、先确认 matrix 网络</h2>
-<p>如果前面已经创建过 <code>matrix</code> 网络，这一步可以跳过。否则先在宿主机终端创建：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network create matrix</span></span></code></pre></div><script class="code-source" type="application/json">"docker network create matrix"</script>
-</div>
-<p>查看网络是否存在：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network ls | grep matrix</span></span></code></pre></div><script class="code-source" type="application/json">"docker network ls | grep matrix"</script>
-</div>
-<p>后续需要被反代的容器，都建议统一接入这个网络。</p>
-<h2 id="二准备数据目录">二、准备数据目录</h2>
-<p>这份配置把 ntfy 的缓存和配置目录挂载到宿主机：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/ntfy/data/cache
-</span></span><span style="display:flex;"><span>/root/data/docker_data/ntfy/data/config</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/ntfy/data/cache\n/root/data/docker_data/ntfy/data/config"</script>
-</div>
-<p>可以先创建目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/ntfy/data/cache
-</span></span><span style="display:flex;"><span>mkdir -p /root/data/docker_data/ntfy/data/config</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/ntfy/data/cache\nmkdir -p /root/data/docker_data/ntfy/data/config"</script>
-</div>
-<p>其中：</p>
-<ul>
-<li><code>cache</code> 用来保存 ntfy 的缓存数据。</li>
-<li><code>config</code> 对应容器内的 <code>/etc/ntfy</code>，后续可以放置 ntfy 配置文件。</li>
-</ul>
-<h2 id="三创建-docker-composeyml">三、创建 docker-compose.yml</h2>
-<p>新建并编辑 <code>docker-compose.yml</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim docker-compose.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim docker-compose.yml"</script>
-</div>
-<p>写入下面的配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ntfy</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">binwiederhier/ntfy:latest</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">ntfy</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">serve</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">TZ=Asia/Shanghai</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/ntfy/data/cache:/var/cache/ntfy</span>
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/ntfy/data/config:/etc/ntfy</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  ntfy:\n    image: binwiederhier/ntfy:latest\n    container_name: ntfy\n    command:\n      - serve\n    environment:\n      - TZ=Asia/Shanghai\n    volumes:\n      - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy\n      - /root/data/docker_data/ntfy/data/config:/etc/ntfy\n    restart: unless-stopped\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script>
-</div>
-<p>这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 <code>matrix</code> 网络内访问 ntfy。</p>
-<h2 id="四关键配置serveryml">四、关键配置：server.yml</h2>
-<p>在映射的宿主机目录 <code>/root/data/docker_data/ntfy/data/config</code> 下新建 <code>server.yml</code>，内容参考如下（根据你的域名或 IP 修改）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># 服务的访问地址（反代后的域名或带端口）</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">base-url</span>: <span style="color:#e6db74">&#34;https://sms.888.org&#34;</span> 
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果使用了 Nginx Proxy Manager 等反代工具，需开启此项</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">behind-proxy</span>: <span style="color:#66d9ef">true</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 转发官方推送（可选，用于处理 iOS 等特殊推送需求）</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">upstream-base-url</span>: <span style="color:#e6db74">&#34;https://ntfy.sh&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 日志级别，调试阶段建议设为 TRACE</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">log-level</span>: <span style="color:#ae81ff">TRACE</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 服务的访问地址（反代后的域名或带端口）\nbase-url: \"https://sms.888.org\" \n\n# 如果使用了 Nginx Proxy Manager 等反代工具，需开启此项\nbehind-proxy: true\n\n# 转发官方推送（可选，用于处理 iOS 等特殊推送需求）\nupstream-base-url: \"https://ntfy.sh\"\n\n# 日志级别，调试阶段建议设为 TRACE\nlog-level: TRACE"</script>
-</div>
-<h2 id="五启动-ntfy">五、启动 ntfy</h2>
-<p>启动服务：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
-</div>
-<p>查看容器状态：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps | grep ntfy</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps | grep ntfy"</script>
-</div>
-<p>查看日志：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f ntfy</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f ntfy"</script>
-</div>
-<p>如果日志里没有明显报错，说明 ntfy 已经正常运行。</p>
-<h2 id="五反代时的上游写法">五、反代时的上游写法</h2>
-<p>因为 ntfy 和 NPM 都接入了 <code>matrix</code> 网络，所以在 NPM 后台添加 Proxy Host 时，上游可以直接填写容器名：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ntfy</span></span></code></pre></div><script class="code-source" type="application/json">"ntfy"</script>
-</div>
-<p>常见写法是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://ntfy:80</span></span></code></pre></div><script class="code-source" type="application/json">"http://ntfy:80"</script>
-</div>
-<p>如果你后续在 <code>/etc/ntfy</code> 里自定义了监听端口，就把这里的端口改成对应值。</p>
-<h2 id="六注意事项">六、注意事项</h2>
-<p>这套配置的关键点有三个：</p>
-<ul>
-<li><code>matrix</code> 是外部网络，Compose 不会自动创建，必须提前存在。</li>
-<li>ntfy 没有直接映射宿主机端口，访问入口交给同网络内的反代服务。</li>
-<li>配置和缓存都挂载到宿主机目录，容器重建后数据不会跟着丢。</li>
-</ul>
-<p>如果后面还要部署其他服务，继续统一接入 <code>matrix</code>，整体反代会更好维护。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络 | 电脑自习室</title>
+<meta name=description content="记录 ntfy 的 Docker Compose 部署方式：挂载本地缓存和配置目录，并统一接入 matrix 外部网络，方便后续通过 Nginx Proxy Manager 反代。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Docker</span>
+<time datetime=2026-05-18>2026年5月18日</time></div><h1>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</h1><p>记录 ntfy 的 Docker Compose 部署方式：挂载本地缓存和配置目录，并统一接入 matrix 外部网络，方便后续通过 Nginx Proxy Manager 反代。</p></header><img class=article-cover src=/posts/docker/ntfy-docker-compose-matrix/assets/cover.svg alt><div class=article-content><p>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 <code>matrix</code>，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。</p><p>如果你的反代入口也接在 <code>matrix</code> 网络里，NPM 后台就可以直接用容器名 <code>ntfy</code> 作为上游地址。</p><h2 id=一先确认-matrix-网络>一、先确认 matrix 网络</h2><p>如果前面已经创建过 <code>matrix</code> 网络，这一步可以跳过。否则先在宿主机终端创建：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network create matrix</span></span></code></pre></div><script class=code-source type=application/json>"docker network create matrix"</script></div><p>查看网络是否存在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network ls | grep matrix</span></span></code></pre></div><script class=code-source type=application/json>"docker network ls | grep matrix"</script></div><p>后续需要被反代的容器，都建议统一接入这个网络。</p><h2 id=二准备数据目录>二、准备数据目录</h2><p>这份配置把 ntfy 的缓存和配置目录挂载到宿主机：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/root/data/docker_data/ntfy/data/cache
+</span></span><span style=display:flex><span>/root/data/docker_data/ntfy/data/config</span></span></code></pre></div><script class=code-source type=application/json>"/root/data/docker_data/ntfy/data/cache\n/root/data/docker_data/ntfy/data/config"</script></div><p>可以先创建目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /root/data/docker_data/ntfy/data/cache
+</span></span><span style=display:flex><span>mkdir -p /root/data/docker_data/ntfy/data/config</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /root/data/docker_data/ntfy/data/cache\nmkdir -p /root/data/docker_data/ntfy/data/config"</script></div><p>其中：</p><ul><li><code>cache</code> 用来保存 ntfy 的缓存数据。</li><li><code>config</code> 对应容器内的 <code>/etc/ntfy</code>，后续可以放置 ntfy 配置文件。</li></ul><h2 id=三创建-docker-composeyml>三、创建 docker-compose.yml</h2><p>新建并编辑 <code>docker-compose.yml</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nvim docker-compose.yml</span></span></code></pre></div><script class=code-source type=application/json>"nvim docker-compose.yml"</script></div><p>写入下面的配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ntfy</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>binwiederhier/ntfy:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>ntfy</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>serve</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>TZ=Asia/Shanghai</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/root/data/docker_data/ntfy/data/cache:/var/cache/ntfy</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/root/data/docker_data/ntfy/data/config:/etc/ntfy</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>matrix</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>matrix</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>external</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>matrix</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  ntfy:\n    image: binwiederhier/ntfy:latest\n    container_name: ntfy\n    command:\n      - serve\n    environment:\n      - TZ=Asia/Shanghai\n    volumes:\n      - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy\n      - /root/data/docker_data/ntfy/data/config:/etc/ntfy\n    restart: unless-stopped\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script></div><p>这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 <code>matrix</code> 网络内访问 ntfy。</p><h2 id=四关键配置serveryml>四、关键配置：server.yml</h2><p>在映射的宿主机目录 <code>/root/data/docker_data/ntfy/data/config</code> 下新建 <code>server.yml</code>，内容参考如下（根据你的域名或 IP 修改）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># 服务的访问地址（反代后的域名或带端口）</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>base-url</span>: <span style=color:#e6db74>&#34;https://sms.888.org&#34;</span> 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 如果使用了 Nginx Proxy Manager 等反代工具，需开启此项</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>behind-proxy</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 转发官方推送（可选，用于处理 iOS 等特殊推送需求）</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>upstream-base-url</span>: <span style=color:#e6db74>&#34;https://ntfy.sh&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 日志级别，调试阶段建议设为 TRACE</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>log-level</span>: <span style=color:#ae81ff>TRACE</span></span></span></code></pre></div><script class=code-source type=application/json>"# 服务的访问地址（反代后的域名或带端口）\nbase-url: \"https://sms.888.org\" \n\n# 如果使用了 Nginx Proxy Manager 等反代工具，需开启此项\nbehind-proxy: true\n\n# 转发官方推送（可选，用于处理 iOS 等特殊推送需求）\nupstream-base-url: \"https://ntfy.sh\"\n\n# 日志级别，调试阶段建议设为 TRACE\nlog-level: TRACE"</script></div><h2 id=五启动-ntfy>五、启动 ntfy</h2><p>启动服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose up -d</span></span></code></pre></div><script class=code-source type=application/json>"docker compose up -d"</script></div><p>查看容器状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker ps | grep ntfy</span></span></code></pre></div><script class=code-source type=application/json>"docker ps | grep ntfy"</script></div><p>查看日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker logs -f ntfy</span></span></code></pre></div><script class=code-source type=application/json>"docker logs -f ntfy"</script></div><p>如果日志里没有明显报错，说明 ntfy 已经正常运行。</p><h2 id=五反代时的上游写法>五、反代时的上游写法</h2><p>因为 ntfy 和 NPM 都接入了 <code>matrix</code> 网络，所以在 NPM 后台添加 Proxy Host 时，上游可以直接填写容器名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>ntfy</span></span></code></pre></div><script class=code-source type=application/json>"ntfy"</script></div><p>常见写法是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>http://ntfy:80</span></span></code></pre></div><script class=code-source type=application/json>"http://ntfy:80"</script></div><p>如果你后续在 <code>/etc/ntfy</code> 里自定义了监听端口，就把这里的端口改成对应值。</p><h2 id=六注意事项>六、注意事项</h2><p>这套配置的关键点有三个：</p><ul><li><code>matrix</code> 是外部网络，Compose 不会自动创建，必须提前存在。</li><li>ntfy 没有直接映射宿主机端口，访问入口交给同网络内的反代服务。</li><li>配置和缓存都挂载到宿主机目录，容器重建后数据不会跟着丢。</li></ul><p>如果后面还要部署其他服务，继续统一接入 <code>matrix</code>，整体反代会更好维护。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

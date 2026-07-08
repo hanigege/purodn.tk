@@ -1,26 +1,18 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>时间同步 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5/</link>
-    <description>Recent content in 时间同步 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 02 Jun 2026 14:20:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title>
-      <link>http://0.0.0.0:1313/posts/linux/ubuntu-timesync-asia-shanghai/</link>
-      <pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/ubuntu-timesync-asia-shanghai/</guid>
-      <description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。&#xA;目标有两个：&#xA;系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：&#xA;复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：&#xA;复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：&#xA;复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：&#xA;复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description>
-    </item>
-    <item>
-      <title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title>
-      <link>http://0.0.0.0:1313/posts/linux/ubuntu-nodejs-nvm-chrony/</link>
-      <pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/ubuntu-nodejs-nvm-chrony/</guid>
-      <description>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 Asia/Shanghai，再用 chrony 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。&#xA;时间同步和北京时间的关系 这里要分清两件事：&#xA;Asia/Shanghai 负责把系统显示时区设为北京时间，也就是 UTC+8。 chrony 负责通过 NTP 校准系统时钟，让时间本身准确。 所以只安装 chrony 不等于设置北京时间；只设置 Asia/Shanghai 也不等于时间已经校准。两个都做完，date 看到的时间才会是准确的北京时间。&#xA;一、设置时区为北京时间 先查看当前时间和时区：&#xA;复制timedatectl date 设置系统时区为北京时间：&#xA;复制sudo timedatectl set-timezone Asia/Shanghai 再次确认：&#xA;复制timedatectl date timedatectl 输出里应能看到：&#xA;复制Time zone: Asia/Shanghai (CST, +0800) date 输出里也应该出现 CST 或 +0800。这一步只负责时区显示，不负责从网络校准时间。&#xA;二、使用 chrony 校准系统时间 Ubuntu 默认可以使用 systemd-timesyncd 做基础时间同步，但服务器环境更推荐使用 chrony。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。&#xA;先安装 chrony：&#xA;复制sudo apt update sudo apt install -y chrony 编辑配置文件：&#xA;复制sudo nvim /etc/chrony/chrony.conf 清空或覆盖 /etc/chrony/chrony.conf，写入以下完整配置：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>时间同步 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5/</link><description>Recent content in 时间同步 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 14:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title><link>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</link><pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</guid><description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。
+目标有两个：
+系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：
+复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：
+复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：
+复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：
+复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description></item><item><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title><link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link><pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid><description>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 Asia/Shanghai，再用 chrony 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。
+时间同步和北京时间的关系 这里要分清两件事：
+Asia/Shanghai 负责把系统显示时区设为北京时间，也就是 UTC+8。 chrony 负责通过 NTP 校准系统时钟，让时间本身准确。 所以只安装 chrony 不等于设置北京时间；只设置 Asia/Shanghai 也不等于时间已经校准。两个都做完，date 看到的时间才会是准确的北京时间。
+一、设置时区为北京时间 先查看当前时间和时区：
+复制timedatectl date 设置系统时区为北京时间：
+复制sudo timedatectl set-timezone Asia/Shanghai 再次确认：
+复制timedatectl date timedatectl 输出里应能看到：
+复制Time zone: Asia/Shanghai (CST, +0800) date 输出里也应该出现 CST 或 +0800。这一步只负责时区显示，不负责从网络校准时间。
+二、使用 chrony 校准系统时间 Ubuntu 默认可以使用 systemd-timesyncd 做基础时间同步，但服务器环境更推荐使用 chrony。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。
+先安装 chrony：
+复制sudo apt update sudo apt install -y chrony 编辑配置文件：
+复制sudo nvim /etc/chrony/chrony.conf 清空或覆盖 /etc/chrony/chrony.conf，写入以下完整配置：</description></item></channel></rss>

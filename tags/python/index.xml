@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Python on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/python/</link>
-    <description>Recent content in Python on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/python/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title>
-      <link>http://0.0.0.0:1313/posts/linux/python-sms-bot-systemd/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/python-sms-bot-systemd/</guid>
-      <description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&#xA;准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&#xA;复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：&#xA;复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：&#xA;复制python3 -m venv .venv 安装依赖：&#xA;复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&#xA;准备脚本 把测试通过的桥接脚本放到：&#xA;复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：&#xA;复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Python on 电脑自习室</title><link>https://purodn.tk/tags/python/</link><description>Recent content in Python on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/python/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
+准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
+复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
+复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
+复制python3 -m venv .venv 安装依赖：
+复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
+准备脚本 把测试通过的桥接脚本放到：
+复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
+复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item></channel></rss>

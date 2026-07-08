@@ -1,410 +1,103 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Docker 安装、日志轮转与 IPv6 支持配置 | 电脑自习室</title>
-    <meta name="description" content="记录一台新 Ubuntu/Debian 服务器从 Docker 安装、Compose 插件、Dockge/Portainer 管理面板，到 Docker 日志轮转和按需启用 IPv6 的配置流程。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Docker</span>
-          <time datetime="2026-05-29">2026年5月29日</time>
-        </div>
-        <h1>Docker 安装、日志轮转与 IPv6 支持配置</h1>
-          <p>记录一台新 Ubuntu/Debian 服务器从 Docker 安装、Compose 插件、Dockge/Portainer 管理面板，到 Docker 日志轮转和按需启用 IPv6 的配置流程。</p>
-      </header>
-          <img class="article-cover" src="/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。</p>
-<p>核心建议很简单：</p>
-<ul>
-<li>新机器先把 Docker 和 Docker Compose 装好。</li>
-<li>立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。</li>
-<li>Compose 文件里如果单独配置了 <code>logging</code>，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。</li>
-<li>Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。</li>
-</ul>
-<h2 id="一安装-docker">一、安装 Docker</h2>
-<p>在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sh &lt;<span style="color:#f92672">(</span>curl -sSL https://get.docker.com<span style="color:#f92672">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"sh \u003c(curl -sSL https://get.docker.com)"</script>
-</div>
-<p>安装后检查客户端和服务端版本：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker version</span></span></code></pre></div><script class="code-source" type="application/json">"docker version"</script>
-</div>
-<p>查看 Docker 服务是否能正常列出容器：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps"</script>
-</div>
-<p>如果当前是 <code>root</code> 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 <code>docker</code> 组：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo usermod -aG docker $USER</span></span></code></pre></div><script class="code-source" type="application/json">"sudo usermod -aG docker $USER"</script>
-</div>
-<p>然后重新登录 SSH 会话，再测试：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps"</script>
-</div>
-<p>注意：加入 <code>docker</code> 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</p>
-<h2 id="二安装-docker-compose-插件">二、安装 Docker Compose 插件</h2>
-<p>现在推荐使用 Docker CLI 插件形式的 Compose，也就是执行 <code>docker compose</code>，而不是老的 <code>docker-compose</code> 命令。</p>
-<p>如果系统软件源已经提供可用版本，可以直接安装：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt-get update
-</span></span><span style="display:flex;"><span>sudo apt-get install -y docker-compose-plugin
-</span></span><span style="display:flex;"><span>docker compose version</span></span></code></pre></div><script class="code-source" type="application/json">"sudo apt-get update\nsudo apt-get install -y docker-compose-plugin\ndocker compose version"</script>
-</div>
-<p>如果软件源里的版本太旧，也可以手动从 GitHub 获取最新版本并放到 Docker CLI 插件目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>LATEST<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>curl -sL https://api.github.com/repos/docker/compose/releases/latest | grep <span style="color:#e6db74">&#39;&#34;tag_name&#34;:&#39;</span> | cut -d<span style="color:#e6db74">&#39;&#34;&#39;</span> -f4<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>DOCKER_CONFIG<span style="color:#f92672">=</span><span style="color:#e6db74">${</span>DOCKER_CONFIG<span style="color:#66d9ef">:-</span>$HOME/.docker<span style="color:#e6db74">}</span>
-</span></span><span style="display:flex;"><span>mkdir -p $DOCKER_CONFIG/cli-plugins
-</span></span><span style="display:flex;"><span>curl -sSL https://github.com/docker/compose/releases/download/$LATEST/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
-</span></span><span style="display:flex;"><span>chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
-</span></span><span style="display:flex;"><span>docker compose version</span></span></code></pre></div><script class="code-source" type="application/json">"LATEST=$(curl -sL https://api.github.com/repos/docker/compose/releases/latest | grep '\"tag_name\":' | cut -d'\"' -f4)\nDOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}\nmkdir -p $DOCKER_CONFIG/cli-plugins\ncurl -sSL https://github.com/docker/compose/releases/download/$LATEST/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose\nchmod +x $DOCKER_CONFIG/cli-plugins/docker-compose\ndocker compose version"</script>
-</div>
-<p>如果服务器不是 <code>x86_64</code> 架构，需要把下载文件名里的 <code>linux-x86_64</code> 换成对应架构，例如 <code>linux-aarch64</code>。</p>
-<h2 id="三给-docker-配置全局日志轮转">三、给 Docker 配置全局日志轮转</h2>
-<p>Docker 默认使用 <code>json-file</code> 日志驱动。这个驱动兼容性很好，<code>docker logs</code> 也能直接读取，但如果不设置轮转，容器长期运行后日志文件可能持续变大，最后把系统盘写满。</p>
-<p>建议新装 Docker 后先写入一个全局默认日志配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo mkdir -p /etc/docker
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sudo tee /etc/docker/daemon.json &gt;/dev/null <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">{
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;log-driver&#34;: &#34;json-file&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;log-opts&#34;: {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;max-size&#34;: &#34;20m&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;max-file&#34;: &#34;3&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  }
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sudo systemctl restart docker
-</span></span><span style="display:flex;"><span>docker info --format <span style="color:#e6db74">&#39;LoggingDriver={{.LoggingDriver}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"sudo mkdir -p /etc/docker\n\nsudo tee /etc/docker/daemon.json \u003e/dev/null \u003c\u003c'EOF'\n{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  }\n}\nEOF\n\nsudo systemctl restart docker\ndocker info --format 'LoggingDriver={{.LoggingDriver}}'"</script>
-</div>
-<p>看到下面输出，就说明默认日志驱动仍是 <code>json-file</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>LoggingDriver=json-file</span></span></code></pre></div><script class="code-source" type="application/json">"LoggingDriver=json-file"</script>
-</div>
-<p>这里的含义是：每个容器最多保留 3 个日志文件，每个文件最大约 20 MB，也就是单个容器最多约 60 MB 本地 JSON 日志。</p>
-<p>这个配置是 Docker daemon 的全局默认值。新创建的容器会继承它；如果某个 Compose 文件或 <code>docker run</code> 单独指定了日志配置，则以容器自己的配置为准。</p>
-<h2 id="四compose-里的日志配置会不会冲突">四、Compose 里的日志配置会不会冲突</h2>
-<p>不会冲突。</p>
-<p><code>/etc/docker/daemon.json</code> 里的 <code>log-driver</code> 和 <code>log-opts</code> 是全局默认配置。Compose 文件里的 <code>logging</code> 是容器级配置，会覆盖全局默认值。</p>
-<p>例如某个服务日志比较多，可以在 Compose 中单独调小：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nginx:latest</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#ae81ff">json-file</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;10m&#34;</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: nginx:latest\n    logging:\n      driver: json-file\n      options:\n        max-size: \"10m\"\n        max-file: \"3\""</script>
-</div>
-<p>某个服务需要保留更久，也可以单独调大：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nginx:latest</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#ae81ff">json-file</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;50m&#34;</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: nginx:latest\n    logging:\n      driver: json-file\n      options:\n        max-size: \"50m\"\n        max-file: \"5\""</script>
-</div>
-<p>推荐做法是：daemon 配一个保守兜底，重要服务再在 Compose 里按需覆盖。</p>
-<h2 id="五确认日志轮转是否生效">五、确认日志轮转是否生效</h2>
-<p>查看 Docker 当前日志驱动：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker info --format <span style="color:#e6db74">&#39;LoggingDriver={{.LoggingDriver}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker info --format 'LoggingDriver={{.LoggingDriver}}'"</script>
-</div>
-<p>查看某个容器实际日志配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker inspect &lt;容器名或ID&gt; --format <span style="color:#e6db74">&#39;{{json .HostConfig.LogConfig}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker inspect \u003c容器名或ID\u003e --format '{{json .HostConfig.LogConfig}}'"</script>
-</div>
-<p>例如：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker inspect nginx --format <span style="color:#e6db74">&#39;{{json .HostConfig.LogConfig}}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker inspect nginx --format '{{json .HostConfig.LogConfig}}'"</script>
-</div>
-<p>如果容器已经在修改 <code>daemon.json</code> 之前创建，它不一定会自动继承新的默认日志参数。最稳妥的方式是重建容器：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose down
-</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose down\ndocker compose up -d"</script>
-</div>
-<p>单纯 <code>restart</code> 旧容器不一定会改变它创建时已经固定下来的日志配置。</p>
-<h2 id="六安装-dockge">六、安装 Dockge</h2>
-<p>Dockge 是一个 Docker Compose Web 管理工具。安装前先确认 Compose 可用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose version</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose version"</script>
-</div>
-<p>创建目录并下载官方 Compose 文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /opt/<span style="color:#f92672">{</span>dockge,stacks<span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>wget -q -O /opt/dockge/compose.yaml https://raw.githubusercontent.com/louislam/dockge/master/compose.yaml
-</span></span><span style="display:flex;"><span>cd /opt/dockge
-</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /opt/{dockge,stacks}\nwget -q -O /opt/dockge/compose.yaml https://raw.githubusercontent.com/louislam/dockge/master/compose.yaml\ncd /opt/dockge\ndocker compose up -d"</script>
-</div>
-<p>访问地址：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://虚拟机IP:5001</span></span></code></pre></div><script class="code-source" type="application/json">"http://虚拟机IP:5001"</script>
-</div>
-<p>多数内网环境下，先用 <code>http://IP:5001</code> 验证服务正常即可。后续如果需要公网访问，再考虑通过 Nginx Proxy Manager、Caddy 或 Traefik 加 TLS。</p>
-<h2 id="七安装-portainer">七、安装 Portainer</h2>
-<p>Portainer 是另一个常用 Docker Web 管理面板，适合查看容器、镜像、数据卷、网络和日志。</p>
-<p>创建数据卷：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker volume create portainer_data</span></span></code></pre></div><script class="code-source" type="application/json">"docker volume create portainer_data"</script>
-</div>
-<p>启动 Portainer CE：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -d <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 8000:8000 <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 9443:9443 <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --name<span style="color:#f92672">=</span>portainer <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --restart<span style="color:#f92672">=</span>always <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -v /var/run/docker.sock:/var/run/docker.sock <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -v portainer_data:/data <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  portainer/portainer-ce:latest</span></span></code></pre></div><script class="code-source" type="application/json">"docker run -d \\\n  -p 8000:8000 \\\n  -p 9443:9443 \\\n  --name=portainer \\\n  --restart=always \\\n  -v /var/run/docker.sock:/var/run/docker.sock \\\n  -v portainer_data:/data \\\n  portainer/portainer-ce:latest"</script>
-</div>
-<p>访问地址：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://虚拟机IP:9443</span></span></code></pre></div><script class="code-source" type="application/json">"https://虚拟机IP:9443"</script>
-</div>
-<p>第一次访问会要求创建管理员账号。因为 Portainer 挂载了 <code>/var/run/docker.sock</code>，它对 Docker 的控制权限很高，不建议直接暴露到公网。</p>
-<h2 id="八什么时候需要开启-docker-ipv6">八、什么时候需要开启 Docker IPv6</h2>
-<p>日志轮转建议一开始就配；IPv6 则不是刚装 Docker 的必选项。</p>
-<p>下面这些场景可以考虑开启 Docker IPv6：</p>
-<ul>
-<li>容器需要直接访问 IPv6 网络。</li>
-<li>容器内应用必须监听 IPv6 地址。</li>
-<li>你希望容器网络自己分配 IPv6 地址，而不是只通过宿主机端口映射提供 IPv6 入口。</li>
-<li>你明确知道路由器、防火墙、云安全组和宿主机内核转发都已经准备好。</li>
-</ul>
-<p>下面这些场景通常不需要开启 Docker IPv6：</p>
-<ul>
-<li>只是让宿主机通过 IPv6 访问互联网。</li>
-<li>只是把 Web 服务映射到宿主机端口，再由 Nginx Proxy Manager 或宿主机反代处理。</li>
-<li>只是内网自用 Docker 服务，例如 Dockge、Portainer、普通数据库和缓存。</li>
-</ul>
-<p>如果只是内网新装 Docker，建议先不启用 IPv6，减少变量。</p>
-<h2 id="九按需开启-docker-默认-bridge-的-ipv6">九、按需开启 Docker 默认 bridge 的 IPv6</h2>
-<p>如果确认需要让 Docker 默认 bridge 网络支持 IPv6，可以把日志配置和 IPv6 配置合并到同一个 <code>/etc/docker/daemon.json</code>。</p>
-<p>示例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo tee /etc/docker/daemon.json &gt;/dev/null <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">{
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;log-driver&#34;: &#34;json-file&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;log-opts&#34;: {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;max-size&#34;: &#34;20m&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;max-file&#34;: &#34;3&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  },
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;ipv6&#34;: true,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;fixed-cidr-v6&#34;: &#34;fd00:dead:beef:c0::/80&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  &#34;ip6tables&#34;: true
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sudo systemctl restart docker</span></span></code></pre></div><script class="code-source" type="application/json">"sudo tee /etc/docker/daemon.json \u003e/dev/null \u003c\u003c'EOF'\n{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  },\n  \"ipv6\": true,\n  \"fixed-cidr-v6\": \"fd00:dead:beef:c0::/80\",\n  \"ip6tables\": true\n}\nEOF\n\nsudo systemctl restart docker"</script>
-</div>
-<p>这段配置做了三件事：</p>
-<ul>
-<li><code>ipv6: true</code>：开启 Docker IPv6 功能。</li>
-<li><code>fixed-cidr-v6</code>：给默认 bridge 网络分配一段 IPv6 地址池。</li>
-<li><code>ip6tables: true</code>：让 Docker 管理 IPv6 相关转发规则。</li>
-</ul>
-<p>这里使用的 <code>fd00:dead:beef:c0::/80</code> 是 ULA 内网 IPv6 地址段，只适合作为容器内部地址池。它不是公网 IPv6 前缀，不能让容器自动拥有公网 IPv6 可达性。</p>
-<p>很多旧教程会加：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;experimental&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"experimental\": true"</script>
-</div>
-<p>现在通常不建议为了 IPv6 顺手加这一项。除非你正在使用某个明确依赖 Docker experimental feature 的功能，否则不要把它作为默认配置。</p>
-<h2 id="十用自定义-docker-网络启用-ipv6">十、用自定义 Docker 网络启用 IPv6</h2>
-<p>更推荐的方式是为需要 IPv6 的服务单独建一个用户自定义网络，而不是把所有容器都放到默认 bridge 上。</p>
-<p>创建一个启用 IPv6 的 Docker 网络：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network create <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --ipv6 <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --subnet fd00:dead:beef:100::/64 <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  ipv6net</span></span></code></pre></div><script class="code-source" type="application/json">"docker network create \\\n  --ipv6 \\\n  --subnet fd00:dead:beef:100::/64 \\\n  ipv6net"</script>
-</div>
-<p>Compose 中引用这个外部网络：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nginx:latest</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">ipv6net</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ipv6net</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">ipv6net</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: nginx:latest\n    networks:\n      - ipv6net\n\nnetworks:\n  ipv6net:\n    external: true\n    name: ipv6net"</script>
-</div>
-<p>这种方式更清晰：只有需要 IPv6 的服务接入 <code>ipv6net</code>，其他普通服务继续使用默认网络。</p>
-<h2 id="十一ipv6-排查命令">十一、IPv6 排查命令</h2>
-<p>查看 Docker daemon 配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /etc/docker/daemon.json</span></span></code></pre></div><script class="code-source" type="application/json">"cat /etc/docker/daemon.json"</script>
-</div>
-<p>查看 Docker 网络：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network ls
-</span></span><span style="display:flex;"><span>docker network inspect bridge
-</span></span><span style="display:flex;"><span>docker network inspect ipv6net</span></span></code></pre></div><script class="code-source" type="application/json">"docker network ls\ndocker network inspect bridge\ndocker network inspect ipv6net"</script>
-</div>
-<p>进入容器检查 IPv6 地址：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec -it &lt;容器名&gt; sh
-</span></span><span style="display:flex;"><span>ip -6 addr</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec -it \u003c容器名\u003e sh\nip -6 addr"</script>
-</div>
-<p>从容器内测试 IPv6 出站：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ping -6 2606:4700:4700::1111</span></span></code></pre></div><script class="code-source" type="application/json">"ping -6 2606:4700:4700::1111"</script>
-</div>
-<p>如果容器有 IPv6 地址但无法出站，重点检查宿主机 IPv6 转发、防火墙、上游路由器和云安全组。Docker 分配 ULA 地址并不等于外网能直接访问容器。</p>
-<h2 id="十二推荐最终配置">十二、推荐最终配置</h2>
-<p>新服务器刚装 Docker 时，建议先只使用这一份 <code>/etc/docker/daemon.json</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;log-driver&#34;</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;log-opts&#34;</span>: {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;max-size&#34;</span>: <span style="color:#e6db74">&#34;20m&#34;</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;max-file&#34;</span>: <span style="color:#e6db74">&#34;3&#34;</span>
-</span></span><span style="display:flex;"><span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  }\n}"</script>
-</div>
-<p>这份配置足够解决最实际的问题：避免容器日志无限增长。</p>
-<p>等以后确实需要容器 IPv6，再单独规划 IPv6 网络、地址池、防火墙和路由。不要为了“看起来更完整”把 IPv6、<code>experimental</code> 和日志轮转一次性全塞进去。Docker 是基础设施，刚装好时越清楚、越少变量，后面排障越轻松。</p>
-<h2 id="参考资料">参考资料</h2>
-<ul>
-<li><a href="https://docs.docker.com/engine/install/">Docker Engine 安装文档</a></li>
-<li><a href="https://docs.docker.com/compose/install/linux/">Docker Compose Linux 安装文档</a></li>
-<li><a href="https://docs.docker.com/engine/logging/drivers/json-file/">Docker json-file 日志驱动</a></li>
-<li><a href="https://docs.docker.com/engine/daemon/ipv6/">Docker IPv6 networking</a></li>
-</ul>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Docker 安装、日志轮转与 IPv6 支持配置 | 电脑自习室</title>
+<meta name=description content="记录一台新 Ubuntu/Debian 服务器从 Docker 安装、Compose 插件、Dockge/Portainer 管理面板，到 Docker 日志轮转和按需启用 IPv6 的配置流程。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Docker</span>
+<time datetime=2026-05-29>2026年5月29日</time></div><h1>Docker 安装、日志轮转与 IPv6 支持配置</h1><p>记录一台新 Ubuntu/Debian 服务器从 Docker 安装、Compose 插件、Dockge/Portainer 管理面板，到 Docker 日志轮转和按需启用 IPv6 的配置流程。</p></header><img class=article-cover src=/posts/docker/docker-install-log-rotation-ipv6/assets/cover.svg alt><div class=article-content><p>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。</p><p>核心建议很简单：</p><ul><li>新机器先把 Docker 和 Docker Compose 装好。</li><li>立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。</li><li>Compose 文件里如果单独配置了 <code>logging</code>，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。</li><li>Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。</li></ul><h2 id=一安装-docker>一、安装 Docker</h2><p>在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sh &lt;<span style=color:#f92672>(</span>curl -sSL https://get.docker.com<span style=color:#f92672>)</span></span></span></code></pre></div><script class=code-source type=application/json>"sh \u003c(curl -sSL https://get.docker.com)"</script></div><p>安装后检查客户端和服务端版本：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker version</span></span></code></pre></div><script class=code-source type=application/json>"docker version"</script></div><p>查看 Docker 服务是否能正常列出容器：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker ps</span></span></code></pre></div><script class=code-source type=application/json>"docker ps"</script></div><p>如果当前是 <code>root</code> 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 <code>docker</code> 组：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo usermod -aG docker $USER</span></span></code></pre></div><script class=code-source type=application/json>"sudo usermod -aG docker $USER"</script></div><p>然后重新登录 SSH 会话，再测试：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker ps</span></span></code></pre></div><script class=code-source type=application/json>"docker ps"</script></div><p>注意：加入 <code>docker</code> 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</p><h2 id=二安装-docker-compose-插件>二、安装 Docker Compose 插件</h2><p>现在推荐使用 Docker CLI 插件形式的 Compose，也就是执行 <code>docker compose</code>，而不是老的 <code>docker-compose</code> 命令。</p><p>如果系统软件源已经提供可用版本，可以直接安装：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt-get update
+</span></span><span style=display:flex><span>sudo apt-get install -y docker-compose-plugin
+</span></span><span style=display:flex><span>docker compose version</span></span></code></pre></div><script class=code-source type=application/json>"sudo apt-get update\nsudo apt-get install -y docker-compose-plugin\ndocker compose version"</script></div><p>如果软件源里的版本太旧，也可以手动从 GitHub 获取最新版本并放到 Docker CLI 插件目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>LATEST<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>curl -sL https://api.github.com/repos/docker/compose/releases/latest | grep <span style=color:#e6db74>&#39;&#34;tag_name&#34;:&#39;</span> | cut -d<span style=color:#e6db74>&#39;&#34;&#39;</span> -f4<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>DOCKER_CONFIG<span style=color:#f92672>=</span><span style=color:#e6db74>${</span>DOCKER_CONFIG<span style=color:#66d9ef>:-</span>$HOME/.docker<span style=color:#e6db74>}</span>
+</span></span><span style=display:flex><span>mkdir -p $DOCKER_CONFIG/cli-plugins
+</span></span><span style=display:flex><span>curl -sSL https://github.com/docker/compose/releases/download/$LATEST/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+</span></span><span style=display:flex><span>chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+</span></span><span style=display:flex><span>docker compose version</span></span></code></pre></div><script class=code-source type=application/json>"LATEST=$(curl -sL https://api.github.com/repos/docker/compose/releases/latest | grep '\"tag_name\":' | cut -d'\"' -f4)\nDOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}\nmkdir -p $DOCKER_CONFIG/cli-plugins\ncurl -sSL https://github.com/docker/compose/releases/download/$LATEST/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose\nchmod +x $DOCKER_CONFIG/cli-plugins/docker-compose\ndocker compose version"</script></div><p>如果服务器不是 <code>x86_64</code> 架构，需要把下载文件名里的 <code>linux-x86_64</code> 换成对应架构，例如 <code>linux-aarch64</code>。</p><h2 id=三给-docker-配置全局日志轮转>三、给 Docker 配置全局日志轮转</h2><p>Docker 默认使用 <code>json-file</code> 日志驱动。这个驱动兼容性很好，<code>docker logs</code> 也能直接读取，但如果不设置轮转，容器长期运行后日志文件可能持续变大，最后把系统盘写满。</p><p>建议新装 Docker 后先写入一个全局默认日志配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo mkdir -p /etc/docker
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sudo tee /etc/docker/daemon.json &gt;/dev/null <span style=color:#e6db74>&lt;&lt;&#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;log-driver&#34;: &#34;json-file&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;log-opts&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;max-size&#34;: &#34;20m&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;max-file&#34;: &#34;3&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sudo systemctl restart docker
+</span></span><span style=display:flex><span>docker info --format <span style=color:#e6db74>&#39;LoggingDriver={{.LoggingDriver}}&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"sudo mkdir -p /etc/docker\n\nsudo tee /etc/docker/daemon.json \u003e/dev/null \u003c\u003c'EOF'\n{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  }\n}\nEOF\n\nsudo systemctl restart docker\ndocker info --format 'LoggingDriver={{.LoggingDriver}}'"</script></div><p>看到下面输出，就说明默认日志驱动仍是 <code>json-file</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>LoggingDriver=json-file</span></span></code></pre></div><script class=code-source type=application/json>"LoggingDriver=json-file"</script></div><p>这里的含义是：每个容器最多保留 3 个日志文件，每个文件最大约 20 MB，也就是单个容器最多约 60 MB 本地 JSON 日志。</p><p>这个配置是 Docker daemon 的全局默认值。新创建的容器会继承它；如果某个 Compose 文件或 <code>docker run</code> 单独指定了日志配置，则以容器自己的配置为准。</p><h2 id=四compose-里的日志配置会不会冲突>四、Compose 里的日志配置会不会冲突</h2><p>不会冲突。</p><p><code>/etc/docker/daemon.json</code> 里的 <code>log-driver</code> 和 <code>log-opts</code> 是全局默认配置。Compose 文件里的 <code>logging</code> 是容器级配置，会覆盖全局默认值。</p><p>例如某个服务日志比较多，可以在 Compose 中单独调小：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>app</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>nginx:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>logging</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>driver</span>: <span style=color:#ae81ff>json-file</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>options</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>max-size</span>: <span style=color:#e6db74>&#34;10m&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>max-file</span>: <span style=color:#e6db74>&#34;3&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  app:\n    image: nginx:latest\n    logging:\n      driver: json-file\n      options:\n        max-size: \"10m\"\n        max-file: \"3\""</script></div><p>某个服务需要保留更久，也可以单独调大：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>app</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>nginx:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>logging</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>driver</span>: <span style=color:#ae81ff>json-file</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>options</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>max-size</span>: <span style=color:#e6db74>&#34;50m&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>max-file</span>: <span style=color:#e6db74>&#34;5&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  app:\n    image: nginx:latest\n    logging:\n      driver: json-file\n      options:\n        max-size: \"50m\"\n        max-file: \"5\""</script></div><p>推荐做法是：daemon 配一个保守兜底，重要服务再在 Compose 里按需覆盖。</p><h2 id=五确认日志轮转是否生效>五、确认日志轮转是否生效</h2><p>查看 Docker 当前日志驱动：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker info --format <span style=color:#e6db74>&#39;LoggingDriver={{.LoggingDriver}}&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"docker info --format 'LoggingDriver={{.LoggingDriver}}'"</script></div><p>查看某个容器实际日志配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker inspect &lt;容器名或ID&gt; --format <span style=color:#e6db74>&#39;{{json .HostConfig.LogConfig}}&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"docker inspect \u003c容器名或ID\u003e --format '{{json .HostConfig.LogConfig}}'"</script></div><p>例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker inspect nginx --format <span style=color:#e6db74>&#39;{{json .HostConfig.LogConfig}}&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"docker inspect nginx --format '{{json .HostConfig.LogConfig}}'"</script></div><p>如果容器已经在修改 <code>daemon.json</code> 之前创建，它不一定会自动继承新的默认日志参数。最稳妥的方式是重建容器：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose down
+</span></span><span style=display:flex><span>docker compose up -d</span></span></code></pre></div><script class=code-source type=application/json>"docker compose down\ndocker compose up -d"</script></div><p>单纯 <code>restart</code> 旧容器不一定会改变它创建时已经固定下来的日志配置。</p><h2 id=六安装-dockge>六、安装 Dockge</h2><p>Dockge 是一个 Docker Compose Web 管理工具。安装前先确认 Compose 可用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose version</span></span></code></pre></div><script class=code-source type=application/json>"docker compose version"</script></div><p>创建目录并下载官方 Compose 文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /opt/<span style=color:#f92672>{</span>dockge,stacks<span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>wget -q -O /opt/dockge/compose.yaml https://raw.githubusercontent.com/louislam/dockge/master/compose.yaml
+</span></span><span style=display:flex><span>cd /opt/dockge
+</span></span><span style=display:flex><span>docker compose up -d</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /opt/{dockge,stacks}\nwget -q -O /opt/dockge/compose.yaml https://raw.githubusercontent.com/louislam/dockge/master/compose.yaml\ncd /opt/dockge\ndocker compose up -d"</script></div><p>访问地址：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>http://虚拟机IP:5001</span></span></code></pre></div><script class=code-source type=application/json>"http://虚拟机IP:5001"</script></div><p>多数内网环境下，先用 <code>http://IP:5001</code> 验证服务正常即可。后续如果需要公网访问，再考虑通过 Nginx Proxy Manager、Caddy 或 Traefik 加 TLS。</p><h2 id=七安装-portainer>七、安装 Portainer</h2><p>Portainer 是另一个常用 Docker Web 管理面板，适合查看容器、镜像、数据卷、网络和日志。</p><p>创建数据卷：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker volume create portainer_data</span></span></code></pre></div><script class=code-source type=application/json>"docker volume create portainer_data"</script></div><p>启动 Portainer CE：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker run -d <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -p 8000:8000 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -p 9443:9443 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --name<span style=color:#f92672>=</span>portainer <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --restart<span style=color:#f92672>=</span>always <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -v /var/run/docker.sock:/var/run/docker.sock <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -v portainer_data:/data <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  portainer/portainer-ce:latest</span></span></code></pre></div><script class=code-source type=application/json>"docker run -d \\\n  -p 8000:8000 \\\n  -p 9443:9443 \\\n  --name=portainer \\\n  --restart=always \\\n  -v /var/run/docker.sock:/var/run/docker.sock \\\n  -v portainer_data:/data \\\n  portainer/portainer-ce:latest"</script></div><p>访问地址：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>https://虚拟机IP:9443</span></span></code></pre></div><script class=code-source type=application/json>"https://虚拟机IP:9443"</script></div><p>第一次访问会要求创建管理员账号。因为 Portainer 挂载了 <code>/var/run/docker.sock</code>，它对 Docker 的控制权限很高，不建议直接暴露到公网。</p><h2 id=八什么时候需要开启-docker-ipv6>八、什么时候需要开启 Docker IPv6</h2><p>日志轮转建议一开始就配；IPv6 则不是刚装 Docker 的必选项。</p><p>下面这些场景可以考虑开启 Docker IPv6：</p><ul><li>容器需要直接访问 IPv6 网络。</li><li>容器内应用必须监听 IPv6 地址。</li><li>你希望容器网络自己分配 IPv6 地址，而不是只通过宿主机端口映射提供 IPv6 入口。</li><li>你明确知道路由器、防火墙、云安全组和宿主机内核转发都已经准备好。</li></ul><p>下面这些场景通常不需要开启 Docker IPv6：</p><ul><li>只是让宿主机通过 IPv6 访问互联网。</li><li>只是把 Web 服务映射到宿主机端口，再由 Nginx Proxy Manager 或宿主机反代处理。</li><li>只是内网自用 Docker 服务，例如 Dockge、Portainer、普通数据库和缓存。</li></ul><p>如果只是内网新装 Docker，建议先不启用 IPv6，减少变量。</p><h2 id=九按需开启-docker-默认-bridge-的-ipv6>九、按需开启 Docker 默认 bridge 的 IPv6</h2><p>如果确认需要让 Docker 默认 bridge 网络支持 IPv6，可以把日志配置和 IPv6 配置合并到同一个 <code>/etc/docker/daemon.json</code>。</p><p>示例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo tee /etc/docker/daemon.json &gt;/dev/null <span style=color:#e6db74>&lt;&lt;&#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;log-driver&#34;: &#34;json-file&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;log-opts&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;max-size&#34;: &#34;20m&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;max-file&#34;: &#34;3&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;ipv6&#34;: true,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;fixed-cidr-v6&#34;: &#34;fd00:dead:beef:c0::/80&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;ip6tables&#34;: true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sudo systemctl restart docker</span></span></code></pre></div><script class=code-source type=application/json>"sudo tee /etc/docker/daemon.json \u003e/dev/null \u003c\u003c'EOF'\n{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  },\n  \"ipv6\": true,\n  \"fixed-cidr-v6\": \"fd00:dead:beef:c0::/80\",\n  \"ip6tables\": true\n}\nEOF\n\nsudo systemctl restart docker"</script></div><p>这段配置做了三件事：</p><ul><li><code>ipv6: true</code>：开启 Docker IPv6 功能。</li><li><code>fixed-cidr-v6</code>：给默认 bridge 网络分配一段 IPv6 地址池。</li><li><code>ip6tables: true</code>：让 Docker 管理 IPv6 相关转发规则。</li></ul><p>这里使用的 <code>fd00:dead:beef:c0::/80</code> 是 ULA 内网 IPv6 地址段，只适合作为容器内部地址池。它不是公网 IPv6 前缀，不能让容器自动拥有公网 IPv6 可达性。</p><p>很多旧教程会加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span><span style=color:#e6db74>&#34;experimental&#34;</span><span style=color:#960050;background-color:#1e0010>:</span> <span style=color:#66d9ef>true</span></span></span></code></pre></div><script class=code-source type=application/json>"\"experimental\": true"</script></div><p>现在通常不建议为了 IPv6 顺手加这一项。除非你正在使用某个明确依赖 Docker experimental feature 的功能，否则不要把它作为默认配置。</p><h2 id=十用自定义-docker-网络启用-ipv6>十、用自定义 Docker 网络启用 IPv6</h2><p>更推荐的方式是为需要 IPv6 的服务单独建一个用户自定义网络，而不是把所有容器都放到默认 bridge 上。</p><p>创建一个启用 IPv6 的 Docker 网络：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network create <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --ipv6 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --subnet fd00:dead:beef:100::/64 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  ipv6net</span></span></code></pre></div><script class=code-source type=application/json>"docker network create \\\n  --ipv6 \\\n  --subnet fd00:dead:beef:100::/64 \\\n  ipv6net"</script></div><p>Compose 中引用这个外部网络：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>app</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>nginx:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>ipv6net</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ipv6net</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>external</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ipv6net</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  app:\n    image: nginx:latest\n    networks:\n      - ipv6net\n\nnetworks:\n  ipv6net:\n    external: true\n    name: ipv6net"</script></div><p>这种方式更清晰：只有需要 IPv6 的服务接入 <code>ipv6net</code>，其他普通服务继续使用默认网络。</p><h2 id=十一ipv6-排查命令>十一、IPv6 排查命令</h2><p>查看 Docker daemon 配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /etc/docker/daemon.json</span></span></code></pre></div><script class=code-source type=application/json>"cat /etc/docker/daemon.json"</script></div><p>查看 Docker 网络：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network ls
+</span></span><span style=display:flex><span>docker network inspect bridge
+</span></span><span style=display:flex><span>docker network inspect ipv6net</span></span></code></pre></div><script class=code-source type=application/json>"docker network ls\ndocker network inspect bridge\ndocker network inspect ipv6net"</script></div><p>进入容器检查 IPv6 地址：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker exec -it &lt;容器名&gt; sh
+</span></span><span style=display:flex><span>ip -6 addr</span></span></code></pre></div><script class=code-source type=application/json>"docker exec -it \u003c容器名\u003e sh\nip -6 addr"</script></div><p>从容器内测试 IPv6 出站：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ping -6 2606:4700:4700::1111</span></span></code></pre></div><script class=code-source type=application/json>"ping -6 2606:4700:4700::1111"</script></div><p>如果容器有 IPv6 地址但无法出站，重点检查宿主机 IPv6 转发、防火墙、上游路由器和云安全组。Docker 分配 ULA 地址并不等于外网能直接访问容器。</p><h2 id=十二推荐最终配置>十二、推荐最终配置</h2><p>新服务器刚装 Docker 时，建议先只使用这一份 <code>/etc/docker/daemon.json</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;log-driver&#34;</span>: <span style=color:#e6db74>&#34;json-file&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;log-opts&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;max-size&#34;</span>: <span style=color:#e6db74>&#34;20m&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;max-file&#34;</span>: <span style=color:#e6db74>&#34;3&#34;</span>
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"log-driver\": \"json-file\",\n  \"log-opts\": {\n    \"max-size\": \"20m\",\n    \"max-file\": \"3\"\n  }\n}"</script></div><p>这份配置足够解决最实际的问题：避免容器日志无限增长。</p><p>等以后确实需要容器 IPv6，再单独规划 IPv6 网络、地址池、防火墙和路由。不要为了“看起来更完整”把 IPv6、<code>experimental</code> 和日志轮转一次性全塞进去。Docker 是基础设施，刚装好时越清楚、越少变量，后面排障越轻松。</p><h2 id=参考资料>参考资料</h2><ul><li><a href=https://docs.docker.com/engine/install/>Docker Engine 安装文档</a></li><li><a href=https://docs.docker.com/compose/install/linux/>Docker Compose Linux 安装文档</a></li><li><a href=https://docs.docker.com/engine/logging/drivers/json-file/>Docker json-file 日志驱动</a></li><li><a href=https://docs.docker.com/engine/daemon/ipv6/>Docker IPv6 networking</a></li></ul></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

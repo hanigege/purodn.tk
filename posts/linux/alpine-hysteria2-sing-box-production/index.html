@@ -1,437 +1,144 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入 | 电脑自习室</title>
-    <meta name="description" content="在 Alpine Linux 上部署 Hysteria2 生产节点，使用 OpenRC、自签 TLS、Salamander 混淆和 sing-box 客户端接入，适合长期稳定运行。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-26">2026年5月26日</time>
-        </div>
-        <h1>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</h1>
-          <p>在 Alpine Linux 上部署 Hysteria2 生产节点，使用 OpenRC、自签 TLS、Salamander 混淆和 sing-box 客户端接入，适合长期稳定运行。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/alpine-hysteria2-sing-box-production/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇是 Alpine 版的保姆教程。目标很简单：</p>
-<ul>
-<li>服务端只跑 Hysteria2，监听 <code>443/udp</code></li>
-<li>证书、自启动、日志、内核参数一次配好</li>
-<li>客户端只补一个 outbound，不改现有 TUN 结构</li>
-<li>节点域名和节点 IP 永远走直连，避免回环</li>
-</ul>
-<p>本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。</p>
-<h2 id="先说结论">先说结论</h2>
-<p>Alpine 很适合这类节点：</p>
-<ul>
-<li>系统轻</li>
-<li>OpenRC 简单</li>
-<li>重装干净</li>
-<li>资源占用小</li>
-</ul>
-<p>Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：</p>
-<ol>
-<li><code>443/udp</code> 是否真放通</li>
-<li>域名是否正确解析到服务器公网 IP</li>
-<li>客户端的带宽参数是否和实际家宽大致匹配</li>
-</ol>
-<h2 id="1-检查新系统">1. 检查新系统</h2>
-<p>先确认系统和基础状态：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /etc/os-release
-</span></span><span style="display:flex;"><span>uname -a
-</span></span><span style="display:flex;"><span>cat /etc/alpine-release
-</span></span><span style="display:flex;"><span>ps -ef | grep -i <span style="color:#e6db74">&#39;[h]ysteria&#39;</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>ss -lntup 2&gt;/dev/null | grep -E <span style="color:#e6db74">&#39;:443|hysteria|hy2&#39;</span> <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>apk --version</span></span></code></pre></div><script class="code-source" type="application/json">"cat /etc/os-release\nuname -a\ncat /etc/alpine-release\nps -ef | grep -i '[h]ysteria' || true\nss -lntup 2\u003e/dev/null | grep -E ':443|hysteria|hy2' || true\napk --version"</script>
-</div>
-<p>干净的新机一般不会有 Hysteria2 进程，也不会有 <code>443/udp</code> 监听。</p>
-<p>再看一下防火墙和解析：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>getent hosts proxy.example.com</span></span></code></pre></div><script class="code-source" type="application/json">"getent hosts proxy.example.com"</script>
-</div>
-<p><code>proxy.example.com</code> 这里只是示例。正式环境里换成你的真实域名。</p>
-<h2 id="2-安装依赖">2. 安装依赖</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk add --no-cache curl ca-certificates openssl</span></span></code></pre></div><script class="code-source" type="application/json">"apk add --no-cache curl ca-certificates openssl"</script>
-</div>
-<p>如果你打算长期维护，建议顺手也把常用工具装上：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apk add --no-cache bash vim jq iproute2</span></span></code></pre></div><script class="code-source" type="application/json">"apk add --no-cache bash vim jq iproute2"</script>
-</div>
-<h2 id="3-安装-hysteria2">3. 安装 Hysteria2</h2>
-<p>直接下载官方 Linux amd64 二进制即可。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL -o /usr/local/bin/hysteria <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  https://download.hysteria.network/app/latest/hysteria-linux-amd64
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /usr/local/bin/hysteria
-</span></span><span style="display:flex;"><span>/usr/local/bin/hysteria version</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL -o /usr/local/bin/hysteria \\\n  https://download.hysteria.network/app/latest/hysteria-linux-amd64\n\nchmod 755 /usr/local/bin/hysteria\n/usr/local/bin/hysteria version"</script>
-</div>
-<p>如果你想固定版本，也可以改成某个 release。</p>
-<h2 id="4-生成证书">4. 生成证书</h2>
-<p>Hysteria2 自用节点通常直接上自签证书就够了。客户端保持 <code>insecure: true</code>，但 <code>server_name</code> 仍然要和证书 CN/SAN 保持一致。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> /etc/hysteria /var/log
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>DOMAIN<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;proxy.example.com&#39;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>openssl req -x509 -nodes -newkey ed25519 -days <span style="color:#ae81ff">3650</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -subj <span style="color:#e6db74">&#34;/CN=</span><span style="color:#e6db74">${</span>DOMAIN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -addext <span style="color:#e6db74">&#34;subjectAltName=DNS:</span><span style="color:#e6db74">${</span>DOMAIN<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -keyout /etc/hysteria/server.key <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -out /etc/hysteria/server.crt
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /etc/hysteria/server.key
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">644</span> /etc/hysteria/server.crt</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 755 /etc/hysteria /var/log\n\nDOMAIN='proxy.example.com'\n\nopenssl req -x509 -nodes -newkey ed25519 -days 3650 \\\n  -subj \"/CN=${DOMAIN}\" \\\n  -addext \"subjectAltName=DNS:${DOMAIN}\" \\\n  -keyout /etc/hysteria/server.key \\\n  -out /etc/hysteria/server.crt\n\nchmod 600 /etc/hysteria/server.key\nchmod 644 /etc/hysteria/server.crt"</script>
-</div>
-<p>检查一下：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl x509 -in /etc/hysteria/server.crt -noout -subject -issuer -dates</span></span></code></pre></div><script class="code-source" type="application/json">"openssl x509 -in /etc/hysteria/server.crt -noout -subject -issuer -dates"</script>
-</div>
-<h2 id="5-服务端配置">5. 服务端配置</h2>
-<p>编辑 <code>/etc/hysteria/config.yaml</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">listen</span>: :<span style="color:#ae81ff">443</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">tls</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cert</span>: <span style="color:#ae81ff">/etc/hysteria/server.crt</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">key</span>: <span style="color:#ae81ff">/etc/hysteria/server.key</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">auth</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">type</span>: <span style="color:#ae81ff">password</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">password</span>: <span style="color:#ae81ff">HY2_AUTH_PASSWORD</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">obfs</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">type</span>: <span style="color:#ae81ff">salamander</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">salamander</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">password</span>: <span style="color:#ae81ff">HY2_OBFS_PASSWORD</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">masquerade</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">type</span>: <span style="color:#ae81ff">proxy</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">proxy</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">url</span>: <span style="color:#ae81ff">https://www.cloudflarestatus.com/</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">rewriteHost</span>: <span style="color:#66d9ef">true</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">ignoreClientBandwidth</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">acl</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">inline</span>:
-</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">reject(all, udp/25)</span>
-</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">reject(all, tcp/25)</span>
-</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">reject(geoip:private)</span>
-</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">direct(all)</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">resolver</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">type</span>: <span style="color:#ae81ff">udp</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">udp</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">addr</span>: <span style="color:#ae81ff">1.1.1.1</span>:<span style="color:#ae81ff">53</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">timeout</span>: <span style="color:#ae81ff">4s</span></span></span></code></pre></div><script class="code-source" type="application/json">"listen: :443\n\ntls:\n  cert: /etc/hysteria/server.crt\n  key: /etc/hysteria/server.key\n\nauth:\n  type: password\n  password: HY2_AUTH_PASSWORD\n\nobfs:\n  type: salamander\n  salamander:\n    password: HY2_OBFS_PASSWORD\n\nmasquerade:\n  type: proxy\n  proxy:\n    url: https://www.cloudflarestatus.com/\n    rewriteHost: true\n\nignoreClientBandwidth: false\n\nacl:\n  inline:\n    - reject(all, udp/25)\n    - reject(all, tcp/25)\n    - reject(geoip:private)\n    - direct(all)\n\nresolver:\n  type: udp\n  udp:\n    addr: 1.1.1.1:53\n    timeout: 4s"</script>
-</div>
-<p>这里几个点最重要：</p>
-<ul>
-<li><code>listen: :443</code> 是 UDP 443</li>
-<li><code>auth.password</code> 是客户端连接密码</li>
-<li><code>obfs.salamander.password</code> 是混淆密码</li>
-<li><code>ignoreClientBandwidth: false</code> 表示接受客户端上报的带宽</li>
-<li><code>acl</code> 里直接拒绝私网和 SMTP，少给自己惹麻烦</li>
-</ul>
-<h2 id="6-带宽怎么填">6. 带宽怎么填</h2>
-<p>Hysteria2 的 <code>up_mbps</code> / <code>down_mbps</code> 不是普通意义上的硬限速按钮。它更像是告诉协议“这条链路大概有多快”，让它自己调整节奏。</p>
-<p>对于家宽 <code>300/50</code>，我会先从这些值开始试：</p>
-<ul>
-<li><code>50/300</code></li>
-<li><code>60/360</code></li>
-<li><code>70/380</code></li>
-</ul>
-<p>我这次实测更偏向 <code>60/360</code>。太低速度上不去，太高有时反而抖。</p>
-<p>如果你想在服务端强行统一上限，再加：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">bandwidth</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">up</span>: <span style="color:#ae81ff">60</span> <span style="color:#ae81ff">mbps</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">down</span>: <span style="color:#ae81ff">360</span> <span style="color:#ae81ff">mbps</span></span></span></code></pre></div><script class="code-source" type="application/json">"bandwidth:\n  up: 60 mbps\n  down: 360 mbps"</script>
-</div>
-<p>两者关系可以这样理解：</p>
-<ul>
-<li><code>ignoreClientBandwidth: false</code> 时，服务端接受客户端声明</li>
-<li><code>ignoreClientBandwidth: true</code> 时，服务端只看自己的 <code>bandwidth</code></li>
-</ul>
-<p>自用节点一般先别加 <code>bandwidth</code>，先把客户端值调顺。</p>
-<h2 id="7-openrc-服务">7. OpenRC 服务</h2>
-<p>Alpine 用 OpenRC，不是 systemd。</p>
-<p>创建 <code>/etc/init.d/hysteria</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/sbin/openrc-run
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span>name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hysteria&#34;</span>
-</span></span><span style="display:flex;"><span>description<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Hysteria2 server&#34;</span>
-</span></span><span style="display:flex;"><span>command<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/usr/local/bin/hysteria&#34;</span>
-</span></span><span style="display:flex;"><span>command_args<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;server -c /etc/hysteria/config.yaml&#34;</span>
-</span></span><span style="display:flex;"><span>command_background<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;yes&#34;</span>
-</span></span><span style="display:flex;"><span>pidfile<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/run/</span><span style="color:#e6db74">${</span>RC_SVCNAME<span style="color:#e6db74">}</span><span style="color:#e6db74">.pid&#34;</span>
-</span></span><span style="display:flex;"><span>output_log<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/var/log/hysteria.log&#34;</span>
-</span></span><span style="display:flex;"><span>error_log<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/var/log/hysteria.err&#34;</span>
-</span></span><span style="display:flex;"><span>start_stop_daemon_args<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;--make-pidfile --pidfile </span><span style="color:#e6db74">${</span>pidfile<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>depend<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>  need net
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"#!/sbin/openrc-run\n\nname=\"hysteria\"\ndescription=\"Hysteria2 server\"\ncommand=\"/usr/local/bin/hysteria\"\ncommand_args=\"server -c /etc/hysteria/config.yaml\"\ncommand_background=\"yes\"\npidfile=\"/run/${RC_SVCNAME}.pid\"\noutput_log=\"/var/log/hysteria.log\"\nerror_log=\"/var/log/hysteria.err\"\nstart_stop_daemon_args=\"--make-pidfile --pidfile ${pidfile}\"\n\ndepend() {\n  need net\n}"</script>
-</div>
-<p>然后：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /etc/init.d/hysteria
-</span></span><span style="display:flex;"><span>rc-update add hysteria default
-</span></span><span style="display:flex;"><span>rc-service hysteria start
-</span></span><span style="display:flex;"><span>rc-service hysteria status</span></span></code></pre></div><script class="code-source" type="application/json">"chmod 755 /etc/init.d/hysteria\nrc-update add hysteria default\nrc-service hysteria start\nrc-service hysteria status"</script>
-</div>
-<p>查看日志：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tail -f /var/log/hysteria.log</span></span></code></pre></div><script class="code-source" type="application/json">"tail -f /var/log/hysteria.log"</script>
-</div>
-<h2 id="8-内核参数">8. 内核参数</h2>
-<p>可以先把 UDP 缓冲和通用 TCP 参数配上：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat &gt; /etc/sysctl.d/99-hysteria2.conf <span style="color:#e6db74">&lt;&lt;&#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.default_qdisc=fq
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.ipv4.tcp_congestion_control=bbr
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.rmem_max=67108864
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.wmem_max=67108864
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.rmem_default=8388608
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.wmem_default=8388608
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.ipv4.udp_rmem_min=16384
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.ipv4.udp_wmem_min=16384
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sysctl -p /etc/sysctl.d/99-hysteria2.conf</span></span></code></pre></div><script class="code-source" type="application/json">"cat \u003e /etc/sysctl.d/99-hysteria2.conf \u003c\u003c'EOF'\nnet.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\nnet.core.rmem_max=67108864\nnet.core.wmem_max=67108864\nnet.core.rmem_default=8388608\nnet.core.wmem_default=8388608\nnet.ipv4.udp_rmem_min=16384\nnet.ipv4.udp_wmem_min=16384\nEOF\n\nsysctl -p /etc/sysctl.d/99-hysteria2.conf"</script>
-</div>
-<p>这段不是玄学加速。Hysteria2 主链路是 QUIC over UDP，所以真正和它关系更近的是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.core.rmem_max
-</span></span><span style="display:flex;"><span>net.core.wmem_max
-</span></span><span style="display:flex;"><span>net.core.rmem_default
-</span></span><span style="display:flex;"><span>net.core.wmem_default
-</span></span><span style="display:flex;"><span>net.ipv4.udp_rmem_min
-</span></span><span style="display:flex;"><span>net.ipv4.udp_wmem_min</span></span></code></pre></div><script class="code-source" type="application/json">"net.core.rmem_max\nnet.core.wmem_max\nnet.core.rmem_default\nnet.core.wmem_default\nnet.ipv4.udp_rmem_min\nnet.ipv4.udp_wmem_min"</script>
-</div>
-<p>这些参数提高 socket 收发缓冲，在高延迟、高吞吐或者瞬时突发时更稳一些。</p>
-<p>下面两项则主要是通用 Linux TCP 优化：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.core.default_qdisc=fq
-</span></span><span style="display:flex;"><span>net.ipv4.tcp_congestion_control=bbr</span></span></code></pre></div><script class="code-source" type="application/json">"net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr"</script>
-</div>
-<p>它们对 Hysteria2 的 UDP 主链路不是决定性因素，但对系统更新、普通 HTTPS 出站、测速下载等 TCP 流量有帮助。生产节点保留没问题，但不要期待它们把 HY2 延迟直接打下来。</p>
-<h2 id="9-客户端接入">9. 客户端接入</h2>
-<p>客户端保持原有 sing-box 结构，只新增节点。</p>
-<p><code>/etc/sing-box/conf/04_outbounds.json</code> 里加：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;hysteria2&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;tag&#34;</span>: <span style="color:#e6db74">&#34;US-232-hy2&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;server&#34;</span>: <span style="color:#e6db74">&#34;proxy.example.com&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;server_port&#34;</span>: <span style="color:#ae81ff">443</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;up_mbps&#34;</span>: <span style="color:#ae81ff">30</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;down_mbps&#34;</span>: <span style="color:#ae81ff">220</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;password&#34;</span>: <span style="color:#e6db74">&#34;HY2_AUTH_PASSWORD&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;obfs&#34;</span>: {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;salamander&#34;</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;password&#34;</span>: <span style="color:#e6db74">&#34;HY2_OBFS_PASSWORD&#34;</span>
-</span></span><span style="display:flex;"><span>  },
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;tls&#34;</span>: {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;server_name&#34;</span>: <span style="color:#e6db74">&#34;proxy.example.com&#34;</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;insecure&#34;</span>: <span style="color:#66d9ef">true</span>
-</span></span><span style="display:flex;"><span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"type\": \"hysteria2\",\n  \"tag\": \"US-232-hy2\",\n  \"server\": \"proxy.example.com\",\n  \"server_port\": 443,\n  \"up_mbps\": 30,\n  \"down_mbps\": 220,\n  \"password\": \"HY2_AUTH_PASSWORD\",\n  \"obfs\": {\n    \"type\": \"salamander\",\n    \"password\": \"HY2_OBFS_PASSWORD\"\n  },\n  \"tls\": {\n    \"enabled\": true,\n    \"server_name\": \"proxy.example.com\",\n    \"insecure\": true\n  }\n}"</script>
-</div>
-<p>然后把这个 tag 加进主 selector 和需要的分组 selector。</p>
-<h2 id="10-路由里先直连节点">10. 路由里先直连节点</h2>
-<p><code>/etc/sing-box/conf/05_route.json</code> 的规则最前面加节点域名和 IP 直连：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;domain&#34;</span>: [
-</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;proxy.example.com&#34;</span>
-</span></span><span style="display:flex;"><span>  ],
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ip_cidr&#34;</span>: [
-</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;192.0.2.10/32&#34;</span>
-</span></span><span style="display:flex;"><span>  ],
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;outbound&#34;</span>: <span style="color:#e6db74">&#34;direct&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"domain\": [\n    \"proxy.example.com\"\n  ],\n  \"ip_cidr\": [\n    \"192.0.2.10/32\"\n  ],\n  \"outbound\": \"direct\"\n}"</script>
-</div>
-<p>这步不能省。否则节点本身也会被代理，轻则测速失败，重则自己绕自己。</p>
-<h2 id="11-校验">11. 校验</h2>
-<p>客户端：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sing-box check -C /etc/sing-box/conf
-</span></span><span style="display:flex;"><span>systemctl restart sing-box
-</span></span><span style="display:flex;"><span>systemctl is-active sing-box</span></span></code></pre></div><script class="code-source" type="application/json">"sing-box check -C /etc/sing-box/conf\nsystemctl restart sing-box\nsystemctl is-active sing-box"</script>
-</div>
-<p>服务端：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-service hysteria status
-</span></span><span style="display:flex;"><span>tail -n <span style="color:#ae81ff">40</span> /var/log/hysteria.log</span></span></code></pre></div><script class="code-source" type="application/json">"rc-service hysteria status\ntail -n 40 /var/log/hysteria.log"</script>
-</div>
-<p>如果正常，会看到类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>server up and running
-</span></span><span style="display:flex;"><span>client connected</span></span></code></pre></div><script class="code-source" type="application/json">"server up and running\nclient connected"</script>
-</div>
-<p>面板里也可以测延迟：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -sS <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  <span style="color:#e6db74">&#39;http://127.0.0.1:9090/proxies/US-232-hy2/delay?timeout=10000&amp;url=https://www.gstatic.com/generate_204&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -sS \\\n  'http://127.0.0.1:9090/proxies/US-232-hy2/delay?timeout=10000\u0026url=https://www.gstatic.com/generate_204'"</script>
-</div>
-<h2 id="12-常见坑">12. 常见坑</h2>
-<h3 id="证书不对">证书不对</h3>
-<p><code>server_name</code>、证书 CN/SAN、域名三者最好一致。</p>
-<h3 id="只开了-tcp-443">只开了 TCP 443</h3>
-<p>Hysteria2 需要的是 <code>443/udp</code>，不是 TCP 443。</p>
-<h3 id="带宽填太大">带宽填太大</h3>
-<p>速度不一定更快，尤其是家宽和跨境线。先从保守值开始。</p>
-<h3 id="客户端选了节点但游戏不走">客户端选了节点但游戏不走</h3>
-<p>这通常不是节点坏了，而是前面的 DNS 分流把域名先处理掉了。要让游戏稳定，必须把 Riot/LoL 域名从 fake-ip 链路里拿出来，走 real-ip。</p>
-<h2 id="13-我这次的落地经验">13. 我这次的落地经验</h2>
-<p>这台 Alpine 232 机器最后跑起来了，面板 API 延迟看起来仍然比 146 / 209 高一些，但实际 YouTube 业务测速能稳定到 <code>118 Mbps</code> 左右，4K60 播放没有问题。对家宽和这条代理线路来说，这基本已经接近可用上限。</p>
-<p>这说明两件事：</p>
-<ul>
-<li>API delay 只能看连通性和大致延迟，不能单独代表真实吞吐。</li>
-<li>生产节点最终还是要看真实业务，比如 YouTube Stats、下载速度、长时间播放和掉帧情况。</li>
-</ul>
-<p>所以这台 Alpine 232 不是“延迟数字不好就不能用”。它更适合作为高吞吐流媒体节点；如果是游戏、语音这类延迟敏感场景，再优先选延迟更低的 146 / 209。</p>
-<h2 id="14-收尾">14. 收尾</h2>
-<p>当你完成部署后，建议保留这些东西：</p>
-<ul>
-<li><code>/etc/hysteria/config.yaml</code></li>
-<li><code>/etc/hysteria/server.crt</code></li>
-<li><code>/etc/hysteria/server.key</code></li>
-<li><code>/etc/init.d/hysteria</code></li>
-<li>客户端 <code>04_outbounds.json</code></li>
-<li>客户端 <code>05_route.json</code></li>
-</ul>
-<p>以后重装 Alpine，照着这份教程重新铺一遍就行。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入 | 电脑自习室</title>
+<meta name=description content="在 Alpine Linux 上部署 Hysteria2 生产节点，使用 OpenRC、自签 TLS、Salamander 混淆和 sing-box 客户端接入，适合长期稳定运行。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-26>2026年5月26日</time></div><h1>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</h1><p>在 Alpine Linux 上部署 Hysteria2 生产节点，使用 OpenRC、自签 TLS、Salamander 混淆和 sing-box 客户端接入，适合长期稳定运行。</p></header><img class=article-cover src=/posts/linux/alpine-hysteria2-sing-box-production/assets/cover.svg alt><div class=article-content><p>这篇是 Alpine 版的保姆教程。目标很简单：</p><ul><li>服务端只跑 Hysteria2，监听 <code>443/udp</code></li><li>证书、自启动、日志、内核参数一次配好</li><li>客户端只补一个 outbound，不改现有 TUN 结构</li><li>节点域名和节点 IP 永远走直连，避免回环</li></ul><p>本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。</p><h2 id=先说结论>先说结论</h2><p>Alpine 很适合这类节点：</p><ul><li>系统轻</li><li>OpenRC 简单</li><li>重装干净</li><li>资源占用小</li></ul><p>Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：</p><ol><li><code>443/udp</code> 是否真放通</li><li>域名是否正确解析到服务器公网 IP</li><li>客户端的带宽参数是否和实际家宽大致匹配</li></ol><h2 id=1-检查新系统>1. 检查新系统</h2><p>先确认系统和基础状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /etc/os-release
+</span></span><span style=display:flex><span>uname -a
+</span></span><span style=display:flex><span>cat /etc/alpine-release
+</span></span><span style=display:flex><span>ps -ef | grep -i <span style=color:#e6db74>&#39;[h]ysteria&#39;</span> <span style=color:#f92672>||</span> true
+</span></span><span style=display:flex><span>ss -lntup 2&gt;/dev/null | grep -E <span style=color:#e6db74>&#39;:443|hysteria|hy2&#39;</span> <span style=color:#f92672>||</span> true
+</span></span><span style=display:flex><span>apk --version</span></span></code></pre></div><script class=code-source type=application/json>"cat /etc/os-release\nuname -a\ncat /etc/alpine-release\nps -ef | grep -i '[h]ysteria' || true\nss -lntup 2\u003e/dev/null | grep -E ':443|hysteria|hy2' || true\napk --version"</script></div><p>干净的新机一般不会有 Hysteria2 进程，也不会有 <code>443/udp</code> 监听。</p><p>再看一下防火墙和解析：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>getent hosts proxy.example.com</span></span></code></pre></div><script class=code-source type=application/json>"getent hosts proxy.example.com"</script></div><p><code>proxy.example.com</code> 这里只是示例。正式环境里换成你的真实域名。</p><h2 id=2-安装依赖>2. 安装依赖</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apk add --no-cache curl ca-certificates openssl</span></span></code></pre></div><script class=code-source type=application/json>"apk add --no-cache curl ca-certificates openssl"</script></div><p>如果你打算长期维护，建议顺手也把常用工具装上：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apk add --no-cache bash vim jq iproute2</span></span></code></pre></div><script class=code-source type=application/json>"apk add --no-cache bash vim jq iproute2"</script></div><h2 id=3-安装-hysteria2>3. 安装 Hysteria2</h2><p>直接下载官方 Linux amd64 二进制即可。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -fsSL -o /usr/local/bin/hysteria <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  https://download.hysteria.network/app/latest/hysteria-linux-amd64
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>755</span> /usr/local/bin/hysteria
+</span></span><span style=display:flex><span>/usr/local/bin/hysteria version</span></span></code></pre></div><script class=code-source type=application/json>"curl -fsSL -o /usr/local/bin/hysteria \\\n  https://download.hysteria.network/app/latest/hysteria-linux-amd64\n\nchmod 755 /usr/local/bin/hysteria\n/usr/local/bin/hysteria version"</script></div><p>如果你想固定版本，也可以改成某个 release。</p><h2 id=4-生成证书>4. 生成证书</h2><p>Hysteria2 自用节点通常直接上自签证书就够了。客户端保持 <code>insecure: true</code>，但 <code>server_name</code> 仍然要和证书 CN/SAN 保持一致。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>install -d -m <span style=color:#ae81ff>755</span> /etc/hysteria /var/log
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>DOMAIN<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;proxy.example.com&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>openssl req -x509 -nodes -newkey ed25519 -days <span style=color:#ae81ff>3650</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -subj <span style=color:#e6db74>&#34;/CN=</span><span style=color:#e6db74>${</span>DOMAIN<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -addext <span style=color:#e6db74>&#34;subjectAltName=DNS:</span><span style=color:#e6db74>${</span>DOMAIN<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -keyout /etc/hysteria/server.key <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -out /etc/hysteria/server.crt
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>600</span> /etc/hysteria/server.key
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>644</span> /etc/hysteria/server.crt</span></span></code></pre></div><script class=code-source type=application/json>"install -d -m 755 /etc/hysteria /var/log\n\nDOMAIN='proxy.example.com'\n\nopenssl req -x509 -nodes -newkey ed25519 -days 3650 \\\n  -subj \"/CN=${DOMAIN}\" \\\n  -addext \"subjectAltName=DNS:${DOMAIN}\" \\\n  -keyout /etc/hysteria/server.key \\\n  -out /etc/hysteria/server.crt\n\nchmod 600 /etc/hysteria/server.key\nchmod 644 /etc/hysteria/server.crt"</script></div><p>检查一下：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>openssl x509 -in /etc/hysteria/server.crt -noout -subject -issuer -dates</span></span></code></pre></div><script class=code-source type=application/json>"openssl x509 -in /etc/hysteria/server.crt -noout -subject -issuer -dates"</script></div><h2 id=5-服务端配置>5. 服务端配置</h2><p>编辑 <code>/etc/hysteria/config.yaml</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>listen</span>: :<span style=color:#ae81ff>443</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>tls</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>cert</span>: <span style=color:#ae81ff>/etc/hysteria/server.crt</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>key</span>: <span style=color:#ae81ff>/etc/hysteria/server.key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>auth</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>password</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: <span style=color:#ae81ff>HY2_AUTH_PASSWORD</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>obfs</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>salamander</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>salamander</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>password</span>: <span style=color:#ae81ff>HY2_OBFS_PASSWORD</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>masquerade</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>proxy</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>proxy</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>url</span>: <span style=color:#ae81ff>https://www.cloudflarestatus.com/</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>rewriteHost</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>ignoreClientBandwidth</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>acl</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>inline</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>reject(all, udp/25)</span>
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>reject(all, tcp/25)</span>
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>reject(geoip:private)</span>
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>direct(all)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>resolver</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>udp</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>udp</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>addr</span>: <span style=color:#ae81ff>1.1.1.1</span>:<span style=color:#ae81ff>53</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>timeout</span>: <span style=color:#ae81ff>4s</span></span></span></code></pre></div><script class=code-source type=application/json>"listen: :443\n\ntls:\n  cert: /etc/hysteria/server.crt\n  key: /etc/hysteria/server.key\n\nauth:\n  type: password\n  password: HY2_AUTH_PASSWORD\n\nobfs:\n  type: salamander\n  salamander:\n    password: HY2_OBFS_PASSWORD\n\nmasquerade:\n  type: proxy\n  proxy:\n    url: https://www.cloudflarestatus.com/\n    rewriteHost: true\n\nignoreClientBandwidth: false\n\nacl:\n  inline:\n    - reject(all, udp/25)\n    - reject(all, tcp/25)\n    - reject(geoip:private)\n    - direct(all)\n\nresolver:\n  type: udp\n  udp:\n    addr: 1.1.1.1:53\n    timeout: 4s"</script></div><p>这里几个点最重要：</p><ul><li><code>listen: :443</code> 是 UDP 443</li><li><code>auth.password</code> 是客户端连接密码</li><li><code>obfs.salamander.password</code> 是混淆密码</li><li><code>ignoreClientBandwidth: false</code> 表示接受客户端上报的带宽</li><li><code>acl</code> 里直接拒绝私网和 SMTP，少给自己惹麻烦</li></ul><h2 id=6-带宽怎么填>6. 带宽怎么填</h2><p>Hysteria2 的 <code>up_mbps</code> / <code>down_mbps</code> 不是普通意义上的硬限速按钮。它更像是告诉协议“这条链路大概有多快”，让它自己调整节奏。</p><p>对于家宽 <code>300/50</code>，我会先从这些值开始试：</p><ul><li><code>50/300</code></li><li><code>60/360</code></li><li><code>70/380</code></li></ul><p>我这次实测更偏向 <code>60/360</code>。太低速度上不去，太高有时反而抖。</p><p>如果你想在服务端强行统一上限，再加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>bandwidth</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>up</span>: <span style=color:#ae81ff>60</span> <span style=color:#ae81ff>mbps</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>down</span>: <span style=color:#ae81ff>360</span> <span style=color:#ae81ff>mbps</span></span></span></code></pre></div><script class=code-source type=application/json>"bandwidth:\n  up: 60 mbps\n  down: 360 mbps"</script></div><p>两者关系可以这样理解：</p><ul><li><code>ignoreClientBandwidth: false</code> 时，服务端接受客户端声明</li><li><code>ignoreClientBandwidth: true</code> 时，服务端只看自己的 <code>bandwidth</code></li></ul><p>自用节点一般先别加 <code>bandwidth</code>，先把客户端值调顺。</p><h2 id=7-openrc-服务>7. OpenRC 服务</h2><p>Alpine 用 OpenRC，不是 systemd。</p><p>创建 <code>/etc/init.d/hysteria</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span><span style=color:#75715e>#!/sbin/openrc-run
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;hysteria&#34;</span>
+</span></span><span style=display:flex><span>description<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Hysteria2 server&#34;</span>
+</span></span><span style=display:flex><span>command<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/usr/local/bin/hysteria&#34;</span>
+</span></span><span style=display:flex><span>command_args<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;server -c /etc/hysteria/config.yaml&#34;</span>
+</span></span><span style=display:flex><span>command_background<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;yes&#34;</span>
+</span></span><span style=display:flex><span>pidfile<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/run/</span><span style=color:#e6db74>${</span>RC_SVCNAME<span style=color:#e6db74>}</span><span style=color:#e6db74>.pid&#34;</span>
+</span></span><span style=display:flex><span>output_log<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/var/log/hysteria.log&#34;</span>
+</span></span><span style=display:flex><span>error_log<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/var/log/hysteria.err&#34;</span>
+</span></span><span style=display:flex><span>start_stop_daemon_args<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;--make-pidfile --pidfile </span><span style=color:#e6db74>${</span>pidfile<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>depend<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>  need net
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"#!/sbin/openrc-run\n\nname=\"hysteria\"\ndescription=\"Hysteria2 server\"\ncommand=\"/usr/local/bin/hysteria\"\ncommand_args=\"server -c /etc/hysteria/config.yaml\"\ncommand_background=\"yes\"\npidfile=\"/run/${RC_SVCNAME}.pid\"\noutput_log=\"/var/log/hysteria.log\"\nerror_log=\"/var/log/hysteria.err\"\nstart_stop_daemon_args=\"--make-pidfile --pidfile ${pidfile}\"\n\ndepend() {\n  need net\n}"</script></div><p>然后：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>chmod <span style=color:#ae81ff>755</span> /etc/init.d/hysteria
+</span></span><span style=display:flex><span>rc-update add hysteria default
+</span></span><span style=display:flex><span>rc-service hysteria start
+</span></span><span style=display:flex><span>rc-service hysteria status</span></span></code></pre></div><script class=code-source type=application/json>"chmod 755 /etc/init.d/hysteria\nrc-update add hysteria default\nrc-service hysteria start\nrc-service hysteria status"</script></div><p>查看日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>tail -f /var/log/hysteria.log</span></span></code></pre></div><script class=code-source type=application/json>"tail -f /var/log/hysteria.log"</script></div><h2 id=8-内核参数>8. 内核参数</h2><p>可以先把 UDP 缓冲和通用 TCP 参数配上：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat &gt; /etc/sysctl.d/99-hysteria2.conf <span style=color:#e6db74>&lt;&lt;&#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.default_qdisc=fq
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.ipv4.tcp_congestion_control=bbr
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.rmem_max=67108864
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.wmem_max=67108864
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.rmem_default=8388608
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.wmem_default=8388608
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.ipv4.udp_rmem_min=16384
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.ipv4.udp_wmem_min=16384
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sysctl -p /etc/sysctl.d/99-hysteria2.conf</span></span></code></pre></div><script class=code-source type=application/json>"cat \u003e /etc/sysctl.d/99-hysteria2.conf \u003c\u003c'EOF'\nnet.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\nnet.core.rmem_max=67108864\nnet.core.wmem_max=67108864\nnet.core.rmem_default=8388608\nnet.core.wmem_default=8388608\nnet.ipv4.udp_rmem_min=16384\nnet.ipv4.udp_wmem_min=16384\nEOF\n\nsysctl -p /etc/sysctl.d/99-hysteria2.conf"</script></div><p>这段不是玄学加速。Hysteria2 主链路是 QUIC over UDP，所以真正和它关系更近的是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>net.core.rmem_max
+</span></span><span style=display:flex><span>net.core.wmem_max
+</span></span><span style=display:flex><span>net.core.rmem_default
+</span></span><span style=display:flex><span>net.core.wmem_default
+</span></span><span style=display:flex><span>net.ipv4.udp_rmem_min
+</span></span><span style=display:flex><span>net.ipv4.udp_wmem_min</span></span></code></pre></div><script class=code-source type=application/json>"net.core.rmem_max\nnet.core.wmem_max\nnet.core.rmem_default\nnet.core.wmem_default\nnet.ipv4.udp_rmem_min\nnet.ipv4.udp_wmem_min"</script></div><p>这些参数提高 socket 收发缓冲，在高延迟、高吞吐或者瞬时突发时更稳一些。</p><p>下面两项则主要是通用 Linux TCP 优化：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>net.core.default_qdisc=fq
+</span></span><span style=display:flex><span>net.ipv4.tcp_congestion_control=bbr</span></span></code></pre></div><script class=code-source type=application/json>"net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr"</script></div><p>它们对 Hysteria2 的 UDP 主链路不是决定性因素，但对系统更新、普通 HTTPS 出站、测速下载等 TCP 流量有帮助。生产节点保留没问题，但不要期待它们把 HY2 延迟直接打下来。</p><h2 id=9-客户端接入>9. 客户端接入</h2><p>客户端保持原有 sing-box 结构，只新增节点。</p><p><code>/etc/sing-box/conf/04_outbounds.json</code> 里加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;hysteria2&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;tag&#34;</span>: <span style=color:#e6db74>&#34;US-232-hy2&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;server&#34;</span>: <span style=color:#e6db74>&#34;proxy.example.com&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;server_port&#34;</span>: <span style=color:#ae81ff>443</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;up_mbps&#34;</span>: <span style=color:#ae81ff>30</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;down_mbps&#34;</span>: <span style=color:#ae81ff>220</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;password&#34;</span>: <span style=color:#e6db74>&#34;HY2_AUTH_PASSWORD&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;obfs&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;salamander&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;password&#34;</span>: <span style=color:#e6db74>&#34;HY2_OBFS_PASSWORD&#34;</span>
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;tls&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;enabled&#34;</span>: <span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;server_name&#34;</span>: <span style=color:#e6db74>&#34;proxy.example.com&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;insecure&#34;</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"type\": \"hysteria2\",\n  \"tag\": \"US-232-hy2\",\n  \"server\": \"proxy.example.com\",\n  \"server_port\": 443,\n  \"up_mbps\": 30,\n  \"down_mbps\": 220,\n  \"password\": \"HY2_AUTH_PASSWORD\",\n  \"obfs\": {\n    \"type\": \"salamander\",\n    \"password\": \"HY2_OBFS_PASSWORD\"\n  },\n  \"tls\": {\n    \"enabled\": true,\n    \"server_name\": \"proxy.example.com\",\n    \"insecure\": true\n  }\n}"</script></div><p>然后把这个 tag 加进主 selector 和需要的分组 selector。</p><h2 id=10-路由里先直连节点>10. 路由里先直连节点</h2><p><code>/etc/sing-box/conf/05_route.json</code> 的规则最前面加节点域名和 IP 直连：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;domain&#34;</span>: [
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;proxy.example.com&#34;</span>
+</span></span><span style=display:flex><span>  ],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;ip_cidr&#34;</span>: [
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;192.0.2.10/32&#34;</span>
+</span></span><span style=display:flex><span>  ],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;outbound&#34;</span>: <span style=color:#e6db74>&#34;direct&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"domain\": [\n    \"proxy.example.com\"\n  ],\n  \"ip_cidr\": [\n    \"192.0.2.10/32\"\n  ],\n  \"outbound\": \"direct\"\n}"</script></div><p>这步不能省。否则节点本身也会被代理，轻则测速失败，重则自己绕自己。</p><h2 id=11-校验>11. 校验</h2><p>客户端：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sing-box check -C /etc/sing-box/conf
+</span></span><span style=display:flex><span>systemctl restart sing-box
+</span></span><span style=display:flex><span>systemctl is-active sing-box</span></span></code></pre></div><script class=code-source type=application/json>"sing-box check -C /etc/sing-box/conf\nsystemctl restart sing-box\nsystemctl is-active sing-box"</script></div><p>服务端：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>rc-service hysteria status
+</span></span><span style=display:flex><span>tail -n <span style=color:#ae81ff>40</span> /var/log/hysteria.log</span></span></code></pre></div><script class=code-source type=application/json>"rc-service hysteria status\ntail -n 40 /var/log/hysteria.log"</script></div><p>如果正常，会看到类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>server up and running
+</span></span><span style=display:flex><span>client connected</span></span></code></pre></div><script class=code-source type=application/json>"server up and running\nclient connected"</script></div><p>面板里也可以测延迟：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -sS <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  <span style=color:#e6db74>&#39;http://127.0.0.1:9090/proxies/US-232-hy2/delay?timeout=10000&amp;url=https://www.gstatic.com/generate_204&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl -sS \\\n  'http://127.0.0.1:9090/proxies/US-232-hy2/delay?timeout=10000\u0026url=https://www.gstatic.com/generate_204'"</script></div><h2 id=12-常见坑>12. 常见坑</h2><h3 id=证书不对>证书不对</h3><p><code>server_name</code>、证书 CN/SAN、域名三者最好一致。</p><h3 id=只开了-tcp-443>只开了 TCP 443</h3><p>Hysteria2 需要的是 <code>443/udp</code>，不是 TCP 443。</p><h3 id=带宽填太大>带宽填太大</h3><p>速度不一定更快，尤其是家宽和跨境线。先从保守值开始。</p><h3 id=客户端选了节点但游戏不走>客户端选了节点但游戏不走</h3><p>这通常不是节点坏了，而是前面的 DNS 分流把域名先处理掉了。要让游戏稳定，必须把 Riot/LoL 域名从 fake-ip 链路里拿出来，走 real-ip。</p><h2 id=13-我这次的落地经验>13. 我这次的落地经验</h2><p>这台 Alpine 232 机器最后跑起来了，面板 API 延迟看起来仍然比 146 / 209 高一些，但实际 YouTube 业务测速能稳定到 <code>118 Mbps</code> 左右，4K60 播放没有问题。对家宽和这条代理线路来说，这基本已经接近可用上限。</p><p>这说明两件事：</p><ul><li>API delay 只能看连通性和大致延迟，不能单独代表真实吞吐。</li><li>生产节点最终还是要看真实业务，比如 YouTube Stats、下载速度、长时间播放和掉帧情况。</li></ul><p>所以这台 Alpine 232 不是“延迟数字不好就不能用”。它更适合作为高吞吐流媒体节点；如果是游戏、语音这类延迟敏感场景，再优先选延迟更低的 146 / 209。</p><h2 id=14-收尾>14. 收尾</h2><p>当你完成部署后，建议保留这些东西：</p><ul><li><code>/etc/hysteria/config.yaml</code></li><li><code>/etc/hysteria/server.crt</code></li><li><code>/etc/hysteria/server.key</code></li><li><code>/etc/init.d/hysteria</code></li><li>客户端 <code>04_outbounds.json</code></li><li>客户端 <code>05_route.json</code></li></ul><p>以后重装 Alpine，照着这份教程重新铺一遍就行。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

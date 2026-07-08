@@ -1,19 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Lua on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/lua/</link>
-    <description>Recent content in Lua on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 01 Mar 2026 09:42:19 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/lua/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD15现代化Neovim生产力环境部署指南</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-neovim-productivity/</link>
-      <pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-neovim-productivity/</guid>
-      <description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。&#xA;这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。&#xA;一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。&#xA;下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。&#xA;复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：&#xA;复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Lua on 电脑自习室</title><link>https://purodn.tk/tags/lua/</link><description>Recent content in Lua on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 01 Mar 2026 09:42:19 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/lua/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
+这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
+一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
+下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。
+复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：
+复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description></item></channel></rss>

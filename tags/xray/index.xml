@@ -1,19 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Xray on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/xray/</link>
-    <description>Recent content in Xray on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 25 May 2026 00:00:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/xray/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-xray-reality-sing-box/</link>
-      <pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-xray-reality-sing-box/</guid>
-      <description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。&#xA;复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。&#xA;示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：&#xA;项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Xray on 电脑自习室</title><link>https://purodn.tk/tags/xray/</link><description>Recent content in Xray on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/xray/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。
+复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。
+示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：
+项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description></item></channel></rss>

@@ -1,19 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Toolsets on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/toolsets/</link>
-    <description>Recent content in Toolsets on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 02 Jun 2026 22:32:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/toolsets/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-profile-tools-scope-toolsets/</link>
-      <pubDate>Tue, 02 Jun 2026 22:32:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-profile-tools-scope-toolsets/</guid>
-      <description>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，hermes tools 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。&#xA;一句话结论：&#xA;在某个 profile 里全局改 tools，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。&#xA;这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 -t web，什么时候应该新建 webonly / safe profile。&#xA;先分清四个层级 层级 常见写法 影响范围 是否长期保存 profile 级 tools 配置 hermes tools、hermes tools enable web、hermes tools disable terminal 当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session 是 指定 profile 的 tools 配置 hermes -p webonly tools disable terminal webonly 这个 profile 下的后续会话和机器人 是 单次启动 toolsets hermes chat -t web -q &amp;quot;查一下.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Toolsets on 电脑自习室</title><link>https://purodn.tk/tags/toolsets/</link><description>Recent content in Toolsets on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 22:32:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/toolsets/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</title><link>https://purodn.tk/posts/ai/hermes-profile-tools-scope-toolsets/</link><pubDate>Tue, 02 Jun 2026 22:32:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profile-tools-scope-toolsets/</guid><description>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，hermes tools 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。
+一句话结论：
+在某个 profile 里全局改 tools，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。
+这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 -t web，什么时候应该新建 webonly / safe profile。
+先分清四个层级 层级 常见写法 影响范围 是否长期保存 profile 级 tools 配置 hermes tools、hermes tools enable web、hermes tools disable terminal 当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session 是 指定 profile 的 tools 配置 hermes -p webonly tools disable terminal webonly 这个 profile 下的后续会话和机器人 是 单次启动 toolsets hermes chat -t web -q &amp;quot;查一下.</description></item></channel></rss>

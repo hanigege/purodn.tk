@@ -1,129 +1,16 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Vyos上网系列之-上网配置（1） | 电脑自习室</title>
-    <meta name="description" content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2025-05-10">2025年5月10日</time>
-        </div>
-        <h1>Vyos上网系列之-上网配置（1）</h1>
-      </header>
-          <img class="article-cover" src="/posts/routeros/vyos-basic-internet-1/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <h4 id="vyos的命令行界面是基于shell的没有图形界面-但是可以用tab自动补全">vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全.</h4>
-<p>本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.</p>
-<p><code>**特别感谢大卫佬给予的指导与帮助**</code></p>
-<h2 id="pve安装vyos">pve安装vyos:</h2>
-<p>下载nightly-build: <a href="https://github.com/vyos/vyos-nightly-build/releases">https://github.com/vyos/vyos-nightly-build/releases</a>
-pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.</p>
-<p>vm运行后, 用vyos:vyos登录. 用命令</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>install image</code></pre><script class="code-source" type="application/json">"install image"</script>
-</div>
-<p>安装vyos.</p>
-<p>进入配置模式：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>configure</code></pre><script class="code-source" type="application/json">"configure"</script>
-</div>
-<p>生效：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>commit</code></pre><script class="code-source" type="application/json">"commit"</script>
-</div>
-<p>保存配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>save</code></pre><script class="code-source" type="application/json">"save"</script>
-</div>
-<p>取消生效的,未保存的配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>discard</code></pre><script class="code-source" type="application/json">"discard"</script>
-</div>
-<h2 id="下面开始配置随时都可以输入生效命令如果不保存重启后配置会失效">下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效</h2>
-<p>设置ssh登录:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set service ssh port &#39;22&#39;</code></pre><script class="code-source" type="application/json">"set service ssh port '22'"</script>
-</div>
-<p>创建用户gary:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system login user gary full-name gary
-set system login user gary authentication plaintext-password &#39;密码&#39;</code></pre><script class="code-source" type="application/json">"set system login user gary full-name gary\nset system login user gary authentication plaintext-password '密码'"</script>
-</div>
-<p>建议ssh密钥登录:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system login user gary authentication public-keys gary@laptop key &#39;your-public-key&#39;
-set system login user gary authentication public-keys gary@laptop type &#39;ssh-rsa&#39;</code></pre><script class="code-source" type="application/json">"set system login user gary authentication public-keys gary@laptop key 'your-public-key'\nset system login user gary authentication public-keys gary@laptop type 'ssh-rsa'"</script>
-</div>
-<p>禁用默认的vyos用户:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system login user vyos disable</code></pre><script class="code-source" type="application/json">"set system login user vyos disable"</script>
-</div>
-<p>设置系统的hostname:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system host-name &#39;vyos&#39;</code></pre><script class="code-source" type="application/json">"set system host-name 'vyos'"</script>
-</div>
-<p>查看系统的hostname</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>show system host-name</code></pre><script class="code-source" type="application/json">"show system host-name"</script>
-</div>
-<p>设置时区:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system time-zone &#39;Asia/Shanghai&#39;</code></pre><script class="code-source" type="application/json">"set system time-zone 'Asia/Shanghai'"</script>
-</div>
-<p>设置ntp:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set service ntp server 129.250.35.251
-set service ntp server 203.107.6.88</code></pre><script class="code-source" type="application/json">"set service ntp server 129.250.35.251\nset service ntp server 203.107.6.88"</script>
-</div>
-<p>(注: 可以设置多个ntp服务器, 建议用运营商的ntp服务器, 最好是纯ip, 可删除默认的ntp服务器)</p>
-<p>设置接口组(可选但建议):</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group interface-group LAN interface &#39;eth0&#39;
-set firewall group interface-group WAN interface &#39;eth1&#39;</code></pre><script class="code-source" type="application/json">"set firewall group interface-group LAN interface 'eth0'\nset firewall group interface-group WAN interface 'eth1'"</script>
-</div>
-<p>设置网络组(可选):</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group network-group LAN-v4 network &#39;192.168.100.0/24&#39;</code></pre><script class="code-source" type="application/json">"set firewall group network-group LAN-v4 network '192.168.100.0/24'"</script>
-</div>
-<p>设置ip:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set interfaces ethernet eth0 address 192.168.100.1/24</code></pre><script class="code-source" type="application/json">"set interfaces ethernet eth0 address 192.168.100.1/24"</script>
-</div>
-<p>配置dhcp server:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 subnet-id 1   
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Vyos上网系列之-上网配置（1） | 电脑自习室</title>
+<meta name=description content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2025-05-10>2025年5月10日</time></div><h1>Vyos上网系列之-上网配置（1）</h1></header><img class=article-cover src=/posts/routeros/vyos-basic-internet-1/assets/cover.svg alt><div class=article-content><h4 id=vyos的命令行界面是基于shell的没有图形界面-但是可以用tab自动补全>vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全.</h4><p>本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.</p><p><code>**特别感谢大卫佬给予的指导与帮助**</code></p><h2 id=pve安装vyos>pve安装vyos:</h2><p>下载nightly-build: <a href=https://github.com/vyos/vyos-nightly-build/releases>https://github.com/vyos/vyos-nightly-build/releases</a>
+pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.</p><p>vm运行后, 用vyos:vyos登录. 用命令</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>install image</code></pre><script class=code-source type=application/json>"install image"</script></div><p>安装vyos.</p><p>进入配置模式：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>configure</code></pre><script class=code-source type=application/json>"configure"</script></div><p>生效：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>commit</code></pre><script class=code-source type=application/json>"commit"</script></div><p>保存配置：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>save</code></pre><script class=code-source type=application/json>"save"</script></div><p>取消生效的,未保存的配置：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>discard</code></pre><script class=code-source type=application/json>"discard"</script></div><h2 id=下面开始配置随时都可以输入生效命令如果不保存重启后配置会失效>下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效</h2><p>设置ssh登录:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set service ssh port &#39;22&#39;</code></pre><script class=code-source type=application/json>"set service ssh port '22'"</script></div><p>创建用户gary:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system login user gary full-name gary
+set system login user gary authentication plaintext-password &#39;密码&#39;</code></pre><script class=code-source type=application/json>"set system login user gary full-name gary\nset system login user gary authentication plaintext-password '密码'"</script></div><p>建议ssh密钥登录:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system login user gary authentication public-keys gary@laptop key &#39;your-public-key&#39;
+set system login user gary authentication public-keys gary@laptop type &#39;ssh-rsa&#39;</code></pre><script class=code-source type=application/json>"set system login user gary authentication public-keys gary@laptop key 'your-public-key'\nset system login user gary authentication public-keys gary@laptop type 'ssh-rsa'"</script></div><p>禁用默认的vyos用户:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system login user vyos disable</code></pre><script class=code-source type=application/json>"set system login user vyos disable"</script></div><p>设置系统的hostname:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system host-name &#39;vyos&#39;</code></pre><script class=code-source type=application/json>"set system host-name 'vyos'"</script></div><p>查看系统的hostname</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>show system host-name</code></pre><script class=code-source type=application/json>"show system host-name"</script></div><p>设置时区:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system time-zone &#39;Asia/Shanghai&#39;</code></pre><script class=code-source type=application/json>"set system time-zone 'Asia/Shanghai'"</script></div><p>设置ntp:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set service ntp server 129.250.35.251
+set service ntp server 203.107.6.88</code></pre><script class=code-source type=application/json>"set service ntp server 129.250.35.251\nset service ntp server 203.107.6.88"</script></div><p>(注: 可以设置多个ntp服务器, 建议用运营商的ntp服务器, 最好是纯ip, 可删除默认的ntp服务器)</p><p>设置接口组(可选但建议):</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group interface-group LAN interface &#39;eth0&#39;
+set firewall group interface-group WAN interface &#39;eth1&#39;</code></pre><script class=code-source type=application/json>"set firewall group interface-group LAN interface 'eth0'\nset firewall group interface-group WAN interface 'eth1'"</script></div><p>设置网络组(可选):</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group network-group LAN-v4 network &#39;192.168.100.0/24&#39;</code></pre><script class=code-source type=application/json>"set firewall group network-group LAN-v4 network '192.168.100.0/24'"</script></div><p>设置ip:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set interfaces ethernet eth0 address 192.168.100.1/24</code></pre><script class=code-source type=application/json>"set interfaces ethernet eth0 address 192.168.100.1/24"</script></div><p>配置dhcp server:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 subnet-id 1   
 set service dhcp-server hostfile-update
 set service dhcp-server shared-network-name VYOS authoritative #开启特定共享网络的授权，防止出现冲突和混乱(第三方加的）
 set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 lease &#39;86400&#39;
@@ -131,110 +18,54 @@ set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option 
 set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server &#39;192.168.100.1&#39; #dhcp option dns
 set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option ntp-server &#39;192.168.100.1&#39; #dhcp option ntp
 set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 start &#39;192.168.100.101&#39;
-set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 stop &#39;192.168.100.200&#39;</code></pre><script class="code-source" type="application/json">"set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 subnet-id 1   \nset service dhcp-server hostfile-update\nset service dhcp-server shared-network-name VYOS authoritative #开启特定共享网络的授权，防止出现冲突和混乱(第三方加的）\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 lease '86400'\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router '192.168.100.1' #dhcp option 默认网关\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.1' #dhcp option dns\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option ntp-server '192.168.100.1' #dhcp option ntp\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 start '192.168.100.101'\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 stop '192.168.100.200'"</script>
-</div>
-<h3 id="补充可选">补充（可选）：</h3>
-<p>添加一个dhcp下的dns</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server &#39;192.168.100.2&#39;
+set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 stop &#39;192.168.100.200&#39;</code></pre><script class=code-source type=application/json>"set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 subnet-id 1   \nset service dhcp-server hostfile-update\nset service dhcp-server shared-network-name VYOS authoritative #开启特定共享网络的授权，防止出现冲突和混乱(第三方加的）\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 lease '86400'\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router '192.168.100.1' #dhcp option 默认网关\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.1' #dhcp option dns\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option ntp-server '192.168.100.1' #dhcp option ntp\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 start '192.168.100.101'\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 range 0 stop '192.168.100.200'"</script></div><h3 id=补充可选>补充（可选）：</h3><p>添加一个dhcp下的dns</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server &#39;192.168.100.2&#39;
 删除一个dpcp下的dns
 delete service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server &#39;192.168.100.1&#39;
 更改dhcp下的网关地址
-set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router &#39;192.168.100.2&#39; </code></pre><script class="code-source" type="application/json">"set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.2'\n删除一个dpcp下的dns\ndelete service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.1'\n更改dhcp下的网关地址\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router '192.168.100.2' "</script>
-</div>
-<p>设置外网网口为dhcp客户端，从上级路由获取 （可选）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set interfaces ethernet eth1 address dhcp</code></pre><script class="code-source" type="application/json">"set interfaces ethernet eth1 address dhcp"</script>
-</div>
-<h2 id="设置pppoe1参考配置一">设置pppoe1参考配置（一）</h2>
-<p>当eth1是pppoe时，配置 PPPoE 拨号:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set interfaces pppoe pppoe0 source-interface &#39;eth1&#39;
+set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router &#39;192.168.100.2&#39; </code></pre><script class=code-source type=application/json>"set service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.2'\n删除一个dpcp下的dns\ndelete service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option name-server '192.168.100.1'\n更改dhcp下的网关地址\nset service dhcp-server shared-network-name VYOS subnet 192.168.100.0/24 option default-router '192.168.100.2' "</script></div><p>设置外网网口为dhcp客户端，从上级路由获取 （可选）：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set interfaces ethernet eth1 address dhcp</code></pre><script class=code-source type=application/json>"set interfaces ethernet eth1 address dhcp"</script></div><h2 id=设置pppoe1参考配置一>设置pppoe1参考配置（一）</h2><p>当eth1是pppoe时，配置 PPPoE 拨号:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set interfaces pppoe pppoe0 source-interface &#39;eth1&#39;
 set interfaces pppoe pppoe0 authentication username &#39;054546帐号6266&#39;
 set interfaces pppoe pppoe0 authentication password &#39;24密码502&#39;
 set interfaces pppoe pppoe0 mtu &#39;1492&#39;
 set interfaces pppoe pppoe0 ip adjust-mss &#39;clamp-mss-to-pmtu&#39;
 
 set interfaces pppoe pppoe1 no-default-route
-(注: 当设置no-default-route时, 需要在后面指定静态路由, 或者也可不设置no-default-route这条, vyos会自动添加默认路由)</code></pre><script class="code-source" type="application/json">"set interfaces pppoe pppoe0 source-interface 'eth1'\nset interfaces pppoe pppoe0 authentication username '054546帐号6266'\nset interfaces pppoe pppoe0 authentication password '24密码502'\nset interfaces pppoe pppoe0 mtu '1492'\nset interfaces pppoe pppoe0 ip adjust-mss 'clamp-mss-to-pmtu'\n\nset interfaces pppoe pppoe1 no-default-route\n(注: 当设置no-default-route时, 需要在后面指定静态路由, 或者也可不设置no-default-route这条, vyos会自动添加默认路由)"</script>
-</div>
-<p>小技巧：在 VyOS 中，要删除一条已有的配置，需要使用 delete 命令。
-对于 <code>set interfaces pppoe pppoe0 source-interface 'eth1'</code>，可以这样删除：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>configure
+(注: 当设置no-default-route时, 需要在后面指定静态路由, 或者也可不设置no-default-route这条, vyos会自动添加默认路由)</code></pre><script class=code-source type=application/json>"set interfaces pppoe pppoe0 source-interface 'eth1'\nset interfaces pppoe pppoe0 authentication username '054546帐号6266'\nset interfaces pppoe pppoe0 authentication password '24密码502'\nset interfaces pppoe pppoe0 mtu '1492'\nset interfaces pppoe pppoe0 ip adjust-mss 'clamp-mss-to-pmtu'\n\nset interfaces pppoe pppoe1 no-default-route\n(注: 当设置no-default-route时, 需要在后面指定静态路由, 或者也可不设置no-default-route这条, vyos会自动添加默认路由)"</script></div><p>小技巧：在 VyOS 中，要删除一条已有的配置，需要使用 delete 命令。
+对于 <code>set interfaces pppoe pppoe0 source-interface 'eth1'</code>，可以这样删除：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>configure
 delete interfaces pppoe pppoe1 source-interface
 commit
 save
-exit</code></pre><script class="code-source" type="application/json">"configure\ndelete interfaces pppoe pppoe1 source-interface\ncommit\nsave\nexit"</script>
-</div>
-<p>设置出Wan口的默认静态路由:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set protocols static route 0.0.0.0/0 interface pppoe0
+exit</code></pre><script class=code-source type=application/json>"configure\ndelete interfaces pppoe pppoe1 source-interface\ncommit\nsave\nexit"</script></div><p>设置出Wan口的默认静态路由:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set protocols static route 0.0.0.0/0 interface pppoe0
 set protocols static route6 ::/0 interface pppoe0
-(注: 前面设置了no-default-route, 所以这里需要设置默认路由)</code></pre><script class="code-source" type="application/json">"set protocols static route 0.0.0.0/0 interface pppoe0\nset protocols static route6 ::/0 interface pppoe0\n(注: 前面设置了no-default-route, 所以这里需要设置默认路由)"</script>
-</div>
-<h2 id="设置dns">设置dns:</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system name-server &#39;223.5.5.5&#39;
+(注: 前面设置了no-default-route, 所以这里需要设置默认路由)</code></pre><script class=code-source type=application/json>"set protocols static route 0.0.0.0/0 interface pppoe0\nset protocols static route6 ::/0 interface pppoe0\n(注: 前面设置了no-default-route, 所以这里需要设置默认路由)"</script></div><h2 id=设置dns>设置dns:</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system name-server &#39;223.5.5.5&#39;
 set service dns forwarding cache-size &#39;0&#39; ## 关闭了缓存，默认是150
 set service dns forwarding listen-address &#39;192.168.100.1&#39; ## 监听 LAN 口
 # 3. 限制 DNS 解析范围，仅允许内网使用
-set service dns forwarding allow-from &#39;192.168.100.0/24&#39;</code></pre><script class="code-source" type="application/json">"set system name-server '223.5.5.5'\nset service dns forwarding cache-size '0' ## 关闭了缓存，默认是150\nset service dns forwarding listen-address '192.168.100.1' ## 监听 LAN 口\n# 3. 限制 DNS 解析范围，仅允许内网使用\nset service dns forwarding allow-from '192.168.100.0/24'"</script>
-</div>
-<p>设置端口转发(DNAT):</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set nat destination rule 10 description &#39;DSTNAT-wg&#39;
+set service dns forwarding allow-from &#39;192.168.100.0/24&#39;</code></pre><script class=code-source type=application/json>"set system name-server '223.5.5.5'\nset service dns forwarding cache-size '0' ## 关闭了缓存，默认是150\nset service dns forwarding listen-address '192.168.100.1' ## 监听 LAN 口\n# 3. 限制 DNS 解析范围，仅允许内网使用\nset service dns forwarding allow-from '192.168.100.0/24'"</script></div><p>设置端口转发(DNAT):</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set nat destination rule 10 description &#39;DSTNAT-wg&#39;
 set nat destination rule 10 destination port &#39;53822&#39;
 set nat destination rule 10 inbound-interface group &#39;WAN&#39; #可用interface eth1代替
 set nat destination rule 10 protocol &#39;udp&#39;
 set nat destination rule 10 translation address &#39;192.168.10.145&#39;
-set nat destination rule 10 translation port &#39;53822&#39; #可省略, 如果端口相同</code></pre><script class="code-source" type="application/json">"set nat destination rule 10 description 'DSTNAT-wg'\nset nat destination rule 10 destination port '53822'\nset nat destination rule 10 inbound-interface group 'WAN' #可用interface eth1代替\nset nat destination rule 10 protocol 'udp'\nset nat destination rule 10 translation address '192.168.10.145'\nset nat destination rule 10 translation port '53822' #可省略, 如果端口相同"</script>
-</div>
-<p>设置防火墙:
-设置masquerade(SNAT):</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set nat source rule 100 translation address &#39;masquerade&#39;</code></pre><script class="code-source" type="application/json">"set nat source rule 100 translation address 'masquerade'"</script>
-</div>
-<p>指定网段：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set nat source rule 100 source address &#39;192.168.100.0/24&#39;</code></pre><script class="code-source" type="application/json">"set nat source rule 100 source address '192.168.100.0/24'"</script>
-</div>
-<p>设置回流:
+set nat destination rule 10 translation port &#39;53822&#39; #可省略, 如果端口相同</code></pre><script class=code-source type=application/json>"set nat destination rule 10 description 'DSTNAT-wg'\nset nat destination rule 10 destination port '53822'\nset nat destination rule 10 inbound-interface group 'WAN' #可用interface eth1代替\nset nat destination rule 10 protocol 'udp'\nset nat destination rule 10 translation address '192.168.10.145'\nset nat destination rule 10 translation port '53822' #可省略, 如果端口相同"</script></div><p>设置防火墙:
+设置masquerade(SNAT):</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set nat source rule 100 translation address &#39;masquerade&#39;</code></pre><script class=code-source type=application/json>"set nat source rule 100 translation address 'masquerade'"</script></div><p>指定网段：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set nat source rule 100 source address &#39;192.168.100.0/24&#39;</code></pre><script class=code-source type=application/json>"set nat source rule 100 source address '192.168.100.0/24'"</script></div><p>设置回流:
 由于上面masquerade(SNAT)的规则, 这里不需要设置回流.
 <code>---------------------------------------------</code>
 这里防火墙rule 数字可自定, 同一数字为一组, 建议设置数字时, 留出空隙, 以便以后添加新的规则.
-针对上面这条nat source rule 100 规则, 建议不要限制接口, 就只用上面一条, 这对以后的端口转发和回流设置, 都很方便.</p>
-<h2 id="设置防火墙规则">设置防火墙规则:</h2>
-<p>全局：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall global-options state-policy established action &#39;accept&#39;
+针对上面这条nat source rule 100 规则, 建议不要限制接口, 就只用上面一条, 这对以后的端口转发和回流设置, 都很方便.</p><h2 id=设置防火墙规则>设置防火墙规则:</h2><p>全局：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall global-options state-policy established action &#39;accept&#39;
 set firewall global-options state-policy invalid action &#39;drop&#39;
 set firewall global-options state-policy related action &#39;accept&#39;
 #下面一条是容器与内网互通
-set firewall global-options apply-to-bridged-traffic invalid-connections</code></pre><script class="code-source" type="application/json">"set firewall global-options state-policy established action 'accept'\nset firewall global-options state-policy invalid action 'drop'\nset firewall global-options state-policy related action 'accept'\n#下面一条是容器与内网互通\nset firewall global-options apply-to-bridged-traffic invalid-connections"</script>
-</div>
-<p>设置ipv4入站(input链)规则:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv4 name WAN_LOCAL default-action &#39;drop&#39; #默认拒绝
+set firewall global-options apply-to-bridged-traffic invalid-connections</code></pre><script class=code-source type=application/json>"set firewall global-options state-policy established action 'accept'\nset firewall global-options state-policy invalid action 'drop'\nset firewall global-options state-policy related action 'accept'\n#下面一条是容器与内网互通\nset firewall global-options apply-to-bridged-traffic invalid-connections"</script></div><p>设置ipv4入站(input链)规则:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv4 name WAN_LOCAL default-action &#39;drop&#39; #默认拒绝
 set firewall ipv4 name WAN_LOCAL rule 10 action &#39;accept&#39; #允许已建立和相关连接
 set firewall ipv4 name WAN_LOCAL rule 10 state &#39;established&#39;
 set firewall ipv4 name WAN_LOCAL rule 10 state &#39;related&#39;
 set firewall ipv4 name WAN_LOCAL rule 30 action &#39;accept&#39; #允许icmp
-set firewall ipv4 name WAN_LOCAL rule 30 protocol &#39;icmp&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv4 name WAN_LOCAL default-action 'drop' #默认拒绝\nset firewall ipv4 name WAN_LOCAL rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv4 name WAN_LOCAL rule 10 state 'established'\nset firewall ipv4 name WAN_LOCAL rule 10 state 'related'\nset firewall ipv4 name WAN_LOCAL rule 30 action 'accept' #允许icmp\nset firewall ipv4 name WAN_LOCAL rule 30 protocol 'icmp'"</script>
-</div>
-<p>下面是wireguard放行端口（可选）</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv4 name WAN_LOCAL rule 20 action &#39;accept&#39; #允许连接wg0
+set firewall ipv4 name WAN_LOCAL rule 30 protocol &#39;icmp&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv4 name WAN_LOCAL default-action 'drop' #默认拒绝\nset firewall ipv4 name WAN_LOCAL rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv4 name WAN_LOCAL rule 10 state 'established'\nset firewall ipv4 name WAN_LOCAL rule 10 state 'related'\nset firewall ipv4 name WAN_LOCAL rule 30 action 'accept' #允许icmp\nset firewall ipv4 name WAN_LOCAL rule 30 protocol 'icmp'"</script></div><p>下面是wireguard放行端口（可选）</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv4 name WAN_LOCAL rule 20 action &#39;accept&#39; #允许连接wg0
 set firewall ipv4 name WAN_LOCAL rule 20 destination port &#39;11133&#39; 
 set firewall ipv4 name WAN_LOCAL rule 20 protocol &#39;udp&#39;
 
 set firewall ipv4 name WAN_LOCAL rule 40 action &#39;accept&#39; #连续端口样例
 set firewall ipv4 name WAN_LOCAL rule 40 destination port &#39;10000-10100&#39;
-set firewall ipv4 name WAN_LOCAL rule 40 protocol &#39;udp&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv4 name WAN_LOCAL rule 20 action 'accept' #允许连接wg0\nset firewall ipv4 name WAN_LOCAL rule 20 destination port '11133' \nset firewall ipv4 name WAN_LOCAL rule 20 protocol 'udp'\n\nset firewall ipv4 name WAN_LOCAL rule 40 action 'accept' #连续端口样例\nset firewall ipv4 name WAN_LOCAL rule 40 destination port '10000-10100'\nset firewall ipv4 name WAN_LOCAL rule 40 protocol 'udp'"</script>
-</div>
-<p>设置ipv6入站(input链)规则:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv6 name WAN_LOCAL default-action &#39;drop&#39; #默认拒绝
+set firewall ipv4 name WAN_LOCAL rule 40 protocol &#39;udp&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv4 name WAN_LOCAL rule 20 action 'accept' #允许连接wg0\nset firewall ipv4 name WAN_LOCAL rule 20 destination port '11133' \nset firewall ipv4 name WAN_LOCAL rule 20 protocol 'udp'\n\nset firewall ipv4 name WAN_LOCAL rule 40 action 'accept' #连续端口样例\nset firewall ipv4 name WAN_LOCAL rule 40 destination port '10000-10100'\nset firewall ipv4 name WAN_LOCAL rule 40 protocol 'udp'"</script></div><p>设置ipv6入站(input链)规则:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv6 name WAN_LOCAL default-action &#39;drop&#39; #默认拒绝
 set firewall ipv6 name WAN_LOCAL rule 10 action &#39;accept&#39; #允许已建立和相关连接
 set firewall ipv6 name WAN_LOCAL rule 10 state &#39;established&#39;
 set firewall ipv6 name WAN_LOCAL rule 10 state &#39;related&#39;
@@ -243,36 +74,16 @@ set firewall ipv6 name WAN_LOCAL rule 20 protocol &#39;icmpv6&#39;
 set firewall ipv6 name WAN_LOCAL rule 30 action &#39;accept&#39; #允许从ISP处获取的dhcp6的信息
 set firewall ipv6 name WAN_LOCAL rule 30 destination port &#39;546&#39;
 set firewall ipv6 name WAN_LOCAL rule 30 protocol &#39;udp&#39;
-set firewall ipv6 name WAN_LOCAL rule 30 source port &#39;547&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv6 name WAN_LOCAL default-action 'drop' #默认拒绝\nset firewall ipv6 name WAN_LOCAL rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv6 name WAN_LOCAL rule 10 state 'established'\nset firewall ipv6 name WAN_LOCAL rule 10 state 'related'\nset firewall ipv6 name WAN_LOCAL rule 20 action 'accept' #允许icmpv6\nset firewall ipv6 name WAN_LOCAL rule 20 protocol 'icmpv6'\nset firewall ipv6 name WAN_LOCAL rule 30 action 'accept' #允许从ISP处获取的dhcp6的信息\nset firewall ipv6 name WAN_LOCAL rule 30 destination port '546'\nset firewall ipv6 name WAN_LOCAL rule 30 protocol 'udp'\nset firewall ipv6 name WAN_LOCAL rule 30 source port '547'"</script>
-</div>
-<p>下面是wireguard放行端口（可选）</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv6 name WAN_LOCAL rule 40 action &#39;accept&#39; #允许连接wg0
+set firewall ipv6 name WAN_LOCAL rule 30 source port &#39;547&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv6 name WAN_LOCAL default-action 'drop' #默认拒绝\nset firewall ipv6 name WAN_LOCAL rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv6 name WAN_LOCAL rule 10 state 'established'\nset firewall ipv6 name WAN_LOCAL rule 10 state 'related'\nset firewall ipv6 name WAN_LOCAL rule 20 action 'accept' #允许icmpv6\nset firewall ipv6 name WAN_LOCAL rule 20 protocol 'icmpv6'\nset firewall ipv6 name WAN_LOCAL rule 30 action 'accept' #允许从ISP处获取的dhcp6的信息\nset firewall ipv6 name WAN_LOCAL rule 30 destination port '546'\nset firewall ipv6 name WAN_LOCAL rule 30 protocol 'udp'\nset firewall ipv6 name WAN_LOCAL rule 30 source port '547'"</script></div><p>下面是wireguard放行端口（可选）</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv6 name WAN_LOCAL rule 40 action &#39;accept&#39; #允许连接wg0
 set firewall ipv6 name WAN_LOCAL rule 40 destination port &#39;11133&#39;
-set firewall ipv6 name WAN_LOCAL rule 40 protocol &#39;udp&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv6 name WAN_LOCAL rule 40 action 'accept' #允许连接wg0\nset firewall ipv6 name WAN_LOCAL rule 40 destination port '11133'\nset firewall ipv6 name WAN_LOCAL rule 40 protocol 'udp'"</script>
-</div>
-<p>设置ipv4转发(forward链)规则:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv4 name WAN_IN default-action &#39;drop&#39; #默认拒绝
+set firewall ipv6 name WAN_LOCAL rule 40 protocol &#39;udp&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv6 name WAN_LOCAL rule 40 action 'accept' #允许连接wg0\nset firewall ipv6 name WAN_LOCAL rule 40 destination port '11133'\nset firewall ipv6 name WAN_LOCAL rule 40 protocol 'udp'"</script></div><p>设置ipv4转发(forward链)规则:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv4 name WAN_IN default-action &#39;drop&#39; #默认拒绝
 set firewall ipv4 name WAN_IN rule 10 action &#39;accept&#39; #允许已建立和相关连接
 set firewall ipv4 name WAN_IN rule 10 state &#39;established&#39;
-set firewall ipv4 name WAN_IN rule 10 state &#39;related&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv4 name WAN_IN default-action 'drop' #默认拒绝\nset firewall ipv4 name WAN_IN rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv4 name WAN_IN rule 10 state 'established'\nset firewall ipv4 name WAN_IN rule 10 state 'related'"</script>
-</div>
-<p>如有ipv4进来后的端口转发加下面三条</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv4 name WAN_IN rule 20 action &#39;accept&#39; #允许已DNAT的连接
+set firewall ipv4 name WAN_IN rule 10 state &#39;related&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv4 name WAN_IN default-action 'drop' #默认拒绝\nset firewall ipv4 name WAN_IN rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv4 name WAN_IN rule 10 state 'established'\nset firewall ipv4 name WAN_IN rule 10 state 'related'"</script></div><p>如有ipv4进来后的端口转发加下面三条</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv4 name WAN_IN rule 20 action &#39;accept&#39; #允许已DNAT的连接
 set firewall ipv4 name WAN_IN rule 20 connection-status nat &#39;destination&#39;
-set firewall ipv4 name WAN_IN rule 20 state &#39;new&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv4 name WAN_IN rule 20 action 'accept' #允许已DNAT的连接\nset firewall ipv4 name WAN_IN rule 20 connection-status nat 'destination'\nset firewall ipv4 name WAN_IN rule 20 state 'new'"</script>
-</div>
-<p>如有ipv6进来后的端口转发 也需要和v4一样 加这条</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv6 name WAN_IN rule 40 action &#39;accept&#39;
+set firewall ipv4 name WAN_IN rule 20 state &#39;new&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv4 name WAN_IN rule 20 action 'accept' #允许已DNAT的连接\nset firewall ipv4 name WAN_IN rule 20 connection-status nat 'destination'\nset firewall ipv4 name WAN_IN rule 20 state 'new'"</script></div><p>如有ipv6进来后的端口转发 也需要和v4一样 加这条</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv6 name WAN_IN rule 40 action &#39;accept&#39;
 set firewall ipv6 name WAN_IN rule 40 connection-status nat &#39;destination&#39;
-set firewall ipv6 name WAN_IN rule 40 state &#39;new&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv6 name WAN_IN rule 40 action 'accept'\nset firewall ipv6 name WAN_IN rule 40 connection-status nat 'destination'\nset firewall ipv6 name WAN_IN rule 40 state 'new'"</script>
-</div>
-<p>设置ipv6转发(forward链)规则:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv6 name WAN_IN default-action &#39;drop&#39; #默认拒绝
+set firewall ipv6 name WAN_IN rule 40 state &#39;new&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv6 name WAN_IN rule 40 action 'accept'\nset firewall ipv6 name WAN_IN rule 40 connection-status nat 'destination'\nset firewall ipv6 name WAN_IN rule 40 state 'new'"</script></div><p>设置ipv6转发(forward链)规则:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv6 name WAN_IN default-action &#39;drop&#39; #默认拒绝
 set firewall ipv6 name WAN_IN rule 10 action &#39;accept&#39; #允许已建立和相关连接
 set firewall ipv6 name WAN_IN rule 10 state &#39;established&#39;
 set firewall ipv6 name WAN_IN rule 10 state &#39;related&#39;
@@ -280,11 +91,7 @@ set firewall ipv6 name WAN_IN rule 20 action &#39;accept&#39; #允许icmpv6
 set firewall ipv6 name WAN_IN rule 20 protocol &#39;icmpv6&#39;
 set firewall ipv6 name WAN_IN rule 30 action &#39;accept&#39; #允许ipsec
 set firewall ipv6 name WAN_IN rule 30 destination port &#39;500,4500&#39;
-set firewall ipv6 name WAN_IN rule 30 protocol &#39;udp&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv6 name WAN_IN default-action 'drop' #默认拒绝\nset firewall ipv6 name WAN_IN rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv6 name WAN_IN rule 10 state 'established'\nset firewall ipv6 name WAN_IN rule 10 state 'related'\nset firewall ipv6 name WAN_IN rule 20 action 'accept' #允许icmpv6\nset firewall ipv6 name WAN_IN rule 20 protocol 'icmpv6'\nset firewall ipv6 name WAN_IN rule 30 action 'accept' #允许ipsec\nset firewall ipv6 name WAN_IN rule 30 destination port '500,4500'\nset firewall ipv6 name WAN_IN rule 30 protocol 'udp'"</script>
-</div>
-<p>然后分别从input和forward链, 调用WAN_LOCAL和WAN_IN:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall ipv4 input filter rule 10 action &#39;jump&#39;
+set firewall ipv6 name WAN_IN rule 30 protocol &#39;udp&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv6 name WAN_IN default-action 'drop' #默认拒绝\nset firewall ipv6 name WAN_IN rule 10 action 'accept' #允许已建立和相关连接\nset firewall ipv6 name WAN_IN rule 10 state 'established'\nset firewall ipv6 name WAN_IN rule 10 state 'related'\nset firewall ipv6 name WAN_IN rule 20 action 'accept' #允许icmpv6\nset firewall ipv6 name WAN_IN rule 20 protocol 'icmpv6'\nset firewall ipv6 name WAN_IN rule 30 action 'accept' #允许ipsec\nset firewall ipv6 name WAN_IN rule 30 destination port '500,4500'\nset firewall ipv6 name WAN_IN rule 30 protocol 'udp'"</script></div><p>然后分别从input和forward链, 调用WAN_LOCAL和WAN_IN:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall ipv4 input filter rule 10 action &#39;jump&#39;
 set firewall ipv4 input filter rule 10 inbound-interface group &#39;WAN&#39;
 set firewall ipv4 input filter rule 10 jump-target &#39;WAN_LOCAL&#39;
 
@@ -298,21 +105,12 @@ set firewall ipv6 input filter rule 10 jump-target &#39;WAN_LOCAL&#39;
 
 set firewall ipv6 forward filter rule 10 action &#39;jump&#39;
 set firewall ipv6 forward filter rule 10 inbound-interface group &#39;WAN&#39;
-set firewall ipv6 forward filter rule 10 jump-target &#39;WAN_IN&#39;</code></pre><script class="code-source" type="application/json">"set firewall ipv4 input filter rule 10 action 'jump'\nset firewall ipv4 input filter rule 10 inbound-interface group 'WAN'\nset firewall ipv4 input filter rule 10 jump-target 'WAN_LOCAL'\n\nset firewall ipv4 forward filter rule 10 action 'jump'\nset firewall ipv4 forward filter rule 10 inbound-interface group 'WAN'\nset firewall ipv4 forward filter rule 10 jump-target 'WAN_IN'\n\nset firewall ipv6 input filter rule 10 action 'jump'\nset firewall ipv6 input filter rule 10 inbound-interface group 'WAN'\nset firewall ipv6 input filter rule 10 jump-target 'WAN_LOCAL'\n\nset firewall ipv6 forward filter rule 10 action 'jump'\nset firewall ipv6 forward filter rule 10 inbound-interface group 'WAN'\nset firewall ipv6 forward filter rule 10 jump-target 'WAN_IN'"</script>
-</div>
-<p>注: DNAT是流量进入后, 最先处理的, 然后进入forward链, 而SNAT是流量出站前, 最后处理的.</p>
-<h2 id="配置wireguard">配置wireguard:</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set interfaces wireguard wg0 address &#39;10.20.20.1/24&#39;
+set firewall ipv6 forward filter rule 10 jump-target &#39;WAN_IN&#39;</code></pre><script class=code-source type=application/json>"set firewall ipv4 input filter rule 10 action 'jump'\nset firewall ipv4 input filter rule 10 inbound-interface group 'WAN'\nset firewall ipv4 input filter rule 10 jump-target 'WAN_LOCAL'\n\nset firewall ipv4 forward filter rule 10 action 'jump'\nset firewall ipv4 forward filter rule 10 inbound-interface group 'WAN'\nset firewall ipv4 forward filter rule 10 jump-target 'WAN_IN'\n\nset firewall ipv6 input filter rule 10 action 'jump'\nset firewall ipv6 input filter rule 10 inbound-interface group 'WAN'\nset firewall ipv6 input filter rule 10 jump-target 'WAN_LOCAL'\n\nset firewall ipv6 forward filter rule 10 action 'jump'\nset firewall ipv6 forward filter rule 10 inbound-interface group 'WAN'\nset firewall ipv6 forward filter rule 10 jump-target 'WAN_IN'"</script></div><p>注: DNAT是流量进入后, 最先处理的, 然后进入forward链, 而SNAT是流量出站前, 最后处理的.</p><h2 id=配置wireguard>配置wireguard:</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set interfaces wireguard wg0 address &#39;10.20.20.1/24&#39;
 set interfaces wireguard wg0 peer iphone allowed-ips &#39;10.20.20.2/32&#39;
 set interfaces wireguard wg0 peer iphone preshared-key &#39;preshared-key&#39;
 set interfaces wireguard wg0 peer iphone public-key &#39;public-key&#39;
 set interfaces wireguard wg0 port &#39;11133&#39;
-set interfaces wireguard wg0 private-key &#39;private-key&#39;</code></pre><script class="code-source" type="application/json">"set interfaces wireguard wg0 address '10.20.20.1/24'\nset interfaces wireguard wg0 peer iphone allowed-ips '10.20.20.2/32'\nset interfaces wireguard wg0 peer iphone preshared-key 'preshared-key'\nset interfaces wireguard wg0 peer iphone public-key 'public-key'\nset interfaces wireguard wg0 port '11133'\nset interfaces wireguard wg0 private-key 'private-key'"</script>
-</div>
-<h2 id="配置ddns">配置ddns:</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>cloudflare ddns:
+set interfaces wireguard wg0 private-key &#39;private-key&#39;</code></pre><script class=code-source type=application/json>"set interfaces wireguard wg0 address '10.20.20.1/24'\nset interfaces wireguard wg0 peer iphone allowed-ips '10.20.20.2/32'\nset interfaces wireguard wg0 peer iphone preshared-key 'preshared-key'\nset interfaces wireguard wg0 peer iphone public-key 'public-key'\nset interfaces wireguard wg0 port '11133'\nset interfaces wireguard wg0 private-key 'private-key'"</script></div><h2 id=配置ddns>配置ddns:</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>cloudflare ddns:
 set service dns dynamic name DDNS-CF-v4 address interface &#39;pppoe1&#39;
 set service dns dynamic name DDNS-CF-v4 host-name &#39;ddns.example.com&#39;
 set service dns dynamic name DDNS-CF-v4 ip-version &#39;ipv4&#39;
@@ -324,123 +122,27 @@ set service dns dynamic name DDNS-CF-v6 host-name &#39;ddns6.example.com&#39;
 set service dns dynamic name DDNS-CF-v6 ip-version &#39;ipv6&#39;
 set service dns dynamic name DDNS-CF-v6 password &#39;token&#39;
 set service dns dynamic name DDNS-CF-v6 protocol &#39;cloudflare&#39;
-set service dns dynamic name DDNS-CF-v6 zone &#39;example.com&#39;</code></pre><script class="code-source" type="application/json">"cloudflare ddns:\nset service dns dynamic name DDNS-CF-v4 address interface 'pppoe1'\nset service dns dynamic name DDNS-CF-v4 host-name 'ddns.example.com'\nset service dns dynamic name DDNS-CF-v4 ip-version 'ipv4'\nset service dns dynamic name DDNS-CF-v4 password 'token'\nset service dns dynamic name DDNS-CF-v4 protocol 'cloudflare'\nset service dns dynamic name DDNS-CF-v4 zone 'example.com'\nset service dns dynamic name DDNS-CF-v6 address interface 'eth0'\nset service dns dynamic name DDNS-CF-v6 host-name 'ddns6.example.com'\nset service dns dynamic name DDNS-CF-v6 ip-version 'ipv6'\nset service dns dynamic name DDNS-CF-v6 password 'token'\nset service dns dynamic name DDNS-CF-v6 protocol 'cloudflare'\nset service dns dynamic name DDNS-CF-v6 zone 'example.com'"</script>
-</div>
-<p>dnspod ddns:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set service dns dynamic name DNSPOD-v4 address interface &#39;pppoe1&#39;
+set service dns dynamic name DDNS-CF-v6 zone &#39;example.com&#39;</code></pre><script class=code-source type=application/json>"cloudflare ddns:\nset service dns dynamic name DDNS-CF-v4 address interface 'pppoe1'\nset service dns dynamic name DDNS-CF-v4 host-name 'ddns.example.com'\nset service dns dynamic name DDNS-CF-v4 ip-version 'ipv4'\nset service dns dynamic name DDNS-CF-v4 password 'token'\nset service dns dynamic name DDNS-CF-v4 protocol 'cloudflare'\nset service dns dynamic name DDNS-CF-v4 zone 'example.com'\nset service dns dynamic name DDNS-CF-v6 address interface 'eth0'\nset service dns dynamic name DDNS-CF-v6 host-name 'ddns6.example.com'\nset service dns dynamic name DDNS-CF-v6 ip-version 'ipv6'\nset service dns dynamic name DDNS-CF-v6 password 'token'\nset service dns dynamic name DDNS-CF-v6 protocol 'cloudflare'\nset service dns dynamic name DDNS-CF-v6 zone 'example.com'"</script></div><p>dnspod ddns:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set service dns dynamic name DNSPOD-v4 address interface &#39;pppoe1&#39;
 set service dns dynamic name DNSPOD-v4 host-name &#39;ddns.example.com&#39;
 set service dns dynamic name DNSPOD-v4 password &#39;token&#39;
 set service dns dynamic name DNSPOD-v4 protocol &#39;dyndns2&#39;
 set service dns dynamic name DNSPOD-v4 server &#39;dnsapi.cn&#39;
-set service dns dynamic name DNSPOD-v4 username &#39;id&#39;</code></pre><script class="code-source" type="application/json">"set service dns dynamic name DNSPOD-v4 address interface 'pppoe1'\nset service dns dynamic name DNSPOD-v4 host-name 'ddns.example.com'\nset service dns dynamic name DNSPOD-v4 password 'token'\nset service dns dynamic name DNSPOD-v4 protocol 'dyndns2'\nset service dns dynamic name DNSPOD-v4 server 'dnsapi.cn'\nset service dns dynamic name DNSPOD-v4 username 'id'"</script>
-</div>
-<h4 id="个人使用下来-上述配置并不需要设置interval-ip变化也会自动更新">个人使用下来, 上述配置并不需要设置interval, ip变化也会自动更新.</h4>
-<h2 id="设置策略路由">设置策略路由:</h2>
-<p>举例: 让wg0的流量走100号路由表, 100号路由表是sb的路由表</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set policy route WG0-to-SB interface &#39;wg0&#39;
+set service dns dynamic name DNSPOD-v4 username &#39;id&#39;</code></pre><script class=code-source type=application/json>"set service dns dynamic name DNSPOD-v4 address interface 'pppoe1'\nset service dns dynamic name DNSPOD-v4 host-name 'ddns.example.com'\nset service dns dynamic name DNSPOD-v4 password 'token'\nset service dns dynamic name DNSPOD-v4 protocol 'dyndns2'\nset service dns dynamic name DNSPOD-v4 server 'dnsapi.cn'\nset service dns dynamic name DNSPOD-v4 username 'id'"</script></div><h4 id=个人使用下来-上述配置并不需要设置interval-ip变化也会自动更新>个人使用下来, 上述配置并不需要设置interval, ip变化也会自动更新.</h4><h2 id=设置策略路由>设置策略路由:</h2><p>举例: 让wg0的流量走100号路由表, 100号路由表是sb的路由表</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set policy route WG0-to-SB interface &#39;wg0&#39;
 set policy route WG0-to-SB rule 10 destination group network-group &#39;!LAN-v4&#39;
-set policy route WG0-to-SB rule 10 set table &#39;100&#39;</code></pre><script class="code-source" type="application/json">"set policy route WG0-to-SB interface 'wg0'\nset policy route WG0-to-SB rule 10 destination group network-group '!LAN-v4'\nset policy route WG0-to-SB rule 10 set table '100'"</script>
-</div>
-<p>路由表</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.10.90</code></pre><script class="code-source" type="application/json">"set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.10.90"</script>
-</div>
-<hr>
-<p>Happy Routing!</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+set policy route WG0-to-SB rule 10 set table &#39;100&#39;</code></pre><script class=code-source type=application/json>"set policy route WG0-to-SB interface 'wg0'\nset policy route WG0-to-SB rule 10 destination group network-group '!LAN-v4'\nset policy route WG0-to-SB rule 10 set table '100'"</script></div><p>路由表</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.10.90</code></pre><script class=code-source type=application/json>"set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.10.90"</script></div><hr><p>Happy Routing!</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

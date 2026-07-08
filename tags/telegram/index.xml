@@ -1,40 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Telegram on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/telegram/</link>
-    <description>Recent content in Telegram on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sat, 30 May 2026 14:00:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/telegram/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Agent config.yaml 中文配置说明</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-config-yaml-reference/</link>
-      <pubDate>Sat, 30 May 2026 14:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-config-yaml-reference/</guid>
-      <description>Hermes Agent 安装完成后，主要配置文件通常是：&#xA;复制~/.hermes/config.yaml 多 profile 场景下，每个 profile 也会有自己的配置：&#xA;复制~/.hermes/profiles/&amp;lt;profile&amp;gt;/config.yaml 这篇按官方 cli-config.yaml.example 和官方配置参考整理，查询时间是 2026-05-30。Hermes 仍在快速迭代，字段可能随版本变化。生产环境不要追求“字段越多越好”，只保留自己理解且确实需要的配置。&#xA;参考资料：&#xA;Hermes Agent Configuration Options Hermes Agent Configuration 官方 cli-config.yaml.example 修改前先备份 先切到运行 Hermes 的用户，例如：&#xA;复制sudo su - hermesuser 备份配置：&#xA;复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; CONFIG=&amp;#34;${HERMES_HOME}/config.yaml&amp;#34; cp &amp;#34;$CONFIG&amp;#34; &amp;#34;${CONFIG}.bak.$(date +%Y%m%d-%H%M%S)&amp;#34; 编辑配置：&#xA;复制nvim &amp;#34;$CONFIG&amp;#34; 如果系统没有 nvim：&#xA;复制nano &amp;#34;$CONFIG&amp;#34; 改完先检查 Hermes：&#xA;复制hermes doctor 如果修改了 Gateway、Telegram、工具显示、模型或平台参数，重启对应服务：&#xA;复制systemctl --user restart hermes-gateway.service systemctl --user status hermes-gateway.service --no-pager 多 profile 先看服务名：&#xA;复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 总体结构 官方示例配置的主干大致如下：</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title>
-      <link>http://0.0.0.0:1313/posts/linux/telegram-bot-for-voip-sms/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/telegram-bot-for-voip-sms/</guid>
-      <description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&#xA;为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。&#xA;更稳的方式是：&#xA;复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。&#xA;创建 Bot 在 Telegram 搜索：&#xA;复制@BotFather 创建流程：&#xA;发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：&#xA;复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。&#xA;获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：&#xA;先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：&#xA;复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title>
-      <link>http://0.0.0.0:1313/posts/linux/python-sms-bot-systemd/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/python-sms-bot-systemd/</guid>
-      <description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&#xA;准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&#xA;复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：&#xA;复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：&#xA;复制python3 -m venv .venv 安装依赖：&#xA;复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&#xA;准备脚本 把测试通过的桥接脚本放到：&#xA;复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：&#xA;复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（一）：整体架构与实现路线</title>
-      <link>http://0.0.0.0:1313/posts/linux/self-hosted-voip-overview/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/self-hosted-voip-overview/</guid>
-      <description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。&#xA;适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：&#xA;SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。&#xA;推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Telegram on 电脑自习室</title><link>https://purodn.tk/tags/telegram/</link><description>Recent content in Telegram on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 30 May 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/telegram/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent config.yaml 中文配置说明</title><link>https://purodn.tk/posts/ai/hermes-config-yaml-reference/</link><pubDate>Sat, 30 May 2026 14:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-config-yaml-reference/</guid><description>Hermes Agent 安装完成后，主要配置文件通常是：
+复制~/.hermes/config.yaml 多 profile 场景下，每个 profile 也会有自己的配置：
+复制~/.hermes/profiles/&amp;lt;profile&amp;gt;/config.yaml 这篇按官方 cli-config.yaml.example 和官方配置参考整理，查询时间是 2026-05-30。Hermes 仍在快速迭代，字段可能随版本变化。生产环境不要追求“字段越多越好”，只保留自己理解且确实需要的配置。
+参考资料：
+Hermes Agent Configuration Options Hermes Agent Configuration 官方 cli-config.yaml.example 修改前先备份 先切到运行 Hermes 的用户，例如：
+复制sudo su - hermesuser 备份配置：
+复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; CONFIG=&amp;#34;${HERMES_HOME}/config.yaml&amp;#34; cp &amp;#34;$CONFIG&amp;#34; &amp;#34;${CONFIG}.bak.$(date +%Y%m%d-%H%M%S)&amp;#34; 编辑配置：
+复制nvim &amp;#34;$CONFIG&amp;#34; 如果系统没有 nvim：
+复制nano &amp;#34;$CONFIG&amp;#34; 改完先检查 Hermes：
+复制hermes doctor 如果修改了 Gateway、Telegram、工具显示、模型或平台参数，重启对应服务：
+复制systemctl --user restart hermes-gateway.service systemctl --user status hermes-gateway.service --no-pager 多 profile 先看服务名：
+复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 总体结构 官方示例配置的主干大致如下：</description></item><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。
+为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。
+更稳的方式是：
+复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。
+创建 Bot 在 Telegram 搜索：
+复制@BotFather 创建流程：
+发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：
+复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。
+获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：
+先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：
+复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description></item><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
+准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
+复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
+复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
+复制python3 -m venv .venv 安装依赖：
+复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
+准备脚本 把测试通过的桥接脚本放到：
+复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
+复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。
+适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：
+SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。
+推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description></item></channel></rss>

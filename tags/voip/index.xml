@@ -1,40 +1,31 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>VoIP on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/voip/</link>
-    <description>Recent content in VoIP on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/voip/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>出国自建 VoIP（二）：FreePBX 16 基础配置</title>
-      <link>http://0.0.0.0:1313/posts/linux/freepbx16-voip-server-setup/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/freepbx16-voip-server-setup/</guid>
-      <description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。&#xA;基础假设 示例网络如下：&#xA;项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&#xA;原文中的整体架构图如下：&#xA;固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：&#xA;复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：&#xA;复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：&#xA;复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title>
-      <link>http://0.0.0.0:1313/posts/linux/synway-smg4004-sip-gateway/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/synway-smg4004-sip-gateway/</guid>
-      <description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。&#xA;设备与限制 旧款 SMG4004-4LC 常见特点：&#xA;4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。&#xA;旧文中的设备和卡槽界面截图：&#xA;网络规划 示例：&#xA;项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。&#xA;FreePBX 侧先确认基础页面和 SIP 端口设置无误：&#xA;如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：&#xA;升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。&#xA;建议检查：&#xA;设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title>
-      <link>http://0.0.0.0:1313/posts/linux/telegram-bot-for-voip-sms/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/telegram-bot-for-voip-sms/</guid>
-      <description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&#xA;为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。&#xA;更稳的方式是：&#xA;复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。&#xA;创建 Bot 在 Telegram 搜索：&#xA;复制@BotFather 创建流程：&#xA;发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：&#xA;复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。&#xA;获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：&#xA;先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：&#xA;复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（一）：整体架构与实现路线</title>
-      <link>http://0.0.0.0:1313/posts/linux/self-hosted-voip-overview/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/self-hosted-voip-overview/</guid>
-      <description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。&#xA;适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：&#xA;SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。&#xA;推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>VoIP on 电脑自习室</title><link>https://purodn.tk/tags/voip/</link><description>Recent content in VoIP on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/voip/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（二）：FreePBX 16 基础配置</title><link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid><description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。
+基础假设 示例网络如下：
+项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。
+原文中的整体架构图如下：
+固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：
+复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：
+复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：
+复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description></item><item><title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title><link>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</guid><description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。
+设备与限制 旧款 SMG4004-4LC 常见特点：
+4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。
+旧文中的设备和卡槽界面截图：
+网络规划 示例：
+项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。
+FreePBX 侧先确认基础页面和 SIP 端口设置无误：
+如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：
+升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。
+建议检查：
+设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description></item><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。
+为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。
+更稳的方式是：
+复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。
+创建 Bot 在 Telegram 搜索：
+复制@BotFather 创建流程：
+发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：
+复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。
+获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：
+先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：
+复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。
+适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：
+SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。
+推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description></item></channel></rss>

@@ -1,19 +1,14 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>命令速查 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5/</link>
-    <description>Recent content in 命令速查 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title>
-      <link>http://0.0.0.0:1313/posts/docker/docker-command-cheatsheet/</link>
-      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/docker-command-cheatsheet/</guid>
-      <description>本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。&#xA;命令中的 容器名、镜像名、网络名、数据卷名 可以替换成你的实际名称。涉及删除的命令建议先执行查看命令确认目标，避免误删正在使用的服务。&#xA;一、Docker 基础信息 查看 Docker 版本：&#xA;复制docker version 查看 Docker 客户端和服务端信息：&#xA;复制docker info 查看 Docker 占用空间：&#xA;复制docker system df 查看 Docker 命令帮助：&#xA;复制docker --help docker run --help 二、镜像管理 搜索镜像：&#xA;复制docker search nginx 拉取镜像：&#xA;复制docker pull nginx:latest docker pull alpine:3.23 查看本地镜像：&#xA;复制docker images docker image ls 查看镜像详细信息：&#xA;复制docker image inspect nginx:latest 给镜像打标签：&#xA;复制docker tag nginx:latest my-nginx:backup 删除一个明确指定的镜像：&#xA;复制docker image rm my-nginx:backup 强制删除一个明确指定的镜像：&#xA;复制docker image rm -f my-nginx:backup 导出镜像为 tar 文件：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>命令速查 on 电脑自习室</title><link>https://purodn.tk/tags/%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5/</link><description>Recent content in 命令速查 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 命令大全：容器、镜像、网络、数据卷与 Compose 速查</title><link>https://purodn.tk/posts/docker/docker-command-cheatsheet/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/docker/docker-command-cheatsheet/</guid><description>本文整理 Docker 日常使用中最常见、最实用的一组命令，适合部署服务、排查问题、管理镜像、查看日志和维护数据卷时快速查询。
+命令中的 容器名、镜像名、网络名、数据卷名 可以替换成你的实际名称。涉及删除的命令建议先执行查看命令确认目标，避免误删正在使用的服务。
+一、Docker 基础信息 查看 Docker 版本：
+复制docker version 查看 Docker 客户端和服务端信息：
+复制docker info 查看 Docker 占用空间：
+复制docker system df 查看 Docker 命令帮助：
+复制docker --help docker run --help 二、镜像管理 搜索镜像：
+复制docker search nginx 拉取镜像：
+复制docker pull nginx:latest docker pull alpine:3.23 查看本地镜像：
+复制docker images docker image ls 查看镜像详细信息：
+复制docker image inspect nginx:latest 给镜像打标签：
+复制docker tag nginx:latest my-nginx:backup 删除一个明确指定的镜像：
+复制docker image rm my-nginx:backup 强制删除一个明确指定的镜像：
+复制docker image rm -f my-nginx:backup 导出镜像为 tar 文件：</description></item></channel></rss>

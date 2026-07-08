@@ -1,33 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>IPv6 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/ipv6/</link>
-    <description>Recent content in IPv6 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/ipv6/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Docker 安装、日志轮转与 IPv6 支持配置</title>
-      <link>http://0.0.0.0:1313/posts/docker/docker-install-log-rotation-ipv6/</link>
-      <pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/docker-install-log-rotation-ipv6/</guid>
-      <description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。&#xA;核心建议很简单：&#xA;新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：&#xA;复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：&#xA;复制docker version 查看 Docker 服务是否能正常列出容器：&#xA;复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：&#xA;复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：&#xA;复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description>
-    </item>
-    <item>
-      <title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title>
-      <link>http://0.0.0.0:1313/posts/docker/nginx-proxy-manager-ipv6/</link>
-      <pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/nginx-proxy-manager-ipv6/</guid>
-      <description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。&#xA;这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。&#xA;注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。&#xA;一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：&#xA;复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。&#xA;可以用下面的命令确认网络是否已经存在：&#xA;复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。&#xA;二、创建 docker-compose.yml 新建并编辑 docker-compose.</description>
-    </item>
-    <item>
-      <title>02.RouterOS 开启 IPv6 并配置防火墙</title>
-      <link>http://0.0.0.0:1313/posts/routeros/routeros-02-ipv4-firewall-fakeip/</link>
-      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/routeros-02-ipv4-firewall-fakeip/</guid>
-      <description>本文介绍RouterOS如何开启IPV6 以NAT6模式为例，ipv6内网网段默认为dc00::/64，Routeros bridge1的IPv6内网地址为dc00::1111/64。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换&#xA;1. 开启 IPv6 复制/ipv6 settings set disable-ipv6=no 2. 获取 IPv6 前缀 复制/ipv6 dhcp-client add interface=pppoe-out1 pool-name=dhcpv6-gua-pool1 pool-prefix-length=60 request=prefix 3. 添加 ULA 地址池 复制/ipv6 pool add name=dhcpv6-ula-pool1 prefix=dc00::/64 prefix-length=64 4. 计算并配置地址 使用wan网卡的MAC地址计算标准EUI-64地址（非必须，简单操作则在下一步中输入::1即可） https://eui64-calc.princelle.org/&#xA;使用上面计算得到的后缀（例如::BF24:12FF:FEE1:E81B）配置pppoe-out1的GUA地址 复制/ipv6 address add address=::BF24:12FF:FEE1:E81B/64 from-pool=dhcpv6-gua-pool1 interface=pppoe-out1 配置bridge1的ula地址，默认dc00::1111（可自行修改） 复制/ipv6 address add address=dc00::1111/64 from-pool=dhcpv6-ula-pool1 interface=bridge1 5. 配置 NAT6 配置动态源地址伪装（开启NAT6）,建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”&#xA;复制/ipv6 firewall nat add action=masquerade chain=srcnat 6. 配置 ND 禁用默认ND配置，新建配置。默认不广播IPV6 DNS。&#xA;复制/ipv6 nd set [ find default=yes ] advertise-dns=no disabled=yes /ipv6 nd add advertise-dns=no advertise-mac-address=no interface=bridge1 managed-address-configuration=yes other-configuration=yes ra-interval=5m-15m 7.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>IPv6 on 电脑自习室</title><link>https://purodn.tk/tags/ipv6/</link><description>Recent content in IPv6 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ipv6/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 安装、日志轮转与 IPv6 支持配置</title><link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link><pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid><description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。
+核心建议很简单：
+新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：
+复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：
+复制docker version 查看 Docker 服务是否能正常列出容器：
+复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：
+复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：
+复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description></item><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。
+这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。
+注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。
+一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：
+复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。
+可以用下面的命令确认网络是否已经存在：
+复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。
+二、创建 docker-compose.yml 新建并编辑 docker-compose.</description></item><item><title>02.RouterOS 开启 IPv6 并配置防火墙</title><link>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-02-ipv4-firewall-fakeip/</guid><description>本文介绍RouterOS如何开启IPV6 以NAT6模式为例，ipv6内网网段默认为dc00::/64，Routeros bridge1的IPv6内网地址为dc00::1111/64。桥接接口bridge1、拨号接口pppoe-out1名称若不同则自行替换
+1. 开启 IPv6 复制/ipv6 settings set disable-ipv6=no 2. 获取 IPv6 前缀 复制/ipv6 dhcp-client add interface=pppoe-out1 pool-name=dhcpv6-gua-pool1 pool-prefix-length=60 request=prefix 3. 添加 ULA 地址池 复制/ipv6 pool add name=dhcpv6-ula-pool1 prefix=dc00::/64 prefix-length=64 4. 计算并配置地址 使用wan网卡的MAC地址计算标准EUI-64地址（非必须，简单操作则在下一步中输入::1即可） https://eui64-calc.princelle.org/
+使用上面计算得到的后缀（例如::BF24:12FF:FEE1:E81B）配置pppoe-out1的GUA地址 复制/ipv6 address add address=::BF24:12FF:FEE1:E81B/64 from-pool=dhcpv6-gua-pool1 interface=pppoe-out1 配置bridge1的ula地址，默认dc00::1111（可自行修改） 复制/ipv6 address add address=dc00::1111/64 from-pool=dhcpv6-ula-pool1 interface=bridge1 5. 配置 NAT6 配置动态源地址伪装（开启NAT6）,建议不做接口限制，若后期采用fakeip方案，再加上“排除代理IP列表的操作”
+复制/ipv6 firewall nat add action=masquerade chain=srcnat 6. 配置 ND 禁用默认ND配置，新建配置。默认不广播IPV6 DNS。
+复制/ipv6 nd set [ find default=yes ] advertise-dns=no disabled=yes /ipv6 nd add advertise-dns=no advertise-mac-address=no interface=bridge1 managed-address-configuration=yes other-configuration=yes ra-interval=5m-15m 7.</description></item></channel></rss>

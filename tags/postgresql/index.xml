@@ -1,19 +1,7 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>PostgreSQL on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/postgresql/</link>
-    <description>Recent content in PostgreSQL on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 19 May 2026 10:25:05 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/postgresql/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title>
-      <link>http://0.0.0.0:1313/posts/docker/synapse-docker-compose-matrix/</link>
-      <pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/synapse-docker-compose-matrix/</guid>
-      <description>这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。&#xA;这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 8008 端口映射到宿主机 8008，方便内网客户端访问或后续接入反代。&#xA;网络方面使用统一的 matrix bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。&#xA;注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。&#xA;一、安装基础环境 如果宿主机还没有 Docker，可以先更新系统并安装常用工具：&#xA;复制apt update -y &amp;amp;&amp;amp; apt upgrade -y apt install -y curl wget sudo socat 安装 Docker：&#xA;复制curl -fsSL https://get.docker.com -o get-docker.sh sh get-docker.sh 如果你的系统还没有 docker compose，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PostgreSQL on 电脑自习室</title><link>https://purodn.tk/tags/postgresql/</link><description>Recent content in PostgreSQL on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 10:25:05 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/postgresql/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。
+这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 8008 端口映射到宿主机 8008，方便内网客户端访问或后续接入反代。
+网络方面使用统一的 matrix bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。
+注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。
+一、安装基础环境 如果宿主机还没有 Docker，可以先更新系统并安装常用工具：
+复制apt update -y &amp;amp;&amp;amp; apt upgrade -y apt install -y curl wget sudo socat 安装 Docker：
+复制curl -fsSL https://get.docker.com -o get-docker.sh sh get-docker.sh 如果你的系统还没有 docker compose，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。</description></item></channel></rss>

@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Retention on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/retention/</link>
-    <description>Recent content in Retention on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 19 May 2026 20:37:59 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/retention/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>2026 年 Matrix 消息过期自动删除配置</title>
-      <link>http://0.0.0.0:1313/posts/docker/matrix-self-destructing-messages-guide/</link>
-      <pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/matrix-self-destructing-messages-guide/</guid>
-      <description>这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 retention，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 expiringmessages 插件，让机器人在房间里按时间撤回消息。&#xA;如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 retention。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。&#xA;一、两种方案怎么选 服务器端 retention 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 homeserver.yaml 并重启 Synapse，而且房间还需要设置 m.room.retention 状态事件。&#xA;机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 redact 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。&#xA;简单理解：&#xA;有 Synapse 管理权限：优先用 retention。 只有房间管理权限：可以用 maubot 机器人。 对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。 二、方案一：启用 Synapse retention 先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：&#xA;复制nvim /root/data/docker_data/synapse/data/homeserver.yaml 在 homeserver.yaml 中加入或调整下面这段配置。注意：retention: 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。&#xA;复制retention: enabled: true default_policy: max_lifetime: 3d allowed_lifetime_max: 3d purge_jobs: - interval: 1d 这段配置的含义是：&#xA;enabled: true：启用 Synapse 的消息保留策略。 default_policy.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Retention on 电脑自习室</title><link>https://purodn.tk/tags/retention/</link><description>Recent content in Retention on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 20:37:59 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/retention/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 Matrix 消息过期自动删除配置</title><link>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</link><pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</guid><description>这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 retention，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 expiringmessages 插件，让机器人在房间里按时间撤回消息。
+如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 retention。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。
+一、两种方案怎么选 服务器端 retention 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 homeserver.yaml 并重启 Synapse，而且房间还需要设置 m.room.retention 状态事件。
+机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 redact 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。
+简单理解：
+有 Synapse 管理权限：优先用 retention。 只有房间管理权限：可以用 maubot 机器人。 对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。 二、方案一：启用 Synapse retention 先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：
+复制nvim /root/data/docker_data/synapse/data/homeserver.yaml 在 homeserver.yaml 中加入或调整下面这段配置。注意：retention: 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。
+复制retention: enabled: true default_policy: max_lifetime: 3d allowed_lifetime_max: 3d purge_jobs: - interval: 1d 这段配置的含义是：
+enabled: true：启用 Synapse 的消息保留策略。 default_policy.</description></item></channel></rss>

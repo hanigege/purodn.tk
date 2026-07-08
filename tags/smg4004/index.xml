@@ -1,19 +1,11 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>SMG4004 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/smg4004/</link>
-    <description>Recent content in SMG4004 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/smg4004/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title>
-      <link>http://0.0.0.0:1313/posts/linux/synway-smg4004-sip-gateway/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/synway-smg4004-sip-gateway/</guid>
-      <description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。&#xA;设备与限制 旧款 SMG4004-4LC 常见特点：&#xA;4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。&#xA;旧文中的设备和卡槽界面截图：&#xA;网络规划 示例：&#xA;项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。&#xA;FreePBX 侧先确认基础页面和 SIP 端口设置无误：&#xA;如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：&#xA;升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。&#xA;建议检查：&#xA;设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SMG4004 on 电脑自习室</title><link>https://purodn.tk/tags/smg4004/</link><description>Recent content in SMG4004 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/smg4004/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title><link>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</guid><description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。
+设备与限制 旧款 SMG4004-4LC 常见特点：
+4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。
+旧文中的设备和卡槽界面截图：
+网络规划 示例：
+项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。
+FreePBX 侧先确认基础页面和 SIP 端口设置无误：
+如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：
+升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。
+建议检查：
+设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description></item></channel></rss>

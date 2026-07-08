@@ -1,19 +1,12 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>OPNsense on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/opnsense/</link>
-    <description>Recent content in OPNsense on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/opnsense/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>SMbox OPNsense 配置教程</title>
-      <link>http://0.0.0.0:1313/posts/routeros/smbox-opnsense-config/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/smbox-opnsense-config/</guid>
-      <description>开始前先确认两个地址：&#xA;10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：&#xA;打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。&#xA;proxy_cidr 为需要代理的 IP 地址：&#xA;复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。&#xA;任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。&#xA;打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：&#xA;打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：&#xA;将规则移动至最前面：&#xA;复制刚才的规则：&#xA;将方向改为 out，然后保存：&#xA;再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>OPNsense on 电脑自习室</title><link>https://purodn.tk/tags/opnsense/</link><description>Recent content in OPNsense on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/opnsense/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox OPNsense 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid><description>开始前先确认两个地址：
+10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：
+打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。
+proxy_cidr 为需要代理的 IP 地址：
+复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。
+任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。
+打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：
+打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：
+将规则移动至最前面：
+复制刚才的规则：
+将方向改为 out，然后保存：
+再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description></item></channel></rss>

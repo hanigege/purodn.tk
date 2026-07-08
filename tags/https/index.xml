@@ -1,26 +1,18 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>HTTPS on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/https/</link>
-    <description>Recent content in HTTPS on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 18 May 2026 10:30:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/https/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title>
-      <link>http://0.0.0.0:1313/posts/linux/alpine-nginx-static-file-browser/</link>
-      <pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/alpine-nginx-static-file-browser/</guid>
-      <description>在 Alpine Linux 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。&#xA;本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /var/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。&#xA;准备证书 正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 acme.sh、lego 或 certbot。&#xA;本文后续示例假设证书和私钥已经放在下面的位置：&#xA;复制/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key。&#xA;安装并启用 Nginx Alpine 使用 apk 安装软件，服务管理使用 OpenRC：&#xA;复制apk update apk add nginx openssl logrotate rc-update add nginx default 创建 Web 根目录：&#xA;复制mkdir -p /var/www/fetch.jgaga.tk chown -R root:nginx /var/www/fetch.jgaga.tk 这里推荐让目录归属为 root:nginx。Nginx worker 以 nginx 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&#xA;创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。下面以用户名 admin 为例：</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</link>
-      <pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</guid>
-      <description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&#xA;本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。&#xA;准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。&#xA;本文后续示例假设证书和私钥已经放在下面的位置：&#xA;复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。&#xA;安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：&#xA;复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&#xA;创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。&#xA;下面以用户名 admin 为例：&#xA;复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HTTPS on 电脑自习室</title><link>https://purodn.tk/tags/https/</link><description>Recent content in HTTPS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 10:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/https/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>在 Alpine Linux 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。
+本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /var/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
+准备证书 正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 acme.sh、lego 或 certbot。
+本文后续示例假设证书和私钥已经放在下面的位置：
+复制/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key。
+安装并启用 Nginx Alpine 使用 apk 安装软件，服务管理使用 OpenRC：
+复制apk update apk add nginx openssl logrotate rc-update add nginx default 创建 Web 根目录：
+复制mkdir -p /var/www/fetch.jgaga.tk chown -R root:nginx /var/www/fetch.jgaga.tk 这里推荐让目录归属为 root:nginx。Nginx worker 以 nginx 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
+创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。下面以用户名 admin 为例：</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
+本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
+准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
+本文后续示例假设证书和私钥已经放在下面的位置：
+复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。
+安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：
+复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
+创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
+下面以用户名 admin 为例：
+复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item></channel></rss>

@@ -1,19 +1,2 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Traefik on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/traefik/</link>
-    <description>Recent content in Traefik on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 15 Aug 2025 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/traefik/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>使用 traefik 搭建反向代理</title>
-      <link>http://0.0.0.0:1313/posts/linux/traefik-reverse-proxy/</link>
-      <pubDate>Fri, 15 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/traefik-reverse-proxy/</guid>
-      <description>本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能 注：1.目前traefik仅能通过docker部署 2. 后附unraid使用的traefik模板&#xA;以下教程以在pve的lxc中安装为例 （一）lxc环境准备 pve中以ubuntu22.04或debian12为模板，创建lxc 修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录 ssh登录lxc，更换国内源（有科学环境可不用换源） 复制bash &amp;lt;(curl -sSL https://linuxmirrors.cn/main.sh) \ --source mirrors.tuna.tsinghua.edu.cn \ --web-protocol https \ --backup true \ --ignore-backup-tips \ --updata-software false 更新软件包，安装必要依赖（若弹出选择框直接回车即可） 复制apt update &amp;amp;&amp;amp; apt upgrade -y &amp;amp;&amp;amp; apt install curl nano -y 使用官方脚本一键安装docker和docker-compose 复制curl -fsSL https://get.docker.com -o get-docker.sh （二）部署traefik 创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik 复制mkdir -p /root/docker/traefik/configurations cd /root/docker/traefik touch docker-compose.yaml touch traefik.yml touch acme.json touch configurations/dynamic.yml chmod 600 acme.json 编辑docker-compose.yaml文件 复制nano /root/docker/traefik/docker-compose.yaml 粘贴以下代码至docker-compose.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Traefik on 电脑自习室</title><link>https://purodn.tk/tags/traefik/</link><description>Recent content in Traefik on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 15 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/traefik/index.xml" rel="self" type="application/rss+xml"/><item><title>使用 traefik 搭建反向代理</title><link>https://purodn.tk/posts/linux/traefik-reverse-proxy/</link><pubDate>Fri, 15 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/traefik-reverse-proxy/</guid><description>本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能 注：1.目前traefik仅能通过docker部署 2. 后附unraid使用的traefik模板
+以下教程以在pve的lxc中安装为例 （一）lxc环境准备 pve中以ubuntu22.04或debian12为模板，创建lxc 修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录 ssh登录lxc，更换国内源（有科学环境可不用换源） 复制bash &amp;lt;(curl -sSL https://linuxmirrors.cn/main.sh) \ --source mirrors.tuna.tsinghua.edu.cn \ --web-protocol https \ --backup true \ --ignore-backup-tips \ --updata-software false 更新软件包，安装必要依赖（若弹出选择框直接回车即可） 复制apt update &amp;amp;&amp;amp; apt upgrade -y &amp;amp;&amp;amp; apt install curl nano -y 使用官方脚本一键安装docker和docker-compose 复制curl -fsSL https://get.docker.com -o get-docker.sh （二）部署traefik 创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik 复制mkdir -p /root/docker/traefik/configurations cd /root/docker/traefik touch docker-compose.yaml touch traefik.yml touch acme.json touch configurations/dynamic.yml chmod 600 acme.json 编辑docker-compose.yaml文件 复制nano /root/docker/traefik/docker-compose.yaml 粘贴以下代码至docker-compose.</description></item></channel></rss>

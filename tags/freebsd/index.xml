@@ -1,96 +1,92 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>FreeBSD on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/freebsd/</link>
-    <description>Recent content in FreeBSD on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/freebsd/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-pf-firewall-manager/</link>
-      <pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-pf-firewall-manager/</guid>
-      <description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。&#xA;这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：&#xA;默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：&#xA;复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：&#xA;复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。&#xA;如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：&#xA;复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description>
-    </item>
-    <item>
-      <title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</link>
-      <pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</guid>
-      <description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&#xA;复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&#xA;复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。&#xA;准备 Go 环境 先确认 Go 已经可用：&#xA;复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。&#xA;如果当前终端还找不到 go，可以临时加入 PATH：&#xA;复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。&#xA;以 root 用户执行：&#xA;复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：&#xA;复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</link>
-      <pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</guid>
-      <description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&#xA;本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。&#xA;准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。&#xA;本文后续示例假设证书和私钥已经放在下面的位置：&#xA;复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。&#xA;安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：&#xA;复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&#xA;创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。&#xA;下面以用户名 admin 为例：&#xA;复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description>
-    </item>
-    <item>
-      <title>FreeBSD 普通用户下安装 Hysteria2 服务端</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-user-hysteria2-server/</link>
-      <pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-user-hysteria2-server/</guid>
-      <description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。&#xA;普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。&#xA;截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。&#xA;1. 安装 tmux 启动脚本依赖 tmux，需要先安装：&#xA;复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。&#xA;2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：&#xA;复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：&#xA;复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：&#xA;复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description>
-    </item>
-    <item>
-      <title>FreeBSD15现代化Neovim生产力环境部署指南</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-neovim-productivity/</link>
-      <pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-neovim-productivity/</guid>
-      <description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。&#xA;这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。&#xA;一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。&#xA;下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。&#xA;复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：&#xA;复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description>
-    </item>
-    <item>
-      <title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link>
-      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid>
-      <description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。&#xA;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&#xA;使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&#xA;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&#xA;GitHub 公钥地址格式是：&#xA;复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&#xA;root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&#xA;复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。&#xA;root 用户配置项核对 root 用户版本推荐状态如下：&#xA;复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</link>
-      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</guid>
-      <description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&#xA;适合下面几种场景：&#xA;VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&#xA;选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&#xA;输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。&#xA;进入 Distribution Sets 选择界面。</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</link>
-      <pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</guid>
-      <description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&#xA;建议按下面顺序做：&#xA;修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。&#xA;确认要删除的用户确实是错误账号后，在 root 下执行：&#xA;复制pw userdel -n fexil -r 参数含义：&#xA;-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：&#xA;复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：&#xA;复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。&#xA;复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：&#xA;用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description>
-    </item>
-    <item>
-      <title>FreeBSD 更改默认编辑器 vi</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-change-default-editor-vi/</link>
-      <pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-change-default-editor-vi/</guid>
-      <description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。&#xA;前提是你想使用的新编辑器已经安装。&#xA;临时更改 临时更改只对当前命令有效，适合偶尔使用一次。&#xA;复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：&#xA;复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。&#xA;永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。&#xA;sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：&#xA;复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。&#xA;如果写入的是 ~/.profile：&#xA;复制. ~/.profile 如果写入的是 ~/.bashrc：&#xA;复制. ~/.bashrc 如果写入的是 ~/.bash_profile：&#xA;复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description>
-    </item>
-    <item>
-      <title>FreeBSD 手动安装 Go 最新版</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-install-go-latest/</link>
-      <pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-install-go-latest/</guid>
-      <description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。&#xA;本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。&#xA;root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。&#xA;复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：&#xA;复制/usr/local/go 然后把 Go 加入环境变量：&#xA;复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：&#xA;复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：&#xA;复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：&#xA;复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description>
-    </item>
-    <item>
-      <title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-sudo-root-password/</link>
-      <pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-sudo-root-password/</guid>
-      <description>我个人不太建议在所有环境里都直接开启 sudo。如果只是自己的服务器，很多时候使用 su - 切换到 root 管理系统，权限边界会更清楚。&#xA;不过 sudo 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 sudo 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 sudo 时验证 root 密码，而不是验证普通用户自己的密码。&#xA;报错含义 如果普通用户执行 sudo 时看到：&#xA;复制gary is not in the sudoers file. This incident has been reported to the administrator. 意思是当前用户 gary 没有被 sudoers 授权，所以不能通过 sudo 执行需要管理员权限的命令。&#xA;后续操作需要先用 root 用户完成。可以直接登录 root，也可以从普通用户切换：&#xA;复制su - 这里输入的是 root 密码，不是普通用户密码。&#xA;安装 sudo 如果系统还没有安装 sudo，先安装：&#xA;复制pkg install sudo FreeBSD 通过 pkg 安装的 sudo，配置文件通常是：&#xA;复制/usr/local/etc/sudoers 不要直接用普通编辑器修改这个文件，应该使用 visudo，它会在保存前检查语法，避免 sudoers 写错后导致 sudo 无法使用。</description>
-    </item>
-    <item>
-      <title>让 FreeBSD 在终端下支持中文</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-terminal-chinese/</link>
-      <pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-terminal-chinese/</guid>
-      <description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。&#xA;编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。&#xA;复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：&#xA;复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：&#xA;复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD on 电脑自习室</title><link>https://purodn.tk/tags/freebsd/</link><description>Recent content in FreeBSD on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 21:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/freebsd/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
+这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
+默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
+复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
+复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。
+如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：
+复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description></item><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
+复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
+复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
+准备 Go 环境 先确认 Go 已经可用：
+复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
+如果当前终端还找不到 go，可以临时加入 PATH：
+复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
+以 root 用户执行：
+复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
+复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
+本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
+准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
+本文后续示例假设证书和私钥已经放在下面的位置：
+复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。
+安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：
+复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
+创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
+下面以用户名 admin 为例：
+复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD 普通用户下安装 Hysteria2 服务端</title><link>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</link><pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-user-hysteria2-server/</guid><description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。
+普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。
+截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。
+1. 安装 tmux 启动脚本依赖 tmux，需要先安装：
+复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。
+2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：
+复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：
+复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：
+复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description></item><item><title>FreeBSD15现代化Neovim生产力环境部署指南</title><link>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</link><pubDate>Sun, 01 Mar 2026 09:42:19 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-neovim-productivity/</guid><description>本文记录一套 FreeBSD 15 专用的 Neovim 生产力环境部署流程：先用 FreeBSD 的 pkg 准备编译环境，再从源码安装 Neovim 0.10+，最后写入一份基于 lazy.nvim 的 Lua 配置。
+这套配置适合 FreeBSD 服务器、虚拟机和桌面环境使用，重点解决日常编辑里最常见的几件事：文件树、主题、远程 SSH 复制、保存时格式化、JSON/YAML/HTML/CSS/JavaScript/Markdown/Lua 格式化。
+一、安装系统依赖并编译 Neovim FreeBSD 使用 pkg 管理二进制包。编译 Neovim 时建议使用 gmake，不要直接用系统自带的 make。
+下面命令需要 root 权限。如果当前不是 root 用户，请在命令前加 doas 或 sudo。
+复制# 强制刷新仓库索引，并升级已安装软件包 pkg update -f pkg upgrade -y # 安装源码编译 Neovim 所需工具 pkg install -y ninja cmake gettext-tools gmake unzip curl git gcc 然后拉取 Neovim 源码并切换到稳定分支：
+复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并安装：</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
+它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
+使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
+更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
+GitHub 公钥地址格式是：
+复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
+root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
+复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
+root 用户配置项核对 root 用户版本推荐状态如下：
+复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。
+适合下面几种场景：
+VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。
+选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。
+输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。
+进入 Distribution Sets 选择界面。</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。
+建议按下面顺序做：
+修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。
+确认要删除的用户确实是错误账号后，在 root 下执行：
+复制pw userdel -n fexil -r 参数含义：
+-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：
+复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：
+复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。
+复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：
+用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description></item><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。
+前提是你想使用的新编辑器已经安装。
+临时更改 临时更改只对当前命令有效，适合偶尔使用一次。
+复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：
+复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。
+永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。
+sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：
+复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。
+如果写入的是 ~/.profile：
+复制. ~/.profile 如果写入的是 ~/.bashrc：
+复制. ~/.bashrc 如果写入的是 ~/.bash_profile：
+复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
+本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。
+root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。
+复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：
+复制/usr/local/go 然后把 Go 加入环境变量：
+复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：
+复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：
+复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：
+复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description></item><item><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title><link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link><pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid><description>我个人不太建议在所有环境里都直接开启 sudo。如果只是自己的服务器，很多时候使用 su - 切换到 root 管理系统，权限边界会更清楚。
+不过 sudo 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 sudo 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 sudo 时验证 root 密码，而不是验证普通用户自己的密码。
+报错含义 如果普通用户执行 sudo 时看到：
+复制gary is not in the sudoers file. This incident has been reported to the administrator. 意思是当前用户 gary 没有被 sudoers 授权，所以不能通过 sudo 执行需要管理员权限的命令。
+后续操作需要先用 root 用户完成。可以直接登录 root，也可以从普通用户切换：
+复制su - 这里输入的是 root 密码，不是普通用户密码。
+安装 sudo 如果系统还没有安装 sudo，先安装：
+复制pkg install sudo FreeBSD 通过 pkg 安装的 sudo，配置文件通常是：
+复制/usr/local/etc/sudoers 不要直接用普通编辑器修改这个文件，应该使用 visudo，它会在保存前检查语法，避免 sudoers 写错后导致 sudo 无法使用。</description></item><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。
+编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。
+复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：
+复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：
+复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description></item></channel></rss>

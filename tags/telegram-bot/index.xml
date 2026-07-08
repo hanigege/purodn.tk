@@ -1,61 +1,41 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Telegram Bot on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/telegram-bot/</link>
-    <description>Recent content in Telegram Bot on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 02 Jun 2026 22:32:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/telegram-bot/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-profile-tools-scope-toolsets/</link>
-      <pubDate>Tue, 02 Jun 2026 22:32:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-profile-tools-scope-toolsets/</guid>
-      <description>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，hermes tools 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。&#xA;一句话结论：&#xA;在某个 profile 里全局改 tools，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。&#xA;这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 -t web，什么时候应该新建 webonly / safe profile。&#xA;先分清四个层级 层级 常见写法 影响范围 是否长期保存 profile 级 tools 配置 hermes tools、hermes tools enable web、hermes tools disable terminal 当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session 是 指定 profile 的 tools 配置 hermes -p webonly tools disable terminal webonly 这个 profile 下的后续会话和机器人 是 单次启动 toolsets hermes chat -t web -q &amp;quot;查一下.</description>
-    </item>
-    <item>
-      <title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-systemd-profile-gateway-conflict/</link>
-      <pubDate>Tue, 02 Jun 2026 18:02:36 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-systemd-profile-gateway-conflict/</guid>
-      <description>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 --replace 互相顶掉。&#xA;如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 --profile default。&#xA;适用场景 这篇适合下面这种情况：&#xA;项目 示例 系统用户 hermesuser Hermes 根目录 /home/hermesuser/.hermes 默认 profile /home/hermesuser/.hermes 具名 profile /home/hermesuser/.hermes/profiles/code default 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway.service code 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway-code.service 目标是两个服务都常驻运行：&#xA;复制hermes-gateway.service hermes-gateway-code.service 并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。&#xA;故障现象 查看 systemd user service：&#xA;复制sudo -u hermesuser env \ XDG_RUNTIME_DIR=/run/user/1001 \ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \ systemctl --user list-units &amp;#39;*hermes-gateway*&amp;#39; --all --no-pager 可能会看到类似结果：</description>
-    </item>
-    <item>
-      <title>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-project-context-files/</link>
-      <pubDate>Mon, 01 Jun 2026 10:55:39 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-project-context-files/</guid>
-      <description>Hermes 也可以像 Codex 一样读取项目级上下文文件。区别在于：Telegram 对话本身只有一个窗口，Hermes 必须先知道“本轮任务要操作哪个项目目录”，才能进入项目、读取规则，再按规则做事。&#xA;这篇文章整理一套适合日常使用的约定：每个项目放自己的 AGENTS.md，每次下任务时带上项目路径，必要时用 /new 和 /title 分隔上下文。这样不管是写 Hugo 文章、检查 Matrix 容器，还是维护某个 Docker Compose 项目，Hermes 都能把不同项目的规则分开处理。&#xA;Hermes 支持哪些项目上下文文件 Hermes 会识别项目目录里的上下文文件，常见包括：&#xA;AGENTS.md CLAUDE.md .cursorrules 这些文件的作用是告诉机器人：这个项目是什么、文件怎么放、哪些命令必须验证、哪些目录禁止删除、哪些信息不能输出。&#xA;要注意的是，Hermes 需要先知道当前项目路径。比如 Telegram 里的默认工作目录可能是：&#xA;复制/home/hermesuser/.hermes/profiles/code 这个目录只是 Hermes profile 的运行目录，不一定是你的业务项目。如果只说“去改那个项目”，Hermes 不会自动知道应该读取哪个项目的 AGENTS.md。&#xA;正确的说法是直接给出项目路径：&#xA;复制小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。 Hermes 收到后，推荐按这个顺序工作：&#xA;进入指定项目目录。 读取 AGENTS.md、CLAUDE.md 或相关 README。 查看 git status 和项目结构。 按项目规则修改。 运行验证命令。 汇报修改内容、验证结果和剩余风险。 下任务时怎么区分不同项目 最稳的格式是：&#xA;复制项目：/path/to/project 任务：做 xxx 例如：&#xA;复制项目：/home/hermesuser/wiki 任务：新增一篇 RouterOS 备份说明。 或者：</description>
-    </item>
-    <item>
-      <title>Hermes Profile 多机器人隔离查询手册</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-profiles-multi-bot-isolation/</link>
-      <pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-profiles-multi-bot-isolation/</guid>
-      <description>Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。&#xA;这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。&#xA;最重要的一句话：操作具名 profile 时一定要带 -p &amp;lt;profile&amp;gt; 或 --profile &amp;lt;profile&amp;gt;。不带 profile 的命令通常会改默认机器人。&#xA;速查表 需求 命令或路径 默认 profile 配置 ~/.hermes/config.yaml 默认 profile 密钥 ~/.hermes/.env groupbot 配置 ~/.hermes/profiles/groupbot/config.yaml groupbot 密钥 ~/.hermes/profiles/groupbot/.env 查看 profile hermes profile list 创建 profile hermes profile create groupbot 复制当前配置创建 hermes profile create groupbot --clone 尽量完整复制创建 hermes profile create groupbot --clone-all 查看工具 hermes -p groupbot tools list 进入工具开关界面 hermes -p groupbot tools 配置模型 hermes -p groupbot model 配置 Telegram hermes -p groupbot gateway setup 重启 gateway hermes -p groupbot gateway restart 查看 gateway 状态 hermes -p groupbot gateway status Profile 配置文件在哪里 默认 profile：</description>
-    </item>
-    <item>
-      <title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-codebot-second-gateway-runbook/</link>
-      <pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-codebot-second-gateway-runbook/</guid>
-      <description>这篇是给下次的自己看的。&#xA;第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 codebot profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。&#xA;这次踩到的点很典型：&#xA;服务看起来 restart 失败，但其实新进程已经启动。 Telegram 明明写了允许用户，仍然报 Unauthorized user。 .env 里同名变量出现两次，后面的覆盖前面的。 授权修好后，又报 OPENAI_API_KEY 没读到。 bot 能回复以后，还会提醒没有设置 home channel。 所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。&#xA;安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。&#xA;目标结构 推荐把默认助手和开发助手分开。&#xA;角色 profile systemd user service 用途 默认助手 默认 profile hermes-gateway.service 或类似名称 日常聊天、提醒、低风险任务 代码助手 codebot hermes-codebot-gateway.service 代码修改、调试、测试、重构 拆 profile 的好处是边界清楚：&#xA;每个 profile 有自己的 .env、config.yaml、session、memory 和 gateway state。 每个 Telegram bot 可以只服务一个用途。 codebot 可以用更适合写代码的模型和权限策略。 默认助手不会被开发任务的上下文污染。 第一个默认 Gateway 第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 hermesuser：</description>
-    </item>
-    <item>
-      <title>Hermes Telegram 安静模式恢复手册</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-telegram-quiet-mode-restore/</link>
-      <pubDate>Wed, 27 May 2026 09:50:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-telegram-quiet-mode-restore/</guid>
-      <description>这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。&#xA;目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。&#xA;如果你想系统了解 ~/.hermes/config.yaml 每个配置段的作用，可以先看这篇：Hermes Agent config.yaml 中文配置说明。&#xA;配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 $HERMES_HOME、$HOME、&amp;lt;profile&amp;gt;、&amp;lt;user&amp;gt;、&amp;lt;service&amp;gt; 替换成自己的环境即可。&#xA;适用场景 已安装 Hermes Agent。 已配置 Telegram bot token。 已配置模型 API。 希望 Telegram 聊天窗口保持干净。 需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。 关键原则 保留记忆功能，但不显示 memory: 通知。 保留工具和后台能力，但不显示工具进度。 保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。 不开启全局 yolo 权限，危险命令仍然需要确认。 优先使用 hermes config set 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 config.yaml 只作为对照和兜底。 不把私钥、API Key、Telegram Token、SSH 密码写进文档。 目录变量约定 Hermes 默认配置目录通常在当前用户的 home 目录下：&#xA;复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; 默认 profile 配置文件：</description>
-    </item>
-    <item>
-      <title>Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-agent-handmade-tuning/</link>
-      <pubDate>Wed, 27 May 2026 09:26:37 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-agent-handmade-tuning/</guid>
-      <description>Hermes Agent 真正好用的状态，不是“功能全开”，而是像一台自己维护过的工作站：主模型稳、辅助模型省、Telegram 安静、记忆不过载、Skills 可复用、权限逐步放开。&#xA;我又顺着官方文档和社区讨论看了一圈，结论和你前面整理的方向基本一致。官方文档本身已经把模型分成主模型和 auxiliary models；Telegram 被设计成日常聊天入口，不是调试控制台；memory 和 skills 是 Hermes 的核心能力；profiles 官方也明确用于隔离 config、API keys、memory、sessions、skills 和 gateway state。社区里比较常见的坑，则集中在 memory 过满、Telegram 输出太吵、多 profile / 多 bot 配置混乱这些地方。&#xA;所以这篇不追求“把所有开关都打开”，而是给一套更适合长期自用的手搓调优思路。&#xA;总体思路 先把 Hermes 拆成七层：&#xA;主模型负责对话、规划和工具循环。 auxiliary models 负责图片、压缩、网页提取、标题、skill search 等后台任务。 Telegram 只当干净聊天入口。 memory 只写长期偏好和稳定事实。 skills 只沉淀可重复执行的流程。 权限从 approval 开始逐步放开，不直接 yolo。 profiles 按用途分开，而不是一个 bot 什么都干。 如果只改一个地方，我会先改模型分工和 Telegram 输出。前者决定脑子稳不稳，后者决定你愿不愿意天天用。&#xA;1. 模型分工：主模型要稳，后台模型要便宜 Hermes 的模型配置不是只有一个 model。官方的 Configuring Models 文档把它分成两类：主模型负责主对话和工具循环，auxiliary models 负责后台子任务，例如 vision、compression、web summarization、title generation、skill search 等。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Telegram Bot on 电脑自习室</title><link>https://purodn.tk/tags/telegram-bot/</link><description>Recent content in Telegram Bot on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 22:32:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/telegram-bot/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</title><link>https://purodn.tk/posts/ai/hermes-profile-tools-scope-toolsets/</link><pubDate>Tue, 02 Jun 2026 22:32:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profile-tools-scope-toolsets/</guid><description>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，hermes tools 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。
+一句话结论：
+在某个 profile 里全局改 tools，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。
+这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 -t web，什么时候应该新建 webonly / safe profile。
+先分清四个层级 层级 常见写法 影响范围 是否长期保存 profile 级 tools 配置 hermes tools、hermes tools enable web、hermes tools disable terminal 当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session 是 指定 profile 的 tools 配置 hermes -p webonly tools disable terminal webonly 这个 profile 下的后续会话和机器人 是 单次启动 toolsets hermes chat -t web -q &amp;quot;查一下.</description></item><item><title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</title><link>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</link><pubDate>Tue, 02 Jun 2026 18:02:36 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</guid><description>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 --replace 互相顶掉。
+如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 --profile default。
+适用场景 这篇适合下面这种情况：
+项目 示例 系统用户 hermesuser Hermes 根目录 /home/hermesuser/.hermes 默认 profile /home/hermesuser/.hermes 具名 profile /home/hermesuser/.hermes/profiles/code default 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway.service code 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway-code.service 目标是两个服务都常驻运行：
+复制hermes-gateway.service hermes-gateway-code.service 并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。
+故障现象 查看 systemd user service：
+复制sudo -u hermesuser env \ XDG_RUNTIME_DIR=/run/user/1001 \ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \ systemctl --user list-units &amp;#39;*hermes-gateway*&amp;#39; --all --no-pager 可能会看到类似结果：</description></item><item><title>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</title><link>https://purodn.tk/posts/ai/hermes-project-context-files/</link><pubDate>Mon, 01 Jun 2026 10:55:39 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-project-context-files/</guid><description>Hermes 也可以像 Codex 一样读取项目级上下文文件。区别在于：Telegram 对话本身只有一个窗口，Hermes 必须先知道“本轮任务要操作哪个项目目录”，才能进入项目、读取规则，再按规则做事。
+这篇文章整理一套适合日常使用的约定：每个项目放自己的 AGENTS.md，每次下任务时带上项目路径，必要时用 /new 和 /title 分隔上下文。这样不管是写 Hugo 文章、检查 Matrix 容器，还是维护某个 Docker Compose 项目，Hermes 都能把不同项目的规则分开处理。
+Hermes 支持哪些项目上下文文件 Hermes 会识别项目目录里的上下文文件，常见包括：
+AGENTS.md CLAUDE.md .cursorrules 这些文件的作用是告诉机器人：这个项目是什么、文件怎么放、哪些命令必须验证、哪些目录禁止删除、哪些信息不能输出。
+要注意的是，Hermes 需要先知道当前项目路径。比如 Telegram 里的默认工作目录可能是：
+复制/home/hermesuser/.hermes/profiles/code 这个目录只是 Hermes profile 的运行目录，不一定是你的业务项目。如果只说“去改那个项目”，Hermes 不会自动知道应该读取哪个项目的 AGENTS.md。
+正确的说法是直接给出项目路径：
+复制小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。 Hermes 收到后，推荐按这个顺序工作：
+进入指定项目目录。 读取 AGENTS.md、CLAUDE.md 或相关 README。 查看 git status 和项目结构。 按项目规则修改。 运行验证命令。 汇报修改内容、验证结果和剩余风险。 下任务时怎么区分不同项目 最稳的格式是：
+复制项目：/path/to/project 任务：做 xxx 例如：
+复制项目：/home/hermesuser/wiki 任务：新增一篇 RouterOS 备份说明。 或者：</description></item><item><title>Hermes Profile 多机器人隔离查询手册</title><link>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</link><pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</guid><description>Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。
+这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。
+最重要的一句话：操作具名 profile 时一定要带 -p &amp;lt;profile&amp;gt; 或 --profile &amp;lt;profile&amp;gt;。不带 profile 的命令通常会改默认机器人。
+速查表 需求 命令或路径 默认 profile 配置 ~/.hermes/config.yaml 默认 profile 密钥 ~/.hermes/.env groupbot 配置 ~/.hermes/profiles/groupbot/config.yaml groupbot 密钥 ~/.hermes/profiles/groupbot/.env 查看 profile hermes profile list 创建 profile hermes profile create groupbot 复制当前配置创建 hermes profile create groupbot --clone 尽量完整复制创建 hermes profile create groupbot --clone-all 查看工具 hermes -p groupbot tools list 进入工具开关界面 hermes -p groupbot tools 配置模型 hermes -p groupbot model 配置 Telegram hermes -p groupbot gateway setup 重启 gateway hermes -p groupbot gateway restart 查看 gateway 状态 hermes -p groupbot gateway status Profile 配置文件在哪里 默认 profile：</description></item><item><title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title><link>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</link><pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</guid><description>这篇是给下次的自己看的。
+第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 codebot profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。
+这次踩到的点很典型：
+服务看起来 restart 失败，但其实新进程已经启动。 Telegram 明明写了允许用户，仍然报 Unauthorized user。 .env 里同名变量出现两次，后面的覆盖前面的。 授权修好后，又报 OPENAI_API_KEY 没读到。 bot 能回复以后，还会提醒没有设置 home channel。 所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。
+安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。
+目标结构 推荐把默认助手和开发助手分开。
+角色 profile systemd user service 用途 默认助手 默认 profile hermes-gateway.service 或类似名称 日常聊天、提醒、低风险任务 代码助手 codebot hermes-codebot-gateway.service 代码修改、调试、测试、重构 拆 profile 的好处是边界清楚：
+每个 profile 有自己的 .env、config.yaml、session、memory 和 gateway state。 每个 Telegram bot 可以只服务一个用途。 codebot 可以用更适合写代码的模型和权限策略。 默认助手不会被开发任务的上下文污染。 第一个默认 Gateway 第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 hermesuser：</description></item><item><title>Hermes Telegram 安静模式恢复手册</title><link>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</link><pubDate>Wed, 27 May 2026 09:50:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-telegram-quiet-mode-restore/</guid><description>这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。
+目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。
+如果你想系统了解 ~/.hermes/config.yaml 每个配置段的作用，可以先看这篇：Hermes Agent config.yaml 中文配置说明。
+配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 $HERMES_HOME、$HOME、&amp;lt;profile&amp;gt;、&amp;lt;user&amp;gt;、&amp;lt;service&amp;gt; 替换成自己的环境即可。
+适用场景 已安装 Hermes Agent。 已配置 Telegram bot token。 已配置模型 API。 希望 Telegram 聊天窗口保持干净。 需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。 关键原则 保留记忆功能，但不显示 memory: 通知。 保留工具和后台能力，但不显示工具进度。 保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。 不开启全局 yolo 权限，危险命令仍然需要确认。 优先使用 hermes config set 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 config.yaml 只作为对照和兜底。 不把私钥、API Key、Telegram Token、SSH 密码写进文档。 目录变量约定 Hermes 默认配置目录通常在当前用户的 home 目录下：
+复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; 默认 profile 配置文件：</description></item><item><title>Hermes Agent 手搓调优配置：模型、Telegram、记忆、Skills 和 Profiles</title><link>https://purodn.tk/posts/ai/hermes-agent-handmade-tuning/</link><pubDate>Wed, 27 May 2026 09:26:37 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-handmade-tuning/</guid><description>Hermes Agent 真正好用的状态，不是“功能全开”，而是像一台自己维护过的工作站：主模型稳、辅助模型省、Telegram 安静、记忆不过载、Skills 可复用、权限逐步放开。
+我又顺着官方文档和社区讨论看了一圈，结论和你前面整理的方向基本一致。官方文档本身已经把模型分成主模型和 auxiliary models；Telegram 被设计成日常聊天入口，不是调试控制台；memory 和 skills 是 Hermes 的核心能力；profiles 官方也明确用于隔离 config、API keys、memory、sessions、skills 和 gateway state。社区里比较常见的坑，则集中在 memory 过满、Telegram 输出太吵、多 profile / 多 bot 配置混乱这些地方。
+所以这篇不追求“把所有开关都打开”，而是给一套更适合长期自用的手搓调优思路。
+总体思路 先把 Hermes 拆成七层：
+主模型负责对话、规划和工具循环。 auxiliary models 负责图片、压缩、网页提取、标题、skill search 等后台任务。 Telegram 只当干净聊天入口。 memory 只写长期偏好和稳定事实。 skills 只沉淀可重复执行的流程。 权限从 approval 开始逐步放开，不直接 yolo。 profiles 按用途分开，而不是一个 bot 什么都干。 如果只改一个地方，我会先改模型分工和 Telegram 输出。前者决定脑子稳不稳，后者决定你愿不愿意天天用。
+1. 模型分工：主模型要稳，后台模型要便宜 Hermes 的模型配置不是只有一个 model。官方的 Configuring Models 文档把它分成两类：主模型负责主对话和工具循环，auxiliary models 负责后台子任务，例如 vision、compression、web summarization、title generation、skill search 等。</description></item></channel></rss>

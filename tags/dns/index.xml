@@ -1,61 +1,45 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>DNS on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/dns/</link>
-    <description>Recent content in DNS on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/dns/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>SMbox RouterOS 配置教程</title>
-      <link>http://0.0.0.0:1313/posts/routeros/smbox-routeros-config/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/smbox-routeros-config/</guid>
-      <description>10.0.0.2 是 SMbox 的 IP。&#xA;如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。&#xA;配置思路：两步缺一不可&#xA;SMbox 的分流需要 DNS 和 路由 两步配合才能生效。&#xA;第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。&#xA;第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。&#xA;方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description>
-    </item>
-    <item>
-      <title>sing-box 生产机一键备份与恢复</title>
-      <link>http://0.0.0.0:1313/posts/linux/sing-box-production-manual-restore/</link>
-      <pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/sing-box-production-manual-restore/</guid>
-      <description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。&#xA;我把流程整理成两个脚本：&#xA;backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。&#xA;能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：&#xA;复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description>
-    </item>
-    <item>
-      <title>Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</title>
-      <link>http://0.0.0.0:1313/posts/docker/docker-container-dns-stale-after-host-dns-change/</link>
-      <pubDate>Tue, 02 Jun 2026 09:32:21 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/docker-container-dns-stale-after-host-dns-change/</guid>
-      <description>这篇记录一个很容易踩的 Docker DNS 坑：宿主机 DNS 已经从旧地址切到新地址，但已经存在的 Docker 容器里仍然保留旧的 nameserver，或者 Docker internal DNS 仍然使用旧的上游 DNS，导致容器内域名解析失败。&#xA;这类问题经常表现为：宿主机上 curl、nslookup 都正常，但容器内服务突然访问不了域名、WebHook 失败、推送通知失效、服务健康检查异常，或者 docker pull 走旧代理失败。&#xA;现象 一次 DNS / 网关迁移后，宿主机 /etc/resolv.conf 已经改为新的 DNS：&#xA;复制nameserver 192.0.2.12 宿主机解析和访问业务域名都正常：&#xA;复制nslookup notify.example.com curl -kfsS --connect-timeout 5 -m 10 https://notify.example.com/v1/health 健康接口返回正常：&#xA;复制{&amp;#34;healthy&amp;#34;:true} 但某些 Docker 容器里的业务仍然异常。进一步检查发现，容器内 DNS 还是旧地址。&#xA;普通容器或 network_mode: host 容器里可能直接看到旧 DNS：&#xA;复制nameserver 192.0.2.6 容器内解析失败：&#xA;复制;; connection timed out; no servers could be reached bridge 网络容器里通常看到的是 Docker 内置 DNS：</description>
-    </item>
-    <item>
-      <title>sing-box FakeIP &#43; TProxy 旁路网关部署草稿</title>
-      <link>http://0.0.0.0:1313/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link>
-      <pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid>
-      <description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。&#xA;目标 把一台 Linux 机器做成家庭网络旁路透明网关：&#xA;DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：&#xA;生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description>
-    </item>
-    <item>
-      <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</title>
-      <link>http://0.0.0.0:1313/posts/linux/lol-riot-realip-mosdns-sing-box/</link>
-      <pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/lol-riot-realip-mosdns-sing-box/</guid>
-      <description>这篇是给美服 LoL 单独整理的部署记录。&#xA;背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。&#xA;本文的目标不是重写整套代理架构，而是只做两件事：&#xA;让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。&#xA;1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：&#xA;复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。&#xA;但 LoL 不一样，它的连接链路里会出现：&#xA;登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description>
-    </item>
-    <item>
-      <title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title>
-      <link>http://0.0.0.0:1313/posts/linux/proxmox-debian13-mosdns/</link>
-      <pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/proxmox-debian13-mosdns/</guid>
-      <description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&#xA;视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：&#xA;用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。&#xA;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&#xA;二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：&#xA;复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：&#xA;复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description>
-    </item>
-    <item>
-      <title>mosdns 安装教程</title>
-      <link>http://0.0.0.0:1313/posts/linux/mosdns-install/</link>
-      <pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/mosdns-install/</guid>
-      <description>本文介绍 mosdns（Tom魔改版） 安装使用的方法&#xA;[TOC]&#xA;一、脚本部署 mosdns 需从github下载配置文件，自行准备科学环境&#xA;步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本&#xA;复制wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &amp;amp;&amp;amp; chmod +x /mnt/main_install.sh &amp;amp;&amp;amp; /mnt/main_install.sh 步骤 2： 输入 5 ，再输入 1 ，安装mosdns&#xA;步骤 3： 按提示输入以下信息：&#xA;sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890） 输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666) 步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099&#xA;MosDNS UI 界面预览 更多 mosdns 和 UI 设置问题：加入 TG 群咨询 点击加入 TG 群&#xA;二、手动部署 mosdns 配置 systemd 开机自启（Debian/Ubuntu）：&#xA;步骤 1： 下载 service 文件</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>DNS on 电脑自习室</title><link>https://purodn.tk/tags/dns/</link><description>Recent content in DNS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/dns/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox RouterOS 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid><description>10.0.0.2 是 SMbox 的 IP。
+如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。
+配置思路：两步缺一不可
+SMbox 的分流需要 DNS 和 路由 两步配合才能生效。
+第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。
+第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。
+方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description></item><item><title>sing-box 生产机一键备份与恢复</title><link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link><pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid><description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。
+我把流程整理成两个脚本：
+backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。
+能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：
+复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description></item><item><title>Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</title><link>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</link><pubDate>Tue, 02 Jun 2026 09:32:21 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</guid><description>这篇记录一个很容易踩的 Docker DNS 坑：宿主机 DNS 已经从旧地址切到新地址，但已经存在的 Docker 容器里仍然保留旧的 nameserver，或者 Docker internal DNS 仍然使用旧的上游 DNS，导致容器内域名解析失败。
+这类问题经常表现为：宿主机上 curl、nslookup 都正常，但容器内服务突然访问不了域名、WebHook 失败、推送通知失效、服务健康检查异常，或者 docker pull 走旧代理失败。
+现象 一次 DNS / 网关迁移后，宿主机 /etc/resolv.conf 已经改为新的 DNS：
+复制nameserver 192.0.2.12 宿主机解析和访问业务域名都正常：
+复制nslookup notify.example.com curl -kfsS --connect-timeout 5 -m 10 https://notify.example.com/v1/health 健康接口返回正常：
+复制{&amp;#34;healthy&amp;#34;:true} 但某些 Docker 容器里的业务仍然异常。进一步检查发现，容器内 DNS 还是旧地址。
+普通容器或 network_mode: host 容器里可能直接看到旧 DNS：
+复制nameserver 192.0.2.6 容器内解析失败：
+复制;; connection timed out; no servers could be reached bridge 网络容器里通常看到的是 Docker 内置 DNS：</description></item><item><title>sing-box FakeIP + TProxy 旁路网关部署草稿</title><link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link><pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid><description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。
+目标 把一台 Linux 机器做成家庭网络旁路透明网关：
+DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：
+生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description></item><item><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</title><link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link><pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid><description>这篇是给美服 LoL 单独整理的部署记录。
+背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。
+本文的目标不是重写整套代理架构，而是只做两件事：
+让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。
+1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：
+复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。
+但 LoL 不一样，它的连接链路里会出现：
+登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。
+视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：
+用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。
+还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。
+二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：
+复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：
+复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description></item><item><title>mosdns 安装教程</title><link>https://purodn.tk/posts/linux/mosdns-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/mosdns-install/</guid><description>本文介绍 mosdns（Tom魔改版） 安装使用的方法
+[TOC]
+一、脚本部署 mosdns 需从github下载配置文件，自行准备科学环境
+步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本
+复制wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &amp;amp;&amp;amp; chmod +x /mnt/main_install.sh &amp;amp;&amp;amp; /mnt/main_install.sh 步骤 2： 输入 5 ，再输入 1 ，安装mosdns
+步骤 3： 按提示输入以下信息：
+sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890） 输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666) 步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099
+MosDNS UI 界面预览 更多 mosdns 和 UI 设置问题：加入 TG 群咨询 点击加入 TG 群
+二、手动部署 mosdns 配置 systemd 开机自启（Debian/Ubuntu）：
+步骤 1： 下载 service 文件</description></item></channel></rss>

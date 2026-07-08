@@ -1,26 +1,13 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Portainer on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/portainer/</link>
-    <description>Recent content in Portainer on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/portainer/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Docker 安装、日志轮转与 IPv6 支持配置</title>
-      <link>http://0.0.0.0:1313/posts/docker/docker-install-log-rotation-ipv6/</link>
-      <pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/docker-install-log-rotation-ipv6/</guid>
-      <description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。&#xA;核心建议很简单：&#xA;新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：&#xA;复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：&#xA;复制docker version 查看 Docker 服务是否能正常列出容器：&#xA;复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：&#xA;复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：&#xA;复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description>
-    </item>
-    <item>
-      <title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title>
-      <link>http://0.0.0.0:1313/posts/linux/proxmox-ubuntu2504-vm-docker/</link>
-      <pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/proxmox-ubuntu2504-vm-docker/</guid>
-      <description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&#xA;适用场景：&#xA;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&#xA;一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：&#xA;Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Portainer on 电脑自习室</title><link>https://purodn.tk/tags/portainer/</link><description>Recent content in Portainer on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/portainer/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 安装、日志轮转与 IPv6 支持配置</title><link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link><pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid><description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。
+核心建议很简单：
+新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：
+复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：
+复制docker version 查看 Docker 服务是否能正常列出容器：
+复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：
+复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：
+复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
+适用场景：
+使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
+一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
+Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item></channel></rss>

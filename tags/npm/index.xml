@@ -1,19 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>NPM on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/npm/</link>
-    <description>Recent content in NPM on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 18 May 2026 23:09:15 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/npm/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title>
-      <link>http://0.0.0.0:1313/posts/docker/nginx-proxy-manager-ipv6/</link>
-      <pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/docker/nginx-proxy-manager-ipv6/</guid>
-      <description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。&#xA;这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。&#xA;注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。&#xA;一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：&#xA;复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。&#xA;可以用下面的命令确认网络是否已经存在：&#xA;复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。&#xA;二、创建 docker-compose.yml 新建并编辑 docker-compose.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>NPM on 电脑自习室</title><link>https://purodn.tk/tags/npm/</link><description>Recent content in NPM on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 23:09:15 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/npm/index.xml" rel="self" type="application/rss+xml"/><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。
+这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。
+注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。
+一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：
+复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。
+可以用下面的命令确认网络是否已经存在：
+复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。
+二、创建 docker-compose.yml 新建并编辑 docker-compose.</description></item></channel></rss>

@@ -1,19 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>HTTP/3 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/http/3/</link>
-    <description>Recent content in HTTP/3 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 24 May 2026 00:00:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/http/3/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD 15 下配置 Hysteria2 服务器端</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</guid>
-      <description>本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 salamander 混淆。&#xA;截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。&#xA;1. 部署思路 最稳妥的服务端配置思路是：&#xA;监听 UDP 443，这也是官方默认 HTTP/3 端口。 使用 TLS 证书；如果没有正式域名，可以先用自签证书。 使用 masquerade.proxy 伪装成正常网站。 个人自用时，服务端不写 bandwidth 和 ignoreClientBandwidth，把带宽参数交给客户端。 不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。 如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 obfs.type: salamander。 官方文档里说明，listen 省略时会默认监听 :443，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 listen: :443。&#xA;2. 安装 Hysteria2 最新版 建议用 root 用户操作。监听 443 这类 1024 以下端口也需要 root 权限，或额外配置权限。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HTTP/3 on 电脑自习室</title><link>https://purodn.tk/tags/http/3/</link><description>Recent content in HTTP/3 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/http/3/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下配置 Hysteria2 服务器端</title><link>https://purodn.tk/posts/freebsd/freebsd15-hysteria2-server/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-hysteria2-server/</guid><description>本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 salamander 混淆。
+截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。
+1. 部署思路 最稳妥的服务端配置思路是：
+监听 UDP 443，这也是官方默认 HTTP/3 端口。 使用 TLS 证书；如果没有正式域名，可以先用自签证书。 使用 masquerade.proxy 伪装成正常网站。 个人自用时，服务端不写 bandwidth 和 ignoreClientBandwidth，把带宽参数交给客户端。 不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。 如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 obfs.type: salamander。 官方文档里说明，listen 省略时会默认监听 :443，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 listen: :443。
+2. 安装 Hysteria2 最新版 建议用 root 用户操作。监听 443 这类 1024 以下端口也需要 root 权限，或额外配置权限。</description></item></channel></rss>

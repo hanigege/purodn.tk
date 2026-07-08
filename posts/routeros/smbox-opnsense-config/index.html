@@ -1,191 +1,33 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SMbox OPNsense 配置教程 | 电脑自习室</title>
-    <meta name="description" content="在 OPNsense 中配置 SMbox DNS 下发、网关、别名、NAT 转发和 LAN 防火墙规则。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2026-06-21">2026年6月21日</time>
-        </div>
-        <h1>SMbox OPNsense 配置教程</h1>
-          <p>在 OPNsense 中配置 SMbox DNS 下发、网关、别名、NAT 转发和 LAN 防火墙规则。</p>
-      </header>
-          <img class="article-cover" src="/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png" alt="">
-
-      <div class="article-content">
-        <p>开始前先确认两个地址：</p>
-<ul>
-<li><code>10.0.0.2</code> 需要替换为你自己的 SMbox IP。</li>
-<li><code>10.0.0.1</code> 需要替换为你自己的 OPNsense IP。</li>
-</ul>
-<h2 id="修改-dns-下发为主路由">修改 DNS 下发为主路由</h2>
-<p><img src="assets/smbox-opnsense-01.png" alt="OPNsense DNS 下发配置"></p>
-<h2 id="新建网关配置">新建网关配置</h2>
-<p>按下图新建一个网关配置：</p>
-<p><img src="assets/smbox-opnsense-02.png" alt="OPNsense 新建网关配置"></p>
-<h2 id="打开防火墙别名">打开防火墙别名</h2>
-<p>打开 <code>防火墙 -&gt; 别名</code>，新建两个别名：<code>proxy_cidr</code> 和 <code>proxy_device</code>。</p>
-<p><code>proxy_cidr</code> 为需要代理的 IP 地址：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>198.18.0.0/15
-</span></span><span style="display:flex;"><span>91.108.56.0/22
-</span></span><span style="display:flex;"><span>91.108.4.0/22
-</span></span><span style="display:flex;"><span>91.108.8.0/22
-</span></span><span style="display:flex;"><span>91.108.16.0/22
-</span></span><span style="display:flex;"><span>91.108.12.0/22
-</span></span><span style="display:flex;"><span>149.154.160.0/20
-</span></span><span style="display:flex;"><span>91.105.192.0/23
-</span></span><span style="display:flex;"><span>91.108.20.0/22
-</span></span><span style="display:flex;"><span>185.76.151.0/24</span></span></code></pre></div><script class="code-source" type="application/json">"198.18.0.0/15\n91.108.56.0/22\n91.108.4.0/22\n91.108.8.0/22\n91.108.16.0/22\n91.108.12.0/22\n149.154.160.0/20\n91.105.192.0/23\n91.108.20.0/22\n185.76.151.0/24"</script>
-</div>
-<p><img src="assets/smbox-opnsense-03.png" alt="OPNsense proxy_cidr 别名"></p>
-<p><code>proxy_device</code> 为需要代理设备的 MAC 地址。</p>
-<p><strong>任何时候不要把 SMbox 的 IP 加入到 <code>proxy_device</code> 中，否则会引起环回导致崩溃。</strong></p>
-<p><img src="assets/smbox-opnsense-04.png" alt="OPNsense proxy_device 别名"></p>
-<p><img src="assets/smbox-opnsense-05.png" alt="OPNsense 别名列表"></p>
-<h2 id="打开-nat-转发并新建规则">打开 NAT 转发并新建规则</h2>
-<p>打开 <code>NAT -&gt; 转发 -&gt; 新建规则</code>，按下图配置：</p>
-<p><img src="assets/smbox-opnsense-06.png" alt="OPNsense NAT 转发规则"></p>
-<h2 id="打开-lan-防火墙并新建规则">打开 LAN 防火墙并新建规则</h2>
-<p>打开 <code>防火墙 -&gt; LAN -&gt; 新建规则</code>：</p>
-<p><img src="assets/smbox-opnsense-07.png" alt="OPNsense LAN 防火墙规则"></p>
-<p>将规则移动至最前面：</p>
-<p><img src="assets/smbox-opnsense-08.png" alt="将 LAN 规则移动到最前"></p>
-<p>复制刚才的规则：</p>
-<p><img src="assets/smbox-opnsense-09.png" alt="复制 LAN 防火墙规则"></p>
-<p>将方向改为 <code>out</code>，然后保存：</p>
-<p><img src="assets/smbox-opnsense-10.png" alt="将规则方向改为 out"></p>
-<p>再次复制第一次创建的规则，将源改为 <code>proxy_cidr</code>，目标改为 <code>any</code>：</p>
-<p><img src="assets/smbox-opnsense-11.png" alt="设置 proxy_cidr 到 any 规则"></p>
-<p><img src="assets/smbox-opnsense-12.png" alt="保存 proxy_cidr 规则"></p>
-<h2 id="如果开启-ipv6需要关闭-v6-dns-下发">如果开启 IPv6，需要关闭 V6 DNS 下发</h2>
-<p>勾选“不要向客户端发送任何 DNS 配置”。</p>
-<p><img src="assets/smbox-opnsense-13.png" alt="关闭 IPv6 DNS 下发"></p>
-<p>原文来源：<a href="https://smbox.buzheteng.org/guide/opnsense.html">OPNsense 配置</a>。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>SMbox OPNsense 配置教程 | 电脑自习室</title>
+<meta name=description content="在 OPNsense 中配置 SMbox DNS 下发、网关、别名、NAT 转发和 LAN 防火墙规则。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2026-06-21>2026年6月21日</time></div><h1>SMbox OPNsense 配置教程</h1><p>在 OPNsense 中配置 SMbox DNS 下发、网关、别名、NAT 转发和 LAN 防火墙规则。</p></header><img class=article-cover src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt><div class=article-content><p>开始前先确认两个地址：</p><ul><li><code>10.0.0.2</code> 需要替换为你自己的 SMbox IP。</li><li><code>10.0.0.1</code> 需要替换为你自己的 OPNsense IP。</li></ul><h2 id=修改-dns-下发为主路由>修改 DNS 下发为主路由</h2><p><img src=assets/smbox-opnsense-01.png alt="OPNsense DNS 下发配置"></p><h2 id=新建网关配置>新建网关配置</h2><p>按下图新建一个网关配置：</p><p><img src=assets/smbox-opnsense-02.png alt="OPNsense 新建网关配置"></p><h2 id=打开防火墙别名>打开防火墙别名</h2><p>打开 <code>防火墙 -> 别名</code>，新建两个别名：<code>proxy_cidr</code> 和 <code>proxy_device</code>。</p><p><code>proxy_cidr</code> 为需要代理的 IP 地址：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>198.18.0.0/15
+</span></span><span style=display:flex><span>91.108.56.0/22
+</span></span><span style=display:flex><span>91.108.4.0/22
+</span></span><span style=display:flex><span>91.108.8.0/22
+</span></span><span style=display:flex><span>91.108.16.0/22
+</span></span><span style=display:flex><span>91.108.12.0/22
+</span></span><span style=display:flex><span>149.154.160.0/20
+</span></span><span style=display:flex><span>91.105.192.0/23
+</span></span><span style=display:flex><span>91.108.20.0/22
+</span></span><span style=display:flex><span>185.76.151.0/24</span></span></code></pre></div><script class=code-source type=application/json>"198.18.0.0/15\n91.108.56.0/22\n91.108.4.0/22\n91.108.8.0/22\n91.108.16.0/22\n91.108.12.0/22\n149.154.160.0/20\n91.105.192.0/23\n91.108.20.0/22\n185.76.151.0/24"</script></div><p><img src=assets/smbox-opnsense-03.png alt="OPNsense proxy_cidr 别名"></p><p><code>proxy_device</code> 为需要代理设备的 MAC 地址。</p><p><strong>任何时候不要把 SMbox 的 IP 加入到 <code>proxy_device</code> 中，否则会引起环回导致崩溃。</strong></p><p><img src=assets/smbox-opnsense-04.png alt="OPNsense proxy_device 别名"></p><p><img src=assets/smbox-opnsense-05.png alt="OPNsense 别名列表"></p><h2 id=打开-nat-转发并新建规则>打开 NAT 转发并新建规则</h2><p>打开 <code>NAT -> 转发 -> 新建规则</code>，按下图配置：</p><p><img src=assets/smbox-opnsense-06.png alt="OPNsense NAT 转发规则"></p><h2 id=打开-lan-防火墙并新建规则>打开 LAN 防火墙并新建规则</h2><p>打开 <code>防火墙 -> LAN -> 新建规则</code>：</p><p><img src=assets/smbox-opnsense-07.png alt="OPNsense LAN 防火墙规则"></p><p>将规则移动至最前面：</p><p><img src=assets/smbox-opnsense-08.png alt="将 LAN 规则移动到最前"></p><p>复制刚才的规则：</p><p><img src=assets/smbox-opnsense-09.png alt="复制 LAN 防火墙规则"></p><p>将方向改为 <code>out</code>，然后保存：</p><p><img src=assets/smbox-opnsense-10.png alt="将规则方向改为 out"></p><p>再次复制第一次创建的规则，将源改为 <code>proxy_cidr</code>，目标改为 <code>any</code>：</p><p><img src=assets/smbox-opnsense-11.png alt="设置 proxy_cidr 到 any 规则"></p><p><img src=assets/smbox-opnsense-12.png alt="保存 proxy_cidr 规则"></p><h2 id=如果开启-ipv6需要关闭-v6-dns-下发>如果开启 IPv6，需要关闭 V6 DNS 下发</h2><p>勾选“不要向客户端发送任何 DNS 配置”。</p><p><img src=assets/smbox-opnsense-13.png alt="关闭 IPv6 DNS 下发"></p><p>原文来源：<a href=https://smbox.buzheteng.org/guide/opnsense.html>OPNsense 配置</a>。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

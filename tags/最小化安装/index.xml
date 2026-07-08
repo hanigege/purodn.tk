@@ -1,19 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>最小化安装 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/</link>
-    <description>Recent content in 最小化安装 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</link>
-      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</guid>
-      <description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&#xA;适合下面几种场景：&#xA;VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&#xA;选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&#xA;输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。&#xA;进入 Distribution Sets 选择界面。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>最小化安装 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/</link><description>Recent content in 最小化安装 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%9C%80%E5%B0%8F%E5%8C%96%E5%AE%89%E8%A3%85/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。
+适合下面几种场景：
+VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。
+选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。
+输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。
+进入 Distribution Sets 选择界面。</description></item></channel></rss>

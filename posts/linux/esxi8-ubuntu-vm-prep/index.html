@@ -1,383 +1,114 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置 | 电脑自习室</title>
-    <meta name="description" content="整理 ESXi 8 中使用 Ubuntu Cloud Image 创建 Linux 虚拟机的前置步骤，包括 cloud-init 用户配置、开启 SSH、基础系统初始化、Netplan 固定 IP 和释放 53 端口。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-29">2026年5月29日</time>
-        </div>
-        <h1>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</h1>
-          <p>整理 ESXi 8 中使用 Ubuntu Cloud Image 创建 Linux 虚拟机的前置步骤，包括 cloud-init 用户配置、开启 SSH、基础系统初始化、Netplan 固定 IP 和释放 53 端口。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。</p>
-<p>后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。</p>
-<h2 id="准备-ubuntu-cloud-image">准备 Ubuntu Cloud Image</h2>
-<p>Ubuntu Cloud Image 官方下载站：</p>
-<p><a href="https://cloud-images.ubuntu.com/">https://cloud-images.ubuntu.com/</a></p>
-<p>在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。</p>
-<h2 id="创建虚拟机并写入-cloud-init">创建虚拟机并写入 cloud-init</h2>
-<p>在 ESXi 里创建虚拟机后，可以通过 <code>guestinfo.userdata</code> 写入 cloud-init 配置。原文示例里使用了 base64 方式：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>guestinfo.userdata.encoding      base64
-</span></span><span style="display:flex;"><span>guestinfo.userdata</span></span></code></pre></div><script class="code-source" type="application/json">"guestinfo.userdata.encoding      base64\nguestinfo.userdata"</script>
-</div>
-<p>下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e">#cloud-config</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">users</span>:
-</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">mac</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">groups</span>: <span style="color:#ae81ff">sudo</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">sudo</span>: [<span style="color:#e6db74">&#39;ALL=(ALL) NOPASSWD:ALL&#39;</span>]
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">plain_text_passwd</span>: <span style="color:#e6db74">&#39;12345&#39;</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">lock_passwd</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ssh_authorized_keys:</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#   - ssh-ed25519 AAAA... your-key</span></span></span></code></pre></div><script class="code-source" type="application/json">"#cloud-config\nusers:\n  - name: mac\n    groups: sudo\n    sudo: ['ALL=(ALL) NOPASSWD:ALL']\n    plain_text_passwd: '12345'\n    lock_passwd: false\n    # ssh_authorized_keys:\n    #   - ssh-ed25519 AAAA... your-key"</script>
-</div>
-<p>如果要转换成 base64，可以在本机保存为 <code>user-data.yaml</code> 后执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>base64 -w0 user-data.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"base64 -w0 user-data.yaml"</script>
-</div>
-<p>macOS 上的 <code>base64</code> 没有 <code>-w0</code>，可以用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>base64 &lt; user-data.yaml | tr -d <span style="color:#e6db74">&#39;\n&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"base64 \u003c user-data.yaml | tr -d '\\n'"</script>
-</div>
-<p>生成结果再填入 ESXi 的 <code>guestinfo.userdata</code>。</p>
-<h2 id="开启-ssh-登录">开启 SSH 登录</h2>
-<p>进入系统后先切换到 root 环境并设置 root 密码：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -i
-</span></span><span style="display:flex;"><span>passwd</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -i\npasswd"</script>
-</div>
-<p>编辑 SSH 配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /etc/ssh/sshd_config</span></span></code></pre></div><script class="code-source" type="application/json">"nano /etc/ssh/sshd_config"</script>
-</div>
-<p>Cloud Image 环境中，如果登录时反复提示密码错误，可以检查下面这一行是否加载了额外配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Include /etc/ssh/sshd_config.d/*.conf</span></span></code></pre></div><script class="code-source" type="application/json">"Include /etc/ssh/sshd_config.d/*.conf"</script>
-</div>
-<p>原文的处理方式是把它注释掉：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>#Include /etc/ssh/sshd_config.d/*.conf</span></span></code></pre></div><script class="code-source" type="application/json">"#Include /etc/ssh/sshd_config.d/*.conf"</script>
-</div>
-<p>然后允许 root 密码登录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>PermitRootLogin yes
-</span></span><span style="display:flex;"><span>PasswordAuthentication yes</span></span></code></pre></div><script class="code-source" type="application/json">"PermitRootLogin yes\nPasswordAuthentication yes"</script>
-</div>
-<p>保存后重启 SSH：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl restart ssh</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl restart ssh"</script>
-</div>
-<p>更稳妥的做法是优先使用普通 sudo 用户和 SSH 公钥登录；只有在临时初始化或内网维护时，再开启 root 密码登录。</p>
-<h2 id="基础系统初始化">基础系统初始化</h2>
-<p>更新系统并安装常用工具：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
-</span></span><span style="display:flex;"><span>apt install -y curl unzip lsof nano</span></span></code></pre></div><script class="code-source" type="application/json">"apt update\napt install -y curl unzip lsof nano"</script>
-</div>
-<p>设置时区为北京时间。这里的作用是把系统本地时间显示为 <code>Asia/Shanghai</code>，不是手动校准系统时钟：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl set-timezone Asia/Shanghai</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl set-timezone Asia/Shanghai"</script>
-</div>
-<p>确认时区：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate"</script>
-</div>
-<p>在 Ubuntu 25.10 中，时间同步默认已经改用 <code>chrony</code>。如果要确认网络校时状态，可以继续检查：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl status chrony
-</span></span><span style="display:flex;"><span>chronyc tracking</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl status chrony\nchronyc tracking"</script>
-</div>
-<p>也就是说：<code>timedatectl set-timezone Asia/Shanghai</code> 负责设置北京时间显示，<code>chrony</code> 负责把系统时钟同步准确。</p>
-<p>如果需要中文环境，可以启用中文 locale：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;zh_CN.UTF-8 UTF-8&#34;</span> &gt;&gt; /etc/locale.gen
-</span></span><span style="display:flex;"><span>dpkg-reconfigure locales</span></span></code></pre></div><script class="code-source" type="application/json">"echo \"zh_CN.UTF-8 UTF-8\" \u003e\u003e /etc/locale.gen\ndpkg-reconfigure locales"</script>
-</div>
-<p>重启后再更新一次软件源：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>reboot
-</span></span><span style="display:flex;"><span>apt update</span></span></code></pre></div><script class="code-source" type="application/json">"reboot\napt update"</script>
-</div>
-<h2 id="修改固定-ip">修改固定 IP</h2>
-<p>Ubuntu 服务器通常使用 Netplan 配置网络。先进入配置目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /etc/netplan
-</span></span><span style="display:flex;"><span>ls</span></span></code></pre></div><script class="code-source" type="application/json">"cd /etc/netplan\nls"</script>
-</div>
-<p>编辑其中的 YAML 配置文件，例如：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /etc/netplan/00-installer-config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano /etc/netplan/00-installer-config.yaml"</script>
-</div>
-<p>不同镜像的文件名可能不同，以实际 <code>ls /etc/netplan</code> 输出为准。</p>
-<h3 id="云镜像示例">云镜像示例</h3>
-<p>下面是原文里的云镜像示例。注意替换 IP、网关、DNS、MAC 地址和网卡名：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">network</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ethernets</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ens192</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">192.168.16.8</span><span style="color:#ae81ff">/24</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">routes</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: <span style="color:#ae81ff">0.0.0.0</span><span style="color:#ae81ff">/0</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">192.168.16.5</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">nameservers</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">addresses</span>: [<span style="color:#ae81ff">192.168.16.2</span>]
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">match</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">macaddress</span>: <span style="color:#ae81ff">00</span>:<span style="color:#ae81ff">0c:29:34:70:3c</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">set-name</span>: <span style="color:#ae81ff">eth0</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">version</span>: <span style="color:#ae81ff">2</span></span></span></code></pre></div><script class="code-source" type="application/json">"network:\n  ethernets:\n    ens192:\n      addresses:\n        - 192.168.16.8/24\n      routes:\n        - to: 0.0.0.0/0\n          via: 192.168.16.5\n      nameservers:\n        addresses: [192.168.16.2]\n      match:\n        macaddress: 00:0c:29:34:70:3c\n      set-name: eth0\n  version: 2"</script>
-</div>
-<p>应用配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>netplan apply</span></span></code></pre></div><script class="code-source" type="application/json">"netplan apply"</script>
-</div>
-<h3 id="ipv4--ipv6-示例">IPv4 + IPv6 示例</h3>
-<p>如果需要同时配置 IPv4 和 IPv6，可以参考：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">network</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">version</span>: <span style="color:#ae81ff">2</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ethernets</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">eth0</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">10.20.20.9</span><span style="color:#ae81ff">/24</span>
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">fd88::9999/64</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">match</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">macaddress</span>: <span style="color:#ae81ff">bc:24:11:61:c0:a4</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">nameservers</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">223.5.5.5</span>
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">8.8.8.8</span>
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">1.1.1.1</span>
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">fd88::6666</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">search</span>:
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">local</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">routes</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: <span style="color:#ae81ff">default</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">10.20.20.1</span>
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: <span style="color:#ae81ff">default</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">fd88::1111</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">set-name</span>: <span style="color:#ae81ff">eth0</span></span></span></code></pre></div><script class="code-source" type="application/json">"network:\n  version: 2\n  ethernets:\n    eth0:\n      addresses:\n        - 10.20.20.9/24\n        - fd88::9999/64\n      match:\n        macaddress: bc:24:11:61:c0:a4\n      nameservers:\n        addresses:\n          - 223.5.5.5\n          - 8.8.8.8\n          - 1.1.1.1\n          - fd88::6666\n        search:\n          - local\n      routes:\n        - to: default\n          via: 10.20.20.1\n        - to: default\n          via: fd88::1111\n      set-name: eth0"</script>
-</div>
-<h3 id="普通安装镜像示例">普通安装镜像示例</h3>
-<p>如果不是 cloud image，而是普通 Ubuntu 安装镜像，可以参考：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">network</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">renderer</span>: <span style="color:#ae81ff">networkd</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ethernets</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ens192</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">dhcp4</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">dhcp6</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">192.168.8.8</span><span style="color:#ae81ff">/24</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">routes</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: <span style="color:#ae81ff">default</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">192.168.8.1</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">nameservers</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">192.168.8.1</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">search</span>: []
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">version</span>: <span style="color:#ae81ff">2</span></span></span></code></pre></div><script class="code-source" type="application/json">"network:\n  renderer: networkd\n  ethernets:\n    ens192:\n      dhcp4: false\n      dhcp6: false\n      addresses:\n        - 192.168.8.8/24\n      routes:\n        - to: default\n          via: 192.168.8.1\n      nameservers:\n        addresses:\n          - 192.168.8.1\n        search: []\n  version: 2"</script>
-</div>
-<p>带 IPv6 的版本：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">network</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">renderer</span>: <span style="color:#ae81ff">networkd</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ethernets</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ens192</span>:
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">dhcp4</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">dhcp6</span>: <span style="color:#66d9ef">false</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">192.168.8.8</span><span style="color:#ae81ff">/24</span>
-</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">fd88::6666/64</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">routes</span>:
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: <span style="color:#ae81ff">default</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">192.168.8.1</span>
-</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">to</span>: ::<span style="color:#ae81ff">/0</span>
-</span></span><span style="display:flex;"><span>          <span style="color:#f92672">via</span>: <span style="color:#ae81ff">fd88::1</span>
-</span></span><span style="display:flex;"><span>      <span style="color:#f92672">nameservers</span>:
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">addresses</span>:
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">192.168.8.1</span>
-</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">fd88::1</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#f92672">search</span>: []
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">version</span>: <span style="color:#ae81ff">2</span></span></span></code></pre></div><script class="code-source" type="application/json">"network:\n  renderer: networkd\n  ethernets:\n    ens192:\n      dhcp4: false\n      dhcp6: false\n      addresses:\n        - 192.168.8.8/24\n        - fd88::6666/64\n      routes:\n        - to: default\n          via: 192.168.8.1\n        - to: ::/0\n          via: fd88::1\n      nameservers:\n        addresses:\n          - 192.168.8.1\n          - fd88::1\n        search: []\n  version: 2"</script>
-</div>
-<h3 id="cloud-init-网络配置注意点">Cloud-init 网络配置注意点</h3>
-<p>Ubuntu Cloud Image 可能会生成类似下面的提示：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span># This file is generated from information provided by the datasource.
-</span></span><span style="display:flex;"><span># Changes to it will not persist across an instance reboot.
-</span></span><span style="display:flex;"><span># To disable cloud-init&#39;s network configuration capabilities, write a file
-</span></span><span style="display:flex;"><span># /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
-</span></span><span style="display:flex;"><span># network: {config: disabled}</span></span></code></pre></div><script class="code-source" type="application/json">"# This file is generated from information provided by the datasource.\n# Changes to it will not persist across an instance reboot.\n# To disable cloud-init's network configuration capabilities, write a file\n# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:\n# network: {config: disabled}"</script>
-</div>
-<p>意思是当前 Netplan 文件可能会被 cloud-init 重新生成。如果你想手动维护网络配置，可以创建：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg</span></span></code></pre></div><script class="code-source" type="application/json">"nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"</script>
-</div>
-<p>写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">network</span>: {<span style="color:#f92672">config</span>: <span style="color:#ae81ff">disabled}</span></span></span></code></pre></div><script class="code-source" type="application/json">"network: {config: disabled}"</script>
-</div>
-<p>然后再维护 <code>/etc/netplan/</code> 下的配置文件。</p>
-<h2 id="释放-53-端口">释放 53 端口</h2>
-<p>如果后续要在本机运行 DNS 服务，需要先确认 53 端口是否被 <code>systemd-resolved</code> 占用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>lsof -i:53</span></span></code></pre></div><script class="code-source" type="application/json">"lsof -i:53"</script>
-</div>
-<p>编辑配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /etc/systemd/resolved.conf</span></span></code></pre></div><script class="code-source" type="application/json">"nano /etc/systemd/resolved.conf"</script>
-</div>
-<p>找到这一项：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>#DNSStubListener=yes</span></span></code></pre></div><script class="code-source" type="application/json">"#DNSStubListener=yes"</script>
-</div>
-<p>改成：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>DNSStubListener=no</span></span></code></pre></div><script class="code-source" type="application/json">"DNSStubListener=no"</script>
-</div>
-<p>重启 <code>systemd-resolved</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl reload-or-restart systemd-resolved</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl reload-or-restart systemd-resolved"</script>
-</div>
-<p>再次检查：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>lsof -i:53</span></span></code></pre></div><script class="code-source" type="application/json">"lsof -i:53"</script>
-</div>
-<p>如果 53 端口已经没有被 <code>systemd-resolved</code> 监听，后续 DNS 服务就可以直接绑定本机 <code>:53</code>。</p>
-<h2 id="建议做快照">建议做快照</h2>
-<p>到这里，虚拟机已经完成基础初始化。建议在 ESXi 里先做一次快照，再继续安装后续服务。这样后面如果配置 DNS 服务或网络规则出错，可以很快回滚。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/docker/shaoji-mall-docker-install/">
-            <img src="/images/computer-tutorial-hero.png" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-disaster-recovery-manual/">
-            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-production/">
-            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/linux/build-matrix-synapse-standard/">
-            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置 | 电脑自习室</title>
+<meta name=description content="整理 ESXi 8 中使用 Ubuntu Cloud Image 创建 Linux 虚拟机的前置步骤，包括 cloud-init 用户配置、开启 SSH、基础系统初始化、Netplan 固定 IP 和释放 53 端口。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-29>2026年5月29日</time></div><h1>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</h1><p>整理 ESXi 8 中使用 Ubuntu Cloud Image 创建 Linux 虚拟机的前置步骤，包括 cloud-init 用户配置、开启 SSH、基础系统初始化、Netplan 固定 IP 和释放 53 端口。</p></header><img class=article-cover src=/posts/linux/esxi8-ubuntu-vm-prep/assets/cover.svg alt><div class=article-content><p>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。</p><p>后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。</p><h2 id=准备-ubuntu-cloud-image>准备 Ubuntu Cloud Image</h2><p>Ubuntu Cloud Image 官方下载站：</p><p><a href=https://cloud-images.ubuntu.com/>https://cloud-images.ubuntu.com/</a></p><p>在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。</p><h2 id=创建虚拟机并写入-cloud-init>创建虚拟机并写入 cloud-init</h2><p>在 ESXi 里创建虚拟机后，可以通过 <code>guestinfo.userdata</code> 写入 cloud-init 配置。原文示例里使用了 base64 方式：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>guestinfo.userdata.encoding      base64
+</span></span><span style=display:flex><span>guestinfo.userdata</span></span></code></pre></div><script class=code-source type=application/json>"guestinfo.userdata.encoding      base64\nguestinfo.userdata"</script></div><p>下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e>#cloud-config</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>users</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>mac</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>groups</span>: <span style=color:#ae81ff>sudo</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sudo</span>: [<span style=color:#e6db74>&#39;ALL=(ALL) NOPASSWD:ALL&#39;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#f92672>plain_text_passwd</span>: <span style=color:#e6db74>&#39;12345&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>lock_passwd</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># ssh_authorized_keys:</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>#   - ssh-ed25519 AAAA... your-key</span></span></span></code></pre></div><script class=code-source type=application/json>"#cloud-config\nusers:\n  - name: mac\n    groups: sudo\n    sudo: ['ALL=(ALL) NOPASSWD:ALL']\n    plain_text_passwd: '12345'\n    lock_passwd: false\n    # ssh_authorized_keys:\n    #   - ssh-ed25519 AAAA... your-key"</script></div><p>如果要转换成 base64，可以在本机保存为 <code>user-data.yaml</code> 后执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>base64 -w0 user-data.yaml</span></span></code></pre></div><script class=code-source type=application/json>"base64 -w0 user-data.yaml"</script></div><p>macOS 上的 <code>base64</code> 没有 <code>-w0</code>，可以用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>base64 &lt; user-data.yaml | tr -d <span style=color:#e6db74>&#39;\n&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"base64 \u003c user-data.yaml | tr -d '\\n'"</script></div><p>生成结果再填入 ESXi 的 <code>guestinfo.userdata</code>。</p><h2 id=开启-ssh-登录>开启 SSH 登录</h2><p>进入系统后先切换到 root 环境并设置 root 密码：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -i
+</span></span><span style=display:flex><span>passwd</span></span></code></pre></div><script class=code-source type=application/json>"sudo -i\npasswd"</script></div><p>编辑 SSH 配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /etc/ssh/sshd_config</span></span></code></pre></div><script class=code-source type=application/json>"nano /etc/ssh/sshd_config"</script></div><p>Cloud Image 环境中，如果登录时反复提示密码错误，可以检查下面这一行是否加载了额外配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Include /etc/ssh/sshd_config.d/*.conf</span></span></code></pre></div><script class=code-source type=application/json>"Include /etc/ssh/sshd_config.d/*.conf"</script></div><p>原文的处理方式是把它注释掉：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>#Include /etc/ssh/sshd_config.d/*.conf</span></span></code></pre></div><script class=code-source type=application/json>"#Include /etc/ssh/sshd_config.d/*.conf"</script></div><p>然后允许 root 密码登录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>PermitRootLogin yes
+</span></span><span style=display:flex><span>PasswordAuthentication yes</span></span></code></pre></div><script class=code-source type=application/json>"PermitRootLogin yes\nPasswordAuthentication yes"</script></div><p>保存后重启 SSH：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart ssh</span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart ssh"</script></div><p>更稳妥的做法是优先使用普通 sudo 用户和 SSH 公钥登录；只有在临时初始化或内网维护时，再开启 root 密码登录。</p><h2 id=基础系统初始化>基础系统初始化</h2><p>更新系统并安装常用工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt update
+</span></span><span style=display:flex><span>apt install -y curl unzip lsof nano</span></span></code></pre></div><script class=code-source type=application/json>"apt update\napt install -y curl unzip lsof nano"</script></div><p>设置时区为北京时间。这里的作用是把系统本地时间显示为 <code>Asia/Shanghai</code>，不是手动校准系统时钟：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl set-timezone Asia/Shanghai</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl set-timezone Asia/Shanghai"</script></div><p>确认时区：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate"</script></div><p>在 Ubuntu 25.10 中，时间同步默认已经改用 <code>chrony</code>。如果要确认网络校时状态，可以继续检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl status chrony
+</span></span><span style=display:flex><span>chronyc tracking</span></span></code></pre></div><script class=code-source type=application/json>"systemctl status chrony\nchronyc tracking"</script></div><p>也就是说：<code>timedatectl set-timezone Asia/Shanghai</code> 负责设置北京时间显示，<code>chrony</code> 负责把系统时钟同步准确。</p><p>如果需要中文环境，可以启用中文 locale：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>echo <span style=color:#e6db74>&#34;zh_CN.UTF-8 UTF-8&#34;</span> &gt;&gt; /etc/locale.gen
+</span></span><span style=display:flex><span>dpkg-reconfigure locales</span></span></code></pre></div><script class=code-source type=application/json>"echo \"zh_CN.UTF-8 UTF-8\" \u003e\u003e /etc/locale.gen\ndpkg-reconfigure locales"</script></div><p>重启后再更新一次软件源：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>reboot
+</span></span><span style=display:flex><span>apt update</span></span></code></pre></div><script class=code-source type=application/json>"reboot\napt update"</script></div><h2 id=修改固定-ip>修改固定 IP</h2><p>Ubuntu 服务器通常使用 Netplan 配置网络。先进入配置目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cd /etc/netplan
+</span></span><span style=display:flex><span>ls</span></span></code></pre></div><script class=code-source type=application/json>"cd /etc/netplan\nls"</script></div><p>编辑其中的 YAML 配置文件，例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /etc/netplan/00-installer-config.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano /etc/netplan/00-installer-config.yaml"</script></div><p>不同镜像的文件名可能不同，以实际 <code>ls /etc/netplan</code> 输出为准。</p><h3 id=云镜像示例>云镜像示例</h3><p>下面是原文里的云镜像示例。注意替换 IP、网关、DNS、MAC 地址和网卡名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>network</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ethernets</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ens192</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>192.168.16.8</span><span style=color:#ae81ff>/24</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>routes</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: <span style=color:#ae81ff>0.0.0.0</span><span style=color:#ae81ff>/0</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>192.168.16.5</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>nameservers</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>addresses</span>: [<span style=color:#ae81ff>192.168.16.2</span>]
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>macaddress</span>: <span style=color:#ae81ff>00</span>:<span style=color:#ae81ff>0c:29:34:70:3c</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>set-name</span>: <span style=color:#ae81ff>eth0</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>version</span>: <span style=color:#ae81ff>2</span></span></span></code></pre></div><script class=code-source type=application/json>"network:\n  ethernets:\n    ens192:\n      addresses:\n        - 192.168.16.8/24\n      routes:\n        - to: 0.0.0.0/0\n          via: 192.168.16.5\n      nameservers:\n        addresses: [192.168.16.2]\n      match:\n        macaddress: 00:0c:29:34:70:3c\n      set-name: eth0\n  version: 2"</script></div><p>应用配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>netplan apply</span></span></code></pre></div><script class=code-source type=application/json>"netplan apply"</script></div><h3 id=ipv4--ipv6-示例>IPv4 + IPv6 示例</h3><p>如果需要同时配置 IPv4 和 IPv6，可以参考：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>network</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>version</span>: <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ethernets</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>eth0</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>10.20.20.9</span><span style=color:#ae81ff>/24</span>
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>fd88::9999/64</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>macaddress</span>: <span style=color:#ae81ff>bc:24:11:61:c0:a4</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>nameservers</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>223.5.5.5</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>8.8.8.8</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>1.1.1.1</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>fd88::6666</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>search</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>local</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>routes</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>10.20.20.1</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>fd88::1111</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>set-name</span>: <span style=color:#ae81ff>eth0</span></span></span></code></pre></div><script class=code-source type=application/json>"network:\n  version: 2\n  ethernets:\n    eth0:\n      addresses:\n        - 10.20.20.9/24\n        - fd88::9999/64\n      match:\n        macaddress: bc:24:11:61:c0:a4\n      nameservers:\n        addresses:\n          - 223.5.5.5\n          - 8.8.8.8\n          - 1.1.1.1\n          - fd88::6666\n        search:\n          - local\n      routes:\n        - to: default\n          via: 10.20.20.1\n        - to: default\n          via: fd88::1111\n      set-name: eth0"</script></div><h3 id=普通安装镜像示例>普通安装镜像示例</h3><p>如果不是 cloud image，而是普通 Ubuntu 安装镜像，可以参考：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>network</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>renderer</span>: <span style=color:#ae81ff>networkd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ethernets</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ens192</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>dhcp4</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>dhcp6</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>192.168.8.8</span><span style=color:#ae81ff>/24</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>routes</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>192.168.8.1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>nameservers</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>192.168.8.1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>search</span>: []
+</span></span><span style=display:flex><span>  <span style=color:#f92672>version</span>: <span style=color:#ae81ff>2</span></span></span></code></pre></div><script class=code-source type=application/json>"network:\n  renderer: networkd\n  ethernets:\n    ens192:\n      dhcp4: false\n      dhcp6: false\n      addresses:\n        - 192.168.8.8/24\n      routes:\n        - to: default\n          via: 192.168.8.1\n      nameservers:\n        addresses:\n          - 192.168.8.1\n        search: []\n  version: 2"</script></div><p>带 IPv6 的版本：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>network</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>renderer</span>: <span style=color:#ae81ff>networkd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ethernets</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ens192</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>dhcp4</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>dhcp6</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>192.168.8.8</span><span style=color:#ae81ff>/24</span>
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>fd88::6666/64</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>routes</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>192.168.8.1</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>to</span>: ::<span style=color:#ae81ff>/0</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>via</span>: <span style=color:#ae81ff>fd88::1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>nameservers</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>addresses</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>192.168.8.1</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>fd88::1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>search</span>: []
+</span></span><span style=display:flex><span>  <span style=color:#f92672>version</span>: <span style=color:#ae81ff>2</span></span></span></code></pre></div><script class=code-source type=application/json>"network:\n  renderer: networkd\n  ethernets:\n    ens192:\n      dhcp4: false\n      dhcp6: false\n      addresses:\n        - 192.168.8.8/24\n        - fd88::6666/64\n      routes:\n        - to: default\n          via: 192.168.8.1\n        - to: ::/0\n          via: fd88::1\n      nameservers:\n        addresses:\n          - 192.168.8.1\n          - fd88::1\n        search: []\n  version: 2"</script></div><h3 id=cloud-init-网络配置注意点>Cloud-init 网络配置注意点</h3><p>Ubuntu Cloud Image 可能会生成类似下面的提示：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span># This file is generated from information provided by the datasource.
+</span></span><span style=display:flex><span># Changes to it will not persist across an instance reboot.
+</span></span><span style=display:flex><span># To disable cloud-init&#39;s network configuration capabilities, write a file
+</span></span><span style=display:flex><span># /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+</span></span><span style=display:flex><span># network: {config: disabled}</span></span></code></pre></div><script class=code-source type=application/json>"# This file is generated from information provided by the datasource.\n# Changes to it will not persist across an instance reboot.\n# To disable cloud-init's network configuration capabilities, write a file\n# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:\n# network: {config: disabled}"</script></div><p>意思是当前 Netplan 文件可能会被 cloud-init 重新生成。如果你想手动维护网络配置，可以创建：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg</span></span></code></pre></div><script class=code-source type=application/json>"nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"</script></div><p>写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>network</span>: {<span style=color:#f92672>config</span>: <span style=color:#ae81ff>disabled}</span></span></span></code></pre></div><script class=code-source type=application/json>"network: {config: disabled}"</script></div><p>然后再维护 <code>/etc/netplan/</code> 下的配置文件。</p><h2 id=释放-53-端口>释放 53 端口</h2><p>如果后续要在本机运行 DNS 服务，需要先确认 53 端口是否被 <code>systemd-resolved</code> 占用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>lsof -i:53</span></span></code></pre></div><script class=code-source type=application/json>"lsof -i:53"</script></div><p>编辑配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /etc/systemd/resolved.conf</span></span></code></pre></div><script class=code-source type=application/json>"nano /etc/systemd/resolved.conf"</script></div><p>找到这一项：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>#DNSStubListener=yes</span></span></code></pre></div><script class=code-source type=application/json>"#DNSStubListener=yes"</script></div><p>改成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>DNSStubListener=no</span></span></code></pre></div><script class=code-source type=application/json>"DNSStubListener=no"</script></div><p>重启 <code>systemd-resolved</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl reload-or-restart systemd-resolved</span></span></code></pre></div><script class=code-source type=application/json>"systemctl reload-or-restart systemd-resolved"</script></div><p>再次检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>lsof -i:53</span></span></code></pre></div><script class=code-source type=application/json>"lsof -i:53"</script></div><p>如果 53 端口已经没有被 <code>systemd-resolved</code> 监听，后续 DNS 服务就可以直接绑定本机 <code>:53</code>。</p><h2 id=建议做快照>建议做快照</h2><p>到这里，虚拟机已经完成基础初始化。建议在 ESXi 里先做一次快照，再继续安装后续服务。这样后面如果配置 DNS 服务或网络规则出错，可以很快回滚。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

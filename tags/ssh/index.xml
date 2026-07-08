@@ -1,61 +1,50 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>SSH on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/ssh/</link>
-    <description>Recent content in SSH on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 08 Jun 2026 09:28:46 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/ssh/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title>
-      <link>http://0.0.0.0:1313/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link>
-      <pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid>
-      <description>这次是在 VPS 上通过 bin456789/reinstall 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 jay，也配置了登录密码。系统起来以后，确实可以用 jay 这个普通用户 SSH 登录。&#xA;问题出在登录后才发现：/home/ 下面没有正常的 jay 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：&#xA;复制apk update apk upgrade apk add curl nano nvim 然后再回到普通用户使用 nvim 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。&#xA;现象 普通用户 jay 执行：&#xA;复制nvim alpine_user_ssh.sh Neovim 报错大意是无法创建 /home/jay/.local 下面的目录，或者提示权限被拒。&#xA;这类报错说明重点不在 Neovim 本身，而在用户主目录：&#xA;/home/jay 根本不存在； /home/jay 存在，但所有者是 root； $HOME 指向 /home/jay，但普通用户无法在里面创建 .local、.cache、.config； 后续 .ssh/authorized_keys、Neovim 缓存和配置目录都会一起受影响。 先确认问题 先用普通用户登录后检查当前身份和主目录变量：&#xA;复制whoami echo &amp;#34;$HOME&amp;#34; pwd id 正常情况下，whoami 应该输出：</description>
-    </item>
-    <item>
-      <title>Linux 临时开启 root 密码 SSH 登录</title>
-      <link>http://0.0.0.0:1313/posts/linux/enable-root-ssh-password-login/</link>
-      <pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/enable-root-ssh-password-login/</guid>
-      <description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。&#xA;本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。&#xA;1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：&#xA;复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。&#xA;例如密码是 change passwd，命令应写成：&#xA;复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：&#xA;复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：&#xA;PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description>
-    </item>
-    <item>
-      <title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title>
-      <link>http://0.0.0.0:1313/posts/linux/docker-data-backup-upload-syncthing-script/</link>
-      <pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/docker-data-backup-upload-syncthing-script/</guid>
-      <description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。&#xA;这个方案适合下面这种链路：&#xA;复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。&#xA;为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。&#xA;第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。&#xA;第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：&#xA;复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。&#xA;前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：&#xA;复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description>
-    </item>
-    <item>
-      <title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</link>
-      <pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</guid>
-      <description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&#xA;复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&#xA;复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。&#xA;准备 Go 环境 先确认 Go 已经可用：&#xA;复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。&#xA;如果当前终端还找不到 go，可以临时加入 PATH：&#xA;复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。&#xA;以 root 用户执行：&#xA;复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：&#xA;复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description>
-    </item>
-    <item>
-      <title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title>
-      <link>http://0.0.0.0:1313/posts/linux/alpine-admin-scripts-backup/</link>
-      <pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/alpine-admin-scripts-backup/</guid>
-      <description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&#xA;原始脚本也保存在本文同级 assets/ 目录中：&#xA;Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&#xA;Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。&#xA;复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description>
-    </item>
-    <item>
-      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
-      <link>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</link>
-      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</guid>
-      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
-    </item>
-    <item>
-      <title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link>
-      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid>
-      <description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。&#xA;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&#xA;使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&#xA;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&#xA;GitHub 公钥地址格式是：&#xA;复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&#xA;root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&#xA;复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。&#xA;root 用户配置项核对 root 用户版本推荐状态如下：&#xA;复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SSH on 电脑自习室</title><link>https://purodn.tk/tags/ssh/</link><description>Recent content in SSH on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 08 Jun 2026 09:28:46 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ssh/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title><link>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link><pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid><description>这次是在 VPS 上通过 bin456789/reinstall 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 jay，也配置了登录密码。系统起来以后，确实可以用 jay 这个普通用户 SSH 登录。
+问题出在登录后才发现：/home/ 下面没有正常的 jay 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：
+复制apk update apk upgrade apk add curl nano nvim 然后再回到普通用户使用 nvim 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。
+现象 普通用户 jay 执行：
+复制nvim alpine_user_ssh.sh Neovim 报错大意是无法创建 /home/jay/.local 下面的目录，或者提示权限被拒。
+这类报错说明重点不在 Neovim 本身，而在用户主目录：
+/home/jay 根本不存在； /home/jay 存在，但所有者是 root； $HOME 指向 /home/jay，但普通用户无法在里面创建 .local、.cache、.config； 后续 .ssh/authorized_keys、Neovim 缓存和配置目录都会一起受影响。 先确认问题 先用普通用户登录后检查当前身份和主目录变量：
+复制whoami echo &amp;#34;$HOME&amp;#34; pwd id 正常情况下，whoami 应该输出：</description></item><item><title>Linux 临时开启 root 密码 SSH 登录</title><link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link><pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid><description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。
+本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。
+1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：
+复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。
+例如密码是 change passwd，命令应写成：
+复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：
+复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：
+PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description></item><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。
+这个方案适合下面这种链路：
+复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。
+为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。
+第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。
+第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：
+复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。
+前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：
+复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description></item><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
+复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
+复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
+准备 Go 环境 先确认 Go 已经可用：
+复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
+如果当前终端还找不到 go，可以临时加入 PATH：
+复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
+以 root 用户执行：
+复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
+复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
+原始脚本也保存在本文同级 assets/ 目录中：
+Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
+Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
+复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
+下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
+写入配置文件 编辑 ~/.tmux.conf：
+复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
+写入下面这份配置：
+复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
+它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
+使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
+更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
+GitHub 公钥地址格式是：
+复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
+root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
+复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
+root 用户配置项核对 root 用户版本推荐状态如下：
+复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item></channel></rss>

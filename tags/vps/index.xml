@@ -1,40 +1,34 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>VPS on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/vps/</link>
-    <description>Recent content in VPS on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sat, 30 May 2026 02:12:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/vps/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证</title>
-      <link>http://0.0.0.0:1313/posts/ai/openclaw-production-docker-install/</link>
-      <pubDate>Sat, 30 May 2026 02:12:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/openclaw-production-docker-install/</guid>
-      <description>这篇教程目标很明确：不是“能跑起来就行”，而是在一台干净 Debian/Ubuntu VPS 上，把 OpenClaw 按生产思路装到可以长期维护、可以备份、可以升级、出了问题能定位的状态。&#xA;我在写作前查了官方安装、Docker、Linux Server、安全、迁移和更新文档，也看了 GitHub 最新 release。官方文档目前推荐 Node 24 或 Node 22.14+，Docker 部署要求 Docker Engine + Compose v2，并特别提醒 1GB 主机在镜像构建时可能因为 OOM 出现 exit 137；VPS 场景则建议 Gateway 默认保持本机/受控网络访问，不要裸露到公网。本文按这些坑来设计流程。&#xA;参考资料：&#xA;OpenClaw Install OpenClaw Docker OpenClaw Linux server OpenClaw Security OpenClaw Updating OpenClaw Migration guide GitHub Release v2026.5.27 本文查询时间是 2026-05-30，示例固定使用当前最新 release 2026.5.27。以后安装前先到 release 页面确认最新稳定版本，再替换文中的版本号。&#xA;方案选择 本文使用 Docker Compose，而不是直接在宿主机全局 npm install -g openclaw。&#xA;原因有四个：&#xA;宿主机更干净，OpenClaw 的 Node、依赖、运行目录和工作区都在明确边界内。 生产环境可以用固定镜像版本，避免 latest 引起不可控变化。 Gateway、状态目录、工作区、密钥目录可以统一备份。 防火墙、端口绑定、反代、隧道都能围绕 Compose 文件审计。 最终结构：</description>
-    </item>
-    <item>
-      <title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</title>
-      <link>http://0.0.0.0:1313/posts/linux/softether-vps-vlan/</link>
-      <pubDate>Fri, 29 May 2026 21:50:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/linux/softether-vps-vlan/</guid>
-      <description>本文原始内容较长，迁移时保留原有截图，并对标题、结构和部分说明做了整理。SoftEther 版本、Linux 发行版和云厂商控制台可能随时间变化，实际操作时请以当前界面和官方下载页为准。&#xA;建议使用 VM 部署，原文在 Debian 12 和 Ubuntu 22.04 上测试通过。 原文提到 CT 容器场景可能出现客户端熄屏后图标仍在但无法继续连接的问题，因此这里仍按 VM 方案整理。&#xA;提醒：阅读本文并按照步骤操作预计需要30分钟以上，请读者保持绝对的细心和耐心。&#xA;1. 背景介绍 动机：codemaster F1系列游戏的联机模式类似P2P，在分布式的节点环境下数据传输和同步异常缓慢，经常出现长时间的加载等候、发车灭灯延迟、圈数和名次计算错乱等影响游戏和比赛体验的状况，因此考虑自己架设私人VPN实现虚拟局域网游戏。&#xA;本文所述 VPN 遵循其英文全称 Virtual Private Network 的严格表述，目标是创建远程私人局域网环境以供游戏或自有设备互联使用。请遵守所在地法律法规和云服务商使用条款。&#xA;如果按照本文步骤操作，可以搭建一个用于虚拟局域网联机的 SoftEther VPN Server。实际效果会受 VPS 区域、带宽、延迟和客户端网络环境影响。&#xA;2. 准备工作 一台可以用作 VPS 的服务器。免费服务器亦可尝试，但不保证效果。&#xA;服务器需要有固定公网 IP。&#xA;原示例使用 GCP 香港实例、阿里云和腾讯云轻量应用主机搭配 Ubuntu 系统镜像测试通过。如果追求长期稳定，建议选择离玩家更近、延迟更低的区域。&#xA;系统镜像可以选择 Ubuntu / Debian，minimal 镜像也可以。&#xA;服务器带宽最好大于等于 5 Mbps，否则联机游戏容易出现延迟。&#xA;CPU 核心数和内存要求不高，根据预算选择即可。&#xA;非常重要：确认服务器系统防火墙和云厂商安全组都允许客户端访问 TCP 5555 端口。不知道怎么检查和编辑防火墙规则的，可以先看本文最后一节。&#xA;一台 Windows 10 / Windows 11 PC，用于运行 SoftEther Server Manager 和 VPN Client。</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</link>
-      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</guid>
-      <description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&#xA;适合下面几种场景：&#xA;VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&#xA;选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&#xA;输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。&#xA;进入 Distribution Sets 选择界面。</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title>
-      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</link>
-      <pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</guid>
-      <description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&#xA;建议按下面顺序做：&#xA;修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。&#xA;确认要删除的用户确实是错误账号后，在 root 下执行：&#xA;复制pw userdel -n fexil -r 参数含义：&#xA;-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：&#xA;复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：&#xA;复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。&#xA;复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：&#xA;用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>VPS on 电脑自习室</title><link>https://purodn.tk/tags/vps/</link><description>Recent content in VPS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 30 May 2026 02:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/vps/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证</title><link>https://purodn.tk/posts/ai/openclaw-production-docker-install/</link><pubDate>Sat, 30 May 2026 02:12:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/openclaw-production-docker-install/</guid><description>这篇教程目标很明确：不是“能跑起来就行”，而是在一台干净 Debian/Ubuntu VPS 上，把 OpenClaw 按生产思路装到可以长期维护、可以备份、可以升级、出了问题能定位的状态。
+我在写作前查了官方安装、Docker、Linux Server、安全、迁移和更新文档，也看了 GitHub 最新 release。官方文档目前推荐 Node 24 或 Node 22.14+，Docker 部署要求 Docker Engine + Compose v2，并特别提醒 1GB 主机在镜像构建时可能因为 OOM 出现 exit 137；VPS 场景则建议 Gateway 默认保持本机/受控网络访问，不要裸露到公网。本文按这些坑来设计流程。
+参考资料：
+OpenClaw Install OpenClaw Docker OpenClaw Linux server OpenClaw Security OpenClaw Updating OpenClaw Migration guide GitHub Release v2026.5.27 本文查询时间是 2026-05-30，示例固定使用当前最新 release 2026.5.27。以后安装前先到 release 页面确认最新稳定版本，再替换文中的版本号。
+方案选择 本文使用 Docker Compose，而不是直接在宿主机全局 npm install -g openclaw。
+原因有四个：
+宿主机更干净，OpenClaw 的 Node、依赖、运行目录和工作区都在明确边界内。 生产环境可以用固定镜像版本，避免 latest 引起不可控变化。 Gateway、状态目录、工作区、密钥目录可以统一备份。 防火墙、端口绑定、反代、隧道都能围绕 Compose 文件审计。 最终结构：</description></item><item><title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</title><link>https://purodn.tk/posts/linux/softether-vps-vlan/</link><pubDate>Fri, 29 May 2026 21:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/softether-vps-vlan/</guid><description>本文原始内容较长，迁移时保留原有截图，并对标题、结构和部分说明做了整理。SoftEther 版本、Linux 发行版和云厂商控制台可能随时间变化，实际操作时请以当前界面和官方下载页为准。
+建议使用 VM 部署，原文在 Debian 12 和 Ubuntu 22.04 上测试通过。 原文提到 CT 容器场景可能出现客户端熄屏后图标仍在但无法继续连接的问题，因此这里仍按 VM 方案整理。
+提醒：阅读本文并按照步骤操作预计需要30分钟以上，请读者保持绝对的细心和耐心。
+1. 背景介绍 动机：codemaster F1系列游戏的联机模式类似P2P，在分布式的节点环境下数据传输和同步异常缓慢，经常出现长时间的加载等候、发车灭灯延迟、圈数和名次计算错乱等影响游戏和比赛体验的状况，因此考虑自己架设私人VPN实现虚拟局域网游戏。
+本文所述 VPN 遵循其英文全称 Virtual Private Network 的严格表述，目标是创建远程私人局域网环境以供游戏或自有设备互联使用。请遵守所在地法律法规和云服务商使用条款。
+如果按照本文步骤操作，可以搭建一个用于虚拟局域网联机的 SoftEther VPN Server。实际效果会受 VPS 区域、带宽、延迟和客户端网络环境影响。
+2. 准备工作 一台可以用作 VPS 的服务器。免费服务器亦可尝试，但不保证效果。
+服务器需要有固定公网 IP。
+原示例使用 GCP 香港实例、阿里云和腾讯云轻量应用主机搭配 Ubuntu 系统镜像测试通过。如果追求长期稳定，建议选择离玩家更近、延迟更低的区域。
+系统镜像可以选择 Ubuntu / Debian，minimal 镜像也可以。
+服务器带宽最好大于等于 5 Mbps，否则联机游戏容易出现延迟。
+CPU 核心数和内存要求不高，根据预算选择即可。
+非常重要：确认服务器系统防火墙和云厂商安全组都允许客户端访问 TCP 5555 端口。不知道怎么检查和编辑防火墙规则的，可以先看本文最后一节。
+一台 Windows 10 / Windows 11 PC，用于运行 SoftEther Server Manager 和 VPN Client。</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。
+适合下面几种场景：
+VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。
+选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。
+输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。
+进入 Distribution Sets 选择界面。</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。
+建议按下面顺序做：
+修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。
+确认要删除的用户确实是错误账号后，在 root 下执行：
+复制pw userdel -n fexil -r 参数含义：
+-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：
+复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：
+复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。
+复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：
+用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description></item></channel></rss>

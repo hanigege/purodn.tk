@@ -1,19 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Productivity on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/productivity/</link>
-    <description>Recent content in Productivity on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 26 Jun 2026 00:00:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/productivity/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes TUI 终端 CLI 命令速查</title>
-      <link>http://0.0.0.0:1313/posts/ai/hermes-tui-cli-commands/</link>
-      <pubDate>Fri, 26 Jun 2026 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/ai/hermes-tui-cli-commands/</guid>
-      <description>什么是 Hermes TUI Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：&#xA;复制# 直接用 hermes 命令进入 TUI（如果配置了默认 profile） hermes # 或指定 profile hermes chat --profile code # 或者使用单独的子命令 hermes tui 进入 TUI 后，你会看到类似聊天软件的界面——上方是对话历史，底部是输入框。在输入框里，你可以随时按 Tab 看到所有可用命令的自动补全列表。&#xA;核心特性：&#xA;全终端操作，无需鼠标 自动补全覆盖所有命令和已安装 skill 计划模式安全预览再执行 会话管理方便回溯历史 常用快捷键 快捷键 作用 / 调出斜杠命令自动补全下拉菜单 Tab 接受自动建议 / 补全斜杠命令 ↑ / ↓ 浏览历史消息（按方向键循环） Ctrl+C 中断当前 AI 输出 Ctrl+D 退出 TUI Ctrl+L 清屏（保留会话历史） Ctrl+U 清空当前输入行 Ctrl+W 删除光标前一个单词 提示：按 / 后会自动弹出补全菜单，显示所有可用的斜杠命令。如果装了多个 skill，菜单会很长——直接输入关键字过滤即可。&#xA;核心斜杠命令 命令 作用 /plan 计划模式。只做规划和分析，不执行任何代码/操作，生成 markdown 计划保存在 ~/.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Productivity on 电脑自习室</title><link>https://purodn.tk/tags/productivity/</link><description>Recent content in Productivity on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 26 Jun 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/productivity/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes TUI 终端 CLI 命令速查</title><link>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</link><pubDate>Fri, 26 Jun 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-tui-cli-commands/</guid><description>什么是 Hermes TUI Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：
+复制# 直接用 hermes 命令进入 TUI（如果配置了默认 profile） hermes # 或指定 profile hermes chat --profile code # 或者使用单独的子命令 hermes tui 进入 TUI 后，你会看到类似聊天软件的界面——上方是对话历史，底部是输入框。在输入框里，你可以随时按 Tab 看到所有可用命令的自动补全列表。
+核心特性：
+全终端操作，无需鼠标 自动补全覆盖所有命令和已安装 skill 计划模式安全预览再执行 会话管理方便回溯历史 常用快捷键 快捷键 作用 / 调出斜杠命令自动补全下拉菜单 Tab 接受自动建议 / 补全斜杠命令 ↑ / ↓ 浏览历史消息（按方向键循环） Ctrl+C 中断当前 AI 输出 Ctrl+D 退出 TUI Ctrl+L 清屏（保留会话历史） Ctrl+U 清空当前输入行 Ctrl+W 删除光标前一个单词 提示：按 / 后会自动弹出补全菜单，显示所有可用的斜杠命令。如果装了多个 skill，菜单会很长——直接输入关键字过滤即可。
+核心斜杠命令 命令 作用 /plan 计划模式。只做规划和分析，不执行任何代码/操作，生成 markdown 计划保存在 ~/.</description></item></channel></rss>

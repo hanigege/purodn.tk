@@ -1,61 +1,54 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>软路由 on 电脑自习室</title>
-    <link>http://0.0.0.0:1313/tags/%E8%BD%AF%E8%B7%AF%E7%94%B1/</link>
-    <description>Recent content in 软路由 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate>
-    <atom:link href="http://0.0.0.0:1313/tags/%E8%BD%AF%E8%B7%AF%E7%94%B1/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>SMbox OPNsense 配置教程</title>
-      <link>http://0.0.0.0:1313/posts/routeros/smbox-opnsense-config/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/smbox-opnsense-config/</guid>
-      <description>开始前先确认两个地址：&#xA;10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：&#xA;打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。&#xA;proxy_cidr 为需要代理的 IP 地址：&#xA;复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。&#xA;任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。&#xA;打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：&#xA;打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：&#xA;将规则移动至最前面：&#xA;复制刚才的规则：&#xA;将方向改为 out，然后保存：&#xA;再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description>
-    </item>
-    <item>
-      <title>Vyos Wireguard Ipv4</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-wireguard-ipv4/</link>
-      <pubDate>Sun, 01 Jun 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-wireguard-ipv4/</guid>
-      <description>vyos上配置wireguard （IPV4）&#xA;1. 生成 WireGuard 密钥 复制wg genkey | tee privatekey | wg pubkey &amp;gt; publickey • privatekey 文件中存储 私钥&#xA;• publickey 文件中存储 公钥&#xA;然后使用：&#xA;复制cat privatekey 把私钥填入 第一步 的 &amp;lt;服务器私钥&amp;gt; 位置。&#xA;配置wireguard:&#xA;复制set interfaces wireguard wg0 address &amp;#39;10.20.30.1/24&amp;#39; set interfaces wireguard wg0 port &amp;#39;11133&amp;#39; set interfaces wireguard wg0 private-key &amp;#39;private-key&amp;#39; set interfaces wireguard wg0 peer iphone allowed-ips &amp;#39;10.20.30.2/32&amp;#39; set interfaces wireguard wg0 peer iphone public-key &amp;#39;public-key&amp;#39; set interfaces wireguard wg0 peer iphone preshared-key &amp;#39;preshared-key&amp;#39; 上面这是添加过peer的。</description>
-    </item>
-    <item>
-      <title>Vyos下安装ddns-Go</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-ddns-go/</link>
-      <pubDate>Sun, 11 May 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-ddns-go/</guid>
-      <description>这里使用vyos自管理容器的方法,可以获取到网卡公网ip 操作前，vyos本机先科学，不然没法接docker镜像 这种模式不可以设置单独的IP,因为使用的是vyos主机的ip&#xA;桥接的网络如果没有，可以建一个的：原因是方便 ddns-go使用内网的网址登录 ：172.23.0.1 (可选，非必须，也可以用内外网口ip登录)&#xA;创建桥接网络 复制set container network ct-network prefix &amp;#39;172.23.0.0/24&amp;#39; 提前建立好ddns的映射本地持久目录： 复制mkdir -p /config/containers/ddns 拉取容器镜像 复制$ add container image &amp;#39;jeessy/ddns-go&amp;#39; 搭建ddns-go 复制set container name ddns-go allow-host-networks #允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络 set container name ddns-go image &amp;#39;docker.io/jeessy/ddns-go&amp;#39; #指定该容器使用的 Docker 镜像 set container name ddns-go restart &amp;#39;always&amp;#39; set container name ddns-go volume config destination &amp;#39;/root/&amp;#39; #映射容器内的路径 set container name ddns-go volume config source &amp;#39;/config/containers/ddns&amp;#39; #映射本地的路役 查看运行是否成功有UP即成功 复制sudo podman ps -s sudo podman ps -a 登录管理平台 复制http://IP:9876 登录用户名：admin</description>
-    </item>
-    <item>
-      <title>Vyos上网系列之-Fakeip配置(2)</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-fakeip-2/</link>
-      <pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-fakeip-2/</guid>
-      <description>对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置: (vyos的group分为address-group,network-group等)&#xA;定义组 IP例: 复制set firewall group address-group Telegram-v4 address &amp;#39;157.148.47.204&amp;#39; set firewall group address-group Telegram-v4 address &amp;#39;182.43.124.6&amp;#39; ... 定义组网段V4例： 复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; ... 定义组telegram V4:&#xA;复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.8.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.16.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.</description>
-    </item>
-    <item>
-      <title>Vyos上网系列之-上网配置（1）</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-basic-internet-1/</link>
-      <pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-basic-internet-1/</guid>
-      <description>vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全. 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.&#xA;**特别感谢大卫佬给予的指导与帮助**&#xA;pve安装vyos: 下载nightly-build: https://github.com/vyos/vyos-nightly-build/releases pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.&#xA;vm运行后, 用vyos:vyos登录. 用命令&#xA;复制install image 安装vyos.&#xA;进入配置模式：&#xA;复制configure 生效：&#xA;复制commit 保存配置：&#xA;复制save 取消生效的,未保存的配置：&#xA;复制discard 下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效 设置ssh登录:&#xA;复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:&#xA;复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:&#xA;复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description>
-    </item>
-    <item>
-      <title>Vyos上网系统之-vyos命令技巧集(3)</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-command-tips-3/</link>
-      <pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-command-tips-3/</guid>
-      <description>你可以使用 delete 和 set 命令来修改 network-group 的子网。 修改 LAN-v4 的网络&#xA;删除原来的 192.168.10.0/24 复制delete firewall group network-group LAN-v4 network 192.168.10.0/24 添加新的 192.168.100.0/24 复制set firewall group network-group LAN-v4 network 192.168.100.0/24 提交并保存 复制commit save 验证修改是否生效&#xA;执行以下命令：&#xA;复制show firewall group network-group LAN-v4 如果输出如下，就说明修改成功：&#xA;复制 network-group LAN-v4 { network 192.168.100.0/24 } 在 VyOS 中，你可以使用以下命令查看 所有配置： 显示完整的层级配置（推荐）&#xA;复制show configuration 这个命令会以 层级结构 显示整个配置，类似于 show running-config。&#xA;显示所有配置命令（适合复制）($ 模式下）&#xA;复制show configuration commands 这个命令会以 show 命令的格式 展示所有配置，适用于备份或复制配置：&#xA;按层级展开查看（交互式）&#xA;复制show configuration level 2 level 2 代表展开到第 2 层，你可以调整 level 数值来控制显示的详细程度。</description>
-    </item>
-    <item>
-      <title>vyos多网口小主机桥接配置(完整)</title>
-      <link>http://0.0.0.0:1313/posts/routeros/vyos-bridge-4-port/</link>
-      <pubDate>Wed, 07 May 2025 00:00:00 +0800</pubDate>
-      <guid>http://0.0.0.0:1313/posts/routeros/vyos-bridge-4-port/</guid>
-      <description>一.基本上网配置 vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.&#xA;pve安装vyos: 下载安装包 pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos除自己的容器管理工具以外，也可以用podman管理容器. vm运行后, 用vyos:vyos登录. 用下面命令安装:&#xA;复制install image 2.安装vyos. 进入配置模式：&#xA;复制configure 生效：&#xA;复制commit 保存配置：&#xA;复制save 取消未commit生效的,未保存的配置：&#xA;复制discard 延时确认：如2分钟后不确认，配置回滚到上一配置&#xA;复制commit-confirm 2 回滚后 dircard 清除上次没有commit配置。(因为commit-confirm 2后已经输入过了，只是没有commit提交) 如果提前提效确认，直接输入：&#xA;复制confirm 设置ssh登录:&#xA;复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:&#xA;复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:(可选，非必须，熟练后再使用）&#xA;复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>软路由 on 电脑自习室</title><link>https://purodn.tk/tags/%E8%BD%AF%E8%B7%AF%E7%94%B1/</link><description>Recent content in 软路由 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E8%BD%AF%E8%B7%AF%E7%94%B1/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox OPNsense 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid><description>开始前先确认两个地址：
+10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：
+打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。
+proxy_cidr 为需要代理的 IP 地址：
+复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。
+任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。
+打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：
+打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：
+将规则移动至最前面：
+复制刚才的规则：
+将方向改为 out，然后保存：
+再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description></item><item><title>Vyos Wireguard Ipv4</title><link>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</link><pubDate>Sun, 01 Jun 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-wireguard-ipv4/</guid><description>vyos上配置wireguard （IPV4）
+1. 生成 WireGuard 密钥 复制wg genkey | tee privatekey | wg pubkey &amp;gt; publickey • privatekey 文件中存储 私钥
+• publickey 文件中存储 公钥
+然后使用：
+复制cat privatekey 把私钥填入 第一步 的 &amp;lt;服务器私钥&amp;gt; 位置。
+配置wireguard:
+复制set interfaces wireguard wg0 address &amp;#39;10.20.30.1/24&amp;#39; set interfaces wireguard wg0 port &amp;#39;11133&amp;#39; set interfaces wireguard wg0 private-key &amp;#39;private-key&amp;#39; set interfaces wireguard wg0 peer iphone allowed-ips &amp;#39;10.20.30.2/32&amp;#39; set interfaces wireguard wg0 peer iphone public-key &amp;#39;public-key&amp;#39; set interfaces wireguard wg0 peer iphone preshared-key &amp;#39;preshared-key&amp;#39; 上面这是添加过peer的。</description></item><item><title>Vyos下安装ddns-Go</title><link>https://purodn.tk/posts/routeros/vyos-ddns-go/</link><pubDate>Sun, 11 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-ddns-go/</guid><description>这里使用vyos自管理容器的方法,可以获取到网卡公网ip 操作前，vyos本机先科学，不然没法接docker镜像 这种模式不可以设置单独的IP,因为使用的是vyos主机的ip
+桥接的网络如果没有，可以建一个的：原因是方便 ddns-go使用内网的网址登录 ：172.23.0.1 (可选，非必须，也可以用内外网口ip登录)
+创建桥接网络 复制set container network ct-network prefix &amp;#39;172.23.0.0/24&amp;#39; 提前建立好ddns的映射本地持久目录： 复制mkdir -p /config/containers/ddns 拉取容器镜像 复制$ add container image &amp;#39;jeessy/ddns-go&amp;#39; 搭建ddns-go 复制set container name ddns-go allow-host-networks #允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络 set container name ddns-go image &amp;#39;docker.io/jeessy/ddns-go&amp;#39; #指定该容器使用的 Docker 镜像 set container name ddns-go restart &amp;#39;always&amp;#39; set container name ddns-go volume config destination &amp;#39;/root/&amp;#39; #映射容器内的路径 set container name ddns-go volume config source &amp;#39;/config/containers/ddns&amp;#39; #映射本地的路役 查看运行是否成功有UP即成功 复制sudo podman ps -s sudo podman ps -a 登录管理平台 复制http://IP:9876 登录用户名：admin</description></item><item><title>Vyos上网系列之-Fakeip配置(2)</title><link>https://purodn.tk/posts/routeros/vyos-fakeip-2/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-fakeip-2/</guid><description>对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置: (vyos的group分为address-group,network-group等)
+定义组 IP例: 复制set firewall group address-group Telegram-v4 address &amp;#39;157.148.47.204&amp;#39; set firewall group address-group Telegram-v4 address &amp;#39;182.43.124.6&amp;#39; ... 定义组网段V4例： 复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; ... 定义组telegram V4:
+复制set firewall group network-group Telegram-v4 network &amp;#39;91.108.56.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.4.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.8.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.108.16.0/22&amp;#39; set firewall group network-group Telegram-v4 network &amp;#39;91.</description></item><item><title>Vyos上网系列之-上网配置（1）</title><link>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-basic-internet-1/</guid><description>vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全. 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.
+**特别感谢大卫佬给予的指导与帮助**
+pve安装vyos: 下载nightly-build: https://github.com/vyos/vyos-nightly-build/releases pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos用podman管理容器.
+vm运行后, 用vyos:vyos登录. 用命令
+复制install image 安装vyos.
+进入配置模式：
+复制configure 生效：
+复制commit 保存配置：
+复制save 取消生效的,未保存的配置：
+复制discard 下面开始配置，随时都可以输入生效命令，如果不保存，重启后配置会失效 设置ssh登录:
+复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:
+复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:
+复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description></item><item><title>Vyos上网系统之-vyos命令技巧集(3)</title><link>https://purodn.tk/posts/routeros/vyos-command-tips-3/</link><pubDate>Sat, 10 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-command-tips-3/</guid><description>你可以使用 delete 和 set 命令来修改 network-group 的子网。 修改 LAN-v4 的网络
+删除原来的 192.168.10.0/24 复制delete firewall group network-group LAN-v4 network 192.168.10.0/24 添加新的 192.168.100.0/24 复制set firewall group network-group LAN-v4 network 192.168.100.0/24 提交并保存 复制commit save 验证修改是否生效
+执行以下命令：
+复制show firewall group network-group LAN-v4 如果输出如下，就说明修改成功：
+复制 network-group LAN-v4 { network 192.168.100.0/24 } 在 VyOS 中，你可以使用以下命令查看 所有配置： 显示完整的层级配置（推荐）
+复制show configuration 这个命令会以 层级结构 显示整个配置，类似于 show running-config。
+显示所有配置命令（适合复制）($ 模式下）
+复制show configuration commands 这个命令会以 show 命令的格式 展示所有配置，适用于备份或复制配置：
+按层级展开查看（交互式）
+复制show configuration level 2 level 2 代表展开到第 2 层，你可以调整 level 数值来控制显示的详细程度。</description></item><item><title>vyos多网口小主机桥接配置(完整)</title><link>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</link><pubDate>Wed, 07 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/vyos-bridge-4-port/</guid><description>一.基本上网配置 vyos的命令行界面是基于shell的，没有图形界面, 但是可以用tab自动补全 本文的vyos命令是基于vyos的vyos-rolling-nightly-builds的1.5.x版本.
+pve安装vyos: 下载安装包 pve的虚拟机设置和安装(略), 建议内存2G, 磁盘10G或更大, 因为vyos可以运行容器, vyos除自己的容器管理工具以外，也可以用podman管理容器. vm运行后, 用vyos:vyos登录. 用下面命令安装:
+复制install image 2.安装vyos. 进入配置模式：
+复制configure 生效：
+复制commit 保存配置：
+复制save 取消未commit生效的,未保存的配置：
+复制discard 延时确认：如2分钟后不确认，配置回滚到上一配置
+复制commit-confirm 2 回滚后 dircard 清除上次没有commit配置。(因为commit-confirm 2后已经输入过了，只是没有commit提交) 如果提前提效确认，直接输入：
+复制confirm 设置ssh登录:
+复制set service ssh port &amp;#39;22&amp;#39; 创建用户gary:
+复制set system login user gary full-name gary set system login user gary authentication plaintext-password &amp;#39;密码&amp;#39; 建议ssh密钥登录:(可选，非必须，熟练后再使用）
+复制set system login user gary authentication public-keys gary@laptop key &amp;#39;your-public-key&amp;#39; set system login user gary authentication public-keys gary@laptop type &amp;#39;ssh-rsa&amp;#39; 禁用默认的vyos用户:</description></item></channel></rss>
