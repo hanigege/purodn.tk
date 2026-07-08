@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证 | 电脑自习室</title>
+    <meta name="description" content="在 Debian/Ubuntu VPS 上用 Docker Compose 安装 OpenClaw Gateway，固定版本、限制公网暴露、配置持久化目录、完成初始化、安全审计、备份、升级和故障排查。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-05-30">2026年5月30日</time>
+        </div>
+        <h1>OpenClaw 生产级 Docker 安装教程：避坑、加固、备份与验证</h1>
+          <p>在 Debian/Ubuntu VPS 上用 Docker Compose 安装 OpenClaw Gateway，固定版本、限制公网暴露、配置持久化目录、完成初始化、安全审计、备份、升级和故障排查。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/openclaw-production-docker-install/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇教程目标很明确：不是“能跑起来就行”，而是在一台干净 Debian/Ubuntu VPS 上，把 OpenClaw 按生产思路装到可以长期维护、可以备份、可以升级、出了问题能定位的状态。</p>
+<p>我在写作前查了官方安装、Docker、Linux Server、安全、迁移和更新文档，也看了 GitHub 最新 release。官方文档目前推荐 Node 24 或 Node 22.14+，Docker 部署要求 Docker Engine + Compose v2，并特别提醒 1GB 主机在镜像构建时可能因为 OOM 出现 <code>exit 137</code>；VPS 场景则建议 Gateway 默认保持本机/受控网络访问，不要裸露到公网。本文按这些坑来设计流程。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://docs.openclaw.ai/install/index">OpenClaw Install</a></li>
+<li><a href="https://docs.openclaw.ai/install/docker">OpenClaw Docker</a></li>
+<li><a href="https://docs.openclaw.ai/vps">OpenClaw Linux server</a></li>
+<li><a href="https://docs.openclaw.ai/gateway/security">OpenClaw Security</a></li>
+<li><a href="https://docs.openclaw.ai/install/updating">OpenClaw Updating</a></li>
+<li><a href="https://docs.openclaw.ai/install/migrating">OpenClaw Migration guide</a></li>
+<li><a href="https://github.com/openclaw/openclaw/releases/tag/v2026.5.27">GitHub Release v2026.5.27</a></li>
+</ul>
+<p>本文查询时间是 <code>2026-05-30</code>，示例固定使用当前最新 release <code>2026.5.27</code>。以后安装前先到 release 页面确认最新稳定版本，再替换文中的版本号。</p>
+<h2 id="方案选择">方案选择</h2>
+<p>本文使用 Docker Compose，而不是直接在宿主机全局 <code>npm install -g openclaw</code>。</p>
+<p>原因有四个：</p>
+<ol>
+<li>宿主机更干净，OpenClaw 的 Node、依赖、运行目录和工作区都在明确边界内。</li>
+<li>生产环境可以用固定镜像版本，避免 <code>latest</code> 引起不可控变化。</li>
+<li>Gateway、状态目录、工作区、密钥目录可以统一备份。</li>
+<li>防火墙、端口绑定、反代、隧道都能围绕 Compose 文件审计。</li>
+</ol>
+<p>最终结构：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Internet
+</span></span><span style="display:flex;"><span>  -&gt; SSH 22/tcp
+</span></span><span style="display:flex;"><span>  -&gt; no direct public OpenClaw port
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Admin laptop
+</span></span><span style="display:flex;"><span>  -&gt; SSH tunnel or Tailscale
+</span></span><span style="display:flex;"><span>  -&gt; 127.0.0.1:18789
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>VPS
+</span></span><span style="display:flex;"><span>  /opt/openclaw/openclaw-src        # 官方仓库，仅放 compose 和脚本
+</span></span><span style="display:flex;"><span>  /opt/openclaw/state               # OpenClaw 状态、配置、会话、凭据
+</span></span><span style="display:flex;"><span>  /opt/openclaw/workspace           # Agent 工作区
+</span></span><span style="display:flex;"><span>  /opt/openclaw/auth-profile-secrets# 模型 OAuth/API 相关密钥
+</span></span><span style="display:flex;"><span>  /opt/openclaw/backups             # 本地备份包</span></span></code></pre></div><script class="code-source" type="application/json">"Internet\n  -\u003e SSH 22/tcp\n  -\u003e no direct public OpenClaw port\n\nAdmin laptop\n  -\u003e SSH tunnel or Tailscale\n  -\u003e 127.0.0.1:18789\n\nVPS\n  /opt/openclaw/openclaw-src        # 官方仓库，仅放 compose 和脚本\n  /opt/openclaw/state               # OpenClaw 状态、配置、会话、凭据\n  /opt/openclaw/workspace           # Agent 工作区\n  /opt/openclaw/auth-profile-secrets# 模型 OAuth/API 相关密钥\n  /opt/openclaw/backups             # 本地备份包"</script>
+</div>
+<h2 id="生产前提">生产前提</h2>
+<p>推荐配置：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系统</td>
+<td>Debian 12/13 或 Ubuntu 22.04/24.04 LTS</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>最低 2 GB，推荐 4 GB+</td>
+</tr>
+<tr>
+<td>磁盘</td>
+<td>最低 20 GB，推荐 SSD 40 GB+</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>2 vCPU 起步</td>
+</tr>
+<tr>
+<td>访问方式</td>
+<td>SSH 隧道或 Tailscale，不直接暴露 Gateway</td>
+</tr>
+<tr>
+<td>OpenClaw 版本</td>
+<td>固定稳定 release，例如 <code>2026.5.27</code></td>
+</tr>
+<tr>
+<td>Docker Compose</td>
+<td>v2 插件，即 <code>docker compose</code></td>
+</tr>
+</tbody>
+</table>
+<p>几个先说清楚的坑：</p>
+<ul>
+<li>不要在 1GB 小鸡上本地 build 镜像，官方文档已经点名 <code>pnpm install</code> 可能 OOM。</li>
+<li>不要把 <code>18789</code> 直接开到公网。OpenClaw 能执行命令、读写文件、接管浏览器或消息通道，它不是普通网页后台。</li>
+<li>不要用一台 Gateway 给互不信任的人共用。官方安全模型默认是单信任边界。</li>
+<li>不要只备份 <code>openclaw.json</code>。会话、模型凭据、渠道登录状态都在 state 目录里。</li>
+<li>不要默认挂载 Docker socket 给 Agent。需要容器控制能力时再单独设计 socket proxy 或专用节点。</li>
+</ul>
+<h2 id="1-基础系统检查">1. 基础系统检查</h2>
+<p>以 root 登录新机器，先看系统、内存、磁盘和监听端口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /etc/os-release
+</span></span><span style="display:flex;"><span>uname -a
+</span></span><span style="display:flex;"><span>free -h
+</span></span><span style="display:flex;"><span>df -h
+</span></span><span style="display:flex;"><span>ss -lntup
+</span></span><span style="display:flex;"><span>systemctl --failed --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"cat /etc/os-release\nuname -a\nfree -h\ndf -h\nss -lntup\nsystemctl --failed --no-pager"</script>
+</div>
+<p>如果内存小于 2 GB，先加 swap。OpenClaw 自身可以跑，但安装、更新、浏览器依赖和插件安装会吃内存：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>fallocate -l 2G /swapfile
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /swapfile
+</span></span><span style="display:flex;"><span>mkswap /swapfile
+</span></span><span style="display:flex;"><span>swapon /swapfile
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>grep -q <span style="color:#e6db74">&#39;^/swapfile &#39;</span> /etc/fstab <span style="color:#f92672">||</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#e6db74">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free -h</span></span></code></pre></div><script class="code-source" type="application/json">"fallocate -l 2G /swapfile\nchmod 600 /swapfile\nmkswap /swapfile\nswapon /swapfile\n\ngrep -q '^/swapfile ' /etc/fstab || \\\n  printf '%s\\n' '/swapfile none swap sw 0 0' \u003e\u003e /etc/fstab\n\nfree -h"</script>
+</div>
+<p>更新系统并安装基础工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
+</span></span><span style="display:flex;"><span>apt install -y ca-certificates curl gnupg git lsb-release ufw jq openssl tar</span></span></code></pre></div><script class="code-source" type="application/json">"apt update\napt install -y ca-certificates curl gnupg git lsb-release ufw jq openssl tar"</script>
+</div>
+<h2 id="2-安装-docker-engine">2. 安装 Docker Engine</h2>
+<p>Debian 推荐使用 Docker 官方仓库：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -m <span style="color:#ae81ff">0755</span> -d /etc/apt/keyrings
+</span></span><span style="display:flex;"><span>curl -fsSL https://download.docker.com/linux/debian/gpg <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -o /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>chmod a+r /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>. /etc/os-release
+</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  <span style="color:#e6db74">&#34;deb [arch=</span><span style="color:#66d9ef">$(</span>dpkg --print-architecture<span style="color:#66d9ef">)</span><span style="color:#e6db74"> signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian </span><span style="color:#e6db74">${</span>VERSION_CODENAME<span style="color:#e6db74">}</span><span style="color:#e6db74"> stable&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  &gt; /etc/apt/sources.list.d/docker.list
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>apt update
+</span></span><span style="display:flex;"><span>apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin</span></span></code></pre></div><script class="code-source" type="application/json">"install -m 0755 -d /etc/apt/keyrings\ncurl -fsSL https://download.docker.com/linux/debian/gpg \\\n  -o /etc/apt/keyrings/docker.asc\nchmod a+r /etc/apt/keyrings/docker.asc\n\n. /etc/os-release\nprintf '%s\\n' \\\n  \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable\" \\\n  \u003e /etc/apt/sources.list.d/docker.list\n\napt update\napt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"</script>
+</div>
+<p>Ubuntu 用户把仓库地址里的 <code>debian</code> 改成 <code>ubuntu</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -m <span style="color:#ae81ff">0755</span> -d /etc/apt/keyrings
+</span></span><span style="display:flex;"><span>curl -fsSL https://download.docker.com/linux/ubuntu/gpg <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -o /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>chmod a+r /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>. /etc/os-release
+</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  <span style="color:#e6db74">&#34;deb [arch=</span><span style="color:#66d9ef">$(</span>dpkg --print-architecture<span style="color:#66d9ef">)</span><span style="color:#e6db74"> signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu </span><span style="color:#e6db74">${</span>VERSION_CODENAME<span style="color:#e6db74">}</span><span style="color:#e6db74"> stable&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  &gt; /etc/apt/sources.list.d/docker.list
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>apt update
+</span></span><span style="display:flex;"><span>apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin</span></span></code></pre></div><script class="code-source" type="application/json">"install -m 0755 -d /etc/apt/keyrings\ncurl -fsSL https://download.docker.com/linux/ubuntu/gpg \\\n  -o /etc/apt/keyrings/docker.asc\nchmod a+r /etc/apt/keyrings/docker.asc\n\n. /etc/os-release\nprintf '%s\\n' \\\n  \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable\" \\\n  \u003e /etc/apt/sources.list.d/docker.list\n\napt update\napt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"</script>
+</div>
+<p>验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker version
+</span></span><span style="display:flex;"><span>docker compose version
+</span></span><span style="display:flex;"><span>docker run --rm hello-world</span></span></code></pre></div><script class="code-source" type="application/json">"docker version\ndocker compose version\ndocker run --rm hello-world"</script>
+</div>
+<h2 id="3-防火墙先收口">3. 防火墙先收口</h2>
+<p>只放行 SSH。OpenClaw Dashboard 后面通过 SSH 隧道访问，不开放公网端口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ufw default deny incoming
+</span></span><span style="display:flex;"><span>ufw default allow outgoing
+</span></span><span style="display:flex;"><span>ufw allow 22/tcp
+</span></span><span style="display:flex;"><span>ufw --force enable
+</span></span><span style="display:flex;"><span>ufw status verbose</span></span></code></pre></div><script class="code-source" type="application/json">"ufw default deny incoming\nufw default allow outgoing\nufw allow 22/tcp\nufw --force enable\nufw status verbose"</script>
+</div>
+<p>重要：Docker 发布端口可能绕过普通 <code>ufw</code> 入站规则，所以本文还会在 Compose 里把 OpenClaw 端口绑定到宿主机 <code>127.0.0.1</code>。这是最关键的防线。</p>
+<h2 id="4-准备目录和专用数据">4. 准备目录和专用数据</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /opt/openclaw
+</span></span><span style="display:flex;"><span>mkdir -p /opt/openclaw/state
+</span></span><span style="display:flex;"><span>mkdir -p /opt/openclaw/workspace
+</span></span><span style="display:flex;"><span>mkdir -p /opt/openclaw/auth-profile-secrets
+</span></span><span style="display:flex;"><span>mkdir -p /opt/openclaw/backups
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">700</span> /opt/openclaw/state /opt/openclaw/auth-profile-secrets</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /opt/openclaw\nmkdir -p /opt/openclaw/state\nmkdir -p /opt/openclaw/workspace\nmkdir -p /opt/openclaw/auth-profile-secrets\nmkdir -p /opt/openclaw/backups\nchmod 700 /opt/openclaw/state /opt/openclaw/auth-profile-secrets"</script>
+</div>
+<p>OpenClaw 官方 Docker 镜像默认以 uid <code>1000</code> 的 <code>node</code> 用户运行。宿主机 bind mount 如果是 root 拥有，常见结果就是 <code>EACCES</code> 或插件目录 ownership 异常。先把运行目录给 uid 1000：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/state
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/workspace
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/auth-profile-secrets</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R 1000:1000 /opt/openclaw/state\nchown -R 1000:1000 /opt/openclaw/workspace\nchown -R 1000:1000 /opt/openclaw/auth-profile-secrets"</script>
+</div>
+<h2 id="5-拉取官方仓库并固定版本">5. 拉取官方仓库并固定版本</h2>
+<p>安装时不要盲跑 <code>main</code>，也不要直接追 <code>latest</code>。固定 release：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw
+</span></span><span style="display:flex;"><span>git clone https://github.com/openclaw/openclaw.git openclaw-src
+</span></span><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>git fetch --tags
+</span></span><span style="display:flex;"><span>git checkout v2026.5.27</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw\ngit clone https://github.com/openclaw/openclaw.git openclaw-src\ncd /opt/openclaw/openclaw-src\n\ngit fetch --tags\ngit checkout v2026.5.27"</script>
+</div>
+<p>确认当前版本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git describe --tags --always</span></span></code></pre></div><script class="code-source" type="application/json">"git describe --tags --always"</script>
+</div>
+<p>如果你之后看到官方 release 更新，比如 <code>v2026.6.x</code>，先读 release notes，再替换版本号。</p>
+<h2 id="6-写入生产环境变量">6. 写入生产环境变量</h2>
+<p>生成一个长 token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>OPENCLAW_GATEWAY_TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>openssl rand -hex 32<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;%s\n&#39;</span> <span style="color:#e6db74">&#34;</span>$OPENCLAW_GATEWAY_TOKEN<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"OPENCLAW_GATEWAY_TOKEN=\"$(openssl rand -hex 32)\"\nprintf '%s\\n' \"$OPENCLAW_GATEWAY_TOKEN\""</script>
+</div>
+<p>写入 <code>.env</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>nvim .env</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\nnvim .env"</script>
+</div>
+<p>内容如下，把 <code>OPENCLAW_GATEWAY_TOKEN</code> 换成刚生成的值：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-dotenv" data-lang="dotenv">OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.5.27
+OPENCLAW_GATEWAY_TOKEN=replace-with-your-random-token
+OPENCLAW_GATEWAY_BIND=lan
+OPENCLAW_GATEWAY_PORT=18789
+OPENCLAW_BRIDGE_PORT=18790
+OPENCLAW_MSTEAMS_PORT=3978
+
+OPENCLAW_CONFIG_DIR=/opt/openclaw/state
+OPENCLAW_WORKSPACE_DIR=/opt/openclaw/workspace
+OPENCLAW_AUTH_PROFILE_SECRET_DIR=/opt/openclaw/auth-profile-secrets
+OPENCLAW_HOME_VOLUME=1
+OPENCLAW_DISABLE_BONJOUR=1
+OPENCLAW_TZ=Asia/Shanghai</code></pre><script class="code-source" type="application/json">"OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.5.27\nOPENCLAW_GATEWAY_TOKEN=replace-with-your-random-token\nOPENCLAW_GATEWAY_BIND=lan\nOPENCLAW_GATEWAY_PORT=18789\nOPENCLAW_BRIDGE_PORT=18790\nOPENCLAW_MSTEAMS_PORT=3978\n\nOPENCLAW_CONFIG_DIR=/opt/openclaw/state\nOPENCLAW_WORKSPACE_DIR=/opt/openclaw/workspace\nOPENCLAW_AUTH_PROFILE_SECRET_DIR=/opt/openclaw/auth-profile-secrets\nOPENCLAW_HOME_VOLUME=1\nOPENCLAW_DISABLE_BONJOUR=1\nOPENCLAW_TZ=Asia/Shanghai"</script>
+</div>
+<p>这里 <code>OPENCLAW_GATEWAY_BIND=lan</code> 是给容器内部监听用的。真正的公网收口在下一步的端口绑定：只绑定宿主机 <code>127.0.0.1</code>。</p>
+<h2 id="7-写入-compose-覆盖文件">7. 写入 Compose 覆盖文件</h2>
+<p>不要直接改官方 <code>docker-compose.yml</code>，写一个覆盖文件，方便以后更新仓库：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim docker-compose.prod.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim docker-compose.prod.yml"</script>
+</div>
+<p>内容：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">openclaw-gateway</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:${OPENCLAW_MSTEAMS_PORT:-3978}:3978&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#ae81ff">json-file</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;5&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cap_drop</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">NET_RAW</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">NET_ADMIN</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">security_opt</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#66d9ef">no</span>-<span style="color:#ae81ff">new-privileges:true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">openclaw-cli</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#ae81ff">json-file</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  openclaw-gateway:\n    ports:\n      - \"127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789\"\n      - \"127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790\"\n      - \"127.0.0.1:${OPENCLAW_MSTEAMS_PORT:-3978}:3978\"\n    restart: unless-stopped\n    logging:\n      driver: json-file\n      options:\n        max-size: \"20m\"\n        max-file: \"5\"\n    cap_drop:\n      - NET_RAW\n      - NET_ADMIN\n    security_opt:\n      - no-new-privileges:true\n\n  openclaw-cli:\n    logging:\n      driver: json-file\n      options:\n        max-size: \"20m\"\n        max-file: \"3\""</script>
+</div>
+<p>解释：</p>
+<ul>
+<li><code>127.0.0.1:18789:18789</code>：宿主机只允许本机访问 Gateway。</li>
+<li><code>restart: unless-stopped</code>：机器重启后自动恢复。</li>
+<li><code>json-file</code> 限制日志大小，避免日志撑爆磁盘。</li>
+<li><code>cap_drop</code> 和 <code>no-new-privileges</code> 保持官方硬化方向。</li>
+</ul>
+<p>检查合并后的 Compose：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml config &gt;/tmp/openclaw-compose.rendered.yml
+</span></span><span style="display:flex;"><span>grep -n <span style="color:#e6db74">&#39;127.0.0.1&#39;</span> /tmp/openclaw-compose.rendered.yml</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml config \u003e/tmp/openclaw-compose.rendered.yml\ngrep -n '127.0.0.1' /tmp/openclaw-compose.rendered.yml"</script>
+</div>
+<p>应能看到三个端口都绑定到了 <code>127.0.0.1</code>。</p>
+<h2 id="8-拉镜像并启动">8. 拉镜像并启动</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml pull\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway"</script>
+</div>
+<p>查看状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail <span style="color:#ae81ff">100</span> openclaw-gateway
+</span></span><span style="display:flex;"><span>curl -fsS http://127.0.0.1:18789/healthz</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml ps\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 openclaw-gateway\ncurl -fsS http://127.0.0.1:18789/healthz"</script>
+</div>
+<p>如果 <code>pull</code> 提示镜像 tag 不存在，说明 GHCR 还没发布这个 tag 或 tag 命名变化。临时方案是把 <code>.env</code> 改成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-dotenv" data-lang="dotenv">OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:latest</code></pre><script class="code-source" type="application/json">"OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:latest"</script>
+</div>
+<p>但生产环境建议尽快换回明确版本。</p>
+<h2 id="9-完成首次-onboarding">9. 完成首次 onboarding</h2>
+<p>Docker 文档说明，官方 setup 脚本可以自动跑 onboarding；但在生产 VPS 上，我更建议先把端口和目录都固定好，再通过 CLI 容器执行初始化。</p>
+<p>运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli onboard</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli onboard"</script>
+</div>
+<p>向导里按这个原则选：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway auth</td>
+<td>token，使用 <code>.env</code> 里的长 token</td>
+</tr>
+<tr>
+<td>Gateway bind</td>
+<td>容器内 <code>lan</code>，宿主机仍只绑定 <code>127.0.0.1</code></td>
+</tr>
+<tr>
+<td>模型</td>
+<td>选你已有账号/API key 的主力模型</td>
+</tr>
+<tr>
+<td>渠道</td>
+<td>先跳过或只配一个测试渠道</td>
+</tr>
+<tr>
+<td>插件/技能</td>
+<td>先最小化，跑通后再加</td>
+</tr>
+<tr>
+<td>daemon</td>
+<td>Docker Compose 已托管，不需要宿主机 systemd user daemon</td>
+</tr>
+</tbody>
+</table>
+<p>向导结束后重启一次：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml restart openclaw-gateway</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml restart openclaw-gateway"</script>
+</div>
+<h2 id="10-用-ssh-隧道打开-dashboard">10. 用 SSH 隧道打开 Dashboard</h2>
+<p>在你的电脑上执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh -L 18789:127.0.0.1:18789 root@your-vps-ip</span></span></code></pre></div><script class="code-source" type="application/json">"ssh -L 18789:127.0.0.1:18789 root@your-vps-ip"</script>
+</div>
+<p>保持这个 SSH 窗口打开，然后浏览器访问：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://127.0.0.1:18789/</span></span></code></pre></div><script class="code-source" type="application/json">"http://127.0.0.1:18789/"</script>
+</div>
+<p>输入 <code>.env</code> 里的 <code>OPENCLAW_GATEWAY_TOKEN</code>。</p>
+<p>如果需要重新获取 Dashboard 链接：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli dashboard --no-open</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli dashboard --no-open"</script>
+</div>
+<p>如果提示设备未授权，列出并批准设备：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices list
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices approve &lt;requestId&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices list\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices approve \u003crequestId\u003e"</script>
+</div>
+<h2 id="11-安全审计与健康检查">11. 安全审计与健康检查</h2>
+<p>初始化后立即跑：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit"</script>
+</div>
+<p>如果审计提示 DM、Group、exec、plugin、browser control 或 Gateway exposure 风险，先处理这些，再接渠道。</p>
+<p>生产底线：</p>
+<ol>
+<li>Gateway 不公网暴露。</li>
+<li>DM 使用 pairing 或 allowlist，不要随便 <code>open</code>。</li>
+<li>群聊必须 mention gate 或严格 allowlist。</li>
+<li>Agent 默认工具最小化，不给不必要的 shell、文件、浏览器和 cron 能力。</li>
+<li>插件只装可信来源，装完再跑 <code>security audit</code>。</li>
+</ol>
+<p>再从宿主机确认端口没有公网监听：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -lntp | grep -E <span style="color:#e6db74">&#39;18789|18790|3978&#39;</span> <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"ss -lntp | grep -E '18789|18790|3978' || true"</script>
+</div>
+<p>应该看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>127.0.0.1:18789
+</span></span><span style="display:flex;"><span>127.0.0.1:18790
+</span></span><span style="display:flex;"><span>127.0.0.1:3978</span></span></code></pre></div><script class="code-source" type="application/json">"127.0.0.1:18789\n127.0.0.1:18790\n127.0.0.1:3978"</script>
+</div>
+<p>从你本地电脑直接访问 <code>http://your-vps-ip:18789/</code> 应该失败。只有 SSH 隧道后的 <code>http://127.0.0.1:18789/</code> 能打开。</p>
+<h2 id="12-添加-telegram-渠道示例">12. 添加 Telegram 渠道示例</h2>
+<p>先在 BotFather 创建 bot，拿到 token。然后执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  channels add --channel telegram --token <span style="color:#e6db74">&#34;123456:replace-with-token&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli \\\n  channels add --channel telegram --token \"123456:replace-with-token\""</script>
+</div>
+<p>添加后跑：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit"</script>
+</div>
+<p>第一次有人私聊 bot 时，如果使用 pairing 策略，按提示 approve，不要为了省事把所有 DM 打开。</p>
+<h2 id="13-备份">13. 备份</h2>
+<p>备份 OpenClaw 时，重点不是源码仓库，而是 state、workspace 和密钥目录。</p>
+<p>创建备份脚本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /opt/openclaw/backup-openclaw.sh</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /opt/openclaw/backup-openclaw.sh"</script>
+</div>
+<p>内容：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env bash
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>set -euo pipefail
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>BACKUP_DIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/opt/openclaw/backups&#34;</span>
+</span></span><span style="display:flex;"><span>STAMP<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>OUT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>BACKUP_DIR<span style="color:#e6db74">}</span><span style="color:#e6db74">/openclaw-</span><span style="color:#e6db74">${</span>STAMP<span style="color:#e6db74">}</span><span style="color:#e6db74">.tgz&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$BACKUP_DIR<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>tar -czf <span style="color:#e6db74">&#34;</span>$OUT<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -C /opt/openclaw state workspace auth-profile-secrets <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -C /opt/openclaw/openclaw-src .env docker-compose.prod.yml
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> <span style="color:#e6db74">&#34;</span>$OUT<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>find <span style="color:#e6db74">&#34;</span>$BACKUP_DIR<span style="color:#e6db74">&#34;</span> -type f -name <span style="color:#e6db74">&#39;openclaw-*.tgz&#39;</span> -mtime +30 -delete
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;backup created: %s\n&#39;</span> <span style="color:#e6db74">&#34;</span>$OUT<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"#!/usr/bin/env bash\nset -euo pipefail\n\nBACKUP_DIR=\"/opt/openclaw/backups\"\nSTAMP=\"$(date +%Y%m%d-%H%M%S)\"\nOUT=\"${BACKUP_DIR}/openclaw-${STAMP}.tgz\"\n\nmkdir -p \"$BACKUP_DIR\"\n\ncd /opt/openclaw/openclaw-src\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway\n\ntar -czf \"$OUT\" \\\n  -C /opt/openclaw state workspace auth-profile-secrets \\\n  -C /opt/openclaw/openclaw-src .env docker-compose.prod.yml\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway\n\nchmod 600 \"$OUT\"\nfind \"$BACKUP_DIR\" -type f -name 'openclaw-*.tgz' -mtime +30 -delete\n\nprintf 'backup created: %s\\n' \"$OUT\""</script>
+</div>
+<p>授权并试跑：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chmod <span style="color:#ae81ff">700</span> /opt/openclaw/backup-openclaw.sh
+</span></span><span style="display:flex;"><span>/opt/openclaw/backup-openclaw.sh
+</span></span><span style="display:flex;"><span>ls -lh /opt/openclaw/backups</span></span></code></pre></div><script class="code-source" type="application/json">"chmod 700 /opt/openclaw/backup-openclaw.sh\n/opt/openclaw/backup-openclaw.sh\nls -lh /opt/openclaw/backups"</script>
+</div>
+<p>加入 cron，每天凌晨 3 点备份：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>crontab -e</span></span></code></pre></div><script class="code-source" type="application/json">"crontab -e"</script>
+</div>
+<p>加入：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-cron" data-lang="cron">0 3 * * * /opt/openclaw/backup-openclaw.sh &gt;&gt; /opt/openclaw/backups/backup.log 2&gt;&amp;1</code></pre><script class="code-source" type="application/json">"0 3 * * * /opt/openclaw/backup-openclaw.sh \u003e\u003e /opt/openclaw/backups/backup.log 2\u003e\u00261"</script>
+</div>
+<p>更稳妥的生产做法是再把 <code>/opt/openclaw/backups</code> 加密同步到另一台机器或对象存储。state 里有模型凭据、渠道登录态和会话记录，不要明文丢到公开网盘。</p>
+<h2 id="14-升级流程">14. 升级流程</h2>
+<p>升级不要直接 <code>docker compose pull &amp;&amp; up -d</code>。先备份，再读 release，再切 tag。</p>
+<p>示例从 <code>2026.5.27</code> 升到 <code>2026.x.y</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>/opt/openclaw/backup-openclaw.sh
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>git fetch --tags
+</span></span><span style="display:flex;"><span>git checkout v2026.x.y
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>nvim .env</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\n/opt/openclaw/backup-openclaw.sh\n\ngit fetch --tags\ngit checkout v2026.x.y\n\nnvim .env"</script>
+</div>
+<p>把镜像改成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-dotenv" data-lang="dotenv">OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.x.y</code></pre><script class="code-source" type="application/json">"OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.x.y"</script>
+</div>
+<p>拉取并重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit
+</span></span><span style="display:flex;"><span>curl -fsS http://127.0.0.1:18789/healthz</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml pull\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml up -d\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit\ncurl -fsS http://127.0.0.1:18789/healthz"</script>
+</div>
+<p>如果升级后异常，回滚：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>git checkout v2026.5.27
+</span></span><span style="display:flex;"><span>nvim .env</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ngit checkout v2026.5.27\nnvim .env"</script>
+</div>
+<p>把镜像改回：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-dotenv" data-lang="dotenv">OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.5.27</code></pre><script class="code-source" type="application/json">"OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.5.27"</script>
+</div>
+<p>然后：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml pull\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml up -d"</script>
+</div>
+<p>如果 state 已被新版迁移且无法回退，就停服务后从备份恢复。</p>
+<h2 id="15-常见坑和处理">15. 常见坑和处理</h2>
+<h3 id="exit-137-或安装中断"><code>exit 137</code> 或安装中断</h3>
+<p>这是 OOM 高发信号。处理：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>free -h
+</span></span><span style="display:flex;"><span>dmesg -T | grep -i -E <span style="color:#e6db74">&#39;killed process|out of memory|oom&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"free -h\ndmesg -T | grep -i -E 'killed process|out of memory|oom'"</script>
+</div>
+<p>解决：</p>
+<ol>
+<li>用预构建镜像，不在小机器上 build。</li>
+<li>至少 2 GB 内存，最好 4 GB。</li>
+<li>加 2 GB swap。</li>
+</ol>
+<h3 id="eacces-或插件目录-ownership-异常"><code>EACCES</code> 或插件目录 ownership 异常</h3>
+<p>修目录所有权：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/state
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/workspace
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/auth-profile-secrets
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml restart openclaw-gateway</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R 1000:1000 /opt/openclaw/state\nchown -R 1000:1000 /opt/openclaw/workspace\nchown -R 1000:1000 /opt/openclaw/auth-profile-secrets\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml restart openclaw-gateway"</script>
+</div>
+<h3 id="dashboard-显示未授权或需要-pairing">Dashboard 显示未授权或需要 pairing</h3>
+<p>重新生成链接并批准设备：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli dashboard --no-open
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices list
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices approve &lt;requestId&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli dashboard --no-open\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices list\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli devices approve \u003crequestId\u003e"</script>
+</div>
+<h3 id="cli-容器-dns-偶发-eai_again">CLI 容器 DNS 偶发 <code>EAI_AGAIN</code></h3>
+<p>官方 Docker 文档提到，在某些 Docker Desktop 环境里，<code>openclaw-cli</code> 共享 gateway 网络并 drop 掉 <code>NET_RAW</code> 后，npm 类命令可能出现 DNS 问题。Linux VPS 上不常见。真遇到时，不要长期放宽 gateway，只给一次性 CLI 命令用临时 override：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim docker-compose.cli-dns.local.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim docker-compose.cli-dns.local.yml"</script>
+</div>
+<p>内容：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">openclaw-cli</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cap_drop</span>: !<span style="color:#ae81ff">reset []</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  openclaw-cli:\n    cap_drop: !reset []"</script>
+</div>
+<p>只在需要安装插件的这一次使用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -f docker-compose.yml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -f docker-compose.prod.yml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -f docker-compose.cli-dns.local.yml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  run --rm openclaw-cli plugins install &lt;package&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose \\\n  -f docker-compose.yml \\\n  -f docker-compose.prod.yml \\\n  -f docker-compose.cli-dns.local.yml \\\n  run --rm openclaw-cli plugins install \u003cpackage\u003e"</script>
+</div>
+<p>用完不要把这个文件加入日常启动命令。</p>
+<h3 id="openclaw-看起来启动了但公网能访问"><code>openclaw</code> 看起来启动了，但公网能访问</h3>
+<p>立刻停服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway"</script>
+</div>
+<p>检查 <code>docker-compose.prod.yml</code> 端口是否是 <code>127.0.0.1:18789:18789</code>，不要写成 <code>18789:18789</code>。修完再启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway
+</span></span><span style="display:flex;"><span>ss -lntp | grep <span style="color:#ae81ff">18789</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d openclaw-gateway\nss -lntp | grep 18789"</script>
+</div>
+<h3 id="只复制配置后迁移新机器上会话和渠道全没了">只复制配置后迁移，新机器上会话和渠道全没了</h3>
+<p>迁移必须复制整个 state 目录和 workspace。官方迁移文档也明确说，模型 auth profiles、channel credentials、sessions 都不只在 <code>openclaw.json</code> 里。</p>
+<p>正确迁移：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>tar -czf /root/openclaw-migrate.tgz <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -C /opt/openclaw state workspace auth-profile-secrets <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -C /opt/openclaw/openclaw-src .env docker-compose.prod.yml</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml stop openclaw-gateway\n\ntar -czf /root/openclaw-migrate.tgz \\\n  -C /opt/openclaw state workspace auth-profile-secrets \\\n  -C /opt/openclaw/openclaw-src .env docker-compose.prod.yml"</script>
+</div>
+<p>新机器恢复后：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/state
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/workspace
+</span></span><span style="display:flex;"><span>chown -R 1000:1000 /opt/openclaw/auth-profile-secrets
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R 1000:1000 /opt/openclaw/state\nchown -R 1000:1000 /opt/openclaw/workspace\nchown -R 1000:1000 /opt/openclaw/auth-profile-secrets\n\ncd /opt/openclaw/openclaw-src\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml up -d\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor"</script>
+</div>
+<h2 id="16-最终验收清单">16. 最终验收清单</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+</span></span><span style="display:flex;"><span>curl -fsS http://127.0.0.1:18789/healthz
+</span></span><span style="display:flex;"><span>ss -lntp | grep -E <span style="color:#e6db74">&#39;18789|18790|3978&#39;</span>
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit
+</span></span><span style="display:flex;"><span>/opt/openclaw/backup-openclaw.sh</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\n\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml ps\ncurl -fsS http://127.0.0.1:18789/healthz\nss -lntp | grep -E '18789|18790|3978'\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli doctor\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm openclaw-cli security audit\n/opt/openclaw/backup-openclaw.sh"</script>
+</div>
+<p>验收标准：</p>
+<ul>
+<li><code>healthz</code> 返回正常。</li>
+<li><code>18789/18790/3978</code> 只监听 <code>127.0.0.1</code>。</li>
+<li>本地电脑必须通过 SSH 隧道才能访问 Dashboard。</li>
+<li><code>doctor</code> 没有阻塞性错误。</li>
+<li><code>security audit</code> 没有公网暴露、开放 DM、危险 debug flag、权限过宽等高风险项。</li>
+<li>备份包能生成，权限是 <code>600</code>。</li>
+<li>重启 VPS 后服务能自动恢复：</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>reboot</span></span></code></pre></div><script class="code-source" type="application/json">"reboot"</script>
+</div>
+<p>重连后：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/openclaw/openclaw-src
+</span></span><span style="display:flex;"><span>docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+</span></span><span style="display:flex;"><span>curl -fsS http://127.0.0.1:18789/healthz</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/openclaw/openclaw-src\ndocker compose -f docker-compose.yml -f docker-compose.prod.yml ps\ncurl -fsS http://127.0.0.1:18789/healthz"</script>
+</div>
+<h2 id="结论">结论</h2>
+<p>生产安装 OpenClaw，真正难的不是执行安装命令，而是边界控制：谁能访问 Gateway、谁能给 bot 发消息、Agent 能调用哪些工具、状态目录怎么备份、升级失败怎么退回。</p>
+<p>按本文这套方式，OpenClaw 的入口默认只在 VPS 本机，管理走 SSH 隧道；运行状态全部落在 <code>/opt/openclaw</code> 下；版本、Compose 覆盖、日志、备份和审计都有固定动作。这样后面无论是加 Telegram、接 Slack、配本地节点，还是升级到新 release，都不会变成一次靠运气的安装。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

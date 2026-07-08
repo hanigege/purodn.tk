@@ -1,31 +1,54 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FreeBSD 15 on 电脑自习室</title><link>https://purodn.tk/tags/freebsd-15/</link><description>Recent content in FreeBSD 15 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/freebsd-15/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。
-先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
-这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
-整体结构如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-xray-reality-sing-box/</guid><description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。
-复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。
-示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：
-项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description></item><item><title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</link><pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-nginx-static-file-browser/</guid><description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。
-本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
-准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。
-本文后续示例假设证书和私钥已经放在下面的位置：
-复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。
-安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：
-复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
-创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。
-下面以用户名 admin 为例：
-复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description></item><item><title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-install/</guid><description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。
-适合下面几种场景：
-VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。
-选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。
-输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。
-进入 Distribution Sets 选择界面。</description></item><item><title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title><link>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</link><pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-minimal-tuning/</guid><description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。
-建议按下面顺序做：
-修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。
-确认要删除的用户确实是错误账号后，在 root 下执行：
-复制pw userdel -n fexil -r 参数含义：
--n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：
-复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：
-复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。
-复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：
-用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>FreeBSD 15 on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/freebsd-15/</link>
+    <description>Recent content in FreeBSD 15 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/freebsd-15/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link>
+      <pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid>
+      <description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。&#xA;先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。&#xA;这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。&#xA;整体结构如下：&#xA;复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 下 Xray VLESS Reality Vision TCP 基准配置</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-xray-reality-sing-box/</link>
+      <pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-xray-reality-sing-box/</guid>
+      <description>这篇是 FreeBSD 15 上 Xray VLESS Reality Vision TCP 节点的完整部署教程，也可以作为 FreeBSD TCP 代理性能的第一轮基准测试方案。它的优点是组件少、不需要 Nginx、不需要申请真实 TLS 证书，适合先判断当前 VPS 的 FreeBSD TCP 用户态代理转发是否正常。&#xA;复制sing-box 客户端 -&amp;gt; Xray VLESS Reality Vision -&amp;gt; FreeBSD Xray 443/tcp -&amp;gt; 目标网站 这套方案不需要 WebSocket 中转，不需要 Nginx 反代，也不需要申请真实 TLS 证书。Xray 直接监听 443/tcp；如果同机还跑 Hysteria2，它可以继续监听 443/udp，二者不冲突。&#xA;示例信息 本文统一使用公版示例值，部署时替换成你自己的真实信息：&#xA;项目 示例值 节点域名 proxy.example.com 服务器公网 IP 203.0.113.10 Xray 入口端口 443/tcp REALITY 伪装域名 www.microsoft.com VLESS 用户 ID 00000000-0000-4000-8000-000000000000 REALITY public key PUBLIC_KEY_HERE REALITY short id 0123456789abcdef sing-box 节点 tag xray-reality-freebsd 命令默认使用 root 执行。</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 下配置 Hysteria2 服务器端</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</link>
+      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</guid>
+      <description>本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 salamander 混淆。&#xA;截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。&#xA;1. 部署思路 最稳妥的服务端配置思路是：&#xA;监听 UDP 443，这也是官方默认 HTTP/3 端口。 使用 TLS 证书；如果没有正式域名，可以先用自签证书。 使用 masquerade.proxy 伪装成正常网站。 个人自用时，服务端不写 bandwidth 和 ignoreClientBandwidth，把带宽参数交给客户端。 不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。 如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 obfs.type: salamander。 官方文档里说明，listen 省略时会默认监听 :443，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 listen: :443。&#xA;2. 安装 Hysteria2 最新版 建议用 root 用户操作。监听 443 这类 1024 以下端口也需要 root 权限，或额外配置权限。</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</link>
+      <pubDate>Sun, 17 May 2026 20:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-nginx-static-file-browser/</guid>
+      <description>在 FreeBSD 15 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以直接处理 HTTPS、Basic Auth、目录浏览、访问日志、限流和安全响应头，性能和可控性都更好。&#xA;本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /usr/local/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。&#xA;准备证书 正式对外提供 HTTPS 之前，需要先为域名签发证书。可以使用你现有的一键脚本，或使用 acme.sh、certbot 等工具签发。&#xA;本文后续示例假设证书和私钥已经放在下面的位置：&#xA;复制/usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /usr/local/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key 即可。&#xA;安装并启用 Nginx 复制pkg install -y nginx sysrc nginx_enable=&amp;#34;YES&amp;#34; 创建 Web 根目录：&#xA;复制mkdir -p /usr/local/www/fetch.jgaga.tk chown -R root:www /usr/local/www/fetch.jgaga.tk 这里推荐让目录归属为 root:www。Nginx worker 以 www 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&#xA;创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。FreeBSD 自带 openssl，不需要额外安装工具。&#xA;下面以用户名 admin 为例：&#xA;复制printf &amp;#34;admin:%s\n&amp;#34; &amp;#34;$(openssl passwd -apr1)&amp;#34; &amp;gt; /usr/local/etc/nginx/.</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 最小化安装：VPS 控制台图文流程</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-install/</guid>
+      <description>这篇记录的是在 VPS 控制台里安装 FreeBSD 15 的最小化流程。目标是尽量少装组件，先把系统稳定启动起来，再按需要补装软件和服务。&#xA;适合下面几种场景：&#xA;VPS 面板只提供 VNC / noVNC 控制台。 内存较小，优先选择 UFS 而不是 ZFS。 只需要一个干净的 FreeBSD 基础系统。 安装阶段先跑通网络、时区和 SSH，后续再做安全加固。 快速选择表 阶段 推荐选择 Distribution Sets 全部取消，保持最小安装 文件系统 小内存 VPS 优先 UFS 分区表 GPT 网络 VPS 通常选 Auto / DHCP 时区 Asia / China / CST NTP 建议启用 ntpd 相关选项 用户 推荐创建普通用户，并加入 wheel 组 进入安装器 启动安装镜像后，进入 FreeBSD 安装器。最开始的欢迎界面保持默认，继续安装即可。&#xA;选择最小安装组件 Distribution Sets 这里不要选择额外组件。最小化安装只保留基础系统，文档、调试符号、源码等内容后续需要时再安装。&#xA;输入主机名。这里可以直接写机器用途，例如 freebsd、vps-freebsd 或自己的主机命名。&#xA;进入 Distribution Sets 选择界面。</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 最小化系统调优：用户、TTY、pkg 缓存与 tmpfs</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</link>
+      <pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-minimal-tuning/</guid>
+      <description>这篇记录 FreeBSD 15 最小化安装后的基础整理。目标不是盲目砍服务，而是在 VPS、小内存机器上保留可救援能力，同时减少不必要的后台进程和磁盘写入。&#xA;建议按下面顺序做：&#xA;修正误创建的用户。 保留 ttyv0，关闭多余本地控制台。 配置 pkg 自动清理缓存。 小内存机器添加 Swap 文件。 用 tmpfs 加速 /var/cache/pkg。 只关闭确认不用的服务。 修正误创建的用户 如果安装阶段把用户名写错了，例如把 felix 写成了 fexil，可以先删除错误用户，再重新创建正确用户。&#xA;确认要删除的用户确实是错误账号后，在 root 下执行：&#xA;复制pw userdel -n fexil -r 参数含义：&#xA;-n fexil 指定要删除的用户名。 -r 会同时删除该用户的家目录，例如 /home/fexil。 然后重新创建正确的普通用户，并加入 wheel 组：&#xA;复制pw useradd felix -m -G wheel -s /bin/sh passwd felix 创建后检查用户和组：&#xA;复制id felix 看到输出中包含 wheel，说明这个用户后续可以使用 su 切换到 root。&#xA;复制su - felix 如果普通用户不能 su 到 root，常见原因有两个：&#xA;用户名拼写错了，实际登录的不是预期用户。 创建用户时没有加入 wheel 组。 为什么别人的最小化系统进程更少 FreeBSD 最小化安装后，htop 里看到的进程数量会受几个因素影响：</description>
+    </item>
+  </channel>
+</rss>

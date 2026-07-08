@@ -1,9 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Memory Provider on 电脑自习室</title><link>https://purodn.tk/tags/memory-provider/</link><description>Recent content in Memory Provider on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 03 Jun 2026 20:44:07 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/memory-provider/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</title><link>https://purodn.tk/posts/ai/hermes-holographic-memory-addons/</link><pubDate>Wed, 03 Jun 2026 20:44:07 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-holographic-memory-addons/</guid><description>新装一个 Hermes Matrix / Telegram 机器人后，最容易纠结的是：到底先装什么功能，哪些是锦上添花，哪些会影响长期体验。
-我的建议是先把顺序想清楚：先让机器人安静、安全、可恢复；再接 Holographic 这类本地记忆挂件；最后再考虑 Honcho、MCP、Cron、Voice、更多平台和云端记忆。
-这篇专门讲 Holographic 记忆挂件，并顺手整理一份“新机器人装完后的功能清单”。以后新机器部署完，不用再凭感觉乱开功能，按优先级一项项验收就行。
-Holographic 是什么 Holographic 是 Hermes Agent 的外部 memory provider 之一。它的定位很明确：给 Hermes 增加一个本地 SQLite 事实库，让机器人可以在内建 USER.md / MEMORY.md 之外，保存、搜索、关联和修正长期事实。
-一句话理解：
-复制USER.md / MEMORY.md 负责少量高优先级记忆， Holographic 负责更多可检索、可维护、可打分的长期事实。 官方 memory provider 文档里把 Holographic 描述成本地 SQLite fact store，支持 FTS5 全文搜索、trust scoring，以及用于组合查询的 HRR 能力。它不需要额外云服务，SQLite 默认可用，NumPy 只是可选增强。
-所以它很适合这些场景：
-第一次给 Hermes 接外部记忆。 希望所有记忆先落在本机，不想把个人偏好和服务器信息交给云服务。 当前主要是单机器人、单用户、单工作流。 想让机器人记住长期稳定事实，但又不想把 MEMORY.md 塞爆。 需要能搜索、列出、更新、删除事实，而不是只靠系统提示里几行固定记忆。 它不适合解决这些问题：
-多个机器人共享同一个用户画像。 团队级别的跨助手协作记忆。 想要云端同步和多设备天然共享。 想让所有聊天记录无脑进长期记忆。 如果目标是多助手共享认知，应该看 Honcho 或其它共享记忆方案；如果目标只是先让新机器人具备可靠本地长期事实库，Holographic 是最轻的一步。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Memory Provider on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/memory-provider/</link>
+    <description>Recent content in Memory Provider on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 03 Jun 2026 20:44:07 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/memory-provider/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes Holographic 记忆挂件详解：新机器人装完后先接哪些功能</title>
+      <link>http://0.0.0.0:1313/posts/ai/hermes-holographic-memory-addons/</link>
+      <pubDate>Wed, 03 Jun 2026 20:44:07 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/ai/hermes-holographic-memory-addons/</guid>
+      <description>新装一个 Hermes Matrix / Telegram 机器人后，最容易纠结的是：到底先装什么功能，哪些是锦上添花，哪些会影响长期体验。&#xA;我的建议是先把顺序想清楚：先让机器人安静、安全、可恢复；再接 Holographic 这类本地记忆挂件；最后再考虑 Honcho、MCP、Cron、Voice、更多平台和云端记忆。&#xA;这篇专门讲 Holographic 记忆挂件，并顺手整理一份“新机器人装完后的功能清单”。以后新机器部署完，不用再凭感觉乱开功能，按优先级一项项验收就行。&#xA;Holographic 是什么 Holographic 是 Hermes Agent 的外部 memory provider 之一。它的定位很明确：给 Hermes 增加一个本地 SQLite 事实库，让机器人可以在内建 USER.md / MEMORY.md 之外，保存、搜索、关联和修正长期事实。&#xA;一句话理解：&#xA;复制USER.md / MEMORY.md 负责少量高优先级记忆， Holographic 负责更多可检索、可维护、可打分的长期事实。 官方 memory provider 文档里把 Holographic 描述成本地 SQLite fact store，支持 FTS5 全文搜索、trust scoring，以及用于组合查询的 HRR 能力。它不需要额外云服务，SQLite 默认可用，NumPy 只是可选增强。&#xA;所以它很适合这些场景：&#xA;第一次给 Hermes 接外部记忆。 希望所有记忆先落在本机，不想把个人偏好和服务器信息交给云服务。 当前主要是单机器人、单用户、单工作流。 想让机器人记住长期稳定事实，但又不想把 MEMORY.md 塞爆。 需要能搜索、列出、更新、删除事实，而不是只靠系统提示里几行固定记忆。 它不适合解决这些问题：&#xA;多个机器人共享同一个用户画像。 团队级别的跨助手协作记忆。 想要云端同步和多设备天然共享。 想让所有聊天记录无脑进长期记忆。 如果目标是多助手共享认知，应该看 Honcho 或其它共享记忆方案；如果目标只是先让新机器人具备可靠本地长期事实库，Holographic 是最轻的一步。</description>
+    </item>
+  </channel>
+</rss>

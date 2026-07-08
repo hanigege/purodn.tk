@@ -1,20 +1,40 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Shell on 电脑自习室</title><link>https://purodn.tk/tags/shell/</link><description>Recent content in Shell on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/shell/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。
-最终效果是：
-复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：
-复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。
-准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。
-先在终端检查 Git：
-复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。
-然后确认当前 Mac 能通过 SSH 连接 GitHub：
-复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。
-在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。
-仓库名称填写：</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
-原始脚本也保存在本文同级 assets/ 目录中：
-Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
-Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
-复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
-下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
-写入配置文件 编辑 ~/.tmux.conf：
-复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
-写入下面这份配置：
-复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Shell on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/shell/</link>
+    <description>Recent content in Shell on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/shell/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title>
+      <link>http://0.0.0.0:1313/posts/linux/mac-folder-github-one-click-sync/</link>
+      <pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/mac-folder-github-one-click-sync/</guid>
+      <description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&#xA;最终效果是：&#xA;复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：&#xA;复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。&#xA;准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。&#xA;先在终端检查 Git：&#xA;复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。&#xA;然后确认当前 Mac 能通过 SSH 连接 GitHub：&#xA;复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。&#xA;在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。&#xA;仓库名称填写：</description>
+    </item>
+    <item>
+      <title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</title>
+      <link>http://0.0.0.0:1313/posts/linux/hugo-two-git-repos-purodn-purodncode/</link>
+      <pubDate>Wed, 03 Jun 2026 21:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/hugo-two-git-repos-purodn-purodncode/</guid>
+      <description>Hugo 静态站点有一个很容易混乱的地方：源码和发布产物都在同一个目录附近，但它们其实不是一类东西。&#xA;源码是 content/、layouts/、assets/、static/、hugo.yaml 这些文件；发布产物是 Hugo 构建后生成的 HTML、CSS、JS、图片索引和站点地图。我的站点把这两部分拆成两个 Git 仓库：&#xA;复制/Users/mana/Documents/codex/hugo/ Hugo 源码仓库 /Users/mana/Documents/codex/hugo/public/ GitHub Pages 发布仓库 这样做以后，日常操作也分成两个命令：&#xA;复制purodn 构建 Hugo，并把 public/ 推到 GitHub Pages 仓库 purodncode 验证 Hugo 源码，并把源码推到私有源码仓库 这篇文章记录这套工作流，也顺便记一下这次 purodncode 失效的排查过程。&#xA;为什么要分成两个仓库 如果只维护一个仓库，很容易把 Hugo 生成物当成源码提交进去。比如这些文件和目录都不是源码：&#xA;复制public/ resources/ .hugo_build.lock categories/ css/ js/ posts/ tags/ index.html index.json sitemap.xml 它们要么是构建结果，要么是本地缓存。真正值得长期维护的是 Markdown 文章、文章图片、主题模板、样式脚本和站点配置。&#xA;双仓库的边界可以这样理解：&#xA;复制源码仓库：保存人写的东西 发布仓库：保存 Hugo 生成给浏览器看的东西 源码仓库可以是私有仓库，里面有草稿、脚本和本地协作规则；发布仓库通常是公开仓库，GitHub Pages 直接从里面读取静态网页。&#xA;目录结构 本地 Hugo 源码目录：&#xA;复制/Users/mana/Documents/codex/hugo 源码仓库远程：&#xA;复制git@github.com:hanigege/purodn.tk-source-code.git 本地发布目录：&#xA;复制/Users/mana/Documents/codex/hugo/public 发布仓库远程：&#xA;复制git@github.com:hanigege/purodn.tk.git 注意，public/ 虽然在 Hugo 源码目录里面，但它自己也是一个独立 Git 仓库。检查源码状态时在 Hugo 根目录执行 git status；检查发布产物状态时要进入 public/，或者使用 git -C public status。</description>
+    </item>
+    <item>
+      <title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title>
+      <link>http://0.0.0.0:1313/posts/linux/alpine-admin-scripts-backup/</link>
+      <pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/alpine-admin-scripts-backup/</guid>
+      <description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&#xA;原始脚本也保存在本文同级 assets/ 目录中：&#xA;Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&#xA;Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。&#xA;复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description>
+    </item>
+    <item>
+      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
+      <link>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</guid>
+      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
+    </item>
+  </channel>
+</rss>

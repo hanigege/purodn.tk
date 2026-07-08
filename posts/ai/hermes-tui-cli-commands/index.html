@@ -1,37 +1,364 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hermes TUI 终端 CLI 命令速查 | 电脑自习室</title>
-<meta name=description content="Hermes 终端 TUI 下所有核心快捷键、斜杠命令和使用技巧，覆盖日常聊天、代码审查、计划模式、会话管理等完整操作。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-06-26>2026年6月26日</time></div><h1>Hermes TUI 终端 CLI 命令速查</h1><p>Hermes 终端 TUI 下所有核心快捷键、斜杠命令和使用技巧，覆盖日常聊天、代码审查、计划模式、会话管理等完整操作。</p></header><img class=article-cover src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt><div class=article-content><h2 id=什么是-hermes-tui>什么是 Hermes TUI</h2><p>Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 直接用 hermes 命令进入 TUI（如果配置了默认 profile）</span>
-</span></span><span style=display:flex><span>hermes
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 或指定 profile</span>
-</span></span><span style=display:flex><span>hermes chat --profile code
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 或者使用单独的子命令</span>
-</span></span><span style=display:flex><span>hermes tui</span></span></code></pre></div><script class=code-source type=application/json>"# 直接用 hermes 命令进入 TUI（如果配置了默认 profile）\nhermes\n\n# 或指定 profile\nhermes chat --profile code\n\n# 或者使用单独的子命令\nhermes tui"</script></div><p>进入 TUI 后，你会看到类似聊天软件的界面——上方是对话历史，底部是输入框。在输入框里，你可以随时按 <code>Tab</code> 看到所有可用命令的自动补全列表。</p><p>核心特性：</p><ul><li><strong>全终端操作</strong>，无需鼠标</li><li><strong>自动补全</strong>覆盖所有命令和已安装 skill</li><li><strong>计划模式</strong>安全预览再执行</li><li><strong>会话管理</strong>方便回溯历史</li></ul><hr><h2 id=常用快捷键>常用快捷键</h2><table><thead><tr><th>快捷键</th><th>作用</th></tr></thead><tbody><tr><td><code>/</code></td><td>调出斜杠命令自动补全下拉菜单</td></tr><tr><td><code>Tab</code></td><td>接受自动建议 / 补全斜杠命令</td></tr><tr><td><code>↑</code> / <code>↓</code></td><td>浏览历史消息（按方向键循环）</td></tr><tr><td><code>Ctrl+C</code></td><td>中断当前 AI 输出</td></tr><tr><td><code>Ctrl+D</code></td><td>退出 TUI</td></tr><tr><td><code>Ctrl+L</code></td><td>清屏（保留会话历史）</td></tr><tr><td><code>Ctrl+U</code></td><td>清空当前输入行</td></tr><tr><td><code>Ctrl+W</code></td><td>删除光标前一个单词</td></tr></tbody></table><blockquote><p><strong>提示</strong>：按 <code>/</code> 后会自动弹出补全菜单，显示所有可用的斜杠命令。如果装了多个 skill，菜单会很长——直接输入关键字过滤即可。</p></blockquote><hr><h2 id=核心斜杠命令>核心斜杠命令</h2><table><thead><tr><th>命令</th><th>作用</th></tr></thead><tbody><tr><td><code>/plan</code></td><td><strong>计划模式</strong>。只做规划和分析，不执行任何代码/操作，生成 markdown 计划保存在 <code>~/.hermes/plans/</code> 目录。等你确认后才动手</td></tr><tr><td><code>/review</code></td><td><strong>代码审查</strong>。对当前对话中的代码进行自动审查；也可主动提交代码让我审查</td></tr><tr><td><code>/model</code></td><td>显示当前使用的模型，或切换模型（会列出可用模型列表供选择）</td></tr><tr><td><code>/new</code></td><td>新会话——清空对话历史，从头开始</td></tr><tr><td><code>/undo</code></td><td>回退最近 N 条用户消息重做。不加数字则回退 1 条。例如 <code>/undo 3</code> 回退 3 轮</td></tr><tr><td><code>/retry</code></td><td>重试上一条 AI 回复，重新生成</td></tr><tr><td><code>/clear</code></td><td>清屏 + 新会话，比 <code>/new</code> 多一个清屏动作</td></tr><tr><td><code>/compress</code></td><td>压缩上下文节省 Token。加数字保留最近 N 轮对话，如 <code>/compress 20</code> 保留最近 20 轮</td></tr><tr><td><code>/yolo</code></td><td>切换 <strong>YOLO 模式</strong>。开启后会跳过所有危险命令审批，直接执行——请谨慎使用</td></tr><tr><td><code>/verbose</code></td><td>切换工具输出显示级别。循环切换：<code>关 → 新 → 全部 → 详细</code></td></tr><tr><td><code>/goal</code></td><td>设置一个持续目标。目标会跨回合保持，直到你完成或取消它。例如 <code>/goal 完成用户注册模块</code></td></tr><tr><td><code>/stop</code></td><td>杀掉所有后台进程（长时间运行的任务、构建、测试等）</td></tr><tr><td><code>/title</code></td><td>给当前会话设置标题。方便后续通过 <code>session_search</code> 查找定位</td></tr><tr><td><code>/session</code></td><td>浏览和恢复历史会话。列出所有历史会话，可选择恢复或删除</td></tr></tbody></table><h3 id=斜杠命令使用技巧>斜杠命令使用技巧</h3><ul><li>大部分命令支持部分匹配，比如 <code>/pla</code> 也能触发 <code>/plan</code></li><li>带数字参数的命令（<code>/undo 3</code>、<code>/compress 20</code>）如果不传数字则使用默认值</li><li><code>/yolo</code> 是开关，再输一次会关掉 YOLO 模式</li><li><code>/verbose</code> 是四级循环，输一次切一级</li></ul><hr><h2 id=计划模式详解>计划模式详解</h2><p>通过 <code>/plan</code> 触发后，Hermes 进入<strong>只分析不执行</strong>模式：</p><ol><li>我会先分析你的需求、列出可能的方案、评估风险和依赖</li><li>输出一份 markdown 计划到 <code>~/.hermes/plans/</code> 目录</li><li><strong>不会执行任何命令、修改任何文件</strong></li><li>你确认后说"动手"或"执行"，我再开始操作</li></ol><p>适用于：</p><ul><li>不确定影响范围的改动，先看计划再决定</li><li>复杂的多步骤操作，需要分步确认</li><li>学习场景——只看分析和方案，不执行</li></ul><p>退出计划模式：按 <code>Ctrl+C</code> 取消当前计划，或执行完你同意的操作后自动退出。</p><hr><h2 id=用-goal-实现跨会话目标>用 <code>/goal</code> 实现跨会话目标</h2><p><code>/goal</code> 是持续目标系统，适合拆分大任务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span># 设置目标
-</span></span><span style=display:flex><span>/goal 重构用户认证模块
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span># 之后每次对话，Hermes 都会记住这个目标
-</span></span><span style=display:flex><span># 完成一部分后继续对话，会基于上下文推进
-</span></span><span style=display:flex><span># 目标完成后手动取消
-</span></span><span style=display:flex><span>/goal 重构用户认证模块 --done</span></span></code></pre></div><script class=code-source type=application/json>"# 设置目标\n/goal 重构用户认证模块\n\n# 之后每次对话，Hermes 都会记住这个目标\n# 完成一部分后继续对话，会基于上下文推进\n# 目标完成后手动取消\n/goal 重构用户认证模块 --done"</script></div><p>目标会持久化——即使中间做其他任务、开关 TUI，目标也不会丢失。</p><hr><h2 id=skill-自动注册斜杠命令>Skill 自动注册斜杠命令</h2><p>所有已安装的 skill 会自动变成斜杠命令。例如装了 <code>github-workflows</code> skill，直接输入 <code>/github-workflows</code> 就能触发对应的 workflow。</p><p>查看已安装的 skill：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes skills list</span></span></code></pre></div><script class=code-source type=application/json>"hermes skills list"</script></div><p>每个 skill 内置了专门的流程指导——触发后 Hermes 会加载该 skill 的步骤、参考资料和校验检查清单。</p><blockquote><p><strong>建议</strong>：在终端里敲 <code>/</code> 看看自动补全菜单，所有可用命令一目了然😊</p></blockquote><hr><h2 id=环境变量与配置>环境变量与配置</h2><p>TUI 模式也受以下环境变量影响：</p><table><thead><tr><th>变量</th><th>作用</th></tr></thead><tbody><tr><td><code>HERMES_PROFILE</code></td><td>指定使用的 profile（默认 <code>default</code>）</td></tr><tr><td><code>HERMES_HOME</code></td><td>自定义 Hermes 配置目录</td></tr><tr><td><code>HERMES_LOG_LEVEL</code></td><td>日志级别（debug/info/warn/error）</td></tr></tbody></table><p>也可以在启动时指定：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>HERMES_PROFILE<span style=color:#f92672>=</span>code hermes</span></span></code></pre></div><script class=code-source type=application/json>"HERMES_PROFILE=code hermes"</script></div><hr><h2 id=总结>总结</h2><p>Hermes TUI 把整个 AI 助手功能搬到了终端里，用键盘就能完成一切操作。上面这些快捷键和斜杠命令覆盖了日常 95% 的使用场景：</p><ul><li><strong>快捷键</strong>：控制界面和中断</li><li><strong>斜杠命令</strong>：控制会话、模型、模式、审查等核心功能</li><li><strong>计划模式</strong>：安全预览再执行</li><li><strong>持续目标</strong>：跨会话推进大任务</li><li><strong>Skill 系统</strong>：按需扩展能力</li></ul><p>在终端里敲 <code>/</code> 看看自动补全菜单——比死记硬背快得多。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes TUI 终端 CLI 命令速查 | 电脑自习室</title>
+    <meta name="description" content="Hermes 终端 TUI 下所有核心快捷键、斜杠命令和使用技巧，覆盖日常聊天、代码审查、计划模式、会话管理等完整操作。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-26">2026年6月26日</time>
+        </div>
+        <h1>Hermes TUI 终端 CLI 命令速查</h1>
+          <p>Hermes 终端 TUI 下所有核心快捷键、斜杠命令和使用技巧，覆盖日常聊天、代码审查、计划模式、会话管理等完整操作。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="什么是-hermes-tui">什么是 Hermes TUI</h2>
+<p>Hermes 的 TUI（终端用户界面）让你直接在终端中和 AI 交互，不需要浏览器或额外的 GUI。启动方式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 直接用 hermes 命令进入 TUI（如果配置了默认 profile）</span>
+</span></span><span style="display:flex;"><span>hermes
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 或指定 profile</span>
+</span></span><span style="display:flex;"><span>hermes chat --profile code
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 或者使用单独的子命令</span>
+</span></span><span style="display:flex;"><span>hermes tui</span></span></code></pre></div><script class="code-source" type="application/json">"# 直接用 hermes 命令进入 TUI（如果配置了默认 profile）\nhermes\n\n# 或指定 profile\nhermes chat --profile code\n\n# 或者使用单独的子命令\nhermes tui"</script>
+</div>
+<p>进入 TUI 后，你会看到类似聊天软件的界面——上方是对话历史，底部是输入框。在输入框里，你可以随时按 <code>Tab</code> 看到所有可用命令的自动补全列表。</p>
+<p>核心特性：</p>
+<ul>
+<li><strong>全终端操作</strong>，无需鼠标</li>
+<li><strong>自动补全</strong>覆盖所有命令和已安装 skill</li>
+<li><strong>计划模式</strong>安全预览再执行</li>
+<li><strong>会话管理</strong>方便回溯历史</li>
+</ul>
+<hr>
+<h2 id="常用快捷键">常用快捷键</h2>
+<table>
+<thead>
+<tr>
+<th>快捷键</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>调出斜杠命令自动补全下拉菜单</td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>接受自动建议 / 补全斜杠命令</td>
+</tr>
+<tr>
+<td><code>↑</code> / <code>↓</code></td>
+<td>浏览历史消息（按方向键循环）</td>
+</tr>
+<tr>
+<td><code>Ctrl+C</code></td>
+<td>中断当前 AI 输出</td>
+</tr>
+<tr>
+<td><code>Ctrl+D</code></td>
+<td>退出 TUI</td>
+</tr>
+<tr>
+<td><code>Ctrl+L</code></td>
+<td>清屏（保留会话历史）</td>
+</tr>
+<tr>
+<td><code>Ctrl+U</code></td>
+<td>清空当前输入行</td>
+</tr>
+<tr>
+<td><code>Ctrl+W</code></td>
+<td>删除光标前一个单词</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>提示</strong>：按 <code>/</code> 后会自动弹出补全菜单，显示所有可用的斜杠命令。如果装了多个 skill，菜单会很长——直接输入关键字过滤即可。</p>
+</blockquote>
+<hr>
+<h2 id="核心斜杠命令">核心斜杠命令</h2>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/plan</code></td>
+<td><strong>计划模式</strong>。只做规划和分析，不执行任何代码/操作，生成 markdown 计划保存在 <code>~/.hermes/plans/</code> 目录。等你确认后才动手</td>
+</tr>
+<tr>
+<td><code>/review</code></td>
+<td><strong>代码审查</strong>。对当前对话中的代码进行自动审查；也可主动提交代码让我审查</td>
+</tr>
+<tr>
+<td><code>/model</code></td>
+<td>显示当前使用的模型，或切换模型（会列出可用模型列表供选择）</td>
+</tr>
+<tr>
+<td><code>/new</code></td>
+<td>新会话——清空对话历史，从头开始</td>
+</tr>
+<tr>
+<td><code>/undo</code></td>
+<td>回退最近 N 条用户消息重做。不加数字则回退 1 条。例如 <code>/undo 3</code> 回退 3 轮</td>
+</tr>
+<tr>
+<td><code>/retry</code></td>
+<td>重试上一条 AI 回复，重新生成</td>
+</tr>
+<tr>
+<td><code>/clear</code></td>
+<td>清屏 + 新会话，比 <code>/new</code> 多一个清屏动作</td>
+</tr>
+<tr>
+<td><code>/compress</code></td>
+<td>压缩上下文节省 Token。加数字保留最近 N 轮对话，如 <code>/compress 20</code> 保留最近 20 轮</td>
+</tr>
+<tr>
+<td><code>/yolo</code></td>
+<td>切换 <strong>YOLO 模式</strong>。开启后会跳过所有危险命令审批，直接执行——请谨慎使用</td>
+</tr>
+<tr>
+<td><code>/verbose</code></td>
+<td>切换工具输出显示级别。循环切换：<code>关 → 新 → 全部 → 详细</code></td>
+</tr>
+<tr>
+<td><code>/goal</code></td>
+<td>设置一个持续目标。目标会跨回合保持，直到你完成或取消它。例如 <code>/goal 完成用户注册模块</code></td>
+</tr>
+<tr>
+<td><code>/stop</code></td>
+<td>杀掉所有后台进程（长时间运行的任务、构建、测试等）</td>
+</tr>
+<tr>
+<td><code>/title</code></td>
+<td>给当前会话设置标题。方便后续通过 <code>session_search</code> 查找定位</td>
+</tr>
+<tr>
+<td><code>/session</code></td>
+<td>浏览和恢复历史会话。列出所有历史会话，可选择恢复或删除</td>
+</tr>
+</tbody>
+</table>
+<h3 id="斜杠命令使用技巧">斜杠命令使用技巧</h3>
+<ul>
+<li>大部分命令支持部分匹配，比如 <code>/pla</code> 也能触发 <code>/plan</code></li>
+<li>带数字参数的命令（<code>/undo 3</code>、<code>/compress 20</code>）如果不传数字则使用默认值</li>
+<li><code>/yolo</code> 是开关，再输一次会关掉 YOLO 模式</li>
+<li><code>/verbose</code> 是四级循环，输一次切一级</li>
+</ul>
+<hr>
+<h2 id="计划模式详解">计划模式详解</h2>
+<p>通过 <code>/plan</code> 触发后，Hermes 进入<strong>只分析不执行</strong>模式：</p>
+<ol>
+<li>我会先分析你的需求、列出可能的方案、评估风险和依赖</li>
+<li>输出一份 markdown 计划到 <code>~/.hermes/plans/</code> 目录</li>
+<li><strong>不会执行任何命令、修改任何文件</strong></li>
+<li>你确认后说&quot;动手&quot;或&quot;执行&quot;，我再开始操作</li>
+</ol>
+<p>适用于：</p>
+<ul>
+<li>不确定影响范围的改动，先看计划再决定</li>
+<li>复杂的多步骤操作，需要分步确认</li>
+<li>学习场景——只看分析和方案，不执行</li>
+</ul>
+<p>退出计划模式：按 <code>Ctrl+C</code> 取消当前计划，或执行完你同意的操作后自动退出。</p>
+<hr>
+<h2 id="用-goal-实现跨会话目标">用 <code>/goal</code> 实现跨会话目标</h2>
+<p><code>/goal</code> 是持续目标系统，适合拆分大任务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span># 设置目标
+</span></span><span style="display:flex;"><span>/goal 重构用户认证模块
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span># 之后每次对话，Hermes 都会记住这个目标
+</span></span><span style="display:flex;"><span># 完成一部分后继续对话，会基于上下文推进
+</span></span><span style="display:flex;"><span># 目标完成后手动取消
+</span></span><span style="display:flex;"><span>/goal 重构用户认证模块 --done</span></span></code></pre></div><script class="code-source" type="application/json">"# 设置目标\n/goal 重构用户认证模块\n\n# 之后每次对话，Hermes 都会记住这个目标\n# 完成一部分后继续对话，会基于上下文推进\n# 目标完成后手动取消\n/goal 重构用户认证模块 --done"</script>
+</div>
+<p>目标会持久化——即使中间做其他任务、开关 TUI，目标也不会丢失。</p>
+<hr>
+<h2 id="skill-自动注册斜杠命令">Skill 自动注册斜杠命令</h2>
+<p>所有已安装的 skill 会自动变成斜杠命令。例如装了 <code>github-workflows</code> skill，直接输入 <code>/github-workflows</code> 就能触发对应的 workflow。</p>
+<p>查看已安装的 skill：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes skills list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes skills list"</script>
+</div>
+<p>每个 skill 内置了专门的流程指导——触发后 Hermes 会加载该 skill 的步骤、参考资料和校验检查清单。</p>
+<blockquote>
+<p><strong>建议</strong>：在终端里敲 <code>/</code> 看看自动补全菜单，所有可用命令一目了然😊</p>
+</blockquote>
+<hr>
+<h2 id="环境变量与配置">环境变量与配置</h2>
+<p>TUI 模式也受以下环境变量影响：</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HERMES_PROFILE</code></td>
+<td>指定使用的 profile（默认 <code>default</code>）</td>
+</tr>
+<tr>
+<td><code>HERMES_HOME</code></td>
+<td>自定义 Hermes 配置目录</td>
+</tr>
+<tr>
+<td><code>HERMES_LOG_LEVEL</code></td>
+<td>日志级别（debug/info/warn/error）</td>
+</tr>
+</tbody>
+</table>
+<p>也可以在启动时指定：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>HERMES_PROFILE<span style="color:#f92672">=</span>code hermes</span></span></code></pre></div><script class="code-source" type="application/json">"HERMES_PROFILE=code hermes"</script>
+</div>
+<hr>
+<h2 id="总结">总结</h2>
+<p>Hermes TUI 把整个 AI 助手功能搬到了终端里，用键盘就能完成一切操作。上面这些快捷键和斜杠命令覆盖了日常 95% 的使用场景：</p>
+<ul>
+<li><strong>快捷键</strong>：控制界面和中断</li>
+<li><strong>斜杠命令</strong>：控制会话、模型、模式、审查等核心功能</li>
+<li><strong>计划模式</strong>：安全预览再执行</li>
+<li><strong>持续目标</strong>：跨会话推进大任务</li>
+<li><strong>Skill 系统</strong>：按需扩展能力</li>
+</ul>
+<p>在终端里敲 <code>/</code> 看看自动补全菜单——比死记硬背快得多。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

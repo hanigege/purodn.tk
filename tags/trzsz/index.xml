@@ -1,10 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Trzsz on 电脑自习室</title><link>https://purodn.tk/tags/trzsz/</link><description>Recent content in Trzsz on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/trzsz/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
-复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
-复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
-准备 Go 环境 先确认 Go 已经可用：
-复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
-如果当前终端还找不到 go，可以临时加入 PATH：
-复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
-以 root 用户执行：
-复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
-复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Trzsz on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/trzsz/</link>
+    <description>Recent content in Trzsz on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/trzsz/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</link>
+      <pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</guid>
+      <description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&#xA;复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&#xA;复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。&#xA;准备 Go 环境 先确认 Go 已经可用：&#xA;复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。&#xA;如果当前终端还找不到 go，可以临时加入 PATH：&#xA;复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。&#xA;以 root 用户执行：&#xA;复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：&#xA;复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description>
+    </item>
+  </channel>
+</rss>

@@ -1,102 +1,554 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hermes Telegram 安静模式恢复手册 | 电脑自习室</title>
-<meta name=description content="在新设备或新服务器上恢复 Hermes Agent 的 Telegram 安静配置，让机器人只回复最终答案，不显示工具进度、记忆通知和后台生命周期提示。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-05-27>2026年5月27日</time></div><h1>Hermes Telegram 安静模式恢复手册</h1><p>在新设备或新服务器上恢复 Hermes Agent 的 Telegram 安静配置，让机器人只回复最终答案，不显示工具进度、记忆通知和后台生命周期提示。</p></header><img class=article-cover src=/posts/ai/hermes-telegram-quiet-mode-restore/assets/cover.svg alt><div class=article-content><p>这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。</p><p>目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。</p><p>如果你想系统了解 <code>~/.hermes/config.yaml</code> 每个配置段的作用，可以先看这篇：<a href=/posts/ai/hermes-config-yaml-reference/>Hermes Agent config.yaml 中文配置说明</a>。</p><p>配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 <code>$HERMES_HOME</code>、<code>$HOME</code>、<code>&lt;profile></code>、<code>&lt;user></code>、<code>&lt;service></code> 替换成自己的环境即可。</p><h2 id=适用场景>适用场景</h2><ul><li>已安装 Hermes Agent。</li><li>已配置 Telegram bot token。</li><li>已配置模型 API。</li><li>希望 Telegram 聊天窗口保持干净。</li><li>需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。</li></ul><h2 id=关键原则>关键原则</h2><ul><li>保留记忆功能，但不显示 <code>memory:</code> 通知。</li><li>保留工具和后台能力，但不显示工具进度。</li><li>保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。</li><li>不开启全局 yolo 权限，危险命令仍然需要确认。</li><li>优先使用 <code>hermes config set</code> 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 <code>config.yaml</code> 只作为对照和兜底。</li><li>不把私钥、API Key、Telegram Token、SSH 密码写进文档。</li></ul><h2 id=目录变量约定>目录变量约定</h2><p>Hermes 默认配置目录通常在当前用户的 home 目录下：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>HERMES_HOME<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/.hermes&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"HERMES_HOME=\"${HOME}/.hermes\""</script></div><p>默认 profile 配置文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"\"${HERMES_HOME}/config.yaml\""</script></div><p>其他 profile 配置目录通常类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/profiles/&lt;profile&gt;&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"\"${HERMES_HOME}/profiles/\u003cprofile\u003e\""</script></div><p>例如开发 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"\"${HERMES_HOME}/profiles/dev/config.yaml\""</script></div><p>如果服务部署在专用 Linux 用户下，例如 <code>hermesuser</code>、<code>hermes</code>、<code>agent</code>，先切到对应用户，或明确使用对应用户的 home 目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -iu &lt;user&gt;
-</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"sudo -iu \u003cuser\u003e\necho \"$HOME\""</script></div><p>后续命令都假设已经在运行 Hermes 的那个用户环境中执行。</p><h2 id=新装后手搓命令版>新装后手搓命令版</h2><p>新装 Hermes 后，先备份当前配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml.bak.</span><span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"cp \"${HERMES_HOME}/config.yaml\" \"${HERMES_HOME}/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\""</script></div><p>然后优先用官方命令写入配置。下面这 11 条就是安静模式的核心手搓清单：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set approvals.mode smart"</script></div><p>中文注释：开启智能审批模式。低风险命令自动放行，高风险命令仍然提示确认。比 <code>manual</code> 少打扰，比 YOLO 或 <code>off</code> 安全。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set command_allowlist <span style=color:#e6db74>&#39;[&#34;stop/restart system service&#34;]&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"hermes config set command_allowlist '[\"stop/restart system service\"]'"</script></div><p>中文注释：加入命令审批白名单，允许“停止/重启系统服务”这类操作更容易通过审批。注意：这是偏权限放宽的配置，新环境里如果想更保守，可以先不加。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set display.background_process_notifications off</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set display.background_process_notifications off"</script></div><p>中文注释：关闭后台进程通知。避免后台任务、进程状态变化频繁打扰 Telegram。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set display.cleanup_progress true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set display.cleanup_progress true"</script></div><p>中文注释：开启清理进度信息。通常用于让界面或消息里的进度展示更干净，减少残留进度噪声。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set display.interim_assistant_messages false</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set display.interim_assistant_messages false"</script></div><p>中文注释：关闭中间态助手消息。减少“我正在处理/中间进度”这类临时消息，更安静。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set display.tool_progress off</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set display.tool_progress off"</script></div><p>中文注释：关闭工具调用进度提示。减少 Telegram 里显示工具执行过程的噪声，只看最终结果。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set platforms.telegram.extra.disable_link_previews true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set platforms.telegram.extra.disable_link_previews true"</script></div><p>中文注释：关闭 Telegram 链接预览。避免发送链接时自动展开预览，消息更清爽。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set platforms.telegram.gateway_restart_notification true"</script></div><p>中文注释：开启 <code>platforms.telegram</code> 路径下的网关重启/上线提醒。建议和 <code>telegram.gateway_restart_notification</code> 一起设置，避免不同加载路径漏生效。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set platforms.telegram.reply_to_mode off</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set platforms.telegram.reply_to_mode off"</script></div><p>中文注释：关闭 Telegram 回复引用模式。机器人回复时不引用或挂在线程式回复到原消息，聊天界面更干净。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set telegram.gateway_restart_notification true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set telegram.gateway_restart_notification true"</script></div><p>中文注释：开启 Telegram 顶层配置里的网关重启/上线提醒。重启后会收到类似 <code>Gateway online</code> 的上线提示。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set telegram.reply_to_mode off</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set telegram.reply_to_mode off"</script></div><p>中文注释：关闭 Telegram 顶层配置里的回复引用模式。和 <code>platforms.telegram.reply_to_mode off</code> 建议一起设置。</p><p>如果只想先调最核心的几项，可以优先执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set approvals.mode smart
-</span></span><span style=display:flex><span>hermes config set display.tool_progress off
-</span></span><span style=display:flex><span>hermes config set display.interim_assistant_messages false
-</span></span><span style=display:flex><span>hermes config set telegram.reply_to_mode off
-</span></span><span style=display:flex><span>hermes config set platforms.telegram.extra.disable_link_previews true
-</span></span><span style=display:flex><span>hermes config set telegram.gateway_restart_notification true
-</span></span><span style=display:flex><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set approvals.mode smart\nhermes config set display.tool_progress off\nhermes config set display.interim_assistant_messages false\nhermes config set telegram.reply_to_mode off\nhermes config set platforms.telegram.extra.disable_link_previews true\nhermes config set telegram.gateway_restart_notification true\nhermes config set platforms.telegram.gateway_restart_notification true"</script></div><p>这组组合的效果是：审批不裸奔、Telegram 不刷工具过程、不发中间态废话、不引用上一条消息、不展开链接预览，同时保留 gateway 上线提醒。</p><h2 id=按功能分类>按功能分类</h2><p>权限和审批：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set approvals.mode smart
-</span></span><span style=display:flex><span>hermes config set command_allowlist <span style=color:#e6db74>&#39;[&#34;stop/restart system service&#34;]&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"hermes config set approvals.mode smart\nhermes config set command_allowlist '[\"stop/restart system service\"]'"</script></div><p><code>approvals.mode smart</code> 推荐日常保留；<code>command_allowlist</code> 更偏放权，可以按环境风险决定是否添加。</p><p>Telegram 消息降噪：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set display.tool_progress off
-</span></span><span style=display:flex><span>hermes config set display.background_process_notifications off
-</span></span><span style=display:flex><span>hermes config set display.interim_assistant_messages false
-</span></span><span style=display:flex><span>hermes config set display.cleanup_progress true
-</span></span><span style=display:flex><span>hermes config set platforms.telegram.extra.disable_link_previews true
-</span></span><span style=display:flex><span>hermes config set telegram.reply_to_mode off
-</span></span><span style=display:flex><span>hermes config set platforms.telegram.reply_to_mode off</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set display.tool_progress off\nhermes config set display.background_process_notifications off\nhermes config set display.interim_assistant_messages false\nhermes config set display.cleanup_progress true\nhermes config set platforms.telegram.extra.disable_link_previews true\nhermes config set telegram.reply_to_mode off\nhermes config set platforms.telegram.reply_to_mode off"</script></div><p>这些配置负责减少工具进度、后台通知、中间态消息、链接预览和回复引用。</p><p>网关上线提醒：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config set telegram.gateway_restart_notification true
-</span></span><span style=display:flex><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class=code-source type=application/json>"hermes config set telegram.gateway_restart_notification true\nhermes config set platforms.telegram.gateway_restart_notification true"</script></div><p>这两条是为了保留“机器人恢复在线”的可见信号。安静模式不是完全失联，而是不把内部过程刷到聊天窗口。</p><h2 id=telegram-安静显示配置>Telegram 安静显示配置</h2><p>如果命令执行后想手动核对，在对应 profile 的 <code>config.yaml</code> 里检查这些字段。</p><p>推荐公版配置如下，字段按 Hermes 官方 <code>config.yaml</code> 参考整理：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>approvals</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>smart</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>command_allowlist</span>:
-</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>stop/restart system service</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>display</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>personality</span>: <span style=color:#ae81ff>technical</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>language</span>: <span style=color:#ae81ff>zh</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>show_reasoning</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>tool_progress</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>tool_progress_command</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>cleanup_progress</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>interim_assistant_messages</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>long_running_notifications</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>busy_ack_detail</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>background_process_notifications</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>platforms</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>      <span style=color:#f92672>tool_progress</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>      <span style=color:#f92672>cleanup_progress</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>      <span style=color:#f92672>interim_assistant_messages</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>      <span style=color:#f92672>long_running_notifications</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>      <span style=color:#f92672>busy_ack_detail</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>      <span style=color:#f92672>background_process_notifications</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>runtime_footer</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>streaming</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>platforms</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>reply_to_mode</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>gateway_restart_notification</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>extra</span>:
-</span></span><span style=display:flex><span>      <span style=color:#f92672>disable_link_previews</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>reply_to_mode</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>gateway_restart_notification</span>: <span style=color:#66d9ef>true</span></span></span></code></pre></div><script class=code-source type=application/json>"approvals:\n  mode: smart\ncommand_allowlist:\n  - stop/restart system service\ndisplay:\n  personality: technical\n  language: zh\n  show_reasoning: false\n  tool_progress: off\n  tool_progress_command: false\n  cleanup_progress: true\n  interim_assistant_messages: false\n  long_running_notifications: true\n  busy_ack_detail: true\n  background_process_notifications: off\n  platforms:\n    telegram:\n      tool_progress: off\n      cleanup_progress: true\n      interim_assistant_messages: false\n      long_running_notifications: true\n      busy_ack_detail: true\n      background_process_notifications: off\n  runtime_footer:\n    enabled: false\n\nstreaming:\n  enabled: false\n\nplatforms:\n  telegram:\n    reply_to_mode: off\n    gateway_restart_notification: true\n    extra:\n      disable_link_previews: true\n\ntelegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script></div><p>日常助手可以使用更简洁的风格：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>display</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>personality</span>: <span style=color:#ae81ff>concise</span></span></span></code></pre></div><script class=code-source type=application/json>"display:\n  personality: concise"</script></div><p>开发或运维 profile 可以保留技术向风格：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>display</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>personality</span>: <span style=color:#ae81ff>technical</span></span></span></code></pre></div><script class=code-source type=application/json>"display:\n  personality: technical"</script></div><p>重点不是 personality 叫什么，而是让 Telegram 不刷屏但不失联。<code>display.tool_progress: off</code> 负责关闭工具进度，<code>display.platforms.telegram.tool_progress: off</code> 负责给 Telegram 单独兜底，<code>display.interim_assistant_messages: false</code> 负责关闭中途自然语言更新，<code>display.long_running_notifications: true</code> 负责保留长任务心跳，<code>display.busy_ack_detail: true</code> 负责在心跳里显示 iteration/API 等进度细节，<code>display.background_process_notifications: off</code> 负责关闭后台进程 watcher 消息，<code>runtime_footer.enabled: false</code> 负责不在最终回复后追加模型、耗时、token、费用等运行信息。</p><p><code>streaming.enabled: false</code> 会关闭消息平台实时流式编辑，Telegram 里通常就只看到最终成稿。工具、记忆、后台任务仍然可以运行，只是不要把内部状态刷到聊天窗口里。</p><h2 id=关闭-telegram-引用上一句话>关闭 Telegram 引用上一句话</h2><p>在同一个 <code>config.yaml</code> 里确认 <code>platforms.telegram</code> 段：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>platforms</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>reply_to_mode</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>gateway_restart_notification</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>extra</span>:
-</span></span><span style=display:flex><span>      <span style=color:#f92672>disable_link_previews</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>reply_to_mode</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>gateway_restart_notification</span>: <span style=color:#66d9ef>true</span></span></span></code></pre></div><script class=code-source type=application/json>"platforms:\n  telegram:\n    reply_to_mode: off\n    gateway_restart_notification: true\n    extra:\n      disable_link_previews: true\ntelegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script></div><p>官方配置里 Telegram 这类平台专属参数放在 <code>platforms.telegram</code> 下。<code>reply_to_mode: off</code> 可以避免 Telegram 回复气泡引用用户上一条消息；<code>disable_link_previews: true</code> 可以减少 URL 预览造成的聊天噪音。</p><p>如果你的旧配置里有下面这种顶层 <code>telegram</code> 段：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>telegram</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>reply_to_mode</span>: <span style=color:#66d9ef>off</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>gateway_restart_notification</span>: <span style=color:#66d9ef>true</span></span></span></code></pre></div><script class=code-source type=application/json>"telegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script></div><p>不要急着删除。实测有些版本仍会把 <code>hermes config set telegram.reply_to_mode off</code> 写回顶层 <code>telegram</code>，并把 <code>off</code> 序列化为 <code>false</code>。这不代表配置失败，只要 <code>hermes config show</code> 和实际 Telegram 行为符合预期即可。修改前可以先备份：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml.bak.</span><span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"cp \"${HERMES_HOME}/config.yaml\" \"${HERMES_HOME}/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\""</script></div><p>如果同一个版本同时支持 <code>platforms.telegram</code> 和顶层 <code>telegram</code>，优先保留当前版本真实写入并读取的那一份，避免为了“看起来更官方”而删掉正在生效的字段。</p><h2 id=手动-yaml-对照版>手动 YAML 对照版</h2><p>如果你必须直接编辑：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"\"${HERMES_HOME}/config.yaml\""</script></div><p>可以按下面这些路径核对：</p><table><thead><tr><th>配置路径</th><th>推荐值</th><th>中文注释</th></tr></thead><tbody><tr><td><code>approvals.mode</code></td><td><code>smart</code></td><td>智能审批模式</td></tr><tr><td><code>command_allowlist</code></td><td><code>["stop/restart system service"]</code></td><td>允许系统服务 stop/restart 相关命令进入白名单</td></tr><tr><td><code>display.background_process_notifications</code></td><td><code>off</code></td><td>关闭后台进程通知</td></tr><tr><td><code>display.cleanup_progress</code></td><td><code>true</code></td><td>清理进度展示</td></tr><tr><td><code>display.interim_assistant_messages</code></td><td><code>false</code></td><td>关闭中间态助手消息</td></tr><tr><td><code>display.tool_progress</code></td><td><code>off</code></td><td>关闭工具进度展示</td></tr><tr><td><code>platforms.telegram.extra.disable_link_previews</code></td><td><code>true</code></td><td>关闭 Telegram 链接预览</td></tr><tr><td><code>platforms.telegram.gateway_restart_notification</code></td><td><code>true</code></td><td>开启 <code>platforms.telegram</code> 网关上线提醒</td></tr><tr><td><code>platforms.telegram.reply_to_mode</code></td><td><code>off</code></td><td>关闭 <code>platforms.telegram</code> 回复引用</td></tr><tr><td><code>telegram.gateway_restart_notification</code></td><td><code>true</code></td><td>开启 Telegram 顶层网关上线提醒</td></tr><tr><td><code>telegram.reply_to_mode</code></td><td><code>off</code></td><td>关闭 Telegram 顶层回复引用</td></tr></tbody></table><p>优先建议还是用 <code>hermes config set</code>。手改 YAML 时最容易出错的是缩进、布尔值类型和新旧路径混用。</p><h2 id=设置-telegram-home-channel>设置 Telegram Home Channel</h2><p>第一次使用新 Telegram bot 时，在和 bot 的私聊里发送：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/sethome</span></span></code></pre></div><script class=code-source type=application/json>"/sethome"</script></div><p>成功后，Hermes 的环境文件里通常会出现类似配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>TELEGRAM_HOME_CHANNEL<span style=color:#f92672>=</span>&lt;your-telegram-user-or-channel-id&gt;
-</span></span><span style=display:flex><span>TELEGRAM_HOME_CHANNEL_THREAD_ID<span style=color:#f92672>=</span></span></span></code></pre></div><script class=code-source type=application/json>"TELEGRAM_HOME_CHANNEL=\u003cyour-telegram-user-or-channel-id\u003e\nTELEGRAM_HOME_CHANNEL_THREAD_ID="</script></div><p>这样可以避免 Hermes 继续发送类似下面的英文提示：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>No home channel is set for Telegram...</span></span></code></pre></div><script class=code-source type=application/json>"No home channel is set for Telegram..."</script></div><p>如果使用 systemd user service，环境文件的位置可能因安装方式不同而变化。优先检查 Hermes 安装文档、当前 service 文件，以及 <code>$HERMES_HOME</code> 目录下是否有 <code>.env</code> 或 profile 专属环境文件。</p><h2 id=创建开发-profile>创建开发 Profile</h2><p>如果希望把日常助手和开发助手分开，可以创建一个开发 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile create dev --clone --description <span style=color:#e6db74>&#39;开发/运维专用 Hermes：更适合代码、服务器维护、排障和技术任务；可展示必要技术细节，但 Telegram 里仍然保持安静。&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"hermes profile create dev --clone --description '开发/运维专用 Hermes：更适合代码、服务器维护、排障和技术任务；可展示必要技术细节，但 Telegram 里仍然保持安静。'"</script></div><p>创建后检查配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sed -n <span style=color:#e6db74>&#39;1,220p&#39;</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"sed -n '1,220p' \"${HERMES_HOME}/profiles/dev/config.yaml\""</script></div><p>如果给开发 profile 做了 wrapper，例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/.local/bin/dev&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"\"${HOME}/.local/bin/dev\""</script></div><p>可以用 wrapper 管理开发 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/.local/bin/dev&#34;</span> gateway list</span></span></code></pre></div><script class=code-source type=application/json>"\"${HOME}/.local/bin/dev\" gateway list"</script></div><p>wrapper 的名字和路径不固定，按自己的机器习惯来。文档里不要写死成某个具体用户名。</p><h2 id=重启服务>重启服务</h2><p>配置写完后，需要让 gateway 重新读取配置。默认 profile 可以先用 Hermes 自己的命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes gateway restart
-</span></span><span style=display:flex><span>hermes gateway status</span></span></code></pre></div><script class=code-source type=application/json>"hermes gateway restart\nhermes gateway status"</script></div><p>如果你是通过 systemd user service 安装的 gateway，也可以用 systemd：</p><p>默认 profile gateway 常见服务名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user restart hermes-gateway.service
-</span></span><span style=display:flex><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user restart hermes-gateway.service\nsystemctl --user status hermes-gateway.service --no-pager"</script></div><p>开发 profile gateway 常见服务名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user restart hermes-gateway-dev.service
-</span></span><span style=display:flex><span>systemctl --user status hermes-gateway-dev.service --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user restart hermes-gateway-dev.service\nsystemctl --user status hermes-gateway-dev.service --no-pager"</script></div><p>如果你的 profile 名不是 <code>dev</code>，服务名也可能不是 <code>hermes-gateway-dev.service</code>。先列出当前 user services：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user list-units <span style=color:#e6db74>&#39;hermes*&#39;</span> --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user list-units 'hermes*' --no-pager"</script></div><p>也可以用 Hermes 自己的 gateway 命令查看：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes gateway list</span></span></code></pre></div><script class=code-source type=application/json>"hermes gateway list"</script></div><p>开发 wrapper 示例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/.local/bin/dev&#34;</span> gateway list</span></span></code></pre></div><script class=code-source type=application/json>"\"${HOME}/.local/bin/dev\" gateway list"</script></div><p>如果当前 Telegram 回复还没发完，想避免会话被立即重启打断，可以安排一个延迟重启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemd-run --user --on-active<span style=color:#f92672>=</span>5s systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemd-run --user --on-active=5s systemctl --user restart hermes-gateway.service"</script></div><p>如果服务名不同，先用 <code>systemctl --user list-units 'hermes*' --no-pager</code> 查到真实服务名，再替换命令里的 service 名称。</p><h2 id=验证配置>验证配置</h2><p>查看默认 profile 的关键显示配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>grep -nE <span style=color:#e6db74>&#34;approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"grep -nE \"approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:\" \"${HERMES_HOME}/config.yaml\""</script></div><p>查看开发 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>grep -nE <span style=color:#e6db74>&#34;approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:&#34;</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>HERMES_HOME<span style=color:#e6db74>}</span><span style=color:#e6db74>/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"grep -nE \"approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:\" \"${HERMES_HOME}/profiles/dev/config.yaml\""</script></div><p>确认最近日志里没有继续出现 home channel 提示：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>journalctl --user -u hermes-gateway-dev.service --since <span style=color:#e6db74>&#34;10 minutes ago&#34;</span> --no-pager | grep -i <span style=color:#e6db74>&#34;home channel\|No home channel\|sethome&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"journalctl --user -u hermes-gateway-dev.service --since \"10 minutes ago\" --no-pager | grep -i \"home channel\\|No home channel\\|sethome\""</script></div><p>没有输出通常就是正常。</p><p>最后在 Telegram 里发一句测试消息。理想表现是：</p><ul><li>只看到最终回答。</li><li>不出现 <code>memory:</code> 提示。</li><li>不出现工具进度。</li><li>不出现后台任务通知。</li><li>不引用用户上一句话。</li><li>gateway 重启或上线后，只保留一条上线提醒。</li></ul><h2 id=敏感信息不要写进文档>敏感信息不要写进文档</h2><p>不要把这些内容写进公开文档或笔记：</p><ul><li>API Key</li><li>Telegram Bot Token</li><li>SSH 密码</li><li>私有 Base URL 的鉴权参数</li><li>任何可直接登录服务器或调用模型服务的凭据</li></ul><p>只记录占位符即可：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>OPENAI_API_KEY<span style=color:#f92672>=</span>填自己的
-</span></span><span style=display:flex><span>TELEGRAM_BOT_TOKEN<span style=color:#f92672>=</span>填自己的
-</span></span><span style=display:flex><span>OPENAI_BASE_URL<span style=color:#f92672>=</span>按自己的服务填写</span></span></code></pre></div><script class=code-source type=application/json>"OPENAI_API_KEY=填自己的\nTELEGRAM_BOT_TOKEN=填自己的\nOPENAI_BASE_URL=按自己的服务填写"</script></div><p>如果使用 OpenAI-compatible provider，也建议只记录 provider 类型和配置位置，不记录真实 token。</p><h2 id=推荐恢复顺序>推荐恢复顺序</h2><ol><li>安装 Hermes Agent。</li><li>配置模型 API 和 Telegram bot token。</li><li>创建需要的 profile，例如 <code>dev</code>。</li><li>在 Telegram 里发送 <code>/sethome</code>。</li><li>优先用 <code>hermes config set</code> 写入审批、显示、Telegram 降噪和上线提醒配置。</li><li>重启对应 gateway 服务。</li><li>用 Telegram 发一句测试消息，确认只返回最终回复；长任务时有带进度细节的心跳。</li></ol><h2 id=当前偏好模板>当前偏好模板</h2><p>可以把下面这段作为自己的恢复备注：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>默认助手：中文、简洁、安静、日常使用。
-</span></span><span style=display:flex><span>开发助手：中文、技术向，可以处理开发、排障和运维，但 Telegram 里仍然保持安静。
-</span></span><span style=display:flex><span>不显示 memory、工具调用、后台任务、自我改进等过程提示。
-</span></span><span style=display:flex><span>保留 gateway 重启/上线提醒，方便知道服务恢复在线。
-</span></span><span style=display:flex><span>不引用用户上一句话。
-</span></span><span style=display:flex><span>不使用不想用的模型提供商。
-</span></span><span style=display:flex><span>使用支持日常聊天和图片分析的 OpenAI-compatible 模型。
-</span></span><span style=display:flex><span>危险命令仍然需要确认，不开启全局 yolo。</span></span></code></pre></div><script class=code-source type=application/json>"默认助手：中文、简洁、安静、日常使用。\n开发助手：中文、技术向，可以处理开发、排障和运维，但 Telegram 里仍然保持安静。\n不显示 memory、工具调用、后台任务、自我改进等过程提示。\n保留 gateway 重启/上线提醒，方便知道服务恢复在线。\n不引用用户上一句话。\n不使用不想用的模型提供商。\n使用支持日常聊天和图片分析的 OpenAI-compatible 模型。\n危险命令仍然需要确认，不开启全局 yolo。"</script></div><p>这套配置的核心不是削弱 Hermes，而是把“能力”和“可见噪音”分开。工具、记忆和后台任务继续保留；Telegram 只做干净入口，方便每天真正使用。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes Telegram 安静模式恢复手册 | 电脑自习室</title>
+    <meta name="description" content="在新设备或新服务器上恢复 Hermes Agent 的 Telegram 安静配置，让机器人只回复最终答案，不显示工具进度、记忆通知和后台生命周期提示。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-05-27">2026年5月27日</time>
+        </div>
+        <h1>Hermes Telegram 安静模式恢复手册</h1>
+          <p>在新设备或新服务器上恢复 Hermes Agent 的 Telegram 安静配置，让机器人只回复最终答案，不显示工具进度、记忆通知和后台生命周期提示。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-telegram-quiet-mode-restore/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这份手册用于在新设备或新服务器上快速恢复 Hermes Agent 的 Telegram 安静配置。</p>
+<p>目标很简单：让 Telegram 里的 Hermes 像一个干净的日常助手，只回复最终答案，不在聊天窗口里显示工具进度、记忆更新、后台任务、引用上一句话等内部信息；gateway 重启或上线时可以保留一条提醒，方便确认机器人恢复在线。</p>
+<p>如果你想系统了解 <code>~/.hermes/config.yaml</code> 每个配置段的作用，可以先看这篇：<a href="/posts/ai/hermes-config-yaml-reference/">Hermes Agent config.yaml 中文配置说明</a>。</p>
+<p>配置示例会尽量写成公版形式，不绑定具体用户名。实际使用时，把路径里的 <code>$HERMES_HOME</code>、<code>$HOME</code>、<code>&lt;profile&gt;</code>、<code>&lt;user&gt;</code>、<code>&lt;service&gt;</code> 替换成自己的环境即可。</p>
+<h2 id="适用场景">适用场景</h2>
+<ul>
+<li>已安装 Hermes Agent。</li>
+<li>已配置 Telegram bot token。</li>
+<li>已配置模型 API。</li>
+<li>希望 Telegram 聊天窗口保持干净。</li>
+<li>需要给多个 profile 复用同一套安静显示策略，例如默认助手和开发助手。</li>
+</ul>
+<h2 id="关键原则">关键原则</h2>
+<ul>
+<li>保留记忆功能，但不显示 <code>memory:</code> 通知。</li>
+<li>保留工具和后台能力，但不显示工具进度。</li>
+<li>保留开发和运维能力，但 Telegram 里只显示最终回复、必要心跳和心跳里的工作进度细节。</li>
+<li>不开启全局 yolo 权限，危险命令仍然需要确认。</li>
+<li>优先使用 <code>hermes config set</code> 这类官方命令调整参数，让 Hermes 自己维护配置文件结构；手改 <code>config.yaml</code> 只作为对照和兜底。</li>
+<li>不把私钥、API Key、Telegram Token、SSH 密码写进文档。</li>
+</ul>
+<h2 id="目录变量约定">目录变量约定</h2>
+<p>Hermes 默认配置目录通常在当前用户的 home 目录下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>HERMES_HOME<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/.hermes&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"HERMES_HOME=\"${HOME}/.hermes\""</script>
+</div>
+<p>默认 profile 配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"${HERMES_HOME}/config.yaml\""</script>
+</div>
+<p>其他 profile 配置目录通常类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/profiles/&lt;profile&gt;&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"${HERMES_HOME}/profiles/\u003cprofile\u003e\""</script>
+</div>
+<p>例如开发 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"${HERMES_HOME}/profiles/dev/config.yaml\""</script>
+</div>
+<p>如果服务部署在专用 Linux 用户下，例如 <code>hermesuser</code>、<code>hermes</code>、<code>agent</code>，先切到对应用户，或明确使用对应用户的 home 目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -iu &lt;user&gt;
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"sudo -iu \u003cuser\u003e\necho \"$HOME\""</script>
+</div>
+<p>后续命令都假设已经在运行 Hermes 的那个用户环境中执行。</p>
+<h2 id="新装后手搓命令版">新装后手搓命令版</h2>
+<p>新装 Hermes 后，先备份当前配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml.bak.</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"cp \"${HERMES_HOME}/config.yaml\" \"${HERMES_HOME}/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\""</script>
+</div>
+<p>然后优先用官方命令写入配置。下面这 11 条就是安静模式的核心手搓清单：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart"</script>
+</div>
+<p>中文注释：开启智能审批模式。低风险命令自动放行，高风险命令仍然提示确认。比 <code>manual</code> 少打扰，比 YOLO 或 <code>off</code> 安全。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set command_allowlist <span style="color:#e6db74">&#39;[&#34;stop/restart system service&#34;]&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set command_allowlist '[\"stop/restart system service\"]'"</script>
+</div>
+<p>中文注释：加入命令审批白名单，允许“停止/重启系统服务”这类操作更容易通过审批。注意：这是偏权限放宽的配置，新环境里如果想更保守，可以先不加。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set display.background_process_notifications off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set display.background_process_notifications off"</script>
+</div>
+<p>中文注释：关闭后台进程通知。避免后台任务、进程状态变化频繁打扰 Telegram。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set display.cleanup_progress true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set display.cleanup_progress true"</script>
+</div>
+<p>中文注释：开启清理进度信息。通常用于让界面或消息里的进度展示更干净，减少残留进度噪声。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set display.interim_assistant_messages false</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set display.interim_assistant_messages false"</script>
+</div>
+<p>中文注释：关闭中间态助手消息。减少“我正在处理/中间进度”这类临时消息，更安静。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set display.tool_progress off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set display.tool_progress off"</script>
+</div>
+<p>中文注释：关闭工具调用进度提示。减少 Telegram 里显示工具执行过程的噪声，只看最终结果。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set platforms.telegram.extra.disable_link_previews true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set platforms.telegram.extra.disable_link_previews true"</script>
+</div>
+<p>中文注释：关闭 Telegram 链接预览。避免发送链接时自动展开预览，消息更清爽。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set platforms.telegram.gateway_restart_notification true"</script>
+</div>
+<p>中文注释：开启 <code>platforms.telegram</code> 路径下的网关重启/上线提醒。建议和 <code>telegram.gateway_restart_notification</code> 一起设置，避免不同加载路径漏生效。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set platforms.telegram.reply_to_mode off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set platforms.telegram.reply_to_mode off"</script>
+</div>
+<p>中文注释：关闭 Telegram 回复引用模式。机器人回复时不引用或挂在线程式回复到原消息，聊天界面更干净。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set telegram.gateway_restart_notification true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set telegram.gateway_restart_notification true"</script>
+</div>
+<p>中文注释：开启 Telegram 顶层配置里的网关重启/上线提醒。重启后会收到类似 <code>Gateway online</code> 的上线提示。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set telegram.reply_to_mode off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set telegram.reply_to_mode off"</script>
+</div>
+<p>中文注释：关闭 Telegram 顶层配置里的回复引用模式。和 <code>platforms.telegram.reply_to_mode off</code> 建议一起设置。</p>
+<p>如果只想先调最核心的几项，可以优先执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>hermes config set display.tool_progress off
+</span></span><span style="display:flex;"><span>hermes config set display.interim_assistant_messages false
+</span></span><span style="display:flex;"><span>hermes config set telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.extra.disable_link_previews true
+</span></span><span style="display:flex;"><span>hermes config set telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart\nhermes config set display.tool_progress off\nhermes config set display.interim_assistant_messages false\nhermes config set telegram.reply_to_mode off\nhermes config set platforms.telegram.extra.disable_link_previews true\nhermes config set telegram.gateway_restart_notification true\nhermes config set platforms.telegram.gateway_restart_notification true"</script>
+</div>
+<p>这组组合的效果是：审批不裸奔、Telegram 不刷工具过程、不发中间态废话、不引用上一条消息、不展开链接预览，同时保留 gateway 上线提醒。</p>
+<h2 id="按功能分类">按功能分类</h2>
+<p>权限和审批：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set approvals.mode smart
+</span></span><span style="display:flex;"><span>hermes config set command_allowlist <span style="color:#e6db74">&#39;[&#34;stop/restart system service&#34;]&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set approvals.mode smart\nhermes config set command_allowlist '[\"stop/restart system service\"]'"</script>
+</div>
+<p><code>approvals.mode smart</code> 推荐日常保留；<code>command_allowlist</code> 更偏放权，可以按环境风险决定是否添加。</p>
+<p>Telegram 消息降噪：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set display.tool_progress off
+</span></span><span style="display:flex;"><span>hermes config set display.background_process_notifications off
+</span></span><span style="display:flex;"><span>hermes config set display.interim_assistant_messages false
+</span></span><span style="display:flex;"><span>hermes config set display.cleanup_progress true
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.extra.disable_link_previews true
+</span></span><span style="display:flex;"><span>hermes config set telegram.reply_to_mode off
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.reply_to_mode off</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set display.tool_progress off\nhermes config set display.background_process_notifications off\nhermes config set display.interim_assistant_messages false\nhermes config set display.cleanup_progress true\nhermes config set platforms.telegram.extra.disable_link_previews true\nhermes config set telegram.reply_to_mode off\nhermes config set platforms.telegram.reply_to_mode off"</script>
+</div>
+<p>这些配置负责减少工具进度、后台通知、中间态消息、链接预览和回复引用。</p>
+<p>网关上线提醒：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config set telegram.gateway_restart_notification true
+</span></span><span style="display:flex;"><span>hermes config set platforms.telegram.gateway_restart_notification true</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config set telegram.gateway_restart_notification true\nhermes config set platforms.telegram.gateway_restart_notification true"</script>
+</div>
+<p>这两条是为了保留“机器人恢复在线”的可见信号。安静模式不是完全失联，而是不把内部过程刷到聊天窗口。</p>
+<h2 id="telegram-安静显示配置">Telegram 安静显示配置</h2>
+<p>如果命令执行后想手动核对，在对应 profile 的 <code>config.yaml</code> 里检查这些字段。</p>
+<p>推荐公版配置如下，字段按 Hermes 官方 <code>config.yaml</code> 参考整理：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">approvals</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">mode</span>: <span style="color:#ae81ff">smart</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">command_allowlist</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">stop/restart system service</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">display</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">personality</span>: <span style="color:#ae81ff">technical</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">language</span>: <span style="color:#ae81ff">zh</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">show_reasoning</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tool_progress</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tool_progress_command</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cleanup_progress</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">interim_assistant_messages</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">long_running_notifications</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">busy_ack_detail</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">background_process_notifications</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">platforms</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">tool_progress</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">cleanup_progress</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">interim_assistant_messages</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">long_running_notifications</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">busy_ack_detail</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">background_process_notifications</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">runtime_footer</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">streaming</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">platforms</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extra</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">disable_link_previews</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"approvals:\n  mode: smart\ncommand_allowlist:\n  - stop/restart system service\ndisplay:\n  personality: technical\n  language: zh\n  show_reasoning: false\n  tool_progress: off\n  tool_progress_command: false\n  cleanup_progress: true\n  interim_assistant_messages: false\n  long_running_notifications: true\n  busy_ack_detail: true\n  background_process_notifications: off\n  platforms:\n    telegram:\n      tool_progress: off\n      cleanup_progress: true\n      interim_assistant_messages: false\n      long_running_notifications: true\n      busy_ack_detail: true\n      background_process_notifications: off\n  runtime_footer:\n    enabled: false\n\nstreaming:\n  enabled: false\n\nplatforms:\n  telegram:\n    reply_to_mode: off\n    gateway_restart_notification: true\n    extra:\n      disable_link_previews: true\n\ntelegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script>
+</div>
+<p>日常助手可以使用更简洁的风格：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">display</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">personality</span>: <span style="color:#ae81ff">concise</span></span></span></code></pre></div><script class="code-source" type="application/json">"display:\n  personality: concise"</script>
+</div>
+<p>开发或运维 profile 可以保留技术向风格：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">display</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">personality</span>: <span style="color:#ae81ff">technical</span></span></span></code></pre></div><script class="code-source" type="application/json">"display:\n  personality: technical"</script>
+</div>
+<p>重点不是 personality 叫什么，而是让 Telegram 不刷屏但不失联。<code>display.tool_progress: off</code> 负责关闭工具进度，<code>display.platforms.telegram.tool_progress: off</code> 负责给 Telegram 单独兜底，<code>display.interim_assistant_messages: false</code> 负责关闭中途自然语言更新，<code>display.long_running_notifications: true</code> 负责保留长任务心跳，<code>display.busy_ack_detail: true</code> 负责在心跳里显示 iteration/API 等进度细节，<code>display.background_process_notifications: off</code> 负责关闭后台进程 watcher 消息，<code>runtime_footer.enabled: false</code> 负责不在最终回复后追加模型、耗时、token、费用等运行信息。</p>
+<p><code>streaming.enabled: false</code> 会关闭消息平台实时流式编辑，Telegram 里通常就只看到最终成稿。工具、记忆、后台任务仍然可以运行，只是不要把内部状态刷到聊天窗口里。</p>
+<h2 id="关闭-telegram-引用上一句话">关闭 Telegram 引用上一句话</h2>
+<p>在同一个 <code>config.yaml</code> 里确认 <code>platforms.telegram</code> 段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">platforms</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extra</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">disable_link_previews</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"platforms:\n  telegram:\n    reply_to_mode: off\n    gateway_restart_notification: true\n    extra:\n      disable_link_previews: true\ntelegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script>
+</div>
+<p>官方配置里 Telegram 这类平台专属参数放在 <code>platforms.telegram</code> 下。<code>reply_to_mode: off</code> 可以避免 Telegram 回复气泡引用用户上一条消息；<code>disable_link_previews: true</code> 可以减少 URL 预览造成的聊天噪音。</p>
+<p>如果你的旧配置里有下面这种顶层 <code>telegram</code> 段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">reply_to_mode</span>: <span style="color:#66d9ef">off</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">gateway_restart_notification</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"telegram:\n  reply_to_mode: off\n  gateway_restart_notification: true"</script>
+</div>
+<p>不要急着删除。实测有些版本仍会把 <code>hermes config set telegram.reply_to_mode off</code> 写回顶层 <code>telegram</code>，并把 <code>off</code> 序列化为 <code>false</code>。这不代表配置失败，只要 <code>hermes config show</code> 和实际 Telegram 行为符合预期即可。修改前可以先备份：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml.bak.</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"cp \"${HERMES_HOME}/config.yaml\" \"${HERMES_HOME}/config.yaml.bak.$(date +%Y%m%d-%H%M%S)\""</script>
+</div>
+<p>如果同一个版本同时支持 <code>platforms.telegram</code> 和顶层 <code>telegram</code>，优先保留当前版本真实写入并读取的那一份，避免为了“看起来更官方”而删掉正在生效的字段。</p>
+<h2 id="手动-yaml-对照版">手动 YAML 对照版</h2>
+<p>如果你必须直接编辑：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"${HERMES_HOME}/config.yaml\""</script>
+</div>
+<p>可以按下面这些路径核对：</p>
+<table>
+<thead>
+<tr>
+<th>配置路径</th>
+<th>推荐值</th>
+<th>中文注释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>approvals.mode</code></td>
+<td><code>smart</code></td>
+<td>智能审批模式</td>
+</tr>
+<tr>
+<td><code>command_allowlist</code></td>
+<td><code>[&quot;stop/restart system service&quot;]</code></td>
+<td>允许系统服务 stop/restart 相关命令进入白名单</td>
+</tr>
+<tr>
+<td><code>display.background_process_notifications</code></td>
+<td><code>off</code></td>
+<td>关闭后台进程通知</td>
+</tr>
+<tr>
+<td><code>display.cleanup_progress</code></td>
+<td><code>true</code></td>
+<td>清理进度展示</td>
+</tr>
+<tr>
+<td><code>display.interim_assistant_messages</code></td>
+<td><code>false</code></td>
+<td>关闭中间态助手消息</td>
+</tr>
+<tr>
+<td><code>display.tool_progress</code></td>
+<td><code>off</code></td>
+<td>关闭工具进度展示</td>
+</tr>
+<tr>
+<td><code>platforms.telegram.extra.disable_link_previews</code></td>
+<td><code>true</code></td>
+<td>关闭 Telegram 链接预览</td>
+</tr>
+<tr>
+<td><code>platforms.telegram.gateway_restart_notification</code></td>
+<td><code>true</code></td>
+<td>开启 <code>platforms.telegram</code> 网关上线提醒</td>
+</tr>
+<tr>
+<td><code>platforms.telegram.reply_to_mode</code></td>
+<td><code>off</code></td>
+<td>关闭 <code>platforms.telegram</code> 回复引用</td>
+</tr>
+<tr>
+<td><code>telegram.gateway_restart_notification</code></td>
+<td><code>true</code></td>
+<td>开启 Telegram 顶层网关上线提醒</td>
+</tr>
+<tr>
+<td><code>telegram.reply_to_mode</code></td>
+<td><code>off</code></td>
+<td>关闭 Telegram 顶层回复引用</td>
+</tr>
+</tbody>
+</table>
+<p>优先建议还是用 <code>hermes config set</code>。手改 YAML 时最容易出错的是缩进、布尔值类型和新旧路径混用。</p>
+<h2 id="设置-telegram-home-channel">设置 Telegram Home Channel</h2>
+<p>第一次使用新 Telegram bot 时，在和 bot 的私聊里发送：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/sethome</span></span></code></pre></div><script class="code-source" type="application/json">"/sethome"</script>
+</div>
+<p>成功后，Hermes 的环境文件里通常会出现类似配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TELEGRAM_HOME_CHANNEL<span style="color:#f92672">=</span>&lt;your-telegram-user-or-channel-id&gt;
+</span></span><span style="display:flex;"><span>TELEGRAM_HOME_CHANNEL_THREAD_ID<span style="color:#f92672">=</span></span></span></code></pre></div><script class="code-source" type="application/json">"TELEGRAM_HOME_CHANNEL=\u003cyour-telegram-user-or-channel-id\u003e\nTELEGRAM_HOME_CHANNEL_THREAD_ID="</script>
+</div>
+<p>这样可以避免 Hermes 继续发送类似下面的英文提示：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>No home channel is set for Telegram...</span></span></code></pre></div><script class="code-source" type="application/json">"No home channel is set for Telegram..."</script>
+</div>
+<p>如果使用 systemd user service，环境文件的位置可能因安装方式不同而变化。优先检查 Hermes 安装文档、当前 service 文件，以及 <code>$HERMES_HOME</code> 目录下是否有 <code>.env</code> 或 profile 专属环境文件。</p>
+<h2 id="创建开发-profile">创建开发 Profile</h2>
+<p>如果希望把日常助手和开发助手分开，可以创建一个开发 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile create dev --clone --description <span style="color:#e6db74">&#39;开发/运维专用 Hermes：更适合代码、服务器维护、排障和技术任务；可展示必要技术细节，但 Telegram 里仍然保持安静。&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile create dev --clone --description '开发/运维专用 Hermes：更适合代码、服务器维护、排障和技术任务；可展示必要技术细节，但 Telegram 里仍然保持安静。'"</script>
+</div>
+<p>创建后检查配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sed -n <span style="color:#e6db74">&#39;1,220p&#39;</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"sed -n '1,220p' \"${HERMES_HOME}/profiles/dev/config.yaml\""</script>
+</div>
+<p>如果给开发 profile 做了 wrapper，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/.local/bin/dev&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\"${HOME}/.local/bin/dev\""</script>
+</div>
+<p>可以用 wrapper 管理开发 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/.local/bin/dev&#34;</span> gateway list</span></span></code></pre></div><script class="code-source" type="application/json">"\"${HOME}/.local/bin/dev\" gateway list"</script>
+</div>
+<p>wrapper 的名字和路径不固定，按自己的机器习惯来。文档里不要写死成某个具体用户名。</p>
+<h2 id="重启服务">重启服务</h2>
+<p>配置写完后，需要让 gateway 重新读取配置。默认 profile 可以先用 Hermes 自己的命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway restart
+</span></span><span style="display:flex;"><span>hermes gateway status</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway restart\nhermes gateway status"</script>
+</div>
+<p>如果你是通过 systemd user service 安装的 gateway，也可以用 systemd：</p>
+<p>默认 profile gateway 常见服务名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user restart hermes-gateway.service
+</span></span><span style="display:flex;"><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user restart hermes-gateway.service\nsystemctl --user status hermes-gateway.service --no-pager"</script>
+</div>
+<p>开发 profile gateway 常见服务名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user restart hermes-gateway-dev.service
+</span></span><span style="display:flex;"><span>systemctl --user status hermes-gateway-dev.service --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user restart hermes-gateway-dev.service\nsystemctl --user status hermes-gateway-dev.service --no-pager"</script>
+</div>
+<p>如果你的 profile 名不是 <code>dev</code>，服务名也可能不是 <code>hermes-gateway-dev.service</code>。先列出当前 user services：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user list-units <span style="color:#e6db74">&#39;hermes*&#39;</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user list-units 'hermes*' --no-pager"</script>
+</div>
+<p>也可以用 Hermes 自己的 gateway 命令查看：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway list"</script>
+</div>
+<p>开发 wrapper 示例：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/.local/bin/dev&#34;</span> gateway list</span></span></code></pre></div><script class="code-source" type="application/json">"\"${HOME}/.local/bin/dev\" gateway list"</script>
+</div>
+<p>如果当前 Telegram 回复还没发完，想避免会话被立即重启打断，可以安排一个延迟重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemd-run --user --on-active<span style="color:#f92672">=</span>5s systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemd-run --user --on-active=5s systemctl --user restart hermes-gateway.service"</script>
+</div>
+<p>如果服务名不同，先用 <code>systemctl --user list-units 'hermes*' --no-pager</code> 查到真实服务名，再替换命令里的 service 名称。</p>
+<h2 id="验证配置">验证配置</h2>
+<p>查看默认 profile 的关键显示配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep -nE <span style="color:#e6db74">&#34;approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"grep -nE \"approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:\" \"${HERMES_HOME}/config.yaml\""</script>
+</div>
+<p>查看开发 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep -nE <span style="color:#e6db74">&#34;approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:&#34;</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>HERMES_HOME<span style="color:#e6db74">}</span><span style="color:#e6db74">/profiles/dev/config.yaml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"grep -nE \"approvals:|mode:|command_allowlist|tool_progress|cleanup_progress|interim_assistant_messages|long_running_notifications|busy_ack_detail|background_process_notifications|disable_link_previews|gateway_restart_notification|reply_to_mode|streaming:|display:|platforms:|telegram:\" \"${HERMES_HOME}/profiles/dev/config.yaml\""</script>
+</div>
+<p>确认最近日志里没有继续出现 home channel 提示：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>journalctl --user -u hermes-gateway-dev.service --since <span style="color:#e6db74">&#34;10 minutes ago&#34;</span> --no-pager | grep -i <span style="color:#e6db74">&#34;home channel\|No home channel\|sethome&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"journalctl --user -u hermes-gateway-dev.service --since \"10 minutes ago\" --no-pager | grep -i \"home channel\\|No home channel\\|sethome\""</script>
+</div>
+<p>没有输出通常就是正常。</p>
+<p>最后在 Telegram 里发一句测试消息。理想表现是：</p>
+<ul>
+<li>只看到最终回答。</li>
+<li>不出现 <code>memory:</code> 提示。</li>
+<li>不出现工具进度。</li>
+<li>不出现后台任务通知。</li>
+<li>不引用用户上一句话。</li>
+<li>gateway 重启或上线后，只保留一条上线提醒。</li>
+</ul>
+<h2 id="敏感信息不要写进文档">敏感信息不要写进文档</h2>
+<p>不要把这些内容写进公开文档或笔记：</p>
+<ul>
+<li>API Key</li>
+<li>Telegram Bot Token</li>
+<li>SSH 密码</li>
+<li>私有 Base URL 的鉴权参数</li>
+<li>任何可直接登录服务器或调用模型服务的凭据</li>
+</ul>
+<p>只记录占位符即可：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>OPENAI_API_KEY<span style="color:#f92672">=</span>填自己的
+</span></span><span style="display:flex;"><span>TELEGRAM_BOT_TOKEN<span style="color:#f92672">=</span>填自己的
+</span></span><span style="display:flex;"><span>OPENAI_BASE_URL<span style="color:#f92672">=</span>按自己的服务填写</span></span></code></pre></div><script class="code-source" type="application/json">"OPENAI_API_KEY=填自己的\nTELEGRAM_BOT_TOKEN=填自己的\nOPENAI_BASE_URL=按自己的服务填写"</script>
+</div>
+<p>如果使用 OpenAI-compatible provider，也建议只记录 provider 类型和配置位置，不记录真实 token。</p>
+<h2 id="推荐恢复顺序">推荐恢复顺序</h2>
+<ol>
+<li>安装 Hermes Agent。</li>
+<li>配置模型 API 和 Telegram bot token。</li>
+<li>创建需要的 profile，例如 <code>dev</code>。</li>
+<li>在 Telegram 里发送 <code>/sethome</code>。</li>
+<li>优先用 <code>hermes config set</code> 写入审批、显示、Telegram 降噪和上线提醒配置。</li>
+<li>重启对应 gateway 服务。</li>
+<li>用 Telegram 发一句测试消息，确认只返回最终回复；长任务时有带进度细节的心跳。</li>
+</ol>
+<h2 id="当前偏好模板">当前偏好模板</h2>
+<p>可以把下面这段作为自己的恢复备注：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>默认助手：中文、简洁、安静、日常使用。
+</span></span><span style="display:flex;"><span>开发助手：中文、技术向，可以处理开发、排障和运维，但 Telegram 里仍然保持安静。
+</span></span><span style="display:flex;"><span>不显示 memory、工具调用、后台任务、自我改进等过程提示。
+</span></span><span style="display:flex;"><span>保留 gateway 重启/上线提醒，方便知道服务恢复在线。
+</span></span><span style="display:flex;"><span>不引用用户上一句话。
+</span></span><span style="display:flex;"><span>不使用不想用的模型提供商。
+</span></span><span style="display:flex;"><span>使用支持日常聊天和图片分析的 OpenAI-compatible 模型。
+</span></span><span style="display:flex;"><span>危险命令仍然需要确认，不开启全局 yolo。</span></span></code></pre></div><script class="code-source" type="application/json">"默认助手：中文、简洁、安静、日常使用。\n开发助手：中文、技术向，可以处理开发、排障和运维，但 Telegram 里仍然保持安静。\n不显示 memory、工具调用、后台任务、自我改进等过程提示。\n保留 gateway 重启/上线提醒，方便知道服务恢复在线。\n不引用用户上一句话。\n不使用不想用的模型提供商。\n使用支持日常聊天和图片分析的 OpenAI-compatible 模型。\n危险命令仍然需要确认，不开启全局 yolo。"</script>
+</div>
+<p>这套配置的核心不是削弱 Hermes，而是把“能力”和“可见噪音”分开。工具、记忆和后台任务继续保留；Telegram 只做干净入口，方便每天真正使用。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

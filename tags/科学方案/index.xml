@@ -1,6 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>科学方案 on 电脑自习室</title><link>https://purodn.tk/tags/%E7%A7%91%E5%AD%A6%E6%96%B9%E6%A1%88/</link><description>Recent content in 科学方案 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Thu, 30 Oct 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E7%A7%91%E5%AD%A6%E6%96%B9%E6%A1%88/index.xml" rel="self" type="application/rss+xml"/><item><title>以 FakeIP 分流为基石的科学上网方案</title><link>https://purodn.tk/posts/linux/fakeip-routing-solution/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/fakeip-routing-solution/</guid><description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流
-[TOC]
-一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。
-DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：
-IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：
-198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>科学方案 on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/%E7%A7%91%E5%AD%A6%E6%96%B9%E6%A1%88/</link>
+    <description>Recent content in 科学方案 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 30 Oct 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/%E7%A7%91%E5%AD%A6%E6%96%B9%E6%A1%88/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>以 FakeIP 分流为基石的科学上网方案</title>
+      <link>http://0.0.0.0:1313/posts/linux/fakeip-routing-solution/</link>
+      <pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/fakeip-routing-solution/</guid>
+      <description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流&#xA;[TOC]&#xA;一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。&#xA;DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：&#xA;IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：&#xA;198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description>
+    </item>
+  </channel>
+</rss>

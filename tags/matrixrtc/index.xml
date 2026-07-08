@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>MatrixRTC on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/matrixrtc/</link>
+    <description>Recent content in MatrixRTC on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 02 May 2025 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/matrixrtc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Matrix 安装 Element Call 加密通话组件教程：使用单域名</title>
+      <link>http://0.0.0.0:1313/posts/docker/matrix-element-call-livekit-selfhosted/</link>
+      <pubDate>Fri, 02 May 2025 00:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/docker/matrix-element-call-livekit-selfhosted/</guid>
+      <description>Matrix 通信网络协议最常用的客户端 Element 过去一直使用免费的 Jitsi 作为群组视频会议组件。一对一音视频通话则相对复杂：如果双方客户端具有公网 IP，则可以建立点对点连接；否则需要通话发起方的服务端托管 TURN 服务来绕过网络地址转换 (NAT)，中继 WebRTC 连接。&#xA;现在这一情况已得到改善。Elment.io 开源了原生的 Matrix 视频会议应用程序 element-call。它的优势在于端到端加密、流畅性，以及基于 LiveKit 的可扩展后端；缺点是与 Jitsi 相比功能仍较为简陋，例如缺少背景虚化、主持功能等。&#xA;Element Call 客户端组件现已内置于 Element 桌面和网页端，并在新一代移动端 Element X 上作为唯一的通话组件。这意味着从 Jitsi 和 TURN 发起的呼叫无法在 X 移动端显示。该组件需要连接到 MatrixRTC 后端才能使用。根据官方博客 ，从 2025 年 5 月开始，Element 将不再为社区提供免费的 MatrixRTC 后端服务，因此 Matrix 站长需要自行搭建。不过这并不是紧迫的任务，因为 Element X 功能尚不完善，还不足以完全替代旧的移动端。&#xA;本教程适用于在家庭服务器（如 NAS）上自建该服务。&#xA;服务概述 Element Call 包含两个服务：Matrix Livekit JWT 身份验证服务和 Livekit SFU WebSocket 信令连接。它们的通信流程如下：&#xA;当用户从客户端发起呼叫时，首先会访问 matrix 域名的 /.well-known/matrix/client 路径查找后端 Livekit JWT 服务地址。JWT 将为指定房间生成具有特定身份的 JWT 令牌，随后客户端与 Livekit SFU 建立安全的 WebSocket 通信，SFU 使用 WebRTC 端口进行实时语音或视频对话。</description>
+    </item>
+  </channel>
+</rss>

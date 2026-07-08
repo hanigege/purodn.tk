@@ -1,12 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Config.yaml on 电脑自习室</title><link>https://purodn.tk/tags/config.yaml/</link><description>Recent content in Config.yaml on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 30 May 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/config.yaml/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent config.yaml 中文配置说明</title><link>https://purodn.tk/posts/ai/hermes-config-yaml-reference/</link><pubDate>Sat, 30 May 2026 14:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-config-yaml-reference/</guid><description>Hermes Agent 安装完成后，主要配置文件通常是：
-复制~/.hermes/config.yaml 多 profile 场景下，每个 profile 也会有自己的配置：
-复制~/.hermes/profiles/&amp;lt;profile&amp;gt;/config.yaml 这篇按官方 cli-config.yaml.example 和官方配置参考整理，查询时间是 2026-05-30。Hermes 仍在快速迭代，字段可能随版本变化。生产环境不要追求“字段越多越好”，只保留自己理解且确实需要的配置。
-参考资料：
-Hermes Agent Configuration Options Hermes Agent Configuration 官方 cli-config.yaml.example 修改前先备份 先切到运行 Hermes 的用户，例如：
-复制sudo su - hermesuser 备份配置：
-复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; CONFIG=&amp;#34;${HERMES_HOME}/config.yaml&amp;#34; cp &amp;#34;$CONFIG&amp;#34; &amp;#34;${CONFIG}.bak.$(date +%Y%m%d-%H%M%S)&amp;#34; 编辑配置：
-复制nvim &amp;#34;$CONFIG&amp;#34; 如果系统没有 nvim：
-复制nano &amp;#34;$CONFIG&amp;#34; 改完先检查 Hermes：
-复制hermes doctor 如果修改了 Gateway、Telegram、工具显示、模型或平台参数，重启对应服务：
-复制systemctl --user restart hermes-gateway.service systemctl --user status hermes-gateway.service --no-pager 多 profile 先看服务名：
-复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 总体结构 官方示例配置的主干大致如下：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Config.yaml on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/config.yaml/</link>
+    <description>Recent content in Config.yaml on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 30 May 2026 14:00:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/config.yaml/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes Agent config.yaml 中文配置说明</title>
+      <link>http://0.0.0.0:1313/posts/ai/hermes-config-yaml-reference/</link>
+      <pubDate>Sat, 30 May 2026 14:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/ai/hermes-config-yaml-reference/</guid>
+      <description>Hermes Agent 安装完成后，主要配置文件通常是：&#xA;复制~/.hermes/config.yaml 多 profile 场景下，每个 profile 也会有自己的配置：&#xA;复制~/.hermes/profiles/&amp;lt;profile&amp;gt;/config.yaml 这篇按官方 cli-config.yaml.example 和官方配置参考整理，查询时间是 2026-05-30。Hermes 仍在快速迭代，字段可能随版本变化。生产环境不要追求“字段越多越好”，只保留自己理解且确实需要的配置。&#xA;参考资料：&#xA;Hermes Agent Configuration Options Hermes Agent Configuration 官方 cli-config.yaml.example 修改前先备份 先切到运行 Hermes 的用户，例如：&#xA;复制sudo su - hermesuser 备份配置：&#xA;复制HERMES_HOME=&amp;#34;${HOME}/.hermes&amp;#34; CONFIG=&amp;#34;${HERMES_HOME}/config.yaml&amp;#34; cp &amp;#34;$CONFIG&amp;#34; &amp;#34;${CONFIG}.bak.$(date +%Y%m%d-%H%M%S)&amp;#34; 编辑配置：&#xA;复制nvim &amp;#34;$CONFIG&amp;#34; 如果系统没有 nvim：&#xA;复制nano &amp;#34;$CONFIG&amp;#34; 改完先检查 Hermes：&#xA;复制hermes doctor 如果修改了 Gateway、Telegram、工具显示、模型或平台参数，重启对应服务：&#xA;复制systemctl --user restart hermes-gateway.service systemctl --user status hermes-gateway.service --no-pager 多 profile 先看服务名：&#xA;复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 总体结构 官方示例配置的主干大致如下：</description>
+    </item>
+  </channel>
+</rss>

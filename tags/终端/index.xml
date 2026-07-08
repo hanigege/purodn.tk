@@ -1,19 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>终端 on 电脑自习室</title><link>https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/</link><description>Recent content in 终端 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E7%BB%88%E7%AB%AF/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title><link>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</link><pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-trzsz-go/</guid><description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：
-复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：
-复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。
-准备 Go 环境 先确认 Go 已经可用：
-复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。
-如果当前终端还找不到 go，可以临时加入 PATH：
-复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。
-以 root 用户执行：
-复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：
-复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
-下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
-写入配置文件 编辑 ~/.tmux.conf：
-复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
-写入下面这份配置：
-复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item><item><title>让 FreeBSD 在终端下支持中文</title><link>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</link><pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-terminal-chinese/</guid><description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。
-编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。
-复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：
-复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：
-复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>终端 on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/%E7%BB%88%E7%AB%AF/</link>
+    <description>Recent content in 终端 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 24 May 2026 19:12:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/%E7%BB%88%E7%AB%AF/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</link>
+      <pubDate>Sun, 24 May 2026 19:12:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-install-trzsz-go/</guid>
+      <description>trzsz-go 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：&#xA;复制go install github.com/trzsz/trzsz-go/cmd/trz@latest go install github.com/trzsz/trzsz-go/cmd/tsz@latest 默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：&#xA;复制/root/go/bin/trz /root/go/bin/tsz 如果只是 root 自己使用，可以把 $HOME/go/bin 加入 PATH。但在 FreeBSD 上，更推荐把这种全局命令放到 /usr/local/bin，这样所有用户和脚本都更容易调用。&#xA;准备 Go 环境 先确认 Go 已经可用：&#xA;复制go version 如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 /usr/local/go/bin/go。&#xA;如果当前终端还找不到 go，可以临时加入 PATH：&#xA;复制export PATH=$PATH:/usr/local/go/bin 方案一：直接安装到 /usr/local/bin 可以。go install 支持通过 GOBIN 指定输出目录，所以最干净的方式是直接把 trz 和 tsz 安装到 /usr/local/bin。&#xA;以 root 用户执行：&#xA;复制env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest 确认文件已经生成：&#xA;复制ls -l /usr/local/bin/trz /usr/local/bin/tsz 确认命令可用：</description>
+    </item>
+    <item>
+      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
+      <link>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</guid>
+      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
+    </item>
+    <item>
+      <title>让 FreeBSD 在终端下支持中文</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-terminal-chinese/</link>
+      <pubDate>Sun, 11 May 2025 13:48:46 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-terminal-chinese/</guid>
+      <description>FreeBSD 默认环境下，终端中文显示和 locale 设置可能不完整。可以通过 /etc/login.conf 新增中文登录类，并把用户切换到这个登录类。&#xA;编辑 /etc/login.conf 打开 /etc/login.conf，在文件结尾处添加下面这段配置。我个人一般会放在 russian 段落后面，方便以后查找。&#xA;复制chinese|Chinese Users Accounts:\ :charset=UTF-8:\ :lang=zh_CN.UTF-8:\ :setenv=LC_ALL=zh_CN.UTF-8:\ :tc=default: 重新生成 login.conf 数据库 保存文件后，运行：&#xA;复制cap_mkdb /etc/login.conf 修改 root 用户登录类 如果要让 root 使用刚才新增的 chinese 登录类，运行：&#xA;复制pw usermod root -L chinese 重新登录终端后，中文 locale 配置就会生效。</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tutorial on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/tutorial/</link>
+    <description>Recent content in Tutorial on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 03 Jul 2026 10:37:41 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/tutorial/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes 灾难恢复手册 — 从零手动重建所有服务</title>
+      <link>http://0.0.0.0:1313/posts/ai/hermes-disaster-recovery-manual/</link>
+      <pubDate>Fri, 03 Jul 2026 10:37:41 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/ai/hermes-disaster-recovery-manual/</guid>
+      <description>如果你的 Hermes bot 全部失联，网页端也连不上，别慌。这份教程教你从头手动恢复，每一步都有完整的命令，复制粘贴就能跑。&#xA;适用场景 所有 Hermes bot 都不回复消息 SSH 还能连上服务器 GitHub 还能访问（备份仓库在线） 前提 服务器 IP：10.20.20.19 登录用户：hermesuser 备份仓库：git@github.com:hanigege/hermes.git 第一步：SSH 登录服务器 在你的电脑上打开终端（Windows 用 PowerShell 或 CMD），输入：&#xA;复制ssh hermesuser@10.20.20.19 登录成功后会看到类似这样的提示：&#xA;复制hermesuser@hermes:~$ 第二步：确认系统状态 先看看系统跑了多久、磁盘空间够不够：&#xA;复制uptime df -h 磁盘应该还有 至少 10G 空闲。如果空间不够，先清理一下。&#xA;第三步：从 GitHub 克隆备份仓库并一键恢复 📦 仓库里有什么：&#xA;hermes-agent/ 全部源码（4000+ 文件）✅ config.yaml + .env 配置文件 ✅ systemd-templates/ 优化版服务模板 ✅ scripts/recover.sh 一键恢复脚本 ✅ ❌ venv/（需要重建） ❌ sessions/（聊天历史，体积大，不备份） 把整个 Hermes 配置和代码从 GitHub 拉下来，然后跑恢复脚本——仅需两步：&#xA;复制# 第一步：克隆仓库 cd ~ git clone git@github.</description>
+    </item>
+    <item>
+      <title>从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</title>
+      <link>http://0.0.0.0:1313/posts/linux/build-matrix-synapse-standard/</link>
+      <pubDate>Sat, 27 Jun 2026 00:00:00 +0000</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/build-matrix-synapse-standard/</guid>
+      <description>这是一份面向零基础小白的教程，手把手教你从建文件夹开始，把一套完整的 Matrix 聊天服务器跑起来。你不需要懂 Linux 内核、不需要懂网络协议、不需要背命令——跟着复制粘贴就行。&#xA;本教程基于生产环境的真实配置整理，所有服务都用 Docker 部署，方便维护和迁移。&#xA;目录 准备工作 服务器初始化 PostgreSQL 数据库 Synapse 核心服务器 Caddy 反向代理 创建管理员用户 Element Web 前端 TURN/STUN 服务器（Coturn） LiveKit 通话栈 验证 周边配套（可选） 一、准备工作 1.1 服务器要求 CPU：1 核起步，2 核流畅 内存：2GB（4GB 更佳，群聊多就加） 硬盘：20GB（图片文件会随使用增长） 系统：Ubuntu 22.04 / Debian 12（其他 Linux 也行，命令微调） 网络：公网 IP，防火墙放开以下端口 端口 协议 用途 443 TCP HTTPS 网页访问 8448 TCP Matrix 联邦通信 3478 UDP TURN 语音视频 5349 TCP/TLS TURN 加密连接 7880 TCP LiveKit API 17882 TCP LiveKit TCP 通道 50201-50400 UDP LiveKit 媒体流 不搞联邦可以只开 443。本教程按完整配置来，不用的端口不开也不影响。</description>
+    </item>
+  </channel>
+</rss>

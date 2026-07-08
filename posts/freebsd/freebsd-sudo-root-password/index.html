@@ -1,12 +1,100 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码 | 电脑自习室</title>
-<meta name=description content="在 FreeBSD 上安装 sudo、把普通用户加入 wheel 组，并配置 sudo 执行时验证 root 密码，而不是验证普通用户自己的密码。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
-<time datetime=2025-05-11>2025年5月11日</time></div><h1>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</h1><p>在 FreeBSD 上安装 sudo、把普通用户加入 wheel 组，并配置 sudo 执行时验证 root 密码，而不是验证普通用户自己的密码。</p></header><img class=article-cover src=/posts/freebsd/freebsd-sudo-root-password/assets/cover.svg alt><div class=article-content><p>我个人不太建议在所有环境里都直接开启 <code>sudo</code>。如果只是自己的服务器，很多时候使用 <code>su -</code> 切换到 <code>root</code> 管理系统，权限边界会更清楚。</p><p>不过 <code>sudo</code> 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 <code>sudo</code> 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 <code>sudo</code> 时验证 <code>root</code> 密码，而不是验证普通用户自己的密码。</p><h2 id=报错含义>报错含义</h2><p>如果普通用户执行 <code>sudo</code> 时看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>gary is not in the sudoers file.
-</span></span><span style=display:flex><span>This incident has been reported to the administrator.</span></span></code></pre></div><script class=code-source type=application/json>"gary is not in the sudoers file.\nThis incident has been reported to the administrator."</script></div><p>意思是当前用户 <code>gary</code> 没有被 sudoers 授权，所以不能通过 <code>sudo</code> 执行需要管理员权限的命令。</p><p>后续操作需要先用 <code>root</code> 用户完成。可以直接登录 <code>root</code>，也可以从普通用户切换：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>su -</span></span></code></pre></div><script class=code-source type=application/json>"su -"</script></div><p>这里输入的是 <code>root</code> 密码，不是普通用户密码。</p><h2 id=安装-sudo>安装 sudo</h2><p>如果系统还没有安装 <code>sudo</code>，先安装：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>pkg install sudo</span></span></code></pre></div><script class=code-source type=application/json>"pkg install sudo"</script></div><p>FreeBSD 通过 pkg 安装的 <code>sudo</code>，配置文件通常是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/usr/local/etc/sudoers</span></span></code></pre></div><script class=code-source type=application/json>"/usr/local/etc/sudoers"</script></div><p>不要直接用普通编辑器修改这个文件，应该使用 <code>visudo</code>，它会在保存前检查语法，避免 sudoers 写错后导致 <code>sudo</code> 无法使用。</p><h2 id=把用户加入-wheel-组>把用户加入 wheel 组</h2><p>FreeBSD 默认用 <code>wheel</code> 组表示允许进行管理员操作的用户范围。先确认你的普通用户是否已经在 <code>wheel</code> 组：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>id gary</span></span></code></pre></div><script class=code-source type=application/json>"id gary"</script></div><p>如果输出里已经有 <code>wheel</code>，就不需要重复添加。否则用下面的命令添加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>pw groupmod wheel -m gary</span></span></code></pre></div><script class=code-source type=application/json>"pw groupmod wheel -m gary"</script></div><p>把 <code>gary</code> 换成你的实际用户名。</p><p>也可以用下面的命令确认 <code>wheel</code> 组成员：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>pw groupshow wheel</span></span></code></pre></div><script class=code-source type=application/json>"pw groupshow wheel"</script></div><h2 id=用-visudo-修改配置>用 visudo 修改配置</h2><p>打开 sudoers：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>visudo</span></span></code></pre></div><script class=code-source type=application/json>"visudo"</script></div><p>如果你想指定用 <code>vim</code> 打开：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>EDITOR<span style=color:#f92672>=</span>vim visudo</span></span></code></pre></div><script class=code-source type=application/json>"EDITOR=vim visudo"</script></div><p>在默认配置里，你会看到类似下面几段：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>root ALL=(ALL:ALL) ALL
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码 | 电脑自习室</title>
+    <meta name="description" content="在 FreeBSD 上安装 sudo、把普通用户加入 wheel 组，并配置 sudo 执行时验证 root 密码，而不是验证普通用户自己的密码。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>FreeBSD</span>
+          <time datetime="2025-05-11">2025年5月11日</time>
+        </div>
+        <h1>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</h1>
+          <p>在 FreeBSD 上安装 sudo、把普通用户加入 wheel 组，并配置 sudo 执行时验证 root 密码，而不是验证普通用户自己的密码。</p>
+      </header>
+          <img class="article-cover" src="/posts/freebsd/freebsd-sudo-root-password/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>我个人不太建议在所有环境里都直接开启 <code>sudo</code>。如果只是自己的服务器，很多时候使用 <code>su -</code> 切换到 <code>root</code> 管理系统，权限边界会更清楚。</p>
+<p>不过 <code>sudo</code> 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 <code>sudo</code> 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 <code>sudo</code> 时验证 <code>root</code> 密码，而不是验证普通用户自己的密码。</p>
+<h2 id="报错含义">报错含义</h2>
+<p>如果普通用户执行 <code>sudo</code> 时看到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>gary is not in the sudoers file.
+</span></span><span style="display:flex;"><span>This incident has been reported to the administrator.</span></span></code></pre></div><script class="code-source" type="application/json">"gary is not in the sudoers file.\nThis incident has been reported to the administrator."</script>
+</div>
+<p>意思是当前用户 <code>gary</code> 没有被 sudoers 授权，所以不能通过 <code>sudo</code> 执行需要管理员权限的命令。</p>
+<p>后续操作需要先用 <code>root</code> 用户完成。可以直接登录 <code>root</code>，也可以从普通用户切换：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>su -</span></span></code></pre></div><script class="code-source" type="application/json">"su -"</script>
+</div>
+<p>这里输入的是 <code>root</code> 密码，不是普通用户密码。</p>
+<h2 id="安装-sudo">安装 sudo</h2>
+<p>如果系统还没有安装 <code>sudo</code>，先安装：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>pkg install sudo</span></span></code></pre></div><script class="code-source" type="application/json">"pkg install sudo"</script>
+</div>
+<p>FreeBSD 通过 pkg 安装的 <code>sudo</code>，配置文件通常是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/usr/local/etc/sudoers</span></span></code></pre></div><script class="code-source" type="application/json">"/usr/local/etc/sudoers"</script>
+</div>
+<p>不要直接用普通编辑器修改这个文件，应该使用 <code>visudo</code>，它会在保存前检查语法，避免 sudoers 写错后导致 <code>sudo</code> 无法使用。</p>
+<h2 id="把用户加入-wheel-组">把用户加入 wheel 组</h2>
+<p>FreeBSD 默认用 <code>wheel</code> 组表示允许进行管理员操作的用户范围。先确认你的普通用户是否已经在 <code>wheel</code> 组：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>id gary</span></span></code></pre></div><script class="code-source" type="application/json">"id gary"</script>
+</div>
+<p>如果输出里已经有 <code>wheel</code>，就不需要重复添加。否则用下面的命令添加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>pw groupmod wheel -m gary</span></span></code></pre></div><script class="code-source" type="application/json">"pw groupmod wheel -m gary"</script>
+</div>
+<p>把 <code>gary</code> 换成你的实际用户名。</p>
+<p>也可以用下面的命令确认 <code>wheel</code> 组成员：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>pw groupshow wheel</span></span></code></pre></div><script class="code-source" type="application/json">"pw groupshow wheel"</script>
+</div>
+<h2 id="用-visudo-修改配置">用 visudo 修改配置</h2>
+<p>打开 sudoers：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>visudo</span></span></code></pre></div><script class="code-source" type="application/json">"visudo"</script>
+</div>
+<p>如果你想指定用 <code>vim</code> 打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>EDITOR<span style="color:#f92672">=</span>vim visudo</span></span></code></pre></div><script class="code-source" type="application/json">"EDITOR=vim visudo"</script>
+</div>
+<p>在默认配置里，你会看到类似下面几段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">root ALL=(ALL:ALL) ALL
 
 ## Uncomment to allow members of group wheel to execute any command
 # %wheel ALL=(ALL:ALL) ALL
@@ -23,33 +111,199 @@
 # ALL ALL=(ALL:ALL) ALL  # WARNING: only use this together with &#39;Defaults targetpw&#39;
 
 ## Uncomment to show on password prompt which users&#39; password is being expected
-# Defaults passprompt=&#34;%p&#39;s password:&#34;</code></pre><script class=code-source type=application/json>"root ALL=(ALL:ALL) ALL\n\n## Uncomment to allow members of group wheel to execute any command\n# %wheel ALL=(ALL:ALL) ALL\n\n## Same thing without a password\n# %wheel ALL=(ALL:ALL) NOPASSWD: ALL\n\n## Uncomment to allow members of group sudo to execute any command\n# %sudo ALL=(ALL:ALL) ALL\n\n## Uncomment to allow any user to run sudo if they know the password\n## of the user they are running the command as (root by default).\n# Defaults targetpw  # Ask for the password of the target user\n# ALL ALL=(ALL:ALL) ALL  # WARNING: only use this together with 'Defaults targetpw'\n\n## Uncomment to show on password prompt which users' password is being expected\n# Defaults passprompt=\"%p's password:\""</script></div><h2 id=方案一wheel-用户使用-sudo验证自己的密码>方案一：wheel 用户使用 sudo，验证自己的密码</h2><p>这是最常见的 sudo 配置。只需要放开 <code>wheel</code> 组这一行：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>%wheel ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"%wheel ALL=(ALL:ALL) ALL"</script></div><p>这种方式下，<code>wheel</code> 组内的普通用户执行 <code>sudo</code> 时，输入的是自己的用户密码。</p><p>如果你的目标只是让普通管理员用户正常使用 <code>sudo</code>，到这里就可以了。但它的安全含义是：普通用户密码一旦泄露，攻击者也可能获得 sudo 提权机会。</p><h2 id=方案二wheel-用户使用-sudo验证-root-密码>方案二：wheel 用户使用 sudo，验证 root 密码</h2><p>如果你想保留 <code>sudo</code> 的审计和授权能力，同时又希望密码隔离得更清楚，可以让 <code>sudo</code> 验证目标用户密码。默认目标用户是 <code>root</code>，也就是执行 <code>sudo</code> 时输入 <code>root</code> 密码。</p><p>推荐配置如下：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>Defaults targetpw
+# Defaults passprompt=&#34;%p&#39;s password:&#34;</code></pre><script class="code-source" type="application/json">"root ALL=(ALL:ALL) ALL\n\n## Uncomment to allow members of group wheel to execute any command\n# %wheel ALL=(ALL:ALL) ALL\n\n## Same thing without a password\n# %wheel ALL=(ALL:ALL) NOPASSWD: ALL\n\n## Uncomment to allow members of group sudo to execute any command\n# %sudo ALL=(ALL:ALL) ALL\n\n## Uncomment to allow any user to run sudo if they know the password\n## of the user they are running the command as (root by default).\n# Defaults targetpw  # Ask for the password of the target user\n# ALL ALL=(ALL:ALL) ALL  # WARNING: only use this together with 'Defaults targetpw'\n\n## Uncomment to show on password prompt which users' password is being expected\n# Defaults passprompt=\"%p's password:\""</script>
+</div>
+<h2 id="方案一wheel-用户使用-sudo验证自己的密码">方案一：wheel 用户使用 sudo，验证自己的密码</h2>
+<p>这是最常见的 sudo 配置。只需要放开 <code>wheel</code> 组这一行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">%wheel ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"%wheel ALL=(ALL:ALL) ALL"</script>
+</div>
+<p>这种方式下，<code>wheel</code> 组内的普通用户执行 <code>sudo</code> 时，输入的是自己的用户密码。</p>
+<p>如果你的目标只是让普通管理员用户正常使用 <code>sudo</code>，到这里就可以了。但它的安全含义是：普通用户密码一旦泄露，攻击者也可能获得 sudo 提权机会。</p>
+<h2 id="方案二wheel-用户使用-sudo验证-root-密码">方案二：wheel 用户使用 sudo，验证 root 密码</h2>
+<p>如果你想保留 <code>sudo</code> 的审计和授权能力，同时又希望密码隔离得更清楚，可以让 <code>sudo</code> 验证目标用户密码。默认目标用户是 <code>root</code>，也就是执行 <code>sudo</code> 时输入 <code>root</code> 密码。</p>
+<p>推荐配置如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">Defaults targetpw
 Defaults passprompt=&#34;%p&#39;s password:&#34;
 
-%wheel ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n\n%wheel ALL=(ALL:ALL) ALL"</script></div><p>这三行的含义是：</p><ul><li><code>Defaults targetpw</code>：要求输入目标用户的密码。执行 <code>sudo pkg install bash</code> 时，目标用户默认是 <code>root</code>，所以输入 <code>root</code> 密码。</li><li><code>Defaults passprompt="%p's password:"</code>：让密码提示明确显示当前需要输入谁的密码，例如 <code>root's password:</code>。</li><li><code>%wheel ALL=(ALL:ALL) ALL</code>：只允许 <code>wheel</code> 组成员使用 sudo 执行命令。</li></ul><p>配置后，新开一个普通用户终端测试：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>sudo ls /root</span></span></code></pre></div><script class=code-source type=application/json>"sudo ls /root"</script></div><p>如果提示变成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>root&#39;s password:</span></span></code></pre></div><script class=code-source type=application/json>"root's password:"</script></div><p>说明已经改成验证 <code>root</code> 密码。</p><h2 id=不建议开启-all-all>不建议开启 ALL ALL</h2><p>默认配置里还有这一行：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers># ALL ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"# ALL ALL=(ALL:ALL) ALL"</script></div><p>这行不要开启。</p><p>虽然注释里说它可以配合 <code>Defaults targetpw</code> 使用，但它的含义是：系统里任何用户都可以尝试通过输入目标用户密码来使用 <code>sudo</code>。如果机器上存在服务账号、临时账号或低权限账号，这会扩大攻击面。</p><p>更稳妥的做法是：只给 <code>wheel</code> 组授权。</p><p>推荐保持：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>Defaults targetpw
+%wheel ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n\n%wheel ALL=(ALL:ALL) ALL"</script>
+</div>
+<p>这三行的含义是：</p>
+<ul>
+<li><code>Defaults targetpw</code>：要求输入目标用户的密码。执行 <code>sudo pkg install bash</code> 时，目标用户默认是 <code>root</code>，所以输入 <code>root</code> 密码。</li>
+<li><code>Defaults passprompt=&quot;%p's password:&quot;</code>：让密码提示明确显示当前需要输入谁的密码，例如 <code>root's password:</code>。</li>
+<li><code>%wheel ALL=(ALL:ALL) ALL</code>：只允许 <code>wheel</code> 组成员使用 sudo 执行命令。</li>
+</ul>
+<p>配置后，新开一个普通用户终端测试：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sudo ls /root</span></span></code></pre></div><script class="code-source" type="application/json">"sudo ls /root"</script>
+</div>
+<p>如果提示变成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>root&#39;s password:</span></span></code></pre></div><script class="code-source" type="application/json">"root's password:"</script>
+</div>
+<p>说明已经改成验证 <code>root</code> 密码。</p>
+<h2 id="不建议开启-all-all">不建议开启 ALL ALL</h2>
+<p>默认配置里还有这一行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers"># ALL ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"# ALL ALL=(ALL:ALL) ALL"</script>
+</div>
+<p>这行不要开启。</p>
+<p>虽然注释里说它可以配合 <code>Defaults targetpw</code> 使用，但它的含义是：系统里任何用户都可以尝试通过输入目标用户密码来使用 <code>sudo</code>。如果机器上存在服务账号、临时账号或低权限账号，这会扩大攻击面。</p>
+<p>更稳妥的做法是：只给 <code>wheel</code> 组授权。</p>
+<p>推荐保持：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">Defaults targetpw
 Defaults passprompt=&#34;%p&#39;s password:&#34;
-%wheel ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n%wheel ALL=(ALL:ALL) ALL"</script></div><p>同时保持下面这一行继续注释：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers># ALL ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"# ALL ALL=(ALL:ALL) ALL"</script></div><h2 id=不建议免密-sudo>不建议免密 sudo</h2><p>sudoers 里还有一行：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers># %wheel ALL=(ALL:ALL) NOPASSWD: ALL</code></pre><script class=code-source type=application/json>"# %wheel ALL=(ALL:ALL) NOPASSWD: ALL"</script></div><p>这表示 <code>wheel</code> 组成员执行任何 sudo 命令都不需要输入密码。除非你非常明确知道自己在做什么，否则不建议开启。</p><p>如果确实要给某个用户配置免密，也应该尽量只针对特定命令，而不是给全部命令免密。例如：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>gary ALL=(root) NOPASSWD: /usr/sbin/service nginx restart</code></pre><script class=code-source type=application/json>"gary ALL=(root) NOPASSWD: /usr/sbin/service nginx restart"</script></div><p>注意 sudoers 里的命令必须使用绝对路径。可以用 <code>which</code> 查询命令路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>which service</span></span></code></pre></div><script class=code-source type=application/json>"which service"</script></div><h2 id=更细的命令白名单>更细的命令白名单</h2><p>如果只希望普通用户执行少数管理命令，可以用命令白名单，而不是给完整 root 权限。</p><p>例如允许 <code>gary</code> 重启和重载 nginx：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>Cmnd_Alias NGINX_CMDS = /usr/sbin/service nginx restart, /usr/sbin/service nginx reload
+%wheel ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n%wheel ALL=(ALL:ALL) ALL"</script>
+</div>
+<p>同时保持下面这一行继续注释：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers"># ALL ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"# ALL ALL=(ALL:ALL) ALL"</script>
+</div>
+<h2 id="不建议免密-sudo">不建议免密 sudo</h2>
+<p>sudoers 里还有一行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers"># %wheel ALL=(ALL:ALL) NOPASSWD: ALL</code></pre><script class="code-source" type="application/json">"# %wheel ALL=(ALL:ALL) NOPASSWD: ALL"</script>
+</div>
+<p>这表示 <code>wheel</code> 组成员执行任何 sudo 命令都不需要输入密码。除非你非常明确知道自己在做什么，否则不建议开启。</p>
+<p>如果确实要给某个用户配置免密，也应该尽量只针对特定命令，而不是给全部命令免密。例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">gary ALL=(root) NOPASSWD: /usr/sbin/service nginx restart</code></pre><script class="code-source" type="application/json">"gary ALL=(root) NOPASSWD: /usr/sbin/service nginx restart"</script>
+</div>
+<p>注意 sudoers 里的命令必须使用绝对路径。可以用 <code>which</code> 查询命令路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>which service</span></span></code></pre></div><script class="code-source" type="application/json">"which service"</script>
+</div>
+<h2 id="更细的命令白名单">更细的命令白名单</h2>
+<p>如果只希望普通用户执行少数管理命令，可以用命令白名单，而不是给完整 root 权限。</p>
+<p>例如允许 <code>gary</code> 重启和重载 nginx：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">Cmnd_Alias NGINX_CMDS = /usr/sbin/service nginx restart, /usr/sbin/service nginx reload
 
-gary ALL=(root) NGINX_CMDS</code></pre><script class=code-source type=application/json>"Cmnd_Alias NGINX_CMDS = /usr/sbin/service nginx restart, /usr/sbin/service nginx reload\n\ngary ALL=(root) NGINX_CMDS"</script></div><p>如果想让这个白名单仍然验证 <code>root</code> 密码，可以继续保留：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>Defaults targetpw
-Defaults passprompt=&#34;%p&#39;s password:&#34;</code></pre><script class=code-source type=application/json>"Defaults targetpw\nDefaults passprompt=\"%p's password:\""</script></div><p>这样 <code>gary</code> 只能执行白名单里的命令，不能随意执行所有 root 命令。</p><h2 id=防翻车提醒>防翻车提醒</h2><p>修改 sudoers 时建议保留一个已经登录的 <code>root</code> 终端，不要急着关闭。</p><p>保存 sudoers 后，另开一个普通用户终端测试：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>sudo -l
-</span></span><span style=display:flex><span>sudo ls /root</span></span></code></pre></div><script class=code-source type=application/json>"sudo -l\nsudo ls /root"</script></div><p>确认能正常提示并通过验证后，再关闭原来的 root 终端。这样即使 sudoers 写错，也还能在 root 终端里重新执行 <code>visudo</code> 修复。</p><h2 id=推荐配置总结>推荐配置总结</h2><p>如果你的目标是“普通用户可以使用 sudo，但执行时必须验证 root 密码”，最终建议是：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers>Defaults targetpw
+gary ALL=(root) NGINX_CMDS</code></pre><script class="code-source" type="application/json">"Cmnd_Alias NGINX_CMDS = /usr/sbin/service nginx restart, /usr/sbin/service nginx reload\n\ngary ALL=(root) NGINX_CMDS"</script>
+</div>
+<p>如果想让这个白名单仍然验证 <code>root</code> 密码，可以继续保留：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">Defaults targetpw
+Defaults passprompt=&#34;%p&#39;s password:&#34;</code></pre><script class="code-source" type="application/json">"Defaults targetpw\nDefaults passprompt=\"%p's password:\""</script>
+</div>
+<p>这样 <code>gary</code> 只能执行白名单里的命令，不能随意执行所有 root 命令。</p>
+<h2 id="防翻车提醒">防翻车提醒</h2>
+<p>修改 sudoers 时建议保留一个已经登录的 <code>root</code> 终端，不要急着关闭。</p>
+<p>保存 sudoers 后，另开一个普通用户终端测试：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sudo -l
+</span></span><span style="display:flex;"><span>sudo ls /root</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -l\nsudo ls /root"</script>
+</div>
+<p>确认能正常提示并通过验证后，再关闭原来的 root 终端。这样即使 sudoers 写错，也还能在 root 终端里重新执行 <code>visudo</code> 修复。</p>
+<h2 id="推荐配置总结">推荐配置总结</h2>
+<p>如果你的目标是“普通用户可以使用 sudo，但执行时必须验证 root 密码”，最终建议是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers">Defaults targetpw
 Defaults passprompt=&#34;%p&#39;s password:&#34;
 
-%wheel ALL=(ALL:ALL) ALL</code></pre><script class=code-source type=application/json>"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n\n%wheel ALL=(ALL:ALL) ALL"</script></div><p>同时确认：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-sudoers data-lang=sudoers># ALL ALL=(ALL:ALL) ALL
-# %wheel ALL=(ALL:ALL) NOPASSWD: ALL</code></pre><script class=code-source type=application/json>"# ALL ALL=(ALL:ALL) ALL\n# %wheel ALL=(ALL:ALL) NOPASSWD: ALL"</script></div><p>这套配置的效果是：只有 <code>wheel</code> 组成员有资格使用 <code>sudo</code>，并且执行 sudo 命令时输入的是 <code>root</code> 密码。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+%wheel ALL=(ALL:ALL) ALL</code></pre><script class="code-source" type="application/json">"Defaults targetpw\nDefaults passprompt=\"%p's password:\"\n\n%wheel ALL=(ALL:ALL) ALL"</script>
+</div>
+<p>同时确认：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-sudoers" data-lang="sudoers"># ALL ALL=(ALL:ALL) ALL
+# %wheel ALL=(ALL:ALL) NOPASSWD: ALL</code></pre><script class="code-source" type="application/json">"# ALL ALL=(ALL:ALL) ALL\n# %wheel ALL=(ALL:ALL) NOPASSWD: ALL"</script>
+</div>
+<p>这套配置的效果是：只有 <code>wheel</code> 组成员有资格使用 <code>sudo</code>，并且执行 sudo 命令时输入的是 <code>root</code> 密码。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

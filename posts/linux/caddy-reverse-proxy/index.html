@@ -1,158 +1,355 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>使用 caddy 搭建反向代理 | 电脑自习室</title>
-<meta name=description content="使用 caddy 搭建反向代理。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
-<time datetime=2025-08-14>2025年8月14日</time></div><h1>使用 caddy 搭建反向代理</h1><p>使用 caddy 搭建反向代理。</p></header><img class=article-cover src=/posts/linux/caddy-reverse-proxy/assets/caddy-reverse-proxy-cover.png alt><div class=article-content><h2 id=本文介绍家庭宽带及vps中部署caddy实现反向代理自动申请并续签证书http自动跳转https等功能可通过docker或裸跑二进制的方式部署>本文介绍家庭宽带及VPS中部署caddy，实现反向代理、自动申请并续签证书、http自动跳转https等功能，可通过docker或裸跑二进制的方式部署</h2><h2 id=-家庭宽带中通过docker部署>① 家庭宽带中通过docker部署</h2><h3 id=由于家庭宽带80-443端口被封无法通过dns验证的方式申请证书需配合cloudflare-dns-token申请证书故只推荐通过docker安装>由于家庭宽带80 443端口被封，无法通过DNS验证的方式申请证书，需配合cloudflare DNS token申请证书，故只推荐通过docker安装</h3><h3 id=使用docker官方脚本一键安装docker已安装docker的跳过>使用docker官方脚本一键安装docker，已安装docker的跳过</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -fsSL https://get.docker.com | bash -s docker</span></span></code></pre></div><script class=code-source type=application/json>"curl -fsSL https://get.docker.com | bash -s docker"</script></div><h4 id=可选用阿里镜像仓库加速安装>可选用阿里镜像仓库加速安装</h4><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun</span></span></code></pre></div><script class=code-source type=application/json>"curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun"</script></div><h3 id=创建好容器所需文件夹及文件>创建好容器所需文件夹及文件</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /root/docker/caddy/data
-</span></span><span style=display:flex><span>touch /root/docker/caddy/data/caddyfile.txt
-</span></span><span style=display:flex><span>touch /root/docker/caddy/compose.yml</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /root/docker/caddy/data\ntouch /root/docker/caddy/data/caddyfile.txt\ntouch /root/docker/caddy/compose.yml"</script></div><h3 id=composeyml内容如下使用host模式会自动占用8080和55443端口55443为公网访问时所加端口可在配置文件中修改>compose.yml内容如下，使用host模式会自动占用8080和55443端口（55443为公网访问时所加端口，可在配置文件中修改）</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>version: <span style=color:#e6db74>&#39;3&#39;</span>
-</span></span><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>  caddy:
-</span></span><span style=display:flex><span>    pull_policy: always
-</span></span><span style=display:flex><span>    image: sliamb/caddy:latest
-</span></span><span style=display:flex><span>    container_name: caddy
-</span></span><span style=display:flex><span>    restart: unless-stopped
-</span></span><span style=display:flex><span>    environment:
-</span></span><span style=display:flex><span>      - TZ<span style=color:#f92672>=</span>Asia/Shanghai
-</span></span><span style=display:flex><span>      - DNS<span style=color:#f92672>=</span>223.5.5.5,8.8.8.8
-</span></span><span style=display:flex><span>    volumes:
-</span></span><span style=display:flex><span>      - ./data:/data
-</span></span><span style=display:flex><span>      - ./cert:/root/.local/share/caddy/certificates   <span style=color:#75715e># 证书路径</span>
-</span></span><span style=display:flex><span>    network_mode: <span style=color:#e6db74>&#34;host&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"version: '3'\nservices:\n  caddy:\n    pull_policy: always\n    image: sliamb/caddy:latest\n    container_name: caddy\n    restart: unless-stopped\n    environment:\n      - TZ=Asia/Shanghai\n      - DNS=223.5.5.5,8.8.8.8\n    volumes:\n      - ./data:/data\n      - ./cert:/root/.local/share/caddy/certificates   # 证书路径\n    network_mode: \"host\""</script></div><h3 id=修改caddyfiletxt配置文件>修改caddyfile.txt配置文件</h3><h4 id=以下为配置示例根据情况自行调整>以下为配置示例，根据情况自行调整</h4><ul><li>格式参考如下，修改对应邮箱、dns_token、域名及服务地址</li><li>将caddy监听的https端口修改为55443，相对应的公网端口（即之后访问域名时候加的端口）也是55443，主路由做好wan端口55443到caddy 55443的映射。该端口根据自己需求修改即可。</li><li>配置模板内容依次为：反向代理pve等https连接、反向代理普通http连接、反向代理静态网页</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 配置 cloudflare 的 DNS-01 挑战</span>
-</span></span><span style=display:flex><span>    email <span style=color:#f92672>[</span>email protected<span style=color:#f92672>]</span>  <span style=color:#75715e># 替换为您的邮箱</span>
-</span></span><span style=display:flex><span>    acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx  <span style=color:#75715e># 替换为 cloudflare 的 token</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功）</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e>#acme_ca https://acme.zerossl.com/v2/DV90       #切换证书发行商为ZeroSSL</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e>#acme_eab {</span>
-</span></span><span style=display:flex><span>        <span style=color:#75715e>#key_id  XXXXXXXXXXXXXXXXXX             #ZeroSSL网站上api的ID</span>
-</span></span><span style=display:flex><span>        <span style=color:#75715e>#mac_key XXXXXXXXXXXX                   #ZeroSSL网站上api的KEY</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e>#}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    auto_https disable_redirects                   <span style=color:#75715e>#关闭caddy默认的自动https，因为它是基于标准端口的</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    http_port <span style=color:#ae81ff>8080</span>   <span style=color:#75715e># 修改默认 HTTP 端口为 8080 ，用不到，无需在主路由做端口映射</span>
-</span></span><span style=display:flex><span>    https_port <span style=color:#ae81ff>55443</span> <span style=color:#75715e># 修改默认 HTTPS 端口为 55443，需在主路由做好端口映射，建议外部端口和caddy使用同一端口，不同端口自行测试</span>
-</span></span><span style=display:flex><span>    servers <span style=color:#f92672>{</span>               <span style=color:#75715e>#这一串代码块就是实现非标端口的http重定向https</span>
-</span></span><span style=display:flex><span>        listener_wrappers <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>            http_redirect
-</span></span><span style=display:flex><span>            tls
-</span></span><span style=display:flex><span>        <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>XXXXXX.com:55443 <span style=color:#f92672>{</span>        <span style=color:#75715e>#增加一个主域名，不代理任何网站，只是为了申请一张证书，可以导出给其他设备使用</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 泛域名配置</span>
-</span></span><span style=display:flex><span>*.xxxxxxxxx.com:55443 <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 根据子域名配置反向代理</span>
-</span></span><span style=display:flex><span>    @pve host pve.xxxxxxxxx.com
-</span></span><span style=display:flex><span>    handle @pve <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        reverse_proxy 10.10.10.2:8006 <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>            transport http <span style=color:#f92672>{</span>                       <span style=color:#75715e>#跳过本地的证书验证，由caddy加密，适用于pve等局域网内https://10.10.10.2:5667等https连接</span>
-</span></span><span style=display:flex><span>                tls_insecure_skip_verify
-</span></span><span style=display:flex><span>            <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @ikuai host i.xxxxxxxxx.com                   <span style=color:#75715e>#简单反代</span>
-</span></span><span style=display:flex><span>    handle @ikuai <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        reverse_proxy 10.10.10.31
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @ikuai host i.xxxxxxxxx.com                   <span style=color:#75715e># 添加头部，传输客户端IP等信息</span>
-</span></span><span style=display:flex><span>    handle @ikuai <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        reverse_proxy 10.10.10.32 <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        header_up Host <span style=color:#f92672>{</span>upstream_hostport<span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>        header_up X-Real-IP <span style=color:#f92672>{</span>remote_host<span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>        header_up X-Forwarded-For <span style=color:#f92672>{</span>remote_host<span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>        header_up X-Forwarded-Proto <span style=color:#f92672>{</span>scheme<span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    @password host password.xxxxxxxxx.com                   <span style=color:#75715e>#带密码认证的反代，用户名为rainbow，密码为123456，其中写入配置的密码需用caddy hash-password --plaintext 123456命令生成，若用docker版本无法运行命令，可google搜索“Bcrypt密码生成工具”生成密钥</span>
-</span></span><span style=display:flex><span>    handle @password <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        basicauth / <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>           <span style=color:#75715e># 以下设置代表用户名为rainbow, 密码为123456</span>
-</span></span><span style=display:flex><span>	    rainbow $2a$14$ZTwlgDTKk38.53Z0QhkuJ.iwmOwnK1ggYs2O8M6eT0ivTwTeVXxVS
-</span></span><span style=display:flex><span>	<span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>        reverse_proxy 10.10.10.33
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>@www host chatgpt.你的域名.com   <span style=color:#75715e>#静态网页</span>
-</span></span><span style=display:flex><span>handle @www chatgpt.你的域名.com <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>root * /usr/share/caddy
-</span></span><span style=display:flex><span>file_server
-</span></span><span style=display:flex><span>encode gzip
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    handle <span style=color:#f92672>{</span>                            <span style=color:#75715e>#兜底规则，匹配不上以上任何网址，则返回404</span>
-</span></span><span style=display:flex><span>        respond <span style=color:#ae81ff>404</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"{\n    # 配置 cloudflare 的 DNS-01 挑战\n    email [email protected]  # 替换为您的邮箱\n    acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx  # 替换为 cloudflare 的 token\n    # 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功）\n    #acme_ca https://acme.zerossl.com/v2/DV90       #切换证书发行商为ZeroSSL\n    #acme_eab {\n        #key_id  XXXXXXXXXXXXXXXXXX             #ZeroSSL网站上api的ID\n        #mac_key XXXXXXXXXXXX                   #ZeroSSL网站上api的KEY\n    #}\n\n    auto_https disable_redirects                   #关闭caddy默认的自动https，因为它是基于标准端口的\n\n    http_port 8080   # 修改默认 HTTP 端口为 8080 ，用不到，无需在主路由做端口映射\n    https_port 55443 # 修改默认 HTTPS 端口为 55443，需在主路由做好端口映射，建议外部端口和caddy使用同一端口，不同端口自行测试\n    servers {               #这一串代码块就是实现非标端口的http重定向https\n        listener_wrappers {\n            http_redirect\n            tls\n        }\n    }\n}\n\nXXXXXX.com:55443 {        #增加一个主域名，不代理任何网站，只是为了申请一张证书，可以导出给其他设备使用\n}\n\n# 泛域名配置\n*.xxxxxxxxx.com:55443 {\n\n    # 根据子域名配置反向代理\n    @pve host pve.xxxxxxxxx.com\n    handle @pve {\n        reverse_proxy 10.10.10.2:8006 {\n            transport http {                       #跳过本地的证书验证，由caddy加密，适用于pve等局域网内https://10.10.10.2:5667等https连接\n                tls_insecure_skip_verify\n            }\n        }\n    }\n\n    @ikuai host i.xxxxxxxxx.com                   #简单反代\n    handle @ikuai {\n        reverse_proxy 10.10.10.31\n    }\n\n    @ikuai host i.xxxxxxxxx.com                   # 添加头部，传输客户端IP等信息\n    handle @ikuai {\n        reverse_proxy 10.10.10.32 {\n        header_up Host {upstream_hostport}\n        header_up X-Real-IP {remote_host}\n        header_up X-Forwarded-For {remote_host}\n        header_up X-Forwarded-Proto {scheme}\n    }\n    }\n\n    @password host password.xxxxxxxxx.com                   #带密码认证的反代，用户名为rainbow，密码为123456，其中写入配置的密码需用caddy hash-password --plaintext 123456命令生成，若用docker版本无法运行命令，可google搜索“Bcrypt密码生成工具”生成密钥\n    handle @password {\n        basicauth / {\n           # 以下设置代表用户名为rainbow, 密码为123456\n\t    rainbow $2a$14$ZTwlgDTKk38.53Z0QhkuJ.iwmOwnK1ggYs2O8M6eT0ivTwTeVXxVS\n\t}\n        reverse_proxy 10.10.10.33\n    }\n\n@www host chatgpt.你的域名.com   #静态网页\nhandle @www chatgpt.你的域名.com {\nroot * /usr/share/caddy\nfile_server\nencode gzip\n}\n\n    handle {                            #兜底规则，匹配不上以上任何网址，则返回404\n        respond 404\n    }\n}"</script></div><h3 id=启动caddy>启动caddy</h3><h4 id=进入compose所在文件夹使用docker-compose-up--d命令启动caddy>进入compose所在文件夹，使用“docker compose up -d”命令启动caddy</h4><h2 id=-家庭宽带中通过官方二进制文件部署>② 家庭宽带中通过官方二进制文件部署</h2><h3 id=自行安装好lxc推荐ubutun2204建议换好国内源>自行安装好lxc，推荐ubutun22.04，建议换好国内源</h3><h3 id=安装带模块的caddy>安装带模块的caddy</h3><h4 id=由于家庭带宽中443端口被封原版caddy无法申请证书需使用附带cloudflare模块的caddy通过配置dns-token的方式申请证书详细信息可参考官方文档>由于家庭带宽中443端口被封，原版caddy无法申请证书，需使用附带cloudflare模块的caddy，通过配置dns token的方式申请证书，详细信息可参考官方文档</h4><p><a href=https://caddy2.dengxiaolong.com/docs/install>https://caddy2.dengxiaolong.com/docs/install</a></p><h4 id=前往以下地址下载官方编译好带dns模块的二进制文件以cloudflare为例若使用alidnsdnspod均有对应模块自行勾选即可>前往以下地址下载官方编译好带DNS模块的二进制文件（以cloudflare为例，若使用alidns、dnspod均有对应模块，自行勾选即可）</h4><p>&lt;https://caddyserver.com/download?</p><h4 id=选择对应系统勾选cloudflare模块点击下载>选择对应系统，勾选cloudflare模块，点击下载</h4><p><img src=assets/caddy-reverse-proxy-01.png alt></p><h4 id=参考官方文档使用以下命令安装原版caddy>参考官方文档，使用以下命令安装原版caddy</h4><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
-</span></span><span style=display:flex><span>curl -1sLf <span style=color:#e6db74>&#39;https://dl.cloudsmith.io/public/caddy/stable/gpg.key&#39;</span> | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-</span></span><span style=display:flex><span>curl -1sLf <span style=color:#e6db74>&#39;https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt&#39;</span> | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-</span></span><span style=display:flex><span>sudo apt update
-</span></span><span style=display:flex><span>sudo apt install caddy</span></span></code></pre></div><script class=code-source type=application/json>"sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list\nsudo apt update\nsudo apt install caddy"</script></div><h4 id=先将下载的caddy二进制文件上传到-root-目录重命名为caddy再使用下面命令覆盖原版文件>先将下载的caddy二进制文件上传到 /root 目录，重命名为“caddy”，再使用下面命令覆盖原版文件</h4><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl stop caddy
-</span></span><span style=display:flex><span>mv /root/caddy /usr/bin/caddy
-</span></span><span style=display:flex><span>chmod +x /usr/bin/caddy</span></span></code></pre></div><script class=code-source type=application/json>"systemctl stop caddy\nmv /root/caddy /usr/bin/caddy\nchmod +x /usr/bin/caddy"</script></div><h3 id=修改配置文件>修改配置文件</h3><p>配置文件位于 /etc/caddy/Caddyfile</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vim /etc/caddy/Caddyfile</span></span></code></pre></div><script class=code-source type=application/json>"vim /etc/caddy/Caddyfile"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-plaintext data-lang=plaintext><span style=display:flex><span>输入 dG 清空内容（注意G是大写）
-</span></span><span style=display:flex><span>粘贴修改好的配置文件
-</span></span><span style=display:flex><span>按esc
-</span></span><span style=display:flex><span>输入:wq 保存退出</span></span></code></pre></div><script class=code-source type=application/json>"输入 dG 清空内容（注意G是大写）\n粘贴修改好的配置文件\n按esc\n输入:wq 保存退出"</script></div><p>** 配置文件内容参考docker部分 **</p><h3 id=修改完配置后重启caddy每次修改配置后均需重启caddy>修改完配置后重启caddy（每次修改配置后均需重启caddy）</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart caddy</span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart caddy"</script></div><h4 id=查看caddy运行状态>查看caddy运行状态</h4><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl status caddy</span></span></code></pre></div><script class=code-source type=application/json>"systemctl status caddy"</script></div><h3 id=caddy证书存放目录可查看证书是否申请成功>caddy证书存放目录，可查看证书是否申请成功</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-plaintext data-lang=plaintext><span style=display:flex><span>&#34;/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/&#34;</span></span></code></pre></div><script class=code-source type=application/json>"\"/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/\""</script></div><h2 id=-vps中部署caddy>③ vps中部署caddy</h2><p>依然建议使用docker部署caddy，vps环境下（80、443端口可用）使用官方原版即可正常申请证书</p><h3 id=compose文件如下>compose文件如下</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>  caddy:
-</span></span><span style=display:flex><span>    image: caddy:latest
-</span></span><span style=display:flex><span>    container_name: caddy
-</span></span><span style=display:flex><span>    restart: unless-stopped
-</span></span><span style=display:flex><span>    networks:
-</span></span><span style=display:flex><span>      - caddy_docker_bridge
-</span></span><span style=display:flex><span>    ports:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;80:80&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;443:443&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;443:443/udp&#34;</span>
-</span></span><span style=display:flex><span>    volumes:
-</span></span><span style=display:flex><span>      - ./Caddyfile:/etc/caddy/Caddyfile  <span style=color:#75715e># Caddyfile位配置文件，通常使用绑定挂载方便编辑</span>
-</span></span><span style=display:flex><span>      - ./html:/var/www/html              <span style=color:#75715e># 静态网页绑定挂载</span>
-</span></span><span style=display:flex><span>      - ./data:/data                  <span style=color:#75715e># **使用命名卷**来存储Caddy的持久化数据（如证书、缓存）</span>
-</span></span><span style=display:flex><span>      - ./config:/config              <span style=color:#75715e># **使用命名卷**来存储Caddy的运行时配置</span>
-</span></span><span style=display:flex><span>volumes:
-</span></span><span style=display:flex><span>  caddy_data:
-</span></span><span style=display:flex><span>  caddy_config:
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>networks:
-</span></span><span style=display:flex><span>  caddy_docker_bridge:</span></span></code></pre></div><script class=code-source type=application/json>"services:\n  caddy:\n    image: caddy:latest\n    container_name: caddy\n    restart: unless-stopped\n    networks:\n      - caddy_docker_bridge\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n      - \"443:443/udp\"\n    volumes:\n      - ./Caddyfile:/etc/caddy/Caddyfile  # Caddyfile位配置文件，通常使用绑定挂载方便编辑\n      - ./html:/var/www/html              # 静态网页绑定挂载\n      - ./data:/data                  # **使用命名卷**来存储Caddy的持久化数据（如证书、缓存）\n      - ./config:/config              # **使用命名卷**来存储Caddy的运行时配置\nvolumes:\n  caddy_data:\n  caddy_config:\n\nnetworks:\n  caddy_docker_bridge:"</script></div><h3 id=配置文件caddyfile内容如下>配置文件Caddyfile内容如下</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pve.你的域名.com <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    reverse_proxy https://172.16.0.254:8006 <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        transport http <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>            tls_insecure_skip_verify
-</span></span><span style=display:flex><span>        <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>omv.你的域名.com <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    reverse_proxy http://172.16.0.8:80
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>静态网页.你的域名.com <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    root * /var/www/html
-</span></span><span style=display:flex><span>    file_server
-</span></span><span style=display:flex><span>    encode gzip
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"pve.你的域名.com {\n    reverse_proxy https://172.16.0.254:8006 {\n        transport http {\n            tls_insecure_skip_verify\n        }\n    }\n}\n\nomv.你的域名.com {\n    reverse_proxy http://172.16.0.8:80\n}\n\n静态网页.你的域名.com {\n    root * /var/www/html\n    file_server\n    encode gzip\n    }"</script></div></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>使用 caddy 搭建反向代理 | 电脑自习室</title>
+    <meta name="description" content="使用 caddy 搭建反向代理。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2025-08-14">2025年8月14日</time>
+        </div>
+        <h1>使用 caddy 搭建反向代理</h1>
+          <p>使用 caddy 搭建反向代理。</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/caddy-reverse-proxy/assets/caddy-reverse-proxy-cover.png" alt="">
+
+      <div class="article-content">
+        <h2 id="本文介绍家庭宽带及vps中部署caddy实现反向代理自动申请并续签证书http自动跳转https等功能可通过docker或裸跑二进制的方式部署">本文介绍家庭宽带及VPS中部署caddy，实现反向代理、自动申请并续签证书、http自动跳转https等功能，可通过docker或裸跑二进制的方式部署</h2>
+<h2 id="-家庭宽带中通过docker部署">① 家庭宽带中通过docker部署</h2>
+<h3 id="由于家庭宽带80-443端口被封无法通过dns验证的方式申请证书需配合cloudflare-dns-token申请证书故只推荐通过docker安装">由于家庭宽带80 443端口被封，无法通过DNS验证的方式申请证书，需配合cloudflare DNS token申请证书，故只推荐通过docker安装</h3>
+<h3 id="使用docker官方脚本一键安装docker已安装docker的跳过">使用docker官方脚本一键安装docker，已安装docker的跳过</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://get.docker.com | bash -s docker</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://get.docker.com | bash -s docker"</script>
+</div>
+<h4 id="可选用阿里镜像仓库加速安装">可选用阿里镜像仓库加速安装</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun"</script>
+</div>
+<h3 id="创建好容器所需文件夹及文件">创建好容器所需文件夹及文件</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/docker/caddy/data
+</span></span><span style="display:flex;"><span>touch /root/docker/caddy/data/caddyfile.txt
+</span></span><span style="display:flex;"><span>touch /root/docker/caddy/compose.yml</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/docker/caddy/data\ntouch /root/docker/caddy/data/caddyfile.txt\ntouch /root/docker/caddy/compose.yml"</script>
+</div>
+<h3 id="composeyml内容如下使用host模式会自动占用8080和55443端口55443为公网访问时所加端口可在配置文件中修改">compose.yml内容如下，使用host模式会自动占用8080和55443端口（55443为公网访问时所加端口，可在配置文件中修改）</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>version: <span style="color:#e6db74">&#39;3&#39;</span>
+</span></span><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>  caddy:
+</span></span><span style="display:flex;"><span>    pull_policy: always
+</span></span><span style="display:flex;"><span>    image: sliamb/caddy:latest
+</span></span><span style="display:flex;"><span>    container_name: caddy
+</span></span><span style="display:flex;"><span>    restart: unless-stopped
+</span></span><span style="display:flex;"><span>    environment:
+</span></span><span style="display:flex;"><span>      - TZ<span style="color:#f92672">=</span>Asia/Shanghai
+</span></span><span style="display:flex;"><span>      - DNS<span style="color:#f92672">=</span>223.5.5.5,8.8.8.8
+</span></span><span style="display:flex;"><span>    volumes:
+</span></span><span style="display:flex;"><span>      - ./data:/data
+</span></span><span style="display:flex;"><span>      - ./cert:/root/.local/share/caddy/certificates   <span style="color:#75715e"># 证书路径</span>
+</span></span><span style="display:flex;"><span>    network_mode: <span style="color:#e6db74">&#34;host&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"version: '3'\nservices:\n  caddy:\n    pull_policy: always\n    image: sliamb/caddy:latest\n    container_name: caddy\n    restart: unless-stopped\n    environment:\n      - TZ=Asia/Shanghai\n      - DNS=223.5.5.5,8.8.8.8\n    volumes:\n      - ./data:/data\n      - ./cert:/root/.local/share/caddy/certificates   # 证书路径\n    network_mode: \"host\""</script>
+</div>
+<h3 id="修改caddyfiletxt配置文件">修改caddyfile.txt配置文件</h3>
+<h4 id="以下为配置示例根据情况自行调整">以下为配置示例，根据情况自行调整</h4>
+<ul>
+<li>格式参考如下，修改对应邮箱、dns_token、域名及服务地址</li>
+<li>将caddy监听的https端口修改为55443，相对应的公网端口（即之后访问域名时候加的端口）也是55443，主路由做好wan端口55443到caddy 55443的映射。该端口根据自己需求修改即可。</li>
+<li>配置模板内容依次为：反向代理pve等https连接、反向代理普通http连接、反向代理静态网页</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 配置 cloudflare 的 DNS-01 挑战</span>
+</span></span><span style="display:flex;"><span>    email <span style="color:#f92672">[</span>email protected<span style="color:#f92672">]</span>  <span style="color:#75715e"># 替换为您的邮箱</span>
+</span></span><span style="display:flex;"><span>    acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx  <span style="color:#75715e"># 替换为 cloudflare 的 token</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功）</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#acme_ca https://acme.zerossl.com/v2/DV90       #切换证书发行商为ZeroSSL</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#acme_eab {</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#key_id  XXXXXXXXXXXXXXXXXX             #ZeroSSL网站上api的ID</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#mac_key XXXXXXXXXXXX                   #ZeroSSL网站上api的KEY</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    auto_https disable_redirects                   <span style="color:#75715e">#关闭caddy默认的自动https，因为它是基于标准端口的</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    http_port <span style="color:#ae81ff">8080</span>   <span style="color:#75715e"># 修改默认 HTTP 端口为 8080 ，用不到，无需在主路由做端口映射</span>
+</span></span><span style="display:flex;"><span>    https_port <span style="color:#ae81ff">55443</span> <span style="color:#75715e"># 修改默认 HTTPS 端口为 55443，需在主路由做好端口映射，建议外部端口和caddy使用同一端口，不同端口自行测试</span>
+</span></span><span style="display:flex;"><span>    servers <span style="color:#f92672">{</span>               <span style="color:#75715e">#这一串代码块就是实现非标端口的http重定向https</span>
+</span></span><span style="display:flex;"><span>        listener_wrappers <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>            http_redirect
+</span></span><span style="display:flex;"><span>            tls
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>XXXXXX.com:55443 <span style="color:#f92672">{</span>        <span style="color:#75715e">#增加一个主域名，不代理任何网站，只是为了申请一张证书，可以导出给其他设备使用</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 泛域名配置</span>
+</span></span><span style="display:flex;"><span>*.xxxxxxxxx.com:55443 <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 根据子域名配置反向代理</span>
+</span></span><span style="display:flex;"><span>    @pve host pve.xxxxxxxxx.com
+</span></span><span style="display:flex;"><span>    handle @pve <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        reverse_proxy 10.10.10.2:8006 <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>            transport http <span style="color:#f92672">{</span>                       <span style="color:#75715e">#跳过本地的证书验证，由caddy加密，适用于pve等局域网内https://10.10.10.2:5667等https连接</span>
+</span></span><span style="display:flex;"><span>                tls_insecure_skip_verify
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    @ikuai host i.xxxxxxxxx.com                   <span style="color:#75715e">#简单反代</span>
+</span></span><span style="display:flex;"><span>    handle @ikuai <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        reverse_proxy 10.10.10.31
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    @ikuai host i.xxxxxxxxx.com                   <span style="color:#75715e"># 添加头部，传输客户端IP等信息</span>
+</span></span><span style="display:flex;"><span>    handle @ikuai <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        reverse_proxy 10.10.10.32 <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        header_up Host <span style="color:#f92672">{</span>upstream_hostport<span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        header_up X-Real-IP <span style="color:#f92672">{</span>remote_host<span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        header_up X-Forwarded-For <span style="color:#f92672">{</span>remote_host<span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        header_up X-Forwarded-Proto <span style="color:#f92672">{</span>scheme<span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    @password host password.xxxxxxxxx.com                   <span style="color:#75715e">#带密码认证的反代，用户名为rainbow，密码为123456，其中写入配置的密码需用caddy hash-password --plaintext 123456命令生成，若用docker版本无法运行命令，可google搜索“Bcrypt密码生成工具”生成密钥</span>
+</span></span><span style="display:flex;"><span>    handle @password <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        basicauth / <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>           <span style="color:#75715e"># 以下设置代表用户名为rainbow, 密码为123456</span>
+</span></span><span style="display:flex;"><span>	    rainbow $2a$14$ZTwlgDTKk38.53Z0QhkuJ.iwmOwnK1ggYs2O8M6eT0ivTwTeVXxVS
+</span></span><span style="display:flex;"><span>	<span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        reverse_proxy 10.10.10.33
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>@www host chatgpt.你的域名.com   <span style="color:#75715e">#静态网页</span>
+</span></span><span style="display:flex;"><span>handle @www chatgpt.你的域名.com <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>root * /usr/share/caddy
+</span></span><span style="display:flex;"><span>file_server
+</span></span><span style="display:flex;"><span>encode gzip
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    handle <span style="color:#f92672">{</span>                            <span style="color:#75715e">#兜底规则，匹配不上以上任何网址，则返回404</span>
+</span></span><span style="display:flex;"><span>        respond <span style="color:#ae81ff">404</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"{\n    # 配置 cloudflare 的 DNS-01 挑战\n    email [email protected]  # 替换为您的邮箱\n    acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx  # 替换为 cloudflare 的 token\n    # 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功）\n    #acme_ca https://acme.zerossl.com/v2/DV90       #切换证书发行商为ZeroSSL\n    #acme_eab {\n        #key_id  XXXXXXXXXXXXXXXXXX             #ZeroSSL网站上api的ID\n        #mac_key XXXXXXXXXXXX                   #ZeroSSL网站上api的KEY\n    #}\n\n    auto_https disable_redirects                   #关闭caddy默认的自动https，因为它是基于标准端口的\n\n    http_port 8080   # 修改默认 HTTP 端口为 8080 ，用不到，无需在主路由做端口映射\n    https_port 55443 # 修改默认 HTTPS 端口为 55443，需在主路由做好端口映射，建议外部端口和caddy使用同一端口，不同端口自行测试\n    servers {               #这一串代码块就是实现非标端口的http重定向https\n        listener_wrappers {\n            http_redirect\n            tls\n        }\n    }\n}\n\nXXXXXX.com:55443 {        #增加一个主域名，不代理任何网站，只是为了申请一张证书，可以导出给其他设备使用\n}\n\n# 泛域名配置\n*.xxxxxxxxx.com:55443 {\n\n    # 根据子域名配置反向代理\n    @pve host pve.xxxxxxxxx.com\n    handle @pve {\n        reverse_proxy 10.10.10.2:8006 {\n            transport http {                       #跳过本地的证书验证，由caddy加密，适用于pve等局域网内https://10.10.10.2:5667等https连接\n                tls_insecure_skip_verify\n            }\n        }\n    }\n\n    @ikuai host i.xxxxxxxxx.com                   #简单反代\n    handle @ikuai {\n        reverse_proxy 10.10.10.31\n    }\n\n    @ikuai host i.xxxxxxxxx.com                   # 添加头部，传输客户端IP等信息\n    handle @ikuai {\n        reverse_proxy 10.10.10.32 {\n        header_up Host {upstream_hostport}\n        header_up X-Real-IP {remote_host}\n        header_up X-Forwarded-For {remote_host}\n        header_up X-Forwarded-Proto {scheme}\n    }\n    }\n\n    @password host password.xxxxxxxxx.com                   #带密码认证的反代，用户名为rainbow，密码为123456，其中写入配置的密码需用caddy hash-password --plaintext 123456命令生成，若用docker版本无法运行命令，可google搜索“Bcrypt密码生成工具”生成密钥\n    handle @password {\n        basicauth / {\n           # 以下设置代表用户名为rainbow, 密码为123456\n\t    rainbow $2a$14$ZTwlgDTKk38.53Z0QhkuJ.iwmOwnK1ggYs2O8M6eT0ivTwTeVXxVS\n\t}\n        reverse_proxy 10.10.10.33\n    }\n\n@www host chatgpt.你的域名.com   #静态网页\nhandle @www chatgpt.你的域名.com {\nroot * /usr/share/caddy\nfile_server\nencode gzip\n}\n\n    handle {                            #兜底规则，匹配不上以上任何网址，则返回404\n        respond 404\n    }\n}"</script>
+</div>
+<h3 id="启动caddy">启动caddy</h3>
+<h4 id="进入compose所在文件夹使用docker-compose-up--d命令启动caddy">进入compose所在文件夹，使用“docker compose up -d”命令启动caddy</h4>
+<h2 id="-家庭宽带中通过官方二进制文件部署">② 家庭宽带中通过官方二进制文件部署</h2>
+<h3 id="自行安装好lxc推荐ubutun2204建议换好国内源">自行安装好lxc，推荐ubutun22.04，建议换好国内源</h3>
+<h3 id="安装带模块的caddy">安装带模块的caddy</h3>
+<h4 id="由于家庭带宽中443端口被封原版caddy无法申请证书需使用附带cloudflare模块的caddy通过配置dns-token的方式申请证书详细信息可参考官方文档">由于家庭带宽中443端口被封，原版caddy无法申请证书，需使用附带cloudflare模块的caddy，通过配置dns token的方式申请证书，详细信息可参考官方文档</h4>
+<p><a href="https://caddy2.dengxiaolong.com/docs/install">https://caddy2.dengxiaolong.com/docs/install</a></p>
+<h4 id="前往以下地址下载官方编译好带dns模块的二进制文件以cloudflare为例若使用alidnsdnspod均有对应模块自行勾选即可">前往以下地址下载官方编译好带DNS模块的二进制文件（以cloudflare为例，若使用alidns、dnspod均有对应模块，自行勾选即可）</h4>
+<p>&lt;https://caddyserver.com/download?</p>
+<h4 id="选择对应系统勾选cloudflare模块点击下载">选择对应系统，勾选cloudflare模块，点击下载</h4>
+<p><img src="assets/caddy-reverse-proxy-01.png" alt=""></p>
+<h4 id="参考官方文档使用以下命令安装原版caddy">参考官方文档，使用以下命令安装原版caddy</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+</span></span><span style="display:flex;"><span>curl -1sLf <span style="color:#e6db74">&#39;https://dl.cloudsmith.io/public/caddy/stable/gpg.key&#39;</span> | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+</span></span><span style="display:flex;"><span>curl -1sLf <span style="color:#e6db74">&#39;https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt&#39;</span> | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+</span></span><span style="display:flex;"><span>sudo apt update
+</span></span><span style="display:flex;"><span>sudo apt install caddy</span></span></code></pre></div><script class="code-source" type="application/json">"sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list\nsudo apt update\nsudo apt install caddy"</script>
+</div>
+<h4 id="先将下载的caddy二进制文件上传到-root-目录重命名为caddy再使用下面命令覆盖原版文件">先将下载的caddy二进制文件上传到 /root 目录，重命名为“caddy”，再使用下面命令覆盖原版文件</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl stop caddy
+</span></span><span style="display:flex;"><span>mv /root/caddy /usr/bin/caddy
+</span></span><span style="display:flex;"><span>chmod +x /usr/bin/caddy</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl stop caddy\nmv /root/caddy /usr/bin/caddy\nchmod +x /usr/bin/caddy"</script>
+</div>
+<h3 id="修改配置文件">修改配置文件</h3>
+<p>配置文件位于 /etc/caddy/Caddyfile</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vim /etc/caddy/Caddyfile</span></span></code></pre></div><script class="code-source" type="application/json">"vim /etc/caddy/Caddyfile"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>输入 dG 清空内容（注意G是大写）
+</span></span><span style="display:flex;"><span>粘贴修改好的配置文件
+</span></span><span style="display:flex;"><span>按esc
+</span></span><span style="display:flex;"><span>输入:wq 保存退出</span></span></code></pre></div><script class="code-source" type="application/json">"输入 dG 清空内容（注意G是大写）\n粘贴修改好的配置文件\n按esc\n输入:wq 保存退出"</script>
+</div>
+<p>** 配置文件内容参考docker部分 **</p>
+<h3 id="修改完配置后重启caddy每次修改配置后均需重启caddy">修改完配置后重启caddy（每次修改配置后均需重启caddy）</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl restart caddy</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl restart caddy"</script>
+</div>
+<h4 id="查看caddy运行状态">查看caddy运行状态</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl status caddy</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl status caddy"</script>
+</div>
+<h3 id="caddy证书存放目录可查看证书是否申请成功">caddy证书存放目录，可查看证书是否申请成功</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-plaintext" data-lang="plaintext"><span style="display:flex;"><span>&#34;/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/&#34;</span></span></code></pre></div><script class="code-source" type="application/json">"\"/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/\""</script>
+</div>
+<h2 id="-vps中部署caddy">③ vps中部署caddy</h2>
+<p>依然建议使用docker部署caddy，vps环境下（80、443端口可用）使用官方原版即可正常申请证书</p>
+<h3 id="compose文件如下">compose文件如下</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>  caddy:
+</span></span><span style="display:flex;"><span>    image: caddy:latest
+</span></span><span style="display:flex;"><span>    container_name: caddy
+</span></span><span style="display:flex;"><span>    restart: unless-stopped
+</span></span><span style="display:flex;"><span>    networks:
+</span></span><span style="display:flex;"><span>      - caddy_docker_bridge
+</span></span><span style="display:flex;"><span>    ports:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;80:80&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;443:443&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;443:443/udp&#34;</span>
+</span></span><span style="display:flex;"><span>    volumes:
+</span></span><span style="display:flex;"><span>      - ./Caddyfile:/etc/caddy/Caddyfile  <span style="color:#75715e"># Caddyfile位配置文件，通常使用绑定挂载方便编辑</span>
+</span></span><span style="display:flex;"><span>      - ./html:/var/www/html              <span style="color:#75715e"># 静态网页绑定挂载</span>
+</span></span><span style="display:flex;"><span>      - ./data:/data                  <span style="color:#75715e"># **使用命名卷**来存储Caddy的持久化数据（如证书、缓存）</span>
+</span></span><span style="display:flex;"><span>      - ./config:/config              <span style="color:#75715e"># **使用命名卷**来存储Caddy的运行时配置</span>
+</span></span><span style="display:flex;"><span>volumes:
+</span></span><span style="display:flex;"><span>  caddy_data:
+</span></span><span style="display:flex;"><span>  caddy_config:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>networks:
+</span></span><span style="display:flex;"><span>  caddy_docker_bridge:</span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  caddy:\n    image: caddy:latest\n    container_name: caddy\n    restart: unless-stopped\n    networks:\n      - caddy_docker_bridge\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n      - \"443:443/udp\"\n    volumes:\n      - ./Caddyfile:/etc/caddy/Caddyfile  # Caddyfile位配置文件，通常使用绑定挂载方便编辑\n      - ./html:/var/www/html              # 静态网页绑定挂载\n      - ./data:/data                  # **使用命名卷**来存储Caddy的持久化数据（如证书、缓存）\n      - ./config:/config              # **使用命名卷**来存储Caddy的运行时配置\nvolumes:\n  caddy_data:\n  caddy_config:\n\nnetworks:\n  caddy_docker_bridge:"</script>
+</div>
+<h3 id="配置文件caddyfile内容如下">配置文件Caddyfile内容如下</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pve.你的域名.com <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    reverse_proxy https://172.16.0.254:8006 <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        transport http <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>            tls_insecure_skip_verify
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>omv.你的域名.com <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    reverse_proxy http://172.16.0.8:80
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>静态网页.你的域名.com <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    root * /var/www/html
+</span></span><span style="display:flex;"><span>    file_server
+</span></span><span style="display:flex;"><span>    encode gzip
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"pve.你的域名.com {\n    reverse_proxy https://172.16.0.254:8006 {\n        transport http {\n            tls_insecure_skip_verify\n        }\n    }\n}\n\nomv.你的域名.com {\n    reverse_proxy http://172.16.0.8:80\n}\n\n静态网页.你的域名.com {\n    root * /var/www/html\n    file_server\n    encode gzip\n    }"</script>
+</div>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>10.20.20.8 Docker Compose 配置私有备份 | 电脑自习室</title>
+    <meta name="description" content="记录 10.20.20.8 Docker 主机上 Matrix / Synapse 整体项目相关的 Docker Compose 配置，作为私下恢复备份草稿。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-31">2026年5月31日</time>
+        </div>
+        <h1>10.20.20.8 Docker Compose 配置私有备份</h1>
+          <p>记录 10.20.20.8 Docker 主机上 Matrix / Synapse 整体项目相关的 Docker Compose 配置，作为私下恢复备份草稿。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/docker-compose-configs-10-20-20-8/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇是 10.20.20.8 Docker 主机上 Matrix / Synapse 整体项目相关 Compose 配置的私有备份草稿。采集时间为 <code>2026-05-31 13:30 CST</code>，主机登录后显示为 Alpine，主机名为 <code>localhost</code>。</p>
+<blockquote>
+<p>这篇文章包含服务编排和相邻 <code>.env</code> 文件内容，里面可能有密码、Token、域名、内网地址等敏感信息。保持 <code>draft = true</code>，只用于本地私下备份，不要发布到公开站点。</p>
+</blockquote>
+<h2 id="采集范围">采集范围</h2>
+<ul>
+<li>当前服务目录：<code>/root/data/docker_data/</code></li>
+<li>已排除：<code>/var/lib/docker/overlay2/</code> 镜像层里的示例 compose 文件</li>
+<li>已排除：与 Matrix / Synapse 整体项目恢复无关的其它 Docker 配置和归档配置</li>
+<li>收录文件：<code>7</code> 个 Matrix / Synapse 相关 compose 文件</li>
+</ul>
+<h2 id="当前运行容器">当前运行容器</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>NAMES                        IMAGE                                      STATUS                  PORTS
+</span></span><span style="display:flex;"><span>matrix-synapse               matrixdotorg/synapse:latest                Up 41 hours (healthy)   0.0.0.0:8008-&gt;8008/tcp, [::]:8008-&gt;8008/tcp, 127.0.0.1:8448-&gt;8448/tcp, 19090/tcp
+</span></span><span style="display:flex;"><span>nginx-proxy-manager          jc21/nginx-proxy-manager:latest            Up 8 days               0.0.0.0:81-&gt;81/tcp, [::]:81-&gt;81/tcp, 0.0.0.0:12332-&gt;80/tcp, [::]:12332-&gt;80/tcp, 0.0.0.0:12335-&gt;443/tcp, 0.0.0.0:12336-&gt;443/tcp, 0.0.0.0:12337-&gt;443/tcp, 0.0.0.0:12338-&gt;443/tcp, [::]:12335-&gt;443/tcp, [::]:12336-&gt;443/tcp, [::]:12337-&gt;443/tcp, [::]:12338-&gt;443/tcp
+</span></span><span style="display:flex;"><span>web-call                     vectorim/element-web:latest                Up 41 hours (healthy)   8080/tcp, 0.0.0.0:8181-&gt;80/tcp, [::]:8181-&gt;80/tcp
+</span></span><span style="display:flex;"><span>matrix-livekit-jwt-service   ghcr.io/element-hq/lk-jwt-service:latest   Up 4 days
+</span></span><span style="display:flex;"><span>coturn                       coturn/coturn:latest                       Up 4 days
+</span></span><span style="display:flex;"><span>ntfy                         binwiederhier/ntfy:latest                  Up 8 days
+</span></span><span style="display:flex;"><span>livekit-server-test          livekit/livekit-server:latest              Up 8 days</span></span></code></pre></div><script class="code-source" type="application/json">"NAMES                        IMAGE                                      STATUS                  PORTS\nmatrix-synapse               matrixdotorg/synapse:latest                Up 41 hours (healthy)   0.0.0.0:8008-\u003e8008/tcp, [::]:8008-\u003e8008/tcp, 127.0.0.1:8448-\u003e8448/tcp, 19090/tcp\nnginx-proxy-manager          jc21/nginx-proxy-manager:latest            Up 8 days               0.0.0.0:81-\u003e81/tcp, [::]:81-\u003e81/tcp, 0.0.0.0:12332-\u003e80/tcp, [::]:12332-\u003e80/tcp, 0.0.0.0:12335-\u003e443/tcp, 0.0.0.0:12336-\u003e443/tcp, 0.0.0.0:12337-\u003e443/tcp, 0.0.0.0:12338-\u003e443/tcp, [::]:12335-\u003e443/tcp, [::]:12336-\u003e443/tcp, [::]:12337-\u003e443/tcp, [::]:12338-\u003e443/tcp\nweb-call                     vectorim/element-web:latest                Up 41 hours (healthy)   8080/tcp, 0.0.0.0:8181-\u003e80/tcp, [::]:8181-\u003e80/tcp\nmatrix-livekit-jwt-service   ghcr.io/element-hq/lk-jwt-service:latest   Up 4 days\ncoturn                       coturn/coturn:latest                       Up 4 days\nntfy                         binwiederhier/ntfy:latest                  Up 8 days\nlivekit-server-test          livekit/livekit-server:latest              Up 8 days"</script>
+</div>
+<h2 id="文件清单">文件清单</h2>
+<ul>
+<li><code>/root/data/docker_data/coturn/docker-compose.yaml</code></li>
+<li><code>/root/data/docker_data/element-call/docker-compose.yaml</code></li>
+<li><code>/root/data/docker_data/matrix-livekit-jwt-service/docker-compose.yaml</code></li>
+<li><code>/root/data/docker_data/npm/docker-compose.yml</code></li>
+<li><code>/root/data/docker_data/ntfy/docker-compose.yaml</code></li>
+<li><code>/root/data/docker_data/synapse/docker-compose.yml</code></li>
+<li><code>/root/data/docker_data/web-call/docker-compose.yaml</code></li>
+</ul>
+<h2 id="当前-rootdatadocker_data-配置">当前 /root/data/docker_data 配置</h2>
+<h3 id="rootdatadocker_datacoturndocker-composeyaml">/root/data/docker_data/coturn/docker-compose.yaml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">coturn</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">coturn/coturn:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">coturn</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;-c&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;/etc/coturn/turnserver.conf&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;--log-file=stdout&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/:/etc/</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  coturn:\n    image: coturn/coturn:latest\n    container_name: coturn\n    restart: unless-stopped\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\"\n    network_mode: host\n    command:\n      - \"-c\"\n      - \"/etc/coturn/turnserver.conf\"\n      - \"--log-file=stdout\"\n    volumes:\n      - /root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf\n      - /root/data/docker_data/coturn/etc/:/etc/"</script>
+</div>
+<h3 id="rootdatadocker_dataelement-calldocker-composeyaml">/root/data/docker_data/element-call/docker-compose.yaml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">element-call</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/element-hq/element-call:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">element-call</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 删除了宿主机端口映射 &#34;-p 18081:8080&#34;，完全走容器内网 8080 端口</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.json:/app/config.json:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  element-call:\n    image: ghcr.io/element-hq/element-call:latest\n    container_name: element-call\n    restart: always\n    # 删除了宿主机端口映射 \"-p 18081:8080\"，完全走容器内网 8080 端口\n    volumes:\n      - ./config.json:/app/config.json:ro\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script>
+</div>
+<h3 id="rootdatadocker_datamatrix-livekit-jwt-servicedocker-composeyaml">/root/data/docker_data/matrix-livekit-jwt-service/docker-compose.yaml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix-livekit-jwt-service</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/element-hq/lk-jwt-service:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">matrix-livekit-jwt-service</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">LIVEKIT_JWT_BIND</span>: <span style="color:#e6db74">&#34;:8170&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">LIVEKIT_URL</span>: <span style="color:#e6db74">&#34;wss://livekit.116160.xyz:12337&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">LIVEKIT_KEY</span>: <span style="color:#e6db74">&#34;APIHJRhJXA7LVow&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">LIVEKIT_SECRET</span>: <span style="color:#e6db74">&#34;vDhRGNvjMqE2mylCkC1ghTXVfVcKFsZlLvbBcueZhAI&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">LIVEKIT_FULL_ACCESS_HOMESERVERS</span>: <span style="color:#e6db74">&#34;116160.xyz&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  matrix-livekit-jwt-service:\n    image: ghcr.io/element-hq/lk-jwt-service:latest\n    container_name: matrix-livekit-jwt-service\n    restart: unless-stopped\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\"\n    network_mode: host\n    environment:\n      LIVEKIT_JWT_BIND: \":8170\"\n      LIVEKIT_URL: \"wss://livekit.116160.xyz:12337\"\n      LIVEKIT_KEY: \"APIHJRhJXA7LVow\"\n      LIVEKIT_SECRET: \"vDhRGNvjMqE2mylCkC1ghTXVfVcKFsZlLvbBcueZhAI\"\n      LIVEKIT_FULL_ACCESS_HOMESERVERS: \"116160.xyz\""</script>
+</div>
+<h3 id="rootdatadocker_datanpmdocker-composeyml">/root/data/docker_data/npm/docker-compose.yml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#e6db74">&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">nginx-proxy-manager</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># --- HTTP 端口 ---</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12332:80&#39;</span>             <span style="color:#75715e"># IPv4 HTTP</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># --- 管理后台 ---</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;81:81&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># --- HTTPS 端口 (在 Docker 层面做非对称映射) ---</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12335 -&gt; 443 (Synapse 适用)</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12336 -&gt; 443 (JWT 适用)</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12337 -&gt; 443 (Livekit 适用)</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12338 -&gt; 443 (ntfy 适用)</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12338:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12338:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./letsencrypt:/etc/letsencrypt</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    container_name: nginx-proxy-manager\n    restart: unless-stopped\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\"\n    ports:\n      # --- HTTP 端口 ---\n      - '12332:80'             # IPv4 HTTP\n\n      # --- 管理后台 ---\n      - '81:81'\n\n\n      # --- HTTPS 端口 (在 Docker 层面做非对称映射) ---\n      # 12335 -\u003e 443 (Synapse 适用)\n      - '0.0.0.0:12335:443'\n      - '[::]:12335:443'\n\n      # 12336 -\u003e 443 (JWT 适用)\n      - '0.0.0.0:12336:443'\n      - '[::]:12336:443'\n\n      # 12337 -\u003e 443 (Livekit 适用)\n      - '0.0.0.0:12337:443'\n      - '[::]:12337:443'\n\n      # 12338 -\u003e 443 (ntfy 适用)\n      - '0.0.0.0:12338:443'\n      - '[::]:12338:443'\n\n      \n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script>
+</div>
+<h3 id="rootdatadocker_datantfydocker-composeyaml">/root/data/docker_data/ntfy/docker-compose.yaml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ntfy</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">binwiederhier/ntfy:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">ntfy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">serve</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">TZ=Asia/Shanghai</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/ntfy/data/cache:/var/cache/ntfy</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/ntfy/data/config:/etc/ntfy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  ntfy:\n    image: binwiederhier/ntfy:latest\n    container_name: ntfy\n    command:\n      - serve\n    environment:\n      - TZ=Asia/Shanghai\n    volumes:\n      - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy\n      - /root/data/docker_data/ntfy/data/config:/etc/ntfy\n    network_mode: host\n    restart: unless-stopped\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\""</script>
+</div>
+<h3 id="rootdatadocker_datasynapsedocker-composeyml">/root/data/docker_data/synapse/docker-compose.yml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">synapse</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">matrixdotorg/synapse:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">matrix-synapse</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/synapse/data/:/data/</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/synapse/html/:/usr/local/lib/python3.13/site-packages/synapse/static/</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 关键修改：将容器内的 8008 端口映射到宿主机的 8008 端口</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;8008:8008&#39;</span>  <span style="color:#75715e"># 客户端内网端口</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;127.0.0.1:8448:8448&#39;</span>  <span style="color:#75715e"># local-only Matrix federation for JWT OpenID</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;TZ=Asia/Shanghai&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">driver</span>: <span style="color:#ae81ff">bridge</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  synapse:\n    image: matrixdotorg/synapse:latest\n    container_name: matrix-synapse\n    volumes:\n      - /root/data/docker_data/synapse/data/:/data/\n      - /root/data/docker_data/synapse/html/:/usr/local/lib/python3.13/site-packages/synapse/static/\n    # 关键修改：将容器内的 8008 端口映射到宿主机的 8008 端口\n    ports:\n      - '8008:8008'  # 客户端内网端口\n      - '127.0.0.1:8448:8448'  # local-only Matrix federation for JWT OpenID\n    networks:\n      - matrix\n    restart: always\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\"\n    environment:\n      - \"TZ=Asia/Shanghai\"\n\nnetworks:\n  matrix:\n    name: matrix\n    driver: bridge"</script>
+</div>
+<h3 id="rootdatadocker_dataweb-calldocker-composeyaml">/root/data/docker_data/web-call/docker-compose.yaml</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">web-call</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">vectorim/element-web:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">web-call</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;8181:80&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.json:/app/config.json:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  web-call:\n    image: vectorim/element-web:latest\n    container_name: web-call\n    restart: unless-stopped\n    ports:\n      - \"8181:80\"\n    volumes:\n      - ./config.json:/app/config.json:ro\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\""</script>
+</div>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -1,6 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Tmux on 电脑自习室</title><link>https://purodn.tk/tags/tmux/</link><description>Recent content in Tmux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 14:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tmux/index.xml" rel="self" type="application/rss+xml"/><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
-下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
-写入配置文件 编辑 ~/.tmux.conf：
-复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
-写入下面这份配置：
-复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tmux on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/tmux/</link>
+    <description>Recent content in Tmux on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 18 May 2026 14:30:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/tmux/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
+      <link>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</link>
+      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/tmux-basic-config/</guid>
+      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
+    </item>
+    <item>
+      <title>FreeBSD 普通用户下安装 Hysteria2 服务端</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd-user-hysteria2-server/</link>
+      <pubDate>Mon, 09 Mar 2026 23:07:47 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd-user-hysteria2-server/</guid>
+      <description>这篇记录普通用户权限下部署 Hysteria2 服务端的方法。它不依赖 rc.d，而是用 tmux 保持后台运行，再通过用户自己的 crontab 做开机自启。&#xA;普通用户不能监听 1024 以下的特权端口，所以这里统一使用 UDP 8443。如果你有 root 权限并希望使用 UDP 443，建议看 root 版文章。&#xA;截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，新部署建议直接使用这一版。&#xA;1. 安装 tmux 启动脚本依赖 tmux，需要先安装：&#xA;复制pkg install tmux 如果没有 root 权限，需要让管理员提前安装。&#xA;2. 安装 Hysteria2 创建普通用户自己的程序和配置目录：&#xA;复制mkdir -p ~/.usr/local/bin mkdir -p ~/.usr/local/etc/hysteria 下载并安装 FreeBSD amd64 官方二进制：&#xA;复制HY2_VERSION=&amp;#39;app/v2.9.2&amp;#39; fetch -o /tmp/hysteria &amp;#34;https://github.com/apernet/hysteria/releases/download/${HY2_VERSION}/hysteria-freebsd-amd64&amp;#34; install -m 755 /tmp/hysteria ~/.usr/local/bin/hysteria rm -f /tmp/hysteria 确认可以运行：&#xA;复制~/.usr/local/bin/hysteria version 3. 生成自签证书 这里生成一套自签证书。示例使用 www.cloudflarestatus.com 作为伪装 SNI，它是一个正常 HTTPS 站点，适合用作示例里的伪装域名。</description>
+    </item>
+  </channel>
+</rss>

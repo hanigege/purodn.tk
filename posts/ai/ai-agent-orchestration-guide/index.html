@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI助手多轮分工协作完全指南 | 电脑自习室</title>
+    <meta name="description" content="别再一口气把整个项目丢给AI了——学会分轮迭代&#43;内循环审查，让AI像项目经理一样帮你干活">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-30">2026年6月30日</time>
+        </div>
+        <h1>AI助手多轮分工协作完全指南</h1>
+          <p>别再一口气把整个项目丢给AI了——学会分轮迭代&#43;内循环审查，让AI像项目经理一样帮你干活</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>你是不是也这样过？</p>
+<blockquote>
+<p>把一份写了三天三夜的需求文档发给AI，说&quot;帮我全部做完&quot;。
+等了一个小时，AI吐出一大坨代码，看着挺像那么回事。
+一跑——数据库表少了字段，前端页面没响应式，支付接口根本调不通。
+你想改一个小问题，AI说&quot;改这一行会影响另外五个文件&quot;。</p>
+</blockquote>
+<p>然后你陷入了无穷的返工循环。</p>
+<p>这不是你笨。这是<strong>用错了方法</strong>。</p>
+<p>这篇文章不讲虚的，直接给你一套经过验证的方法论——<strong>多轮分工协作法</strong>。哪怕你对编程一窍不通，照着做，也能让AI助手帮你把项目稳稳当当地做出来。</p>
+<hr>
+<h2 id="为什么一口气做完是最大的坑">为什么&quot;一口气做完&quot;是最大的坑？</h2>
+<p>很多人第一次用AI做项目，习惯把全部需求一次性扔过去。这就像：</p>
+<blockquote>
+<p>你把一整栋楼的图纸拍给施工队队长，说&quot;明天我来看房&quot;。
+队长一个人从头干到尾——打地基的时候想着装窗户，装窗户的时候想着刷漆。
+最后地基歪了，窗户关不上，漆也刷花了。</p>
+</blockquote>
+<p>AI也是一个人，它只有一个&quot;大脑&quot;（上下文窗口）。当你把几十页需求一次性塞给它：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>后果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>上下文爆炸</strong></td>
+<td>做到第5个模块时，已经忘了第1个模块的结构</td>
+</tr>
+<tr>
+<td><strong>自己审自己</strong></td>
+<td>AI默认自己写的没错，边界情况漏一堆</td>
+</tr>
+<tr>
+<td><strong>牵一发动全身</strong></td>
+<td>想改一个字段，AI要重读全部代码，改着改着把别的地方搞坏了</td>
+</tr>
+<tr>
+<td><strong>返工成本极高</strong></td>
+<td>做完了才发现方向不对，等于全部重来</td>
+</tr>
+</tbody>
+</table>
+<p>那正确姿势是什么？<strong>分轮迭代，每轮只做一件事，做完审查再下一轮。</strong></p>
+<hr>
+<h2 id="三种协作模式选最适合你的">三种协作模式，选最适合你的</h2>
+<h3 id="方案aai全包内循环-推荐">方案A：AI全包内循环（⭐⭐⭐⭐⭐ 推荐）</h3>
+<p><strong>一句话描述</strong>：AI一个人当项目经理+程序员+QA，每干一步自己审查自己，不通过就循环修，修到满意再下一步。</p>
+<p><strong>适合</strong>：大多数项目，不需要额外的工具链。</p>
+<p><strong>工作流程</strong>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>你 → 发第1轮任务
+  ↓
+AI拆解 → 派coding小工A → A写完
+  ↓
+AI审查A的代码 → 发现问题
+  ↓
+AI派fix小工B → B修完
+  ↓
+AI再审查 → 通过了 ✅
+  ↓
+汇报给你：&#34;第1轮完成，请确认&#34;
+  ↓
+你说&#34;通过&#34; → AI进第2轮</code></pre><script class="code-source" type="application/json">"你 → 发第1轮任务\n  ↓\nAI拆解 → 派coding小工A → A写完\n  ↓\nAI审查A的代码 → 发现问题\n  ↓\nAI派fix小工B → B修完\n  ↓\nAI再审查 → 通过了 ✅\n  ↓\n汇报给你：\"第1轮完成，请确认\"\n  ↓\n你说\"通过\" → AI进第2轮"</script>
+</div>
+<p><strong>优点</strong>：全自动化，你只需要发任务+确认结果，不用在中间传话。每轮交付的都是经过审查的成品。</p>
+<p><strong>缺点</strong>：需要AI平台本身支持&quot;派子任务&quot;能力（如 Hermes Agent 的 <code>delegate_task</code>）。</p>
+<h3 id="方案b跨profile文件协作">方案B：跨profile文件协作（⭐⭐⭐）</h3>
+<p><strong>一句话描述</strong>：让不同的AI机器人各管一摊，通过共享文件夹交换成果。</p>
+<p><strong>适合</strong>：不同机器人有不同配置（比如一个有自己的API key，一个有自己的工具链）。</p>
+<p><strong>工作流程</strong>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>AI-A（蜜）：&#34;我写好商品管理了，放 shared/ 目录&#34;
+  ↓
+你告诉 AI-B（佬）：&#34;去 shared/ 目录检查蜜写的代码&#34;
+  ↓
+AI-B审查 → 写报告放 shared/review/
+  ↓
+你告诉AI-A：&#34;有3个问题要改&#34;
+  ↓
+AI-A改完 → 放回 shared/</code></pre><script class="code-source" type="application/json">"AI-A（蜜）：\"我写好商品管理了，放 shared/ 目录\"\n  ↓\n你告诉 AI-B（佬）：\"去 shared/ 目录检查蜜写的代码\"\n  ↓\nAI-B审查 → 写报告放 shared/review/\n  ↓\n你告诉AI-A：\"有3个问题要改\"\n  ↓\nAI-A改完 → 放回 shared/"</script>
+</div>
+<p><strong>优点</strong>：可以发挥不同机器人的特长。
+<strong>缺点</strong>：需要你中间传话，不能全自动。比方案A慢。</p>
+<h3 id="方案c同一群聊协作">方案C：同一群聊协作（⭐⭐）</h3>
+<p><strong>一句话描述</strong>：两个AI机器人都在同一个群里，你@谁谁干活。</p>
+<p><strong>适合</strong>：临时需要不同机器人配合的场景。</p>
+<p><strong>优点</strong>：直观，看得见两个AI在聊。
+<strong>缺点</strong>：需要你一直盯着群，手动@、手动传话。效率最低。</p>
+<hr>
+<h2 id="推荐方案a详解ai全包内循环">推荐方案A详解：AI全包内循环</h2>
+<p>下面用<strong>一个真实项目案例</strong>，手把手教你怎么操作。</p>
+<h3 id="案例做一个烧鸡商城系统">案例：做一个烧鸡商城系统</h3>
+<p>假设你要做一个卖烧鸡、卤味的在线商城，包含：</p>
+<ul>
+<li>商品管理（分类、上下架、图片上传）</li>
+<li>用户下单购买</li>
+<li>配送员抢单/派单</li>
+<li>微信支付宝支付</li>
+<li>管理后台看板</li>
+</ul>
+<p>这是个大项目。按&quot;一口气做完&quot;的方式，结果一定是稀碎。按<strong>多轮分工协作法</strong>，我们拆成6轮：</p>
+<h3 id="第1轮搭骨架">第1轮：搭骨架</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第1轮：搭项目骨架。
+按需求文档第六章，建数据库建表SQL，配 docker-compose.yml（MySQL+后端+前端三个容器），配好数据卷挂载。
+先不写业务代码。做完汇报。</p>
+</blockquote>
+<p><strong>为什么这一轮单独做？</strong></p>
+<ul>
+<li>数据库表设计决定了整个项目的根基</li>
+<li>Docker环境决定了后续能不能跑起来</li>
+<li>这些出错了，后面全白做</li>
+</ul>
+<p><strong>交付物</strong>：</p>
+<ul>
+<li>✅ 建表SQL文件</li>
+<li>✅ docker-compose.yml</li>
+<li>✅ 项目目录结构</li>
+</ul>
+<h3 id="第2轮商品管理核心">第2轮：商品管理核心</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第2轮：做商品分类和商品管理。
+按需求文档第一章，实现分类CRUD、商品CRUD、一键上下架、软删除。
+前后端一起做，跑通测试再汇报。</p>
+</blockquote>
+<p><strong>交付物</strong>：</p>
+<ul>
+<li>✅ 商品分类后台管理页面</li>
+<li>✅ 商品添加/编辑表单（含图片上传）</li>
+<li>✅ 上下架开关</li>
+<li>✅ 软删除（不是真删）</li>
+<li>✅ 全部跑通</li>
+</ul>
+<h3 id="第3轮用户端前台">第3轮：用户端前台</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第3轮：做用户端前台。
+按需求第七章第1节，实现商品按分类浏览、购物车加减、下单流程。
+必须手机端适配（响应式）。做完让我看看效果。</p>
+</blockquote>
+<p><strong>交付物</strong>：</p>
+<ul>
+<li>✅ 商品展示页（按分类筛选）</li>
+<li>✅ 购物车（加/减/清空）</li>
+<li>✅ 下单页面</li>
+<li>✅ 手机端适配</li>
+</ul>
+<h3 id="第4轮配送员系统">第4轮：配送员系统</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第4轮：做配送员系统。
+按需求第七章第2节，实现配送员上下班切换、抢单/派单、确认送达、业绩统计。
+前后端都做，跑通汇报。</p>
+</blockquote>
+<h3 id="第5轮支付接口">第5轮：支付接口</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第5轮：接支付。
+按需求第五章，集成微信支付和支付宝双通道，后台可配置商户号（不硬编码）。
+用户取消订单自动原路退款。跑通汇报。</p>
+</blockquote>
+<h3 id="第6轮看板整合测试">第6轮：看板+整合测试</h3>
+<blockquote>
+<p><strong>你发给AI：</strong></p>
+<p>第6轮：做管理后台看板。
+按需求第七章第3节，实时销量金额统计、商品上下架状态、10秒轮询刷新。
+最后全量跑一遍完整流程——从添加商品到下单到配送完成。</p>
+</blockquote>
+<hr>
+<h2 id="改东西怎么说不用按轮次">改东西怎么说？不用按轮次</h2>
+<p>上面说的是&quot;从0建项目&quot;时的分轮法。但如果项目已经建好了，你想<strong>改样式、调布局</strong>，就不要用&quot;第N轮&quot;了，直接说：</p>
+<blockquote>
+<p>商品列表的卡片间距太大了，左右留白也宽。
+参考美团外卖的紧凑风格。改完给我截图。</p>
+</blockquote>
+<p>或者一次说几处：</p>
+<blockquote>
+<p>几个UI调整：</p>
+<ol>
+<li>购物车按钮从绿色改成烧鸡主题的橙红色 #FF6B35</li>
+<li>商品卡片圆角从12px改成8px</li>
+<li>手机端底部导航栏图标放大到24px
+改完一个发我一个截图。</li>
+</ol>
+</blockquote>
+<p><strong>核心原则</strong>：</p>
+<ul>
+<li>盖楼时 → 分轮（第1层→第2层→第3层&hellip;）</li>
+<li>装修时 → 直接说（这面墙刷白，那个灯换掉）</li>
+</ul>
+<p>两种模式可以随时切换。</p>
+<hr>
+<h2 id="ai内部发生了什么不用懂技术也能看">AI内部发生了什么？（不用懂技术也能看）</h2>
+<p>当你对AI说&quot;第2轮：做商品管理&quot;时，AI（如果支持内循环模式）内部其实是这样的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>第2轮开始
+  │
+  ├─ ① 拆解任务
+  │   把&#34;商品管理&#34;拆成：
+  │   - 建商品表Service
+  │   - 写CRUD API接口
+  │   - 写前后端联调
+  │   - 写测试
+  │
+  ├─ ② 派coding小工
+  │   小工A去写商品Service + 测试
+  │   A跑完测试，返回结果
+  │
+  ├─ ③ 规格审查
+  │   审查员B看：&#34;需求说要软删除，A实现了吗？
+  │   分类ID外键建了吗？图片URL字段有了吗？&#34;
+  │   通过了 ✅
+  │
+  ├─ ④ 质量审查
+  │   审查员C看：&#34;代码写得规不规范？边界情况测了吗？
+  │   空分类的时候会不会崩溃？库存为0能下单吗？&#34;
+  │   发现问题：库存为0还能加购物车 ❌
+  │
+  ├─ ⑤ 派fix小工
+  │   小工D去修：&#34;库存≤0时禁用加购按钮&#34;
+  │   D修完、跑测试
+  │
+  ├─ ⑥ 再审查
+  │   审查员C再看：库存为0不能加购了 ✅ 通过
+  │
+  └─ ⑦ 汇报给你
+       &#34;第2轮完成。已实现商品CRUD、上下架、软删除。
+       修复了库存为0仍可加购的bug。测试17/17通过。&#34;</code></pre><script class="code-source" type="application/json">"第2轮开始\n  │\n  ├─ ① 拆解任务\n  │   把\"商品管理\"拆成：\n  │   - 建商品表Service\n  │   - 写CRUD API接口\n  │   - 写前后端联调\n  │   - 写测试\n  │\n  ├─ ② 派coding小工\n  │   小工A去写商品Service + 测试\n  │   A跑完测试，返回结果\n  │\n  ├─ ③ 规格审查\n  │   审查员B看：\"需求说要软删除，A实现了吗？\n  │   分类ID外键建了吗？图片URL字段有了吗？\"\n  │   通过了 ✅\n  │\n  ├─ ④ 质量审查\n  │   审查员C看：\"代码写得规不规范？边界情况测了吗？\n  │   空分类的时候会不会崩溃？库存为0能下单吗？\"\n  │   发现问题：库存为0还能加购物车 ❌\n  │\n  ├─ ⑤ 派fix小工\n  │   小工D去修：\"库存≤0时禁用加购按钮\"\n  │   D修完、跑测试\n  │\n  ├─ ⑥ 再审查\n  │   审查员C再看：库存为0不能加购了 ✅ 通过\n  │\n  └─ ⑦ 汇报给你\n       \"第2轮完成。已实现商品CRUD、上下架、软删除。\n       修复了库存为0仍可加购的bug。测试17/17通过。\""</script>
+</div>
+<p><strong>注意</strong>：这些&quot;小工&quot;&ldquo;审查员&quot;不是真人，也不是不同的机器人。它们是AI临时生出来的子任务，干完就消失，不影响后面的工作。好处是每个任务都是从零开始的，脑子干净，不串味。</p>
+<hr>
+<h2 id="小白避坑清单建议收藏">小白避坑清单（建议收藏）</h2>
+<h3 id="-不要做的事">❌ 不要做的事</h3>
+<ol>
+<li>
+<p><strong>不要把整个需求文档一次扔给AI让它全做完</strong></p>
+<ul>
+<li>正确：分6-8轮，每轮只做一个模块</li>
+</ul>
+</li>
+<li>
+<p><strong>不要跳过审查步骤</strong></p>
+<ul>
+<li>正确：让AI每轮做完先自己检查一遍再汇报</li>
+</ul>
+</li>
+<li>
+<p><strong>不要在AI做第3轮时临时要求改第1轮的东西</strong></p>
+<ul>
+<li>正确：等这一轮做完，下轮再改。或者先暂停当前轮</li>
+</ul>
+</li>
+<li>
+<p><strong>不要说&quot;随便&quot;&ldquo;你看着办&rdquo;</strong></p>
+<ul>
+<li>正确：给明确边界，比如&quot;参考美团外卖的风格&rdquo;</li>
+</ul>
+</li>
+</ol>
+<h3 id="-一定要做的事">✅ 一定要做的事</h3>
+<ol>
+<li>
+<p><strong>每轮开始时，明确范围</strong></p>
+<ul>
+<li>&ldquo;第2轮只做商品管理，不做订单，不做支付&rdquo;</li>
+</ul>
+</li>
+<li>
+<p><strong>每轮结束后，明确说过才能下一轮</strong></p>
+<ul>
+<li>&ldquo;通过了，进第3轮&rdquo; 或 &ldquo;商品列表缺个搜索框，补上再进下一轮&rdquo;</li>
+</ul>
+</li>
+<li>
+<p><strong>改东西时，一次说清楚几处</strong></p>
+<ul>
+<li>别改一处说一处，效率低。攒3-5处一起说</li>
+</ul>
+</li>
+<li>
+<p><strong>如果AI做偏了，及时喊停</strong></p>
+<ul>
+<li>&ldquo;停，这个做偏了。我的意思是&hellip; 重新来&rdquo;</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="这些话术可以直接复制用">这些话术可以直接复制用</h2>
+<h3 id="开局定调第一次跟新ai合作">开局定调（第一次跟新AI合作）</h3>
+<blockquote>
+<p>下面这份需求是项目总纲，你先读完消化。
+不要一次全做。我们按轮次来，我说一轮你做一轮。
+每轮做完先自己审查一遍再汇报，我说&quot;过&quot;才进下一轮。
+拿不准的问，别猜。</p>
+<p>&mdash;&ndash;（粘贴需求文档）&mdash;&ndash;</p>
+<p>明白回复。</p>
+</blockquote>
+<h3 id="发每一轮任务">发每一轮任务</h3>
+<blockquote>
+<p>第N轮：做XX模块。
+范围：需求文档第X章第X节。
+要求：前后端做完，自己能跑通，测试通过，做完汇报。
+不要多做，不要少做。</p>
+</blockquote>
+<h3 id="确认通过">确认通过</h3>
+<blockquote>
+<p>过了，进第N+1轮。</p>
+</blockquote>
+<h3 id="要求重做">要求重做</h3>
+<blockquote>
+<p>这轮不行。具体问题：1&hellip; 2&hellip; 3&hellip;
+修完再审，过了再进下一轮。</p>
+</blockquote>
+<h3 id="改东西已有成品后">改东西（已有成品后）</h3>
+<blockquote>
+<p>几个调整：</p>
+<ol>
+<li>&hellip;</li>
+<li>&hellip;</li>
+<li>&hellip;
+改完发我截图/效果。</li>
+</ol>
+</blockquote>
+<hr>
+<h2 id="多机器人实战telegram-工作群搭建指南">多机器人实战：Telegram 工作群搭建指南</h2>
+<p>上面说的都是&quot;一个人搞定一切&quot;的模式。但如果你手里有多个 AI 机器人（比如蜜负责日常、佬负责写代码、烧鸡负责查订单），想把它们拉到一起配合，怎么办？</p>
+<h3 id="方案一建一个-telegram-工作群推荐起步">方案一：建一个 Telegram 工作群（推荐起步）</h3>
+<p>空降到 <a href="https://t.me/botfather">@BotFather</a>，建一个新的 Telegram 群，把蜜、佬、烧鸡等所有 bot 都拉进去。这是最直观的协作方式。</p>
+<p><strong>配置步骤：</strong></p>
+<p><strong>① 关掉每个 bot 的 Privacy Mode（最关键一步）</strong>
+默认情况下 Telegram bot 看不到群消息。必须手动关掉：</p>
+<ol>
+<li>去 <a href="https://t.me/botfather">@BotFather</a></li>
+<li>输入 <code>/mybots</code></li>
+<li>点选你的 bot</li>
+<li>点 <code>Bot Settings</code> → <code>Group Privacy</code> → 点 <code>Disable</code></li>
+</ol>
+<p><strong>每个 bot 都要关一次。</strong> 不关的话，bot 在群里就是个&quot;哑巴&quot;——你@它它也收不到消息。</p>
+<p><strong>② 把 bot 拉进群</strong>
+在群里添加成员，选你的 bot 就行。</p>
+<p><strong>③ 配置 Hermes 的 Telegram 设置</strong>
+在各 profile 的 <code>config.yaml</code> 中，只需确保 <code>allowed_chats</code> 为空（表示全部放行），bot 就能在群里工作了：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">telegram</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">reactions</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">allowed_chats</span>: <span style="color:#e6db74">&#39;&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"telegram:\n  reactions: false\n  allowed_chats: ''"</script>
+</div>
+<p><strong>④ 测试</strong>
+在群里@bot 说句话，比如 <code>@蜜 hi~</code>，它应该会回复。</p>
+<p><strong>协作方式：</strong>
+其他 bot 加入同一个群后，同样完成步骤①和④，就可以在群里@它们干活了：</p>
+<ul>
+<li><code>@蜜 帮佬审一下刚写的代码</code></li>
+<li><code>@佬 把测试跑一下</code></li>
+<li><code>@烧鸡 查查今天订单数</code></li>
+</ul>
+<p><strong>优点：</strong></p>
+<ul>
+<li>所有 bot 的工作进度透明——你能看到它们互相的对话</li>
+<li>每个 bot 只听自己的 @mention，不会抢答</li>
+<li>不需要复杂的后台配置</li>
+<li>可以随时加新 bot 进来</li>
+</ul>
+<p><strong>各 profile 的 Gateway systemd 服务名：</strong></p>
+<table>
+<thead>
+<tr>
+<th>profile（角色）</th>
+<th>服务名</th>
+<th>bot 昵称</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>default（蜜）</td>
+<td><code>hermes-gateway.service</code></td>
+<td>蜜</td>
+</tr>
+<tr>
+<td>code（佬）</td>
+<td><code>hermes-gateway-code.service</code></td>
+<td>佬</td>
+</tr>
+<tr>
+<td>shaoji（烧鸡）</td>
+<td><code>hermes-shaoji.service</code></td>
+<td>烧鸡</td>
+</tr>
+</tbody>
+</table>
+<p>重启 gateway 的命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user restart hermes-gateway-&lt;profile&gt;.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user restart hermes-gateway-\u003cprofile\u003e.service"</script>
+</div>
+<p><strong>⚠️ 注意：</strong> 不要从 Hermes 会话内部（比如在对话中）执行 <code>hermes gateway restart</code>——它会被阻止以防止重启循环。始终用 systemctl 或在 shell 中操作。</p>
+<table>
+<thead>
+<tr>
+<th>旧方法</th>
+<th>新方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一次扔全部需求</td>
+<td>分6-8轮逐轮进行</td>
+</tr>
+<tr>
+<td>AI自己写自己审</td>
+<td>AI写+独立审查员审</td>
+</tr>
+<tr>
+<td>做完才发现问题</td>
+<td>每轮审查拦截问题</td>
+</tr>
+<tr>
+<td>改一处影响全局</td>
+<td>每轮独立，互不干扰</td>
+</tr>
+<tr>
+<td>你只能等结果</td>
+<td>你每轮都能看、能改、能打回</td>
+</tr>
+</tbody>
+</table>
+<p><strong>核心就一句话</strong>：</p>
+<blockquote>
+<p>让AI当你的项目经理，别让它当你的替身。</p>
+</blockquote>
+<p>你把项目拆成轮次发过去，它自己派小工、自己审查、自己循环修到满意——你只需要在每一轮结束时点个头或摇个头。</p>
+<p>下次手里有项目，试试这个方法。你会发现AI突然变得靠谱多了。</p>
+<hr>
+<p><em>这篇文章基于 Hermes Agent 的 delegate_task 内循环模式编写。其他AI平台如果支持子任务调度，也可以参考同样的思路。</em></p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

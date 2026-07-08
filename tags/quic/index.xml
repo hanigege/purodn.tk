@@ -1,6 +1,40 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>QUIC on 电脑自习室</title><link>https://purodn.tk/tags/quic/</link><description>Recent content in QUIC on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/quic/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：
-在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：
-LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。
-1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。
-先列出容器，确认 sing-box 所在的 LXC ID：
-复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>QUIC on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/quic/</link>
+    <description>Recent content in QUIC on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/quic/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title>
+      <link>http://0.0.0.0:1313/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link>
+      <pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid>
+      <description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&#xA;在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：&#xA;LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。&#xA;1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。&#xA;先列出容器，确认 sing-box 所在的 LXC ID：&#xA;复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description>
+    </item>
+    <item>
+      <title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
+      <link>http://0.0.0.0:1313/posts/linux/alpine-hysteria2-sing-box-production/</link>
+      <pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/alpine-hysteria2-sing-box-production/</guid>
+      <description>这篇是 Alpine 版的保姆教程。目标很简单：&#xA;服务端只跑 Hysteria2，监听 443/udp 证书、自启动、日志、内核参数一次配好 客户端只补一个 outbound，不改现有 TUN 结构 节点域名和节点 IP 永远走直连，避免回环 本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。&#xA;先说结论 Alpine 很适合这类节点：&#xA;系统轻 OpenRC 简单 重装干净 资源占用小 Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：&#xA;443/udp 是否真放通 域名是否正确解析到服务器公网 IP 客户端的带宽参数是否和实际家宽大致匹配 1. 检查新系统 先确认系统和基础状态：&#xA;复制cat /etc/os-release uname -a cat /etc/alpine-release ps -ef | grep -i &amp;#39;[h]ysteria&amp;#39; || true ss -lntup 2&amp;gt;/dev/null | grep -E &amp;#39;:443|hysteria|hy2&amp;#39; || true apk --version 干净的新机一般不会有 Hysteria2 进程，也不会有 443/udp 监听。&#xA;再看一下防火墙和解析：&#xA;复制getent hosts proxy.</description>
+    </item>
+    <item>
+      <title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
+      <link>http://0.0.0.0:1313/posts/linux/debian13-hysteria2-sing-box-production/</link>
+      <pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/debian13-hysteria2-sing-box-production/</guid>
+      <description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。&#xA;示例里使用占位符：&#xA;项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：&#xA;域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description>
+    </item>
+    <item>
+      <title>FreeBSD 15 下配置 Hysteria2 服务器端</title>
+      <link>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</link>
+      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/freebsd/freebsd15-hysteria2-server/</guid>
+      <description>本文记录在 FreeBSD 15 上部署 Hysteria2 服务端的完整流程。Hysteria2 基于 QUIC，默认会伪装成标准 HTTP/3 流量；如果网络环境会针对 QUIC 或 HTTP/3 做阻断，可以再启用 sing-box 兼容的 salamander 混淆。&#xA;截至 2026-05-24，Hysteria2 最新稳定版本是 app/v2.9.2。这个版本包含安全修复，建议新部署和旧服务都升级到这一版。&#xA;1. 部署思路 最稳妥的服务端配置思路是：&#xA;监听 UDP 443，这也是官方默认 HTTP/3 端口。 使用 TLS 证书；如果没有正式域名，可以先用自签证书。 使用 masquerade.proxy 伪装成正常网站。 个人自用时，服务端不写 bandwidth 和 ignoreClientBandwidth，把带宽参数交给客户端。 不手动修改 QUIC 窗口，官方默认已经是 8 MB stream 和 20 MB connection。 如果网络环境针对 HTTP/3 或 QUIC 阻断，再开启 sing-box 兼容的 obfs.type: salamander。 官方文档里说明，listen 省略时会默认监听 :443，因为这是默认 HTTP/3 端口。这里为了文章清晰，仍然显式写出 listen: :443。&#xA;2. 安装 Hysteria2 最新版 建议用 root 用户操作。监听 443 这类 1024 以下端口也需要 root 权限，或额外配置权限。</description>
+    </item>
+  </channel>
+</rss>

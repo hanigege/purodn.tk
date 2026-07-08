@@ -1,65 +1,550 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace | 电脑自习室</title>
-<meta name=description content="保姆级记录 Hermes 两个 Telegram bot gateway 同时启动时互相 SIGTERM 的排查过程，解释 active_profile 为什么会把 default 服务带偏，并给出 systemd user service 的具体修复路径。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-06-02>2026年6月2日</time></div><h1>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</h1><p>保姆级记录 Hermes 两个 Telegram bot gateway 同时启动时互相 SIGTERM 的排查过程，解释 active_profile 为什么会把 default 服务带偏，并给出 systemd user service 的具体修复路径。</p></header><img class=article-cover src=/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg alt><div class=article-content><p>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 <code>--replace</code> 互相顶掉。</p><p>如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 <code>--profile default</code>。</p><h2 id=适用场景>适用场景</h2><p>这篇适合下面这种情况：</p><table><thead><tr><th>项目</th><th>示例</th></tr></thead><tbody><tr><td>系统用户</td><td><code>hermesuser</code></td></tr><tr><td>Hermes 根目录</td><td><code>/home/hermesuser/.hermes</code></td></tr><tr><td>默认 profile</td><td><code>/home/hermesuser/.hermes</code></td></tr><tr><td>具名 profile</td><td><code>/home/hermesuser/.hermes/profiles/code</code></td></tr><tr><td>default 网关服务</td><td><code>/home/hermesuser/.config/systemd/user/hermes-gateway.service</code></td></tr><tr><td>code 网关服务</td><td><code>/home/hermesuser/.config/systemd/user/hermes-gateway-code.service</code></td></tr></tbody></table><p>目标是两个服务都常驻运行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>hermes-gateway.service
-</span></span><span style=display:flex><span>hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"hermes-gateway.service\nhermes-gateway-code.service"</script></div><p>并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。</p><h2 id=故障现象>故障现象</h2><p>查看 systemd user service：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user list-units <span style=color:#e6db74>&#39;*hermes-gateway*&#39;</span> --all --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-units '*hermes-gateway*' --all --no-pager"</script></div><p>可能会看到类似结果：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>hermes-gateway-code.service loaded active     running      Hermes Agent Gateway
-</span></span><span style=display:flex><span>hermes-gateway.service      loaded activating auto-restart Hermes Agent Gateway</span></span></code></pre></div><script class=code-source type=application/json>"hermes-gateway-code.service loaded active     running      Hermes Agent Gateway\nhermes-gateway.service      loaded activating auto-restart Hermes Agent Gateway"</script></div><p>也可能两个服务轮流 <code>active</code>，但过一会儿又被重启。</p><p>查看日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  journalctl --user -u hermes-gateway.service -n <span style=color:#ae81ff>120</span> --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  journalctl --user -u hermes-gateway.service -n 120 --no-pager"</script></div><p>常见关键信息：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Shutdown context: signal=SIGTERM under_systemd=yes
-</span></span><span style=display:flex><span>Another gateway instance (...) started during our startup. Exiting to avoid double-running.</span></span></code></pre></div><script class=code-source type=application/json>"Shutdown context: signal=SIGTERM under_systemd=yes\nAnother gateway instance (...) started during our startup. Exiting to avoid double-running."</script></div><p>这两行组合起来，基本就说明不是 Telegram 单纯断线，也不是进程自然崩溃，而是另一个 Hermes gateway 实例在启动时把当前实例顶掉了。</p><h2 id=先确认当前-active-profile>先确认当前 active profile</h2><p>查看：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.hermes/active_profile"</script></div><p>如果输出是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>code</span></span></code></pre></div><script class=code-source type=application/json>"code"</script></div><p>表示当前交互式默认 profile 是 <code>code</code>。</p><p>注意，<code>active_profile</code> 本身不是错误。它对日常命令很方便，比如你执行 <code>hermes tools</code>、<code>hermes gateway status</code> 时，可以自动作用到当前 profile。</p><p>坑在于：常驻服务不应该依赖这个动态文件决定身份。</p><h2 id=看两个-service-到底写了什么>看两个 service 到底写了什么</h2><p>查看 default 服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.config/systemd/user/hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.config/systemd/user/hermes-gateway.service"</script></div><p>错误版本里，<code>ExecStart</code> 可能是这样：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script></div><p>重点是这里没有：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile default</span></span></code></pre></div><script class=code-source type=application/json>"--profile default"</script></div><p>再看 code 服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script></div><p>正常情况下，它会写得更明确：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script></div><p>这就出现了一个不对称：</p><table><thead><tr><th>服务</th><th>看起来想跑</th><th>实际 profile 来源</th></tr></thead><tbody><tr><td><code>hermes-gateway.service</code></td><td>default</td><td>没写 <code>--profile</code>，会读取 <code>active_profile</code></td></tr><tr><td><code>hermes-gateway-code.service</code></td><td>code</td><td>显式写了 <code>--profile code</code></td></tr></tbody></table><p>如果 <code>/home/hermesuser/.hermes/active_profile</code> 内容是 <code>code</code>，那么 default 服务实际也会跑到 code。</p><h2 id=为什么会打架>为什么会打架</h2><p>Hermes gateway 启动命令里有：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--replace</span></span></code></pre></div><script class=code-source type=application/json>"--replace"</script></div><p>这个参数本来是好东西。它的作用是：如果同一个 profile 下已经有 gateway 实例，就让新实例替换旧实例，避免一个 profile 双开。</p><p>但当两个 systemd 服务都误跑到 <code>code</code> profile 后，事情就变成这样：</p><ol><li><code>hermes-gateway-code.service</code> 启动 <code>code</code> gateway。</li><li><code>hermes-gateway.service</code> 因为没有 <code>--profile default</code>，读取 <code>active_profile=code</code>，也启动 <code>code</code> gateway。</li><li>两边都有 <code>--replace</code>。</li><li>后启动的一方认为“同 profile 已有实例”，于是给另一方发 <code>SIGTERM</code>。</li><li>被杀的一方退出后，systemd 又因为 <code>Restart=always</code> 把它拉起来。</li><li>它重新启动后，又把另一方顶掉。</li></ol><p>于是你看到的就是 auto-restart、SIGTERM、另一个实例启动、服务不稳定。</p><h2 id=为什么会没写---profile-default>为什么会没写 &ndash;profile default</h2><p>这个坑来自两个逻辑叠加。</p><p>第一层：default profile 在很多 CLI 逻辑里被当作“没有具名 profile”，所以生成 default 服务时，历史上可能写成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>python -m hermes_cli.main gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"python -m hermes_cli.main gateway run --replace"</script></div><p>而不是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>python -m hermes_cli.main --profile default gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"python -m hermes_cli.main --profile default gateway run --replace"</script></div><p>第二层：Hermes 启动器为了方便交互式使用，如果命令里没有显式 <code>--profile</code>，会读取：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class=code-source type=application/json>"/home/hermesuser/.hermes/active_profile"</script></div><p>这两个逻辑单独看都说得通，但放到 systemd 常驻服务里就会出问题。</p><p>常驻服务应该固定身份。default 服务就该明确写 <code>--profile default</code>，code 服务就该明确写 <code>--profile code</code>。</p><h2 id=一开始怎么避免这个坑>一开始怎么避免这个坑</h2><p>最稳的办法是：创建任何 systemd 常驻 gateway 时，都不要让它“猜” profile。</p><p>哪怕是 default profile，也要显式写：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile default</span></span></code></pre></div><script class=code-source type=application/json>"--profile default"</script></div><p>具名 profile 也要显式写自己的名字：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile code</span></span></code></pre></div><script class=code-source type=application/json>"--profile code"</script></div><p>也就是说，两个机器人网关从一开始就应该长这样：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script></div><p>如果你的第二个 profile 叫 <code>groupbot</code>，就写：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace"</script></div><p>不要写成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script></div><p>这行看起来像 default，实际上它会受 <code>/home/hermesuser/.hermes/active_profile</code> 影响。今天 <code>active_profile</code> 是 <code>default</code> 时它没事，明天你切到 <code>code</code>，它就可能跟着跑到 <code>code</code>。</p><h3 id=建完服务后立刻做一次体检>建完服务后立刻做一次体检</h3><p>每次创建或修改 gateway service 后，先查 <code>ExecStart</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>grep <span style=color:#e6db74>&#39;^ExecStart&#39;</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"grep '^ExecStart' \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script></div><p>你要看到两个不同的 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile default
-</span></span><span style=display:flex><span>--profile code</span></span></code></pre></div><script class=code-source type=application/json>"--profile default\n--profile code"</script></div><p>再查两个服务是否都启用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user list-unit-files <span style=color:#e6db74>&#39;*hermes-gateway*&#39;</span> --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-unit-files '*hermes-gateway*' --no-pager"</script></div><p>期望类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>hermes-gateway.service      enabled
-</span></span><span style=display:flex><span>hermes-gateway-code.service enabled</span></span></code></pre></div><script class=code-source type=application/json>"hermes-gateway.service      enabled\nhermes-gateway-code.service enabled"</script></div><p>最后查锁文件是不是分开：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.hermes/gateway.lock
-</span></span><span style=display:flex><span>cat /home/hermesuser/.hermes/profiles/code/gateway.lock</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.hermes/gateway.lock\ncat /home/hermesuser/.hermes/profiles/code/gateway.lock"</script></div><p>两个锁文件路径不同、PID 不同，就说明两个网关不是在抢同一个 profile。</p><h3 id=记住一个原则>记住一个原则</h3><p><code>active_profile</code> 适合给人手动敲命令时省事，不适合给 systemd 常驻服务当身份来源。</p><p>日常交互可以这样：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes gateway status</span></span></code></pre></div><script class=code-source type=application/json>"hermes gateway status"</script></div><p>但 systemd 里最好永远写成这样：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes --profile default gateway run --replace
-</span></span><span style=display:flex><span>hermes --profile code gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"hermes --profile default gateway run --replace\nhermes --profile code gateway run --replace"</script></div><p>常驻服务的身份越固定，排障时越省命。</p><h2 id=修复前先备份-service-文件>修复前先备份 service 文件</h2><p>先备份：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cp /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service.bak.<span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span></span></span></code></pre></div><script class=code-source type=application/json>"cp /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service.bak.$(date +%Y%m%d-%H%M%S)"</script></div><p>如果你只想手工编辑，打开：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /home/hermesuser/.config/systemd/user/hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"nano /home/hermesuser/.config/systemd/user/hermes-gateway.service"</script></div><p>找到 <code>ExecStart=</code> 这一行。</p><h2 id=正确修改-hermes-gatewayservice>正确修改 hermes-gateway.service</h2><p>把这一行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script></div><p>改成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace"</script></div><p>也就是只加这一段：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile default</span></span></code></pre></div><script class=code-source type=application/json>"--profile default"</script></div><p>不要删掉后面的：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"gateway run --replace"</script></div><h2 id=code-service-应该保持这样>code service 应该保持这样</h2><p>检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>grep <span style=color:#e6db74>&#39;^ExecStart&#39;</span> /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"grep '^ExecStart' /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script></div><p>期望看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script></div><p>如果你的 profile 名不是 <code>code</code>，例如 <code>groupbot</code>，那对应服务应该写成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace"</script></div><p>原则很简单：每个常驻网关服务都必须显式写自己的 <code>--profile &lt;name></code>。</p><h2 id=重新加载-systemd-user-配置>重新加载 systemd user 配置</h2><p>因为这是 user service，不是系统级 service，不能只用普通的 <code>systemctl daemon-reload</code>。</p><p>先确认 <code>hermesuser</code> 的 UID：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>id hermesuser</span></span></code></pre></div><script class=code-source type=application/json>"id hermesuser"</script></div><p>示例输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>uid=1001(hermesuser) gid=1001(hermesuser) groups=1001(hermesuser),27(sudo),987(docker)</span></span></code></pre></div><script class=code-source type=application/json>"uid=1001(hermesuser) gid=1001(hermesuser) groups=1001(hermesuser),27(sudo),987(docker)"</script></div><p>这里 UID 是 <code>1001</code>，所以下面的路径用 <code>/run/user/1001</code>。</p><p>执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user daemon-reload</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user daemon-reload"</script></div><p>然后启用并启动两个 gateway：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user enable --now hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user enable --now hermes-gateway.service"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user enable --now hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user enable --now hermes-gateway-code.service"</script></div><h2 id=验证两个服务都活着>验证两个服务都活着</h2><p>执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user is-active hermes-gateway.service hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user is-active hermes-gateway.service hermes-gateway-code.service"</script></div><p>期望输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>active
-</span></span><span style=display:flex><span>active</span></span></code></pre></div><script class=code-source type=application/json>"active\nactive"</script></div><p>再看列表：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo -u hermesuser env <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  XDG_RUNTIME_DIR<span style=color:#f92672>=</span>/run/user/1001 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  DBUS_SESSION_BUS_ADDRESS<span style=color:#f92672>=</span>unix:path<span style=color:#f92672>=</span>/run/user/1001/bus <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  systemctl --user list-units <span style=color:#e6db74>&#39;*hermes-gateway*&#39;</span> --all --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-units '*hermes-gateway*' --all --no-pager"</script></div><p>期望两个都是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>active running</span></span></code></pre></div><script class=code-source type=application/json>"active running"</script></div><h2 id=验证两个锁文件不是同一个-profile>验证两个锁文件不是同一个 profile</h2><p>default gateway 的锁文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.hermes/gateway.lock</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.hermes/gateway.lock"</script></div><p>code gateway 的锁文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.hermes/profiles/code/gateway.lock</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.hermes/profiles/code/gateway.lock"</script></div><p>你应该能看到两个不同的 PID。</p><p>再查进程：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ps -fwwp &lt;default-pid&gt;,&lt;code-pid&gt;</span></span></code></pre></div><script class=code-source type=application/json>"ps -fwwp \u003cdefault-pid\u003e,\u003ccode-pid\u003e"</script></div><p>期望类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace
-</span></span><span style=display:flex><span>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace\n/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script></div><p>只要这里一个是 <code>--profile default</code>，一个是 <code>--profile code</code>，就不会再互相顶掉。</p><h2 id=验证-telegram-已连接>验证 Telegram 已连接</h2><p>default 日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>tail -n <span style=color:#ae81ff>40</span> /home/hermesuser/.hermes/logs/gateway.log</span></span></code></pre></div><script class=code-source type=application/json>"tail -n 40 /home/hermesuser/.hermes/logs/gateway.log"</script></div><p>code 日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>tail -n <span style=color:#ae81ff>40</span> /home/hermesuser/.hermes/profiles/code/logs/gateway.log</span></span></code></pre></div><script class=code-source type=application/json>"tail -n 40 /home/hermesuser/.hermes/profiles/code/logs/gateway.log"</script></div><p>期望看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Connected to Telegram (polling mode)
-</span></span><span style=display:flex><span>Gateway running with 1 platform(s)</span></span></code></pre></div><script class=code-source type=application/json>"Connected to Telegram (polling mode)\nGateway running with 1 platform(s)"</script></div><p>两个日志目录不同，这一点也很重要：</p><table><thead><tr><th>profile</th><th>日志路径</th></tr></thead><tbody><tr><td>default</td><td><code>/home/hermesuser/.hermes/logs/gateway.log</code></td></tr><tr><td>code</td><td><code>/home/hermesuser/.hermes/profiles/code/logs/gateway.log</code></td></tr></tbody></table><p>如果两个服务都写到同一个日志目录，通常说明 profile 还是没隔离好。</p><h2 id=如果还是互相-sigterm>如果还是互相 SIGTERM</h2><p>先看两个 <code>ExecStart</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>grep <span style=color:#e6db74>&#39;^ExecStart&#39;</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class=code-source type=application/json>"grep '^ExecStart' \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script></div><p>正确结果应该类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/home/hermesuser/.config/systemd/user/hermes-gateway.service:ExecStart=... hermes_cli.main --profile default gateway run --replace
-</span></span><span style=display:flex><span>/home/hermesuser/.config/systemd/user/hermes-gateway-code.service:ExecStart=... hermes_cli.main --profile code gateway run --replace</span></span></code></pre></div><script class=code-source type=application/json>"/home/hermesuser/.config/systemd/user/hermes-gateway.service:ExecStart=... hermes_cli.main --profile default gateway run --replace\n/home/hermesuser/.config/systemd/user/hermes-gateway-code.service:ExecStart=... hermes_cli.main --profile code gateway run --replace"</script></div><p>再查 <code>active_profile</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class=code-source type=application/json>"cat /home/hermesuser/.hermes/active_profile"</script></div><p>这个文件可以是 <code>code</code>，也可以是别的 profile。只要 systemd service 里已经显式写了 <code>--profile default</code> 和 <code>--profile code</code>，常驻服务就不会再被 <code>active_profile</code> 带偏。</p><h2 id=小结>小结</h2><p>这次坑的核心不是 <code>--replace</code> 错，也不是 systemd 错，更不是多 profile 本身不能双开。</p><p>真正的问题是：常驻服务没有写死自己的 profile。</p><p>记住这个规则：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>交互式命令可以依赖 active_profile。
-</span></span><span style=display:flex><span>systemd 常驻服务必须显式写 --profile。</span></span></code></pre></div><script class=code-source type=application/json>"交互式命令可以依赖 active_profile。\nsystemd 常驻服务必须显式写 --profile。"</script></div><p>default profile 也要写：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>--profile default</span></span></code></pre></div><script class=code-source type=application/json>"--profile default"</script></div><p>不要因为它叫 default，就让它空着。空着的时候，它就不一定是 default。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li><li><a href=/posts/linux/smbox-alpine-install/><img src=/posts/linux/smbox-alpine-install/assets/smbox-alpine-01.png alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>安装 Alpine 系统教程</span></a></li><li><a href=/posts/routeros/routeros-mangle-small-packet-generator/><img src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>RouterOS Mangle 小包优先规则与带宽配置生成器</span></a></li><li><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/><img src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace | 电脑自习室</title>
+    <meta name="description" content="保姆级记录 Hermes 两个 Telegram bot gateway 同时启动时互相 SIGTERM 的排查过程，解释 active_profile 为什么会把 default 服务带偏，并给出 systemd user service 的具体修复路径。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-02">2026年6月2日</time>
+        </div>
+        <h1>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</h1>
+          <p>保姆级记录 Hermes 两个 Telegram bot gateway 同时启动时互相 SIGTERM 的排查过程，解释 active_profile 为什么会把 default 服务带偏，并给出 systemd user service 的具体修复路径。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-systemd-profile-gateway-conflict/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 <code>--replace</code> 互相顶掉。</p>
+<p>如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 <code>--profile default</code>。</p>
+<h2 id="适用场景">适用场景</h2>
+<p>这篇适合下面这种情况：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系统用户</td>
+<td><code>hermesuser</code></td>
+</tr>
+<tr>
+<td>Hermes 根目录</td>
+<td><code>/home/hermesuser/.hermes</code></td>
+</tr>
+<tr>
+<td>默认 profile</td>
+<td><code>/home/hermesuser/.hermes</code></td>
+</tr>
+<tr>
+<td>具名 profile</td>
+<td><code>/home/hermesuser/.hermes/profiles/code</code></td>
+</tr>
+<tr>
+<td>default 网关服务</td>
+<td><code>/home/hermesuser/.config/systemd/user/hermes-gateway.service</code></td>
+</tr>
+<tr>
+<td>code 网关服务</td>
+<td><code>/home/hermesuser/.config/systemd/user/hermes-gateway-code.service</code></td>
+</tr>
+</tbody>
+</table>
+<p>目标是两个服务都常驻运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>hermes-gateway.service
+</span></span><span style="display:flex;"><span>hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"hermes-gateway.service\nhermes-gateway-code.service"</script>
+</div>
+<p>并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。</p>
+<h2 id="故障现象">故障现象</h2>
+<p>查看 systemd user service：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user list-units <span style="color:#e6db74">&#39;*hermes-gateway*&#39;</span> --all --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-units '*hermes-gateway*' --all --no-pager"</script>
+</div>
+<p>可能会看到类似结果：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>hermes-gateway-code.service loaded active     running      Hermes Agent Gateway
+</span></span><span style="display:flex;"><span>hermes-gateway.service      loaded activating auto-restart Hermes Agent Gateway</span></span></code></pre></div><script class="code-source" type="application/json">"hermes-gateway-code.service loaded active     running      Hermes Agent Gateway\nhermes-gateway.service      loaded activating auto-restart Hermes Agent Gateway"</script>
+</div>
+<p>也可能两个服务轮流 <code>active</code>，但过一会儿又被重启。</p>
+<p>查看日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  journalctl --user -u hermes-gateway.service -n <span style="color:#ae81ff">120</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  journalctl --user -u hermes-gateway.service -n 120 --no-pager"</script>
+</div>
+<p>常见关键信息：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Shutdown context: signal=SIGTERM under_systemd=yes
+</span></span><span style="display:flex;"><span>Another gateway instance (...) started during our startup. Exiting to avoid double-running.</span></span></code></pre></div><script class="code-source" type="application/json">"Shutdown context: signal=SIGTERM under_systemd=yes\nAnother gateway instance (...) started during our startup. Exiting to avoid double-running."</script>
+</div>
+<p>这两行组合起来，基本就说明不是 Telegram 单纯断线，也不是进程自然崩溃，而是另一个 Hermes gateway 实例在启动时把当前实例顶掉了。</p>
+<h2 id="先确认当前-active-profile">先确认当前 active profile</h2>
+<p>查看：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.hermes/active_profile"</script>
+</div>
+<p>如果输出是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>code</span></span></code></pre></div><script class="code-source" type="application/json">"code"</script>
+</div>
+<p>表示当前交互式默认 profile 是 <code>code</code>。</p>
+<p>注意，<code>active_profile</code> 本身不是错误。它对日常命令很方便，比如你执行 <code>hermes tools</code>、<code>hermes gateway status</code> 时，可以自动作用到当前 profile。</p>
+<p>坑在于：常驻服务不应该依赖这个动态文件决定身份。</p>
+<h2 id="看两个-service-到底写了什么">看两个 service 到底写了什么</h2>
+<p>查看 default 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.config/systemd/user/hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.config/systemd/user/hermes-gateway.service"</script>
+</div>
+<p>错误版本里，<code>ExecStart</code> 可能是这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script>
+</div>
+<p>重点是这里没有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile default</span></span></code></pre></div><script class="code-source" type="application/json">"--profile default"</script>
+</div>
+<p>再看 code 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script>
+</div>
+<p>正常情况下，它会写得更明确：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script>
+</div>
+<p>这就出现了一个不对称：</p>
+<table>
+<thead>
+<tr>
+<th>服务</th>
+<th>看起来想跑</th>
+<th>实际 profile 来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hermes-gateway.service</code></td>
+<td>default</td>
+<td>没写 <code>--profile</code>，会读取 <code>active_profile</code></td>
+</tr>
+<tr>
+<td><code>hermes-gateway-code.service</code></td>
+<td>code</td>
+<td>显式写了 <code>--profile code</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果 <code>/home/hermesuser/.hermes/active_profile</code> 内容是 <code>code</code>，那么 default 服务实际也会跑到 code。</p>
+<h2 id="为什么会打架">为什么会打架</h2>
+<p>Hermes gateway 启动命令里有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--replace</span></span></code></pre></div><script class="code-source" type="application/json">"--replace"</script>
+</div>
+<p>这个参数本来是好东西。它的作用是：如果同一个 profile 下已经有 gateway 实例，就让新实例替换旧实例，避免一个 profile 双开。</p>
+<p>但当两个 systemd 服务都误跑到 <code>code</code> profile 后，事情就变成这样：</p>
+<ol>
+<li><code>hermes-gateway-code.service</code> 启动 <code>code</code> gateway。</li>
+<li><code>hermes-gateway.service</code> 因为没有 <code>--profile default</code>，读取 <code>active_profile=code</code>，也启动 <code>code</code> gateway。</li>
+<li>两边都有 <code>--replace</code>。</li>
+<li>后启动的一方认为“同 profile 已有实例”，于是给另一方发 <code>SIGTERM</code>。</li>
+<li>被杀的一方退出后，systemd 又因为 <code>Restart=always</code> 把它拉起来。</li>
+<li>它重新启动后，又把另一方顶掉。</li>
+</ol>
+<p>于是你看到的就是 auto-restart、SIGTERM、另一个实例启动、服务不稳定。</p>
+<h2 id="为什么会没写---profile-default">为什么会没写 &ndash;profile default</h2>
+<p>这个坑来自两个逻辑叠加。</p>
+<p>第一层：default profile 在很多 CLI 逻辑里被当作“没有具名 profile”，所以生成 default 服务时，历史上可能写成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python -m hermes_cli.main gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"python -m hermes_cli.main gateway run --replace"</script>
+</div>
+<p>而不是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python -m hermes_cli.main --profile default gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"python -m hermes_cli.main --profile default gateway run --replace"</script>
+</div>
+<p>第二层：Hermes 启动器为了方便交互式使用，如果命令里没有显式 <code>--profile</code>，会读取：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class="code-source" type="application/json">"/home/hermesuser/.hermes/active_profile"</script>
+</div>
+<p>这两个逻辑单独看都说得通，但放到 systemd 常驻服务里就会出问题。</p>
+<p>常驻服务应该固定身份。default 服务就该明确写 <code>--profile default</code>，code 服务就该明确写 <code>--profile code</code>。</p>
+<h2 id="一开始怎么避免这个坑">一开始怎么避免这个坑</h2>
+<p>最稳的办法是：创建任何 systemd 常驻 gateway 时，都不要让它“猜” profile。</p>
+<p>哪怕是 default profile，也要显式写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile default</span></span></code></pre></div><script class="code-source" type="application/json">"--profile default"</script>
+</div>
+<p>具名 profile 也要显式写自己的名字：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile code</span></span></code></pre></div><script class="code-source" type="application/json">"--profile code"</script>
+</div>
+<p>也就是说，两个机器人网关从一开始就应该长这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script>
+</div>
+<p>如果你的第二个 profile 叫 <code>groupbot</code>，就写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace"</script>
+</div>
+<p>不要写成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script>
+</div>
+<p>这行看起来像 default，实际上它会受 <code>/home/hermesuser/.hermes/active_profile</code> 影响。今天 <code>active_profile</code> 是 <code>default</code> 时它没事，明天你切到 <code>code</code>，它就可能跟着跑到 <code>code</code>。</p>
+<h3 id="建完服务后立刻做一次体检">建完服务后立刻做一次体检</h3>
+<p>每次创建或修改 gateway service 后，先查 <code>ExecStart</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep <span style="color:#e6db74">&#39;^ExecStart&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"grep '^ExecStart' \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script>
+</div>
+<p>你要看到两个不同的 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile default
+</span></span><span style="display:flex;"><span>--profile code</span></span></code></pre></div><script class="code-source" type="application/json">"--profile default\n--profile code"</script>
+</div>
+<p>再查两个服务是否都启用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user list-unit-files <span style="color:#e6db74">&#39;*hermes-gateway*&#39;</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-unit-files '*hermes-gateway*' --no-pager"</script>
+</div>
+<p>期望类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>hermes-gateway.service      enabled
+</span></span><span style="display:flex;"><span>hermes-gateway-code.service enabled</span></span></code></pre></div><script class="code-source" type="application/json">"hermes-gateway.service      enabled\nhermes-gateway-code.service enabled"</script>
+</div>
+<p>最后查锁文件是不是分开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.hermes/gateway.lock
+</span></span><span style="display:flex;"><span>cat /home/hermesuser/.hermes/profiles/code/gateway.lock</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.hermes/gateway.lock\ncat /home/hermesuser/.hermes/profiles/code/gateway.lock"</script>
+</div>
+<p>两个锁文件路径不同、PID 不同，就说明两个网关不是在抢同一个 profile。</p>
+<h3 id="记住一个原则">记住一个原则</h3>
+<p><code>active_profile</code> 适合给人手动敲命令时省事，不适合给 systemd 常驻服务当身份来源。</p>
+<p>日常交互可以这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway status</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway status"</script>
+</div>
+<p>但 systemd 里最好永远写成这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --profile default gateway run --replace
+</span></span><span style="display:flex;"><span>hermes --profile code gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --profile default gateway run --replace\nhermes --profile code gateway run --replace"</script>
+</div>
+<p>常驻服务的身份越固定，排障时越省命。</p>
+<h2 id="修复前先备份-service-文件">修复前先备份 service 文件</h2>
+<p>先备份：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service.bak.<span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"cp /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service.bak.$(date +%Y%m%d-%H%M%S)"</script>
+</div>
+<p>如果你只想手工编辑，打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /home/hermesuser/.config/systemd/user/hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"nano /home/hermesuser/.config/systemd/user/hermes-gateway.service"</script>
+</div>
+<p>找到 <code>ExecStart=</code> 这一行。</p>
+<h2 id="正确修改-hermes-gatewayservice">正确修改 hermes-gateway.service</h2>
+<p>把这一行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run --replace"</script>
+</div>
+<p>改成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace"</script>
+</div>
+<p>也就是只加这一段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile default</span></span></code></pre></div><script class="code-source" type="application/json">"--profile default"</script>
+</div>
+<p>不要删掉后面的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"gateway run --replace"</script>
+</div>
+<h2 id="code-service-应该保持这样">code service 应该保持这样</h2>
+<p>检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep <span style="color:#e6db74">&#39;^ExecStart&#39;</span> /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"grep '^ExecStart' /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script>
+</div>
+<p>期望看到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script>
+</div>
+<p>如果你的 profile 名不是 <code>code</code>，例如 <code>groupbot</code>，那对应服务应该写成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile groupbot gateway run --replace"</script>
+</div>
+<p>原则很简单：每个常驻网关服务都必须显式写自己的 <code>--profile &lt;name&gt;</code>。</p>
+<h2 id="重新加载-systemd-user-配置">重新加载 systemd user 配置</h2>
+<p>因为这是 user service，不是系统级 service，不能只用普通的 <code>systemctl daemon-reload</code>。</p>
+<p>先确认 <code>hermesuser</code> 的 UID：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>id hermesuser</span></span></code></pre></div><script class="code-source" type="application/json">"id hermesuser"</script>
+</div>
+<p>示例输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>uid=1001(hermesuser) gid=1001(hermesuser) groups=1001(hermesuser),27(sudo),987(docker)</span></span></code></pre></div><script class="code-source" type="application/json">"uid=1001(hermesuser) gid=1001(hermesuser) groups=1001(hermesuser),27(sudo),987(docker)"</script>
+</div>
+<p>这里 UID 是 <code>1001</code>，所以下面的路径用 <code>/run/user/1001</code>。</p>
+<p>执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user daemon-reload</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user daemon-reload"</script>
+</div>
+<p>然后启用并启动两个 gateway：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user enable --now hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user enable --now hermes-gateway.service"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user enable --now hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user enable --now hermes-gateway-code.service"</script>
+</div>
+<h2 id="验证两个服务都活着">验证两个服务都活着</h2>
+<p>执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user is-active hermes-gateway.service hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user is-active hermes-gateway.service hermes-gateway-code.service"</script>
+</div>
+<p>期望输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>active
+</span></span><span style="display:flex;"><span>active</span></span></code></pre></div><script class="code-source" type="application/json">"active\nactive"</script>
+</div>
+<p>再看列表：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo -u hermesuser env <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  XDG_RUNTIME_DIR<span style="color:#f92672">=</span>/run/user/1001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  DBUS_SESSION_BUS_ADDRESS<span style="color:#f92672">=</span>unix:path<span style="color:#f92672">=</span>/run/user/1001/bus <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  systemctl --user list-units <span style="color:#e6db74">&#39;*hermes-gateway*&#39;</span> --all --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -u hermesuser env \\\n  XDG_RUNTIME_DIR=/run/user/1001 \\\n  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \\\n  systemctl --user list-units '*hermes-gateway*' --all --no-pager"</script>
+</div>
+<p>期望两个都是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>active running</span></span></code></pre></div><script class="code-source" type="application/json">"active running"</script>
+</div>
+<h2 id="验证两个锁文件不是同一个-profile">验证两个锁文件不是同一个 profile</h2>
+<p>default gateway 的锁文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.hermes/gateway.lock</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.hermes/gateway.lock"</script>
+</div>
+<p>code gateway 的锁文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.hermes/profiles/code/gateway.lock</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.hermes/profiles/code/gateway.lock"</script>
+</div>
+<p>你应该能看到两个不同的 PID。</p>
+<p>再查进程：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ps -fwwp &lt;default-pid&gt;,&lt;code-pid&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"ps -fwwp \u003cdefault-pid\u003e,\u003ccode-pid\u003e"</script>
+</div>
+<p>期望类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace
+</span></span><span style="display:flex;"><span>/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile default gateway run --replace\n/home/hermesuser/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile code gateway run --replace"</script>
+</div>
+<p>只要这里一个是 <code>--profile default</code>，一个是 <code>--profile code</code>，就不会再互相顶掉。</p>
+<h2 id="验证-telegram-已连接">验证 Telegram 已连接</h2>
+<p>default 日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tail -n <span style="color:#ae81ff">40</span> /home/hermesuser/.hermes/logs/gateway.log</span></span></code></pre></div><script class="code-source" type="application/json">"tail -n 40 /home/hermesuser/.hermes/logs/gateway.log"</script>
+</div>
+<p>code 日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tail -n <span style="color:#ae81ff">40</span> /home/hermesuser/.hermes/profiles/code/logs/gateway.log</span></span></code></pre></div><script class="code-source" type="application/json">"tail -n 40 /home/hermesuser/.hermes/profiles/code/logs/gateway.log"</script>
+</div>
+<p>期望看到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Connected to Telegram (polling mode)
+</span></span><span style="display:flex;"><span>Gateway running with 1 platform(s)</span></span></code></pre></div><script class="code-source" type="application/json">"Connected to Telegram (polling mode)\nGateway running with 1 platform(s)"</script>
+</div>
+<p>两个日志目录不同，这一点也很重要：</p>
+<table>
+<thead>
+<tr>
+<th>profile</th>
+<th>日志路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>default</td>
+<td><code>/home/hermesuser/.hermes/logs/gateway.log</code></td>
+</tr>
+<tr>
+<td>code</td>
+<td><code>/home/hermesuser/.hermes/profiles/code/logs/gateway.log</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果两个服务都写到同一个日志目录，通常说明 profile 还是没隔离好。</p>
+<h2 id="如果还是互相-sigterm">如果还是互相 SIGTERM</h2>
+<p>先看两个 <code>ExecStart</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>grep <span style="color:#e6db74">&#39;^ExecStart&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /home/hermesuser/.config/systemd/user/hermes-gateway.service <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service</span></span></code></pre></div><script class="code-source" type="application/json">"grep '^ExecStart' \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway.service \\\n  /home/hermesuser/.config/systemd/user/hermes-gateway-code.service"</script>
+</div>
+<p>正确结果应该类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/hermesuser/.config/systemd/user/hermes-gateway.service:ExecStart=... hermes_cli.main --profile default gateway run --replace
+</span></span><span style="display:flex;"><span>/home/hermesuser/.config/systemd/user/hermes-gateway-code.service:ExecStart=... hermes_cli.main --profile code gateway run --replace</span></span></code></pre></div><script class="code-source" type="application/json">"/home/hermesuser/.config/systemd/user/hermes-gateway.service:ExecStart=... hermes_cli.main --profile default gateway run --replace\n/home/hermesuser/.config/systemd/user/hermes-gateway-code.service:ExecStart=... hermes_cli.main --profile code gateway run --replace"</script>
+</div>
+<p>再查 <code>active_profile</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cat /home/hermesuser/.hermes/active_profile</span></span></code></pre></div><script class="code-source" type="application/json">"cat /home/hermesuser/.hermes/active_profile"</script>
+</div>
+<p>这个文件可以是 <code>code</code>，也可以是别的 profile。只要 systemd service 里已经显式写了 <code>--profile default</code> 和 <code>--profile code</code>，常驻服务就不会再被 <code>active_profile</code> 带偏。</p>
+<h2 id="小结">小结</h2>
+<p>这次坑的核心不是 <code>--replace</code> 错，也不是 systemd 错，更不是多 profile 本身不能双开。</p>
+<p>真正的问题是：常驻服务没有写死自己的 profile。</p>
+<p>记住这个规则：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>交互式命令可以依赖 active_profile。
+</span></span><span style="display:flex;"><span>systemd 常驻服务必须显式写 --profile。</span></span></code></pre></div><script class="code-source" type="application/json">"交互式命令可以依赖 active_profile。\nsystemd 常驻服务必须显式写 --profile。"</script>
+</div>
+<p>default profile 也要写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>--profile default</span></span></code></pre></div><script class="code-source" type="application/json">"--profile default"</script>
+</div>
+<p>不要因为它叫 default，就让它空着。空着的时候，它就不一定是 default。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-production/">
+            <img src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/build-matrix-synapse-standard/">
+            <img src="/posts/linux/build-matrix-synapse-standard/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">从零搭建 Matrix Synapse 私有聊天服务器（443标准版）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

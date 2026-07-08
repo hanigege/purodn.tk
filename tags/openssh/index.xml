@@ -1,8 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>OpenSSH on 电脑自习室</title><link>https://purodn.tk/tags/openssh/</link><description>Recent content in OpenSSH on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 14:08:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/openssh/index.xml" rel="self" type="application/rss+xml"/><item><title>Linux 临时开启 root 密码 SSH 登录</title><link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link><pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid><description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。
-本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。
-1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：
-复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。
-例如密码是 change passwd，命令应写成：
-复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：
-复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：
-PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>OpenSSH on 电脑自习室</title>
+    <link>http://0.0.0.0:1313/tags/openssh/</link>
+    <description>Recent content in OpenSSH on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 25 May 2026 14:08:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/openssh/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Linux 临时开启 root 密码 SSH 登录</title>
+      <link>http://0.0.0.0:1313/posts/linux/enable-root-ssh-password-login/</link>
+      <pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/enable-root-ssh-password-login/</guid>
+      <description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。&#xA;本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。&#xA;1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：&#xA;复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。&#xA;例如密码是 change passwd，命令应写成：&#xA;复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：&#xA;复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：&#xA;PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description>
+    </item>
+  </channel>
+</rss>
