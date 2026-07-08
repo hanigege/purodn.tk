@@ -33,19 +33,19 @@
 </span></span><span style=display:flex><span>df -h /var/cache/pkg
 </span></span><span style=display:flex><span>pstat -s
 </span></span><span style=display:flex><span>top -bn <span style=color:#ae81ff>1</span> | head -n <span style=color:#ae81ff>5</span></span></span></code></pre></div><script class=code-source type=application/json>"ps ax\ndf -h /var/cache/pkg\npstat -s\ntop -bn 1 | head -n 5"</script></div><p>如果想装轻量流量监控工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pkg install -y bmon</span></span></code></pre></div><script class=code-source type=application/json>"pkg install -y bmon"</script></div><h2 id=小结>小结</h2><p>这套配置的思路是：</p><ul><li>用户：普通用户加入 <code>wheel</code>，避免长期直接使用 root。</li><li>控制台：保留 <code>ttyv0</code> 救援，关闭多余 TTY。</li><li>缓存：<code>pkg</code> 自动清理，<code>/var/cache/pkg</code> 使用 tmpfs。</li><li>内存：1GB 小内存机器用 2GB Swap 做缓冲。</li><li>服务：保留 SSH、NTP、日志等基础能力，谨慎关闭系统服务。</li></ul><p>这样 FreeBSD 15 会更轻、更干净，但仍然保留可维护性。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>2</span>
 <span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
-<span class=latest-rank>3</span>
+<span class=latest-rank>2</span>
 <span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>SMbox OPNsense 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

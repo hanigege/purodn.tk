@@ -245,19 +245,19 @@ TELEGRAM_HOME_CHANNEL_THREAD_ID=</code></pre><script class=code-source type=appl
 </span></span><span style=display:flex><span>      <span style=color:#f92672>disable_link_previews</span>: <span style=color:#66d9ef>true</span>
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#f92672>group_sessions_per_user</span>: <span style=color:#66d9ef>true</span></span></span></code></pre></div><script class=code-source type=application/json>"display:\n  tool_progress: off\n  cleanup_progress: true\n  interim_assistant_messages: false\n  long_running_notifications: true\n  busy_ack_detail: true\n  background_process_notifications: off\n  show_reasoning: false\n  streaming: false\n  platforms:\n    telegram:\n      tool_progress: off\n      cleanup_progress: true\n      interim_assistant_messages: false\n      long_running_notifications: true\n      busy_ack_detail: true\n      background_process_notifications: off\n\nstreaming:\n  enabled: false\n\nplatforms:\n  telegram:\n    reply_to_mode: \"off\"\n    guest_mode: false\n    extra:\n      disable_link_previews: true\n\ngroup_sessions_per_user: true"</script></div><p>修改后重启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user restart hermes-gateway.service"</script></div><p>在 Telegram 里发一句测试消息。理想表现：</p><ul><li>只出现最终回复。</li><li>不显示工具进度。</li><li>不显示中途 assistant 消息。</li><li>保留长任务心跳，并显示 iteration/API 等进度细节，方便确认机器人仍在工作。</li><li>不显示后台进程 watcher 消息。</li><li>不引用用户上一句话。</li></ul><h2 id=不确定字段怎么处理>不确定字段怎么处理</h2><p>Hermes 更新很快，遇到不确定字段按这个顺序处理：</p><ol><li>查当前版本的官方配置参考。</li><li>查当前版本的 <code>cli-config.yaml.example</code>。</li><li>修改前备份 <code>config.yaml</code>。</li><li>每次只改一小段。</li><li>重启 gateway 后看日志。</li><li>没有被当前版本识别或没有行为变化的字段，不要长期保留。</li></ol><p>配置文件最好的状态不是“参数最多”，而是“每个参数都知道为什么存在”。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/shaoji-mall-docker-install/><img src=/images/computer-tutorial-hero.png alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>烧鸡商城 Docker 手动安装与入口说明</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>2</span>
 <span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/hermes-disaster-recovery-manual/><img src=/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg alt>
-<span class=latest-rank>3</span>
+<span class=latest-rank>2</span>
 <span class=latest-title>Hermes 灾难恢复手册 — 从零手动重建所有服务</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>4</span>
+<span class=latest-rank>3</span>
 <span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>5</span>
+<span class=latest-rank>4</span>
 <span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>6</span>
+<span class=latest-rank>5</span>
 <span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>SMbox OPNsense 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

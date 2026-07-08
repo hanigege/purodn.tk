@@ -1,13 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 06 Jul 2026 11:10:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>烧鸡商城 Docker 手动安装与入口说明</title><link>https://purodn.tk/posts/docker/shaoji-mall-docker-install/</link><pubDate>Mon, 06 Jul 2026 11:10:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/shaoji-mall-docker-install/</guid><description>这篇是烧鸡商城的部署备忘。适合以后把系统迁移到第三方机器、重装服务器、或者交给别人手动安装时照着做。
-当前 Hermes 机器上的源码目录：
-复制/home/hermesuser/shaoji-mall 也可以写成：
-复制~/shaoji-mall 线上 GitHub 仓库：
-复制git@github.com:hanigege/shaoji.git 系统组成 源码主要分成这几块：
-路径 说明 frontend/ 用户商城、管理后台、配送员端的前端页面 backend/ FastAPI 后端接口 sql/init.sql MySQL 初始化建表脚本 docker-compose.yml MySQL、Redis、后端、前端容器编排 uploads/ 上传文件目录，前后端容器都会挂载 容器默认名称：
-容器 说明 shaoji-frontend 前端 Nginx 容器 shaoji-backend 后端 FastAPI 容器 shaoji-mysql MySQL 8.0 shaoji-redis Redis 7 默认端口：
-端口 用途 3000 前端入口 8000 后端 API 3306 MySQL 6379 Redis 生产环境建议只对外开放前端入口，后端、数据库、Redis 尽量不要直接暴露到公网。
-第三方机器安装前准备 第三方机器建议是 Linux 服务器，先安装：
-Git Docker Docker Compose Ubuntu / Debian 可以参考：</description></item><item><title>Hermes Agent Busy Input Modes 完全指南</title><link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link><pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid><description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>电脑自习室</title><link>https://purodn.tk/</link><description>Recent content on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 04 Jul 2026 22:25:03 +0800</lastBuildDate><atom:link href="https://purodn.tk/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent Busy Input Modes 完全指南</title><link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link><pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid><description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。
 这正是 Busy Input Modes 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。
 问题背景 Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定如何处理这条消息——是排队等做完、插入到当前步骤之间、还是直接打断？
 这个决策由两个配置共同控制：
