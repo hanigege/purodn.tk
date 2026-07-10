@@ -128,19 +128,19 @@
 </span></span><span style=display:flex><span>docker logs --since 90s matrix-synapse 2&gt;&amp;<span style=color:#ae81ff>1</span> <span style=color:#ae81ff>\
 </span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | grep -E <span style=color:#e6db74>&#39;Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback&#39;</span> <span style=color:#ae81ff>\
 </span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | tail -80</span></span></code></pre></div><script class=code-source type=application/json>"curl -sS -o /tmp/synapse_versions.json -w '%{http_code}\\n' \\\n  http://127.0.0.1:8008/_matrix/client/versions\n\ndocker logs --since 90s matrix-synapse 2\u003e\u00261 \\\n  | grep -E 'Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback' \\\n  | tail -80"</script></div><p>回滚后日志里不应再出现 <code>no_room_encryption</code> 模块加载。</p><h2 id=结论>结论</h2><p>服务端禁止加密房间这件事可以做，而且拦截点也很明确：拦住 <code>m.room.encryption</code> 状态事件即可。</p><p>但在真实 Element 客户端里，私聊和添加好友流程经常默认带加密初始状态。强行拒绝会带来兼容性问题，所以这个方案适合有明确运维目标、能接受客户端限制的场景。</p><p>如果只是为了控制服务端媒体存储增长，更稳妥的长期方案通常是：保留客户端默认加密能力，同时用清晰的媒体保留规则控制服务端硬盘，并通过服务器通知告知用户大文件会定期清理。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
