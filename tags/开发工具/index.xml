@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>开发工具 on 电脑自习室</title><link>https://purodn.tk/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/</link><description>Recent content in 开发工具 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 10 Jul 2026 20:04:03 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</title><link>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</link><pubDate>Fri, 10 Jul 2026 20:04:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</guid><description>如果你在使用 Hermes Agent 开发项目，可能会对这几个文件感到困惑：SOUL.md、.hermes.md、AGENTS.md——它们分别干什么？该放哪里？能不能混用？
+本文将一次性理清它们的定位、用法和最佳实践。
+一、三份文件的核心定位 Hermes Agent 设计了三种不同粒度的上下文文件，各有用途，不建议混用。
+文件 用途 推荐位置 SOUL.md Agent 的人格、行为风格、长期身份 ~/.hermes/SOUL.md（全局） .hermes.md / HERMES.md 项目最高优先级规则 项目根目录 AGENTS.md 项目开发规范、架构说明、编码规则 项目目录，可递归 SOUL.md —— 全局人格文件 SOUL.md 定义的是 你希望 AI 助理如何与你沟通和工作 的全局偏好，而不是某个项目的技术规则。
+适合放的内容：
+你的工作习惯（如&amp;quot;使用简洁的中文回复&amp;quot;） 回复风格偏好（如&amp;quot;直接给命令，不要解释&amp;quot;） 代码偏好（如&amp;quot;优先用 TypeScript&amp;quot;） 跨项目的通用原则 ⚠️ 不要把项目规则写入 SOUL.md。SOUL 是人格，不是项目配置。混入项目规则后，切换项目时会让 agent 行为混乱。
+.hermes.md —— 项目宪法 .hermes.md 是项目的最高优先级规则文件，放在项目根目录。它类似一份&amp;quot;AI 项目宪法&amp;quot;，定义不可违反的事项。
+适合放的内容：
+项目总体目标和范围 不可违反的安全规则 必须遵守的架构决策 技术栈约束 复制# Matrix Manager 项目规则 这是一个 Matrix 运维管理平台。 目标： - 保持代码简洁 - 优先使用 TypeScript - 所有 API 必须有类型定义 - 修改数据库结构必须同步 migration 禁止： - 不允许直接修改生产配置 - 不允许删除测试 Hermes 会在加载项目上下文时优先加载 .</description></item></channel></rss>

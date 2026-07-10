@@ -11,19 +11,19 @@
 </span></span><span style=display:flex><span>set container name ddns-go volume config destination <span style=color:#e6db74>&#39;/root/&#39;</span>   <span style=color:#75715e>#映射容器内的路径</span>
 </span></span><span style=display:flex><span>set container name ddns-go volume config source <span style=color:#e6db74>&#39;/config/containers/ddns&#39;</span> <span style=color:#75715e>#映射本地的路役</span></span></span></code></pre></div><script class=code-source type=application/json>"set container name ddns-go allow-host-networks  #允许容器使用主机网络（host network），也就是说，容器不会有独立的网络接口，而是直接使用 VyOS 主机的网络\nset container name ddns-go image 'docker.io/jeessy/ddns-go'   #指定该容器使用的 Docker 镜像\nset container name ddns-go restart 'always'\nset container name ddns-go volume config destination '/root/'   #映射容器内的路径\nset container name ddns-go volume config source '/config/containers/ddns' #映射本地的路役"</script></div><h2 id=查看运行是否成功有up即成功>查看运行是否成功有UP即成功</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>sudo podman ps -s
 sudo podman ps -a</code></pre><script class=code-source type=application/json>"sudo podman ps -s\nsudo podman ps -a"</script></div><h2 id=登录管理平台>登录管理平台</h2><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>http://IP:9876</code></pre><script class=code-source type=application/json>"http://IP:9876"</script></div><p>登录用户名：admin</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
+<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li><li><a href=/posts/ai/moon-bridge-config-tutorial/><img src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>SMbox OPNsense 配置教程</span></a></li><li><a href=/posts/routeros/smbox-routeros-config/><img src=/posts/routeros/smbox-routeros-config/assets/smbox-routeros-01.png alt>
+<span class=latest-title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</span></a></li><li><a href=/posts/routeros/smbox-opnsense-config/><img src=/posts/routeros/smbox-opnsense-config/assets/smbox-opnsense-01.png alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>SMbox RouterOS 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>SMbox OPNsense 配置教程</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
