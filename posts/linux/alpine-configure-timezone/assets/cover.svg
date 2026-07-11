@@ -26,60 +26,61 @@
   </g>
 
   <!-- Glow behind clock -->
-  <ellipse cx="300" cy="220" rx="140" ry="140" fill="url(#glow)"/>
+  <ellipse cx="260" cy="220" rx="140" ry="140" fill="url(#glow)"/>
 
   <!-- Clock face -->
-  <circle cx="300" cy="220" r="120" fill="#0f1e33" stroke="#3b82f6" stroke-width="3"/>
-  <circle cx="300" cy="220" r="115" fill="none" stroke="#2a4a7f" stroke-width="1"/>
+  <circle cx="260" cy="220" r="120" fill="#0f1e33" stroke="#3b82f6" stroke-width="3"/>
+  <circle cx="260" cy="220" r="115" fill="none" stroke="#2a4a7f" stroke-width="1"/>
 
   <!-- Hour markers -->
   <g fill="#5b9af5" font-family="monospace" font-size="18" text-anchor="middle" dominant-baseline="central">
-    <text x="300" y="115">12</text>
-    <text x="380" y="127">1</text>
-    <text x="403" y="172">2</text>
-    <text x="408" y="222">3</text>
-    <text x="403" y="270">4</text>
-    <text x="380" y="312">5</text>
-    <text x="300" y="325">6</text>
-    <text x="220" y="312">7</text>
-    <text x="197" y="270">8</text>
-    <text x="192" y="222">9</text>
-    <text x="197" y="172">10</text>
-    <text x="220" y="127">11</text>
+    <text x="260" y="115">12</text>
+    <text x="340" y="127">1</text>
+    <text x="363" y="172">2</text>
+    <text x="368" y="222">3</text>
+    <text x="363" y="270">4</text>
+    <text x="340" y="312">5</text>
+    <text x="260" y="325">6</text>
+    <text x="180" y="312">7</text>
+    <text x="157" y="270">8</text>
+    <text x="152" y="222">9</text>
+    <text x="157" y="172">10</text>
+    <text x="180" y="127">11</text>
   </g>
 
   <!-- Hour hand (pointing to ~8) -->
-  <line x1="300" y1="220" x2="265" y2="152" stroke="#60a5fa" stroke-width="5" stroke-linecap="round"/>
+  <line x1="260" y1="220" x2="225" y2="152" stroke="#60a5fa" stroke-width="5" stroke-linecap="round"/>
   <!-- Minute hand (pointing to ~10) -->
-  <line x1="300" y1="220" x2="340" y2="140" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/>
+  <line x1="260" y1="220" x2="300" y2="140" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/>
   <!-- Second hand -->
-  <line x1="300" y1="220" x2="270" y2="290" stroke="#f87171" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="260" y1="220" x2="230" y2="290" stroke="#f87171" stroke-width="1.5" stroke-linecap="round"/>
 
   <!-- Center dot -->
-  <circle cx="300" cy="220" r="5" fill="#3b82f6"/>
+  <circle cx="260" cy="220" r="5" fill="#3b82f6"/>
 
   <!-- Time zone text on clock -->
-  <text x="300" y="305" fill="#5b9af5" font-family="monospace" font-size="12" text-anchor="middle">CST +8</text>
+  <text x="260" y="305" fill="#5b9af5" font-family="monospace" font-size="12" text-anchor="middle">CST +8</text>
 
-  <!-- Terminal window on the right -->
-  <rect x="470" y="130" width="280" height="200" rx="8" fill="#0d1b2a" stroke="#2a4a7f" stroke-width="1.5"/>
+  <!-- Terminal window -->
+  <rect x="420" y="115" width="350" height="230" rx="8" fill="#0d1b2a" stroke="#2a4a7f" stroke-width="1.5"/>
   <!-- Title bar -->
-  <rect x="470" y="130" width="280" height="30" rx="8" fill="#1b2838"/>
-  <rect x="470" y="148" width="280" height="12" fill="#1b2838"/>
+  <rect x="420" y="115" width="350" height="30" rx="8" fill="#1b2838"/>
+  <rect x="420" y="133" width="350" height="12" fill="#1b2838"/>
   <!-- Window dots -->
-  <circle cx="490" cy="145" r="5" fill="#f87171"/>
-  <circle cx="508" cy="145" r="5" fill="#fbbf24"/>
-  <circle cx="526" cy="145" r="5" fill="#34d399"/>
+  <circle cx="440" cy="130" r="5" fill="#f87171"/>
+  <circle cx="458" cy="130" r="5" fill="#fbbf24"/>
+  <circle cx="476" cy="130" r="5" fill="#34d399"/>
 
   <!-- Terminal text -->
-  <g font-family="monospace" font-size="14">
-    <text x="485" y="185" fill="#34d399">$ apk add tzdata</text>
-    <text x="485" y="207" fill="#9ca3af">(1/1) Installing tzdata (2024a)</text>
-    <text x="485" y="229" fill="#9ca3af">OK: 243 MiB in 62 packages</text>
-    <text x="485" y="255" fill="#34d399">$ cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime</text>
-    <text x="485" y="277" fill="#34d399">$ echo "Asia/Shanghai" > /etc/timezone</text>
-    <text x="485" y="303" fill="#34d399">$ date</text>
-    <text x="485" y="325" fill="#fbbf24">Fri Jul 11 22:45:00 CST 2026</text>
+  <g font-family="monospace" font-size="13">
+    <text x="438" y="172" fill="#34d399">$ apk add tzdata</text>
+    <text x="438" y="194" fill="#9ca3af">(1/1) Installing tzdata (2024a)</text>
+    <text x="438" y="216" fill="#9ca3af">OK: 243 MiB in 62 packages</text>
+    <text x="438" y="242" fill="#34d399">$ cp /usr/share/zoneinfo/Asia/Shanghai</text>
+    <text x="454" y="262" fill="#34d399">  /etc/localtime</text>
+    <text x="438" y="286" fill="#34d399">$ echo "Asia/Shanghai" > /etc/timezone</text>
+    <text x="438" y="310" fill="#34d399">$ date</text>
+    <text x="438" y="332" fill="#fbbf24">Fri Jul 11 22:45:00 CST 2026</text>
   </g>
 
   <!-- Title -->
