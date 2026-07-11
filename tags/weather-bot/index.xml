@@ -1,6 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Weather Bot on 电脑自习室</title><link>https://purodn.tk/tags/weather-bot/</link><description>Recent content in Weather Bot on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 00:53:44 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/weather-bot/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix Synapse 机器人：天气推送与服务器监控提醒</title><link>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</link><pubDate>Mon, 25 May 2026 00:53:44 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</guid><description>这篇记录一个很实用的小自动化：在自建 Matrix Synapse 上创建一个真正的机器人账号 @bot:666666.xyz。本服用户可以主动邀请它，发送“帮助”查看命令，发送“设置天气时间 07:30”自行设置每日天气推送时间；管理员仍然可以接收磁盘、Docker、TURN / LiveKit 等服务器监控提醒。
-这个方案不是 Synapse Server Notices，而是普通 Matrix 机器人账号。好处是体验更像一个联系人：用户可以手动邀请它进私聊，普通用户只使用天气功能，服务器监控提醒则只发给管理员。
-一、最终效果 完成后会得到这些文件和配置：
-复制机器人账号: @bot:666666.xyz 机器人 token: /root/.config/matrix-bot/access_token 机器人密码: /root/.config/matrix-bot/bot-password 主脚本: /root/data/docker_data/synapse/scripts/matrix-bot-weather.py 配置文件: /root/data/docker_data/synapse/scripts/matrix-bot-weather.json 定时包装脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather.sh 天气循环脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather-loop.sh 天气 OpenRC 服务: /etc/init.d/matrix-bot-weather 聊天同步脚本: /root/data/docker_data/synapse/scripts/matrix-bot-sync.py 聊天同步 OpenRC 服务: /etc/init.d/matrix-bot-sync 日志: /var/log/matrix-bot-weather.log /var/log/matrix-bot-sync.log 监控脚本: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.py 监控配置: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.json 监控日志: /var/log/matrix-bot-monitor.log 天气推送和聊天命令使用 OpenRC 常驻服务控制。天气服务每 20 秒检查一次配置，谁到了自己的推送时间，就给谁发送天气；聊天同步服务每 20 秒处理一次邀请和命令。
-复制rc-service matrix-bot-weather status rc-service matrix-bot-sync status 服务器监控提醒仍然由 root crontab 控制：
-复制*/5 * * * * /root/data/docker_data/synapse/scripts/run-matrix-bot-monitor.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Weather Bot on 电脑自习室</title>
+    <link>https://purodn.tk/tags/weather-bot/</link>
+    <description>Recent content in Weather Bot on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 25 May 2026 00:53:44 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/weather-bot/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Matrix Synapse 机器人：天气推送与服务器监控提醒</title>
+      <link>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</link>
+      <pubDate>Mon, 25 May 2026 00:53:44 +0800</pubDate>
+      <guid>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</guid>
+      <description>这篇记录一个很实用的小自动化：在自建 Matrix Synapse 上创建一个真正的机器人账号 @bot:666666.xyz。本服用户可以主动邀请它，发送“帮助”查看命令，发送“设置天气时间 07:30”自行设置每日天气推送时间；管理员仍然可以接收磁盘、Docker、TURN / LiveKit 等服务器监控提醒。&#xA;这个方案不是 Synapse Server Notices，而是普通 Matrix 机器人账号。好处是体验更像一个联系人：用户可以手动邀请它进私聊，普通用户只使用天气功能，服务器监控提醒则只发给管理员。&#xA;一、最终效果 完成后会得到这些文件和配置：&#xA;复制机器人账号: @bot:666666.xyz 机器人 token: /root/.config/matrix-bot/access_token 机器人密码: /root/.config/matrix-bot/bot-password 主脚本: /root/data/docker_data/synapse/scripts/matrix-bot-weather.py 配置文件: /root/data/docker_data/synapse/scripts/matrix-bot-weather.json 定时包装脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather.sh 天气循环脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather-loop.sh 天气 OpenRC 服务: /etc/init.d/matrix-bot-weather 聊天同步脚本: /root/data/docker_data/synapse/scripts/matrix-bot-sync.py 聊天同步 OpenRC 服务: /etc/init.d/matrix-bot-sync 日志: /var/log/matrix-bot-weather.log /var/log/matrix-bot-sync.log 监控脚本: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.py 监控配置: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.json 监控日志: /var/log/matrix-bot-monitor.log 天气推送和聊天命令使用 OpenRC 常驻服务控制。天气服务每 20 秒检查一次配置，谁到了自己的推送时间，就给谁发送天气；聊天同步服务每 20 秒处理一次邀请和命令。&#xA;复制rc-service matrix-bot-weather status rc-service matrix-bot-sync status 服务器监控提醒仍然由 root crontab 控制：&#xA;复制*/5 * * * * /root/data/docker_data/synapse/scripts/run-matrix-bot-monitor.</description>
+    </item>
+  </channel>
+</rss>

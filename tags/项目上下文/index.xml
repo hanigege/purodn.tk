@@ -1,11 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>项目上下文 on 电脑自习室</title><link>https://purodn.tk/tags/%E9%A1%B9%E7%9B%AE%E4%B8%8A%E4%B8%8B%E6%96%87/</link><description>Recent content in 项目上下文 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 01 Jun 2026 10:55:39 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E9%A1%B9%E7%9B%AE%E4%B8%8A%E4%B8%8B%E6%96%87/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</title><link>https://purodn.tk/posts/ai/hermes-project-context-files/</link><pubDate>Mon, 01 Jun 2026 10:55:39 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-project-context-files/</guid><description>Hermes 也可以像 Codex 一样读取项目级上下文文件。区别在于：Telegram 对话本身只有一个窗口，Hermes 必须先知道“本轮任务要操作哪个项目目录”，才能进入项目、读取规则，再按规则做事。
-这篇文章整理一套适合日常使用的约定：每个项目放自己的 AGENTS.md，每次下任务时带上项目路径，必要时用 /new 和 /title 分隔上下文。这样不管是写 Hugo 文章、检查 Matrix 容器，还是维护某个 Docker Compose 项目，Hermes 都能把不同项目的规则分开处理。
-Hermes 支持哪些项目上下文文件 Hermes 会识别项目目录里的上下文文件，常见包括：
-AGENTS.md CLAUDE.md .cursorrules 这些文件的作用是告诉机器人：这个项目是什么、文件怎么放、哪些命令必须验证、哪些目录禁止删除、哪些信息不能输出。
-要注意的是，Hermes 需要先知道当前项目路径。比如 Telegram 里的默认工作目录可能是：
-复制/home/hermesuser/.hermes/profiles/code 这个目录只是 Hermes profile 的运行目录，不一定是你的业务项目。如果只说“去改那个项目”，Hermes 不会自动知道应该读取哪个项目的 AGENTS.md。
-正确的说法是直接给出项目路径：
-复制小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。 Hermes 收到后，推荐按这个顺序工作：
-进入指定项目目录。 读取 AGENTS.md、CLAUDE.md 或相关 README。 查看 git status 和项目结构。 按项目规则修改。 运行验证命令。 汇报修改内容、验证结果和剩余风险。 下任务时怎么区分不同项目 最稳的格式是：
-复制项目：/path/to/project 任务：做 xxx 例如：
-复制项目：/home/hermesuser/wiki 任务：新增一篇 RouterOS 备份说明。 或者：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>项目上下文 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E9%A1%B9%E7%9B%AE%E4%B8%8A%E4%B8%8B%E6%96%87/</link>
+    <description>Recent content in 项目上下文 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 01 Jun 2026 10:55:39 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E9%A1%B9%E7%9B%AE%E4%B8%8A%E4%B8%8B%E6%96%87/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes 项目级上下文文件使用指南：AGENTS.md、项目路径与 Telegram 单窗口工作流</title>
+      <link>https://purodn.tk/posts/ai/hermes-project-context-files/</link>
+      <pubDate>Mon, 01 Jun 2026 10:55:39 +0800</pubDate>
+      <guid>https://purodn.tk/posts/ai/hermes-project-context-files/</guid>
+      <description>Hermes 也可以像 Codex 一样读取项目级上下文文件。区别在于：Telegram 对话本身只有一个窗口，Hermes 必须先知道“本轮任务要操作哪个项目目录”，才能进入项目、读取规则，再按规则做事。&#xA;这篇文章整理一套适合日常使用的约定：每个项目放自己的 AGENTS.md，每次下任务时带上项目路径，必要时用 /new 和 /title 分隔上下文。这样不管是写 Hugo 文章、检查 Matrix 容器，还是维护某个 Docker Compose 项目，Hermes 都能把不同项目的规则分开处理。&#xA;Hermes 支持哪些项目上下文文件 Hermes 会识别项目目录里的上下文文件，常见包括：&#xA;AGENTS.md CLAUDE.md .cursorrules 这些文件的作用是告诉机器人：这个项目是什么、文件怎么放、哪些命令必须验证、哪些目录禁止删除、哪些信息不能输出。&#xA;要注意的是，Hermes 需要先知道当前项目路径。比如 Telegram 里的默认工作目录可能是：&#xA;复制/home/hermesuser/.hermes/profiles/code 这个目录只是 Hermes profile 的运行目录，不一定是你的业务项目。如果只说“去改那个项目”，Hermes 不会自动知道应该读取哪个项目的 AGENTS.md。&#xA;正确的说法是直接给出项目路径：&#xA;复制小工，进 /home/hermesuser/wiki 这个项目，看 AGENTS.md，然后帮我改 xxx。 Hermes 收到后，推荐按这个顺序工作：&#xA;进入指定项目目录。 读取 AGENTS.md、CLAUDE.md 或相关 README。 查看 git status 和项目结构。 按项目规则修改。 运行验证命令。 汇报修改内容、验证结果和剩余风险。 下任务时怎么区分不同项目 最稳的格式是：&#xA;复制项目：/path/to/project 任务：做 xxx 例如：&#xA;复制项目：/home/hermesuser/wiki 任务：新增一篇 RouterOS 备份说明。 或者：</description>
+    </item>
+  </channel>
+</rss>

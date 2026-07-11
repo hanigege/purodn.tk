@@ -1,8 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Asterisk on 电脑自习室</title><link>https://purodn.tk/tags/asterisk/</link><description>Recent content in Asterisk on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/asterisk/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（二）：FreePBX 16 基础配置</title><link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid><description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。
-基础假设 示例网络如下：
-项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。
-原文中的整体架构图如下：
-固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：
-复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：
-复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：
-复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Asterisk on 电脑自习室</title>
+    <link>https://purodn.tk/tags/asterisk/</link>
+    <description>Recent content in Asterisk on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/asterisk/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>出国自建 VoIP（二）：FreePBX 16 基础配置</title>
+      <link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link>
+      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid>
+      <description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。&#xA;基础假设 示例网络如下：&#xA;项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&#xA;原文中的整体架构图如下：&#xA;固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：&#xA;复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：&#xA;复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：&#xA;复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description>
+    </item>
+  </channel>
+</rss>

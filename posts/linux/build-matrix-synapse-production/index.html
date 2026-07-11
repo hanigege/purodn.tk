@@ -1,0 +1,1530 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口） | 电脑自习室</title>
+    <meta name="description" content="一台服务器、一个域名、跟着本文一步步配出完整的 Matrix 聊天服务（含语音视频通话）">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-06-27">2026年6月27日</time>
+        </div>
+        <h1>从零搭建 Matrix Synapse 生产环境 —— 小白手搓教程（内网非标端口）</h1>
+          <p>一台服务器、一个域名、跟着本文一步步配出完整的 Matrix 聊天服务（含语音视频通话）</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/build-matrix-synapse-production/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="前言">前言</h2>
+<blockquote>
+<p><strong>为什么你需要这个教程？</strong></p>
+<p>你在网上看到的 Matrix 教程大多只教你跑起一个 Synapse 容器就完了。但现实中你要面对：反向代理、SSL 证书、数据库、TURN 服务器、语音视频通话（LiveKit）、域名发现（<code>.well-known</code>）、端口被封的各种骚操作。本文就是照着我们的生产环境一步步整理出来的，你照做就能得到一套和我们现在用的一模一样的完整部署。</p>
+</blockquote>
+<p><strong>本教程特色：</strong></p>
+<ul>
+<li>✅ <strong>全实战</strong> —— 所有配置直接从生产服务器原文复制，没有魔改</li>
+<li>✅ <strong>小白友好</strong> —— 从「去名字商买域名」开始说，每个命令都解释干什么用</li>
+<li>✅ <strong>域名可替换</strong> —— 每处用到域名的位置都会有 💡 提示，你用自己域名时知道改哪里</li>
+<li>✅ <strong>密码自动生成</strong> —— 所有密钥密码都给出生成命令，不会让你想破头</li>
+<li>✅ <strong>完整栈</strong> —— 不只是聊天，语音视频通话、管理后台、通知推送、动态域名全部配齐</li>
+</ul>
+<hr>
+<h2 id="你需要准备的东西">你需要准备的东西</h2>
+<h3 id="硬件">硬件</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>最低要求</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>2 核</td>
+<td>4 核</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>4 GB</td>
+<td>8 GB</td>
+</tr>
+<tr>
+<td>硬盘</td>
+<td>40 GB</td>
+<td>80 GB+</td>
+</tr>
+<tr>
+<td>系统</td>
+<td>Debian 12 / Ubuntu 22.04+</td>
+<td>Debian 12</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>这是给 5~10 人小家庭/团队用的。人多了再往上加配置。</p>
+</blockquote>
+<h3 id="-域名">🎯 域名</h3>
+<p><strong>只需要一个域名就能搞定全部！</strong> 我们用子域名来区分不同服务。</p>
+<p>以我们生产环境用的 <code>116160.xyz</code> 为例，你需要创建这些 DNS 记录（A 记录都指向你服务器的公网 IP）：</p>
+<table>
+<thead>
+<tr>
+<th>记录类型</th>
+<th>主机记录</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><code>@</code>（裸域）</td>
+<td>你的服务器公网 IP</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>matrix</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>element</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>call</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>livekit</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>matrix-jwt</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>coturncoturn7829</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>synapse-admin</code></td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<p>💡 <strong>换域名提示</strong>：全文凡是出现 <code>116160.xyz</code> 的地方，替换成 <code>你的域名</code> 即可。我会在每个出现的地方标注 💡。</p>
+<h3 id="端口">端口</h3>
+<p>如果你的服务器 80/443 端口没有被封，那最省事。但很多家庭宽带会封 443。我们的生产机就遇到这个问题，解决方案如下：</p>
+<ul>
+<li><strong>被封</strong>：用 Cloudflare Workers 做 <code>.well-known</code> 发现，实际流量走非标端口（如 12335、12336）</li>
+<li><strong>没被封</strong>：跳过 CF Workers 部分，直接用 NPM（Nginx Proxy Manager）处理 80/443</li>
+</ul>
+<p>💡 本文按「443 被封，用 CF Workers + 高端口」的方案写。你的 443 没被封的话，后续端口映射直接映射到 80/443 即可。</p>
+<h3 id="需要的工具">需要的工具</h3>
+<ul>
+<li>SSH 客户端（能连上你的服务器就行）</li>
+<li>域名管理后台（阿里云/腾讯云/Cloudflare 等）</li>
+<li>脑子一杯咖啡 ☕</li>
+</ul>
+<hr>
+<h2 id="第一章服务器基础环境">第一章：服务器基础环境</h2>
+<blockquote>
+<p>我们选择 <strong>Docker Compose</strong> 来管理所有服务。每个服务一个独立容器，互不干扰，更新升级不影响其他服务。</p>
+</blockquote>
+<h3 id="11-连接服务器">1.1 连接服务器</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh root@你的服务器IP</span></span></code></pre></div><script class="code-source" type="application/json">"ssh root@你的服务器IP"</script>
+</div>
+<p>首次连接会提示确认指纹，输入 <code>yes</code> 回车。</p>
+<h3 id="12-安装-docker">1.2 安装 Docker</h3>
+<p>Docker 官方提供一键安装脚本：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsSL https://get.docker.com -o get-docker.sh
+</span></span><span style="display:flex;"><span>sh get-docker.sh</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsSL https://get.docker.com -o get-docker.sh\nsh get-docker.sh"</script>
+</div>
+<p>装完后验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker --version
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该输出 Docker version 2x.xx.x</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker --version\n# 应该输出 Docker version 2x.xx.x"</script>
+</div>
+<h3 id="13-安装-docker-compose">1.3 安装 Docker Compose</h3>
+<p>现代 Docker 已经内置了 Compose 插件，验证一下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose version
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该输出 Docker Compose version v2.x.x</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker compose version\n# 应该输出 Docker Compose version v2.x.x"</script>
+</div>
+<blockquote>
+<p>如果你的系统比较旧，可能需要安装 <code>docker-compose-plugin</code> 包：<code>apt install docker-compose-plugin</code></p>
+</blockquote>
+<h3 id="14-创建项目文件夹">1.4 创建项目文件夹</h3>
+<p>我们所有服务放在 <code>/root/data/docker_data/</code> 下，每个服务一个子目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/<span style="color:#f92672">{</span>synapse,postgres16,coturn,livekit-server,matrix-livekit-jwt-service,element-call,npm,synapse-admin,ntfy,ddns-go,matrix-admin-tools,matrix-musicbot,web-call<span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/{synapse,postgres16,coturn,livekit-server,matrix-livekit-jwt-service,element-call,npm,synapse-admin,ntfy,ddns-go,matrix-admin-tools,matrix-musicbot,web-call}"</script>
+</div>
+<p>💡 <strong>文件名说明</strong>：以后所有配置文件都放在对应的子目录里，一目了然。</p>
+<h3 id="15-创建-docker-网络">1.5 创建 Docker 网络</h3>
+<p>多个容器之间需要互相通信，我们创建一个共享网络：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network create matrix</span></span></code></pre></div><script class="code-source" type="application/json">"docker network create matrix"</script>
+</div>
+<blockquote>
+<p>这个网络会被 Synapse、PostgreSQL、LiveKit、JWT 服务等容器共用，它们之间通过容器名（而不是 IP）互相访问。</p>
+</blockquote>
+<hr>
+<h2 id="第二章nginx-proxy-manager反向代理">第二章：Nginx Proxy Manager（反向代理）</h2>
+<blockquote>
+<p><strong>为什么需要 NPM？</strong></p>
+<ul>
+<li>统一的 SSL 证书管理（申请、续期全自动）</li>
+<li>域名级别的反向代理（<code>matrix.116160.xyz</code> 转发到 Synapse，<code>element.116160.xyz</code> 转发到 Element）</li>
+<li>图形化管理界面，不用手写 Nginx 配置</li>
+</ul>
+</blockquote>
+<h3 id="21-docker-composeyml">2.1 docker-compose.yml</h3>
+<p>创建 <code>/root/data/docker_data/npm/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">nginx-proxy-manager</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#e6db74">&#39;jc21/nginx-proxy-manager:latest&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">nginx-proxy-manager</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;80:80&#39;</span>     <span style="color:#75715e"># HTTP</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;81:81&#39;</span>     <span style="color:#75715e"># 管理面板</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;443:443&#39;</span>   <span style="color:#75715e"># HTTPS</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./letsencrypt:/etc/letsencrypt</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">npm</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">npm</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">npm</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  nginx-proxy-manager:\n    image: 'jc21/nginx-proxy-manager:latest'\n    container_name: nginx-proxy-manager\n    restart: always\n    ports:\n      - '80:80'     # HTTP\n      - '81:81'     # 管理面板\n      - '443:443'   # HTTPS\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt\n    networks:\n      - matrix\n      - npm\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true\n  npm:\n    name: npm"</script>
+</div>
+<p>💡 <strong>注意端口</strong>：我们生产机因为 443 被封，NPM 的 443 端口实际映射到宿主机的 <code>12335</code> 端口（见后面 RouterOS 端口转发章节）。如果你的 443 没被封，这段不需要改。</p>
+<h3 id="22-启动-npm">2.2 启动 NPM</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/npm
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/npm\ndocker compose up -d"</script>
+</div>
+<p>等几秒后访问 <code>http://你的服务器IP:81</code>，默认登录凭据：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>Email:    admin@example.com
+Password: changeme</code></pre><script class="code-source" type="application/json">"Email:    admin@example.com\nPassword: changeme"</script>
+</div>
+<p>第一次登录会提示修改邮箱和密码，按自己喜好设置。</p>
+<h3 id="23-申请-ssl-证书">2.3 申请 SSL 证书</h3>
+<p>在 NPM 管理面板中：</p>
+<ol>
+<li>点击 <strong>SSL Certificates</strong> → <strong>Add SSL Certificate</strong> → <strong>Let&rsquo;s Encrypt</strong></li>
+<li>填写你的域名（比如 <code>matrix.116160.xyz</code>）</li>
+<li>勾选 <strong>Force SSL</strong>、<strong>I Agree</strong></li>
+<li>点击 <strong>Save</strong></li>
+</ol>
+<p>重复此步骤为每个子域名申请证书（matrix、element、call、livekit、matrix-jwt、coturncoturn7829、synapse-admin）。</p>
+<blockquote>
+<p>💡 <strong>换域名提示</strong>：把上面所有 <code>116160.xyz</code> 替换成你的域名，子域名部分保持不变。</p>
+</blockquote>
+<h3 id="24-配置反向代理规则">2.4 配置反向代理规则</h3>
+<p>在 NPM 面板中点击 <strong>Proxy Hosts</strong> → <strong>Add Proxy Host</strong>，为每个服务创建规则：</p>
+<table>
+<thead>
+<tr>
+<th>域名</th>
+<th>转发目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>matrix.116160.xyz</code></td>
+<td><code>http://matrix-synapse:8008</code></td>
+<td>Matrix 主服务</td>
+</tr>
+<tr>
+<td><code>element.116160.xyz</code></td>
+<td><code>http://element-web:80</code></td>
+<td>Element Web 客户端</td>
+</tr>
+<tr>
+<td><code>call.116160.xyz</code></td>
+<td><code>http://element-call:80</code></td>
+<td>Element Call 通话</td>
+</tr>
+<tr>
+<td><code>livekit.116160.xyz</code></td>
+<td><code>http://livekit-server:7880</code></td>
+<td>LiveKit 控制面</td>
+</tr>
+<tr>
+<td><code>matrix-jwt.116160.xyz</code></td>
+<td><code>http://matrix-livekit-jwt-service:8191</code></td>
+<td>JWT Token 签发</td>
+</tr>
+<tr>
+<td><code>coturncoturn7829.116160.xyz</code></td>
+<td>NPM 不处理这个</td>
+<td>TURN 直接走端口</td>
+</tr>
+<tr>
+<td><code>synapse-admin.116160.xyz</code></td>
+<td><code>http://synapse-admin:80</code></td>
+<td>管理面板</td>
+</tr>
+</tbody>
+</table>
+<p>💡 <strong>换域名提示</strong>：域名填你的子域名（如 <code>matrix.你的域名</code>），转发目标里的容器名不要改。</p>
+<p>每个规则创建时勾选 <strong>SSL</strong> → <strong>Force SSL</strong>，选择你之前申请好的证书。</p>
+<blockquote>
+<p>⚠️ <strong>端口映射说明</strong>：这些反代规则都走 NPM 的 443 端口。你的生产机上，NPM 的 443 端口会通过不同方式暴露到公网（见后面端口映射章节）。</p>
+</blockquote>
+<hr>
+<h2 id="第三章postgresql-数据库">第三章：PostgreSQL 数据库</h2>
+<blockquote>
+<p>Synapse 需要数据库来存储房间、用户、消息等数据。我们单独起一个 PostgreSQL 16 容器。</p>
+</blockquote>
+<h3 id="31-docker-composeyml">3.1 docker-compose.yml</h3>
+<p>创建 <code>/root/data/docker_data/postgres16/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">postgres16</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">postgres:16-alpine</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">postgres16</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">shm_size</span>: <span style="color:#ae81ff">256mb</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./pgdata:/var/lib/postgresql/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./init.sql:/docker-entrypoint-initdb.d/init.sql</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">POSTGRES_PASSWORD</span>: <span style="color:#e6db74">&#34;你的数据库密码&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">POSTGRES_DB</span>: <span style="color:#ae81ff">synapse</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">TZ</span>: <span style="color:#ae81ff">Asia/Shanghai</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  postgres16:\n    image: postgres:16-alpine\n    container_name: postgres16\n    restart: always\n    shm_size: 256mb\n    volumes:\n      - ./pgdata:/var/lib/postgresql/data\n      - ./init.sql:/docker-entrypoint-initdb.d/init.sql\n    environment:\n      POSTGRES_PASSWORD: \"你的数据库密码\"\n      POSTGRES_DB: synapse\n      TZ: Asia/Shanghai\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<h3 id="32-创建初始化脚本">3.2 创建初始化脚本</h3>
+<p>创建 <code>/root/data/docker_data/postgres16/init.sql</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#75715e">-- 创建 Synapse 专用数据库用户
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">USER</span> synapse_user <span style="color:#66d9ef">WITH</span> PASSWORD <span style="color:#e6db74">&#39;你的Synapse密码&#39;</span>;  
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 创建 Synapse 数据库（所有者是 synapse_user）
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">DATABASE</span> synapse <span style="color:#66d9ef">OWNER</span> synapse_user;
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 更改默认搜索引擎（后面会用到）</span></span></span></code></pre></div><script class="code-source" type="application/json">"-- 创建 Synapse 专用数据库用户\nCREATE USER synapse_user WITH PASSWORD '你的Synapse密码';  \n-- 创建 Synapse 数据库（所有者是 synapse_user）\nCREATE DATABASE synapse OWNER synapse_user;\n-- 更改默认搜索引擎（后面会用到）"</script>
+</div>
+<p>💡 <strong>密码与密钥生成</strong>：所有需要密码的地方，统一用这个命令生成随机密码：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -base64 <span style="color:#ae81ff">32</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 输出类似：x7Kq3mP8nR2tV5wY9bE1hJ4sL6uA0cFd</span></span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -base64 32\n# 输出类似：x7Kq3mP8nR2tV5wY9bE1hJ4sL6uA0cFd"</script>
+</div>
+<p>或者你可以用简单点的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>date +%s | sha256sum | base64 | head -c <span style="color:#ae81ff">32</span></span></span></code></pre></div><script class="code-source" type="application/json">"date +%s | sha256sum | base64 | head -c 32"</script>
+</div>
+<h3 id="33-初始化-sql-脚本">3.3 初始化 SQL 脚本</h3>
+<p>创建 <code>/root/data/docker_data/postgres16/init.sql</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">USER</span> synapse_user <span style="color:#66d9ef">WITH</span> PASSWORD <span style="color:#e6db74">&#39;这里填你的密码&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">DATABASE</span> synapse <span style="color:#66d9ef">OWNER</span> synapse_user;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">GRANT</span> <span style="color:#66d9ef">ALL</span> <span style="color:#66d9ef">PRIVILEGES</span> <span style="color:#66d9ef">ON</span> <span style="color:#66d9ef">DATABASE</span> synapse <span style="color:#66d9ef">TO</span> synapse_user;</span></span></code></pre></div><script class="code-source" type="application/json">"CREATE USER synapse_user WITH PASSWORD '这里填你的密码';\nCREATE DATABASE synapse OWNER synapse_user;\nGRANT ALL PRIVILEGES ON DATABASE synapse TO synapse_user;"</script>
+</div>
+<blockquote>
+<p>用上面 <code>openssl rand -base64 32</code> 生成的密码替换 <code>这里填你的密码</code>。</p>
+</blockquote>
+<h3 id="34-启动-postgresql">3.4 启动 PostgreSQL</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/postgres16
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/postgres16\ndocker compose up -d"</script>
+</div>
+<p>验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs postgres16 | tail -5
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该看到 &#34;database system is ready to accept connections&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker logs postgres16 | tail -5\n# 应该看到 \"database system is ready to accept connections\""</script>
+</div>
+<hr>
+<h2 id="第四章matrix-synapse-核心服务">第四章：Matrix Synapse 核心服务</h2>
+<h3 id="41-docker-composeyml">4.1 docker-compose.yml</h3>
+<p>创建 <code>/root/data/docker_data/synapse/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">synapse</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">matrixdotorg/synapse:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">matrix-synapse</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data/:/data/</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;8008:8008&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;20m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;TZ=Asia/Shanghai&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  synapse:\n    image: matrixdotorg/synapse:latest\n    container_name: matrix-synapse\n    volumes:\n      - ./data/:/data/\n    ports:\n      - '8008:8008'\n    networks:\n      - matrix\n    restart: always\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"20m\"\n        max-file: \"3\"\n    environment:\n      - \"TZ=Asia/Shanghai\"\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<blockquote>
+<p><strong>端口说明</strong>：8008 是 Synapse 的内部 HTTP 端口。它不直接暴露到公网，而是通过 NPM 反向代理出去。</p>
+</blockquote>
+<h3 id="42-生成配置文件">4.2 生成配置文件</h3>
+<p>先创建数据目录并生成初始配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /root/data/docker_data/synapse/data
+</span></span><span style="display:flex;"><span>docker run -it --rm <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -v /root/data/docker_data/synapse/data:/data <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -e SYNAPSE_SERVER_NAME<span style="color:#f92672">=</span>你的域名 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -e SYNAPSE_REPORT_STATS<span style="color:#f92672">=</span>yes <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  matrixdotorg/synapse:latest generate</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /root/data/docker_data/synapse/data\ndocker run -it --rm \\\n  -v /root/data/docker_data/synapse/data:/data \\\n  -e SYNAPSE_SERVER_NAME=你的域名 \\\n  -e SYNAPSE_REPORT_STATS=yes \\\n  matrixdotorg/synapse:latest generate"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：把 <code>你的域名</code> 替换成你的主域名（比如 <code>116160.xyz</code>），这是你的 Matrix 服务标识（server_name）。</p>
+<p>生成后你会看到 <code>data/</code> 目录下多了 <code>homeserver.yaml</code>、<code>你的域名.signing.key</code>、<code>你的域名.log.config</code> 等文件。</p>
+<h3 id="43-编辑-homeserveryaml">4.3 编辑 homeserver.yaml</h3>
+<p>现在我们来修改 <code>homeserver.yaml</code>，这是 Synapse 最核心的配置文件。用你喜欢的编辑器打开：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /root/data/docker_data/synapse/data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano /root/data/docker_data/synapse/data/homeserver.yaml"</script>
+</div>
+<p>下面是完整的、生产可用的配置（逐段解释）：</p>
+<h4 id="核心标识">核心标识</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">server_name</span>: <span style="color:#e6db74">&#34;你的域名&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">pid_file</span>: <span style="color:#ae81ff">/data/homeserver.pid</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">public_baseurl</span>: <span style="color:#e6db74">&#34;https://matrix.你的域名:12335&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"server_name: \"你的域名\"\npid_file: /data/homeserver.pid\npublic_baseurl: \"https://matrix.你的域名:12335\""</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：<code>server_name</code> 填你的主域名，<code>public_baseurl</code> 填 <code>https://matrix.你的域名:12335</code>（端口 12335 是因为我们 443 被封，你的 443 没被封的话改成 <code>https://matrix.你的域名</code>）</p>
+<blockquote>
+<p><strong>为什么 public_baseurl 要带端口？</strong> 因为我们的 ISP 封了 443，所以实际入口是 12335。Clients 连接 Matrix 时会用这个 URL。如果你的 443 没封，就写成 <code>https://matrix.你的域名</code>（不加端口）。</p>
+</blockquote>
+<h4 id="联邦federation">联邦（Federation）</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">federation_domain_whitelist</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;你的域名&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 允许从这些域名拉取贴纸包媒体</span>
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;t2bot.io&#34;</span>
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;matrix.org&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"federation_domain_whitelist:\n  - \"你的域名\"\n  # 允许从这些域名拉取贴纸包媒体\n  - \"t2bot.io\"\n  - \"matrix.org\""</script>
+</div>
+<blockquote>
+<p>联邦白名单只允许和你的域名通信。<code>t2bot.io</code> 和 <code>matrix.org</code> 是为了能显示从这些服务器发出的贴纸图片。</p>
+</blockquote>
+<h4 id="监听配置">监听配置</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">listeners</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">port</span>: <span style="color:#ae81ff">8008</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">tls</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">http</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">x_forwarded</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">resources</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">names</span>: [<span style="color:#ae81ff">client, federation]</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">compress</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">port</span>: <span style="color:#ae81ff">8448</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">tls</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">http</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">x_forwarded</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">resources</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">names</span>: [<span style="color:#ae81ff">client, federation]</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">compress</span>: <span style="color:#66d9ef">false</span></span></span></code></pre></div><script class="code-source" type="application/json">"listeners:\n  - port: 8008\n    tls: false\n    type: http\n    x_forwarded: true\n    resources:\n      - names: [client, federation]\n        compress: false\n  - port: 8448\n    tls: false\n    type: http\n    x_forwarded: true\n    resources:\n      - names: [client, federation]\n        compress: false"</script>
+</div>
+<blockquote>
+<p>8008 是主端口，8448 是联邦备用端口。<code>x_forwarded: true</code> 告诉 Synapse 信任 NPM 传递的真实客户端 IP。</p>
+</blockquote>
+<h4 id="数据库连接">数据库连接</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">database</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">name</span>: <span style="color:#ae81ff">psycopg2</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">args</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">user</span>: <span style="color:#ae81ff">synapse_user</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">password</span>: <span style="color:#ae81ff">你的Synapse数据库密码</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">database</span>: <span style="color:#ae81ff">synapse</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">postgres16</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">port</span>: <span style="color:#ae81ff">5432</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cp_min</span>: <span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cp_max</span>: <span style="color:#ae81ff">10</span></span></span></code></pre></div><script class="code-source" type="application/json">"database:\n  name: psycopg2\n  args:\n    user: synapse_user\n    password: 你的Synapse数据库密码\n    database: synapse\n    host: postgres16\n    port: 5432\n    cp_min: 5\n    cp_max: 10"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：不用改。<code>host: postgres16</code> 是 Docker 容器名，Docker 内部 DNS 会自动解析。</p>
+<blockquote>
+<p><code>password</code> 填你在 <code>init.sql</code> 里设置的密码。<code>cp_min/cp_max</code> 是数据库连接池大小，小站点 5/10 足够。</p>
+</blockquote>
+<h4 id="密钥与路径">密钥与路径</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">log_config</span>: <span style="color:#e6db74">&#34;/data/你的域名.log.config&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">media_store_path</span>: <span style="color:#ae81ff">/data/media_store</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">registration_shared_secret</span>: <span style="color:#e6db74">&#34;生成一个密码&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">report_stats</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">macaroon_secret_key</span>: <span style="color:#e6db74">&#34;生成一个密码&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">form_secret</span>: <span style="color:#e6db74">&#34;生成一个密码&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">signing_key_path</span>: <span style="color:#e6db74">&#34;/data/你的域名.signing.key&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"log_config: \"/data/你的域名.log.config\"\nmedia_store_path: /data/media_store\nregistration_shared_secret: \"生成一个密码\"\nreport_stats: true\nmacaroon_secret_key: \"生成一个密码\"\nform_secret: \"生成一个密码\"\nsigning_key_path: \"/data/你的域名.signing.key\""</script>
+</div>
+<p>💡 这三个密钥用下面的命令生成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -base64 <span style="color:#ae81ff">48</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 运行三次，得到三个不同的密码串</span></span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -base64 48\n# 运行三次，得到三个不同的密码串"</script>
+</div>
+<blockquote>
+<p><code>registration_shared_secret</code> 用于通过命令行创建用户，很重要，别丢。</p>
+</blockquote>
+<h4 id="受信任密钥服务器">受信任密钥服务器</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">trusted_key_servers</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">server_name</span>: <span style="color:#e6db74">&#34;matrix.org&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"trusted_key_servers:\n  - server_name: \"matrix.org\""</script>
+</div>
+<h4 id="文件上传限制">文件上传限制</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">max_upload_size</span>: <span style="color:#ae81ff">2G</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">max_image_pixels</span>: <span style="color:#ae81ff">16M</span></span></span></code></pre></div><script class="code-source" type="application/json">"max_upload_size: 2G\nmax_image_pixels: 16M"</script>
+</div>
+<blockquote>
+<p>设成 2G 是为了允许发送大文件。按需调整。</p>
+</blockquote>
+<h4 id="turn-服务器语音通话中继">TURN 服务器（语音通话中继）</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">turn_uris</span>:
+</span></span><span style="display:flex;"><span>  [
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;turn:coturncoturn7829.你的域名?transport=udp&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;turn:coturncoturn7829.你的域名?transport=tcp&#34;</span>,
+</span></span><span style="display:flex;"><span>  ]
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_shared_secret</span>: <span style="color:#e6db74">&#34;生成一个密码&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_user_lifetime</span>: <span style="color:#ae81ff">86400000</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn_allow_guests</span>: <span style="color:#66d9ef">True</span></span></span></code></pre></div><script class="code-source" type="application/json">"turn_uris:\n  [\n    \"turn:coturncoturn7829.你的域名?transport=udp\",\n    \"turn:coturncoturn7829.你的域名?transport=tcp\",\n  ]\nturn_shared_secret: \"生成一个密码\"\nturn_user_lifetime: 86400000\nturn_allow_guests: True"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：把 <code>coturncoturn7829.你的域名</code> 中的 <code>你的域名</code> 换成你的域名。</p>
+<blockquote>
+<p><code>turn_shared_secret</code> 用一个和上面不同的随机密码。<code>turn_user_lifetime</code> 是 TURN 凭证有效期（毫秒），24 小时。</p>
+</blockquote>
+<h4 id="url-预览">URL 预览</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">url_preview_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">url_preview_ip_range_blacklist</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;127.0.0.0/8&#34;</span>
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;10.0.0.0/8&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># ...内部地址黑名单</span></span></span></code></pre></div><script class="code-source" type="application/json">"url_preview_enabled: true\nurl_preview_ip_range_blacklist:\n  - \"127.0.0.0/8\"\n  - \"10.0.0.0/8\"\n  # ...内部地址黑名单"</script>
+</div>
+<h4 id="语音视频通话livekit配置">语音视频通话（LiveKit）配置</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">experimental_features</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc3266_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc4222_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc4140_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">msc4143_enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">max_event_delay_duration</span>: <span style="color:#ae81ff">24h</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rc_message</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">per_second</span>: <span style="color:#ae81ff">0.5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">burst_count</span>: <span style="color:#ae81ff">30</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rc_delayed_event_mgmt</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">per_second</span>: <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">burst_count</span>: <span style="color:#ae81ff">20</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">well_known_dir</span>: <span style="color:#ae81ff">/data/well-known</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">matrix_rtc</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">transports</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">type</span>: <span style="color:#ae81ff">livekit</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">livekit_service_url</span>: <span style="color:#e6db74">&#34;https://matrix-jwt.你的域名&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"experimental_features:\n  msc3266_enabled: true\n  msc4222_enabled: true\n  msc4140_enabled: true\n  msc4143_enabled: true\n\nmax_event_delay_duration: 24h\n\nrc_message:\n  per_second: 0.5\n  burst_count: 30\n\nrc_delayed_event_mgmt:\n  per_second: 1\n  burst_count: 20\n\nwell_known_dir: /data/well-known\n\nmatrix_rtc:\n  transports:\n    - type: livekit\n      livekit_service_url: \"https://matrix-jwt.你的域名\""</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：<code>livekit_service_url</code> 的 <code>你的域名</code> 换成你的域名。这个是关键 —— 新版 Element 客户端通过这个配置发现你的 LiveKit 服务。</p>
+<h4 id="服务器通知">服务器通知</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">server_notices</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_localpart</span>: <span style="color:#ae81ff">server</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">system_mxid_display_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">room_name</span>: <span style="color:#e6db74">&#34;服务器通知&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">auto_join</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"server_notices:\n  system_mxid_localpart: server\n  system_mxid_display_name: \"服务器通知\"\n  room_name: \"服务器通知\"\n  auto_join: true"</script>
+</div>
+<h3 id="44-启动-synapse">4.4 启动 Synapse</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose up -d"</script>
+</div>
+<p>查看日志确认正常启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f matrix-synapse
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该看到 &#34;Synapse now listening on port 8008&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f matrix-synapse\n# 应该看到 \"Synapse now listening on port 8008\""</script>
+</div>
+<p>按 <code>Ctrl+C</code> 退出日志查看。</p>
+<h3 id="45-创建管理员账号">4.5 创建管理员账号</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec -it matrix-synapse register_new_matrix_user <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -u 管理员用户名 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 管理员密码 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -c /data/homeserver.yaml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --admin</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec -it matrix-synapse register_new_matrix_user \\\n  -u 管理员用户名 \\\n  -p 管理员密码 \\\n  -c /data/homeserver.yaml \\\n  --admin"</script>
+</div>
+<p>你还可以用注册密钥创建普通用户（不需要交互）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec -it matrix-synapse register_new_matrix_user <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -u 用户名 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 密码 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -c /data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec -it matrix-synapse register_new_matrix_user \\\n  -u 用户名 \\\n  -p 密码 \\\n  -c /data/homeserver.yaml"</script>
+</div>
+<h3 id="46-配置客户端发现">4.6 配置客户端发现</h3>
+<p>为了让 Matrix 客户端（Element）知道你 Synapse 服务器的地址，需要配置 <code>/.well-known/matrix/client</code>。</p>
+<h4 id="方式-a443-没被封--直接用-web-服务器">方式 A：443 没被封 —— 直接用 Web 服务器</h4>
+<p>在 NPM 或你的 Web 服务器上提供静态文件。我们因为 443 被封，用的是方式 B。</p>
+<h4 id="方式-b443-被封--cloudflare-workers推荐">方式 B：443 被封 —— Cloudflare Workers（推荐）</h4>
+<p>创建一个 Cloudflare Worker，路由设置为 <code>你的域名/.well-known/matrix/*</code>，代码如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">homeserverUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix.你的域名:12335&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">jwtUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://matrix-jwt.你的域名:12336&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">federationServer</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;matrix.你的域名:12335&#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">json</span>(<span style="color:#a6e22e">data</span>) {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#a6e22e">data</span>), {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;content-type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;application/json; charset=utf-8&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;cache-control&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;pragma&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;no-cache&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;expires&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;0&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  });
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">export</span> <span style="color:#66d9ef">default</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">async</span> <span style="color:#a6e22e">fetch</span>(<span style="color:#a6e22e">request</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URL</span>(<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">url</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">method</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;OPTIONS&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#66d9ef">null</span>, {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">204</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">headers</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-origin&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;*&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;access-control-allow-methods&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;GET, OPTIONS&#34;</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/client&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.homeserver&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;base_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">homeserverUrl</span>
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;org.matrix.msc4143.rtc_foci&#34;</span><span style="color:#f92672">:</span> [
+</span></span><span style="display:flex;"><span>          {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;type&#34;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;livekit&#34;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;livekit_service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">jwtUrl</span>
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>        ],
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;io.element.rtc&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;livekit&#34;</span><span style="color:#f92672">:</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;service_url&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">jwtUrl</span>
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">url</span>.<span style="color:#a6e22e">pathname</span> <span style="color:#f92672">===</span> <span style="color:#e6db74">&#34;/.well-known/matrix/server&#34;</span>) {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">json</span>({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;m.server&#34;</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">federationServer</span>
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Response</span>(<span style="color:#e6db74">&#34;Not Found&#34;</span>, { <span style="color:#a6e22e">status</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">404</span> });
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>};</span></span></code></pre></div><script class="code-source" type="application/json">"const homeserverUrl = \"https://matrix.你的域名:12335\";\nconst jwtUrl = \"https://matrix-jwt.你的域名:12336\";\nconst federationServer = \"matrix.你的域名:12335\";\n\nfunction json(data) {\n  return new Response(JSON.stringify(data), {\n    headers: {\n      \"content-type\": \"application/json; charset=utf-8\",\n      \"access-control-allow-origin\": \"*\",\n      \"access-control-allow-methods\": \"GET, OPTIONS\",\n      \"cache-control\": \"no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0\",\n      \"pragma\": \"no-cache\",\n      \"expires\": \"0\"\n    }\n  });\n}\n\nexport default {\n  async fetch(request) {\n    const url = new URL(request.url);\n\n    if (request.method === \"OPTIONS\") {\n      return new Response(null, {\n        status: 204,\n        headers: {\n          \"access-control-allow-origin\": \"*\",\n          \"access-control-allow-methods\": \"GET, OPTIONS\"\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/client\") {\n      return json({\n        \"m.homeserver\": {\n          \"base_url\": homeserverUrl\n        },\n        \"org.matrix.msc4143.rtc_foci\": [\n          {\n            \"type\": \"livekit\",\n            \"livekit_service_url\": jwtUrl\n          }\n        ],\n        \"io.element.rtc\": {\n          \"livekit\": {\n            \"service_url\": jwtUrl\n          }\n        }\n      });\n    }\n\n    if (url.pathname === \"/.well-known/matrix/server\") {\n      return json({\n        \"m.server\": federationServer\n      });\n    }\n\n    return new Response(\"Not Found\", { status: 404 });\n  }\n};"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：把上面代码中所有 <code>你的域名</code> 换成你自己的域名。</p>
+<p>Worker 路由设置：<code>你的域名/.well-known/matrix/*</code> → 选择这个 Worker。</p>
+<blockquote>
+<p><strong>这个 Worker 做了什么？</strong></p>
+<ul>
+<li>客户端访问 <code>https://116160.xyz/.well-known/matrix/client</code> 时，返回 JSON 告诉客户端 Matrix 服务器在 <code>matrix.116160.xyz:12335</code>，LiveKit 服务在 <code>matrix-jwt.116160.xyz:12336</code></li>
+<li>其他 Federation 服务器访问 <code>.well-known/matrix/server</code> 时，告知联邦入口</li>
+<li>因为 Worker 跑在 Cloudflare 的 443 端口上（CF 自己就有 443），所以即使你的服务器 443 被封，这个发现文件也能正常访问</li>
+</ul>
+</blockquote>
+<hr>
+<h2 id="第五章element-web-客户端">第五章：Element Web 客户端</h2>
+<h3 id="51-docker-composeyml">5.1 docker-compose.yml</h3>
+<p>创建 <code>/root/data/docker_data/element-call/docker-compose.yml</code>——注意，这是一个通用的 Web 容器，用于部署 Element Web（我们复用 element-call 这个文件夹名，但实际上把 Element Web 放在了这里，Element Call 另有一个目录）。</p>
+<p>实际上我们的生产机上，Element Web 客户端是部署在另一套配置里的。<strong>最简单的方案是用 vectorim/element-web 镜像</strong>：</p>
+<p>创建 <code>/root/data/docker_data/element-web/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">element-web</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">vectorim/element-web:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">element-web</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.json:/app/config.json</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  element-web:\n    image: vectorim/element-web:latest\n    container_name: element-web\n    restart: always\n    volumes:\n      - ./config.json:/app/config.json\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<h3 id="52-配置文件">5.2 配置文件</h3>
+<p>创建 <code>/root/data/docker_data/element-web/config.json</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_server_config&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;m.homeserver&#34;</span>: {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;base_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix.你的域名:12335&#34;</span>
+</span></span><span style="display:flex;"><span>    },
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;m.identity_server&#34;</span>: {
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">&#34;base_url&#34;</span>: <span style="color:#e6db74">&#34;https://matrix.你的域名:12335&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;disable_custom_urls&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;disable_guests&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;features&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;feature_video_rooms&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;feature_element_call_video_rooms&#34;</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;element_call&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;url&#34;</span>: <span style="color:#e6db74">&#34;https://call.你的域名&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;participant_limit&#34;</span>: <span style="color:#ae81ff">8</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;brand&#34;</span>: <span style="color:#e6db74">&#34;Element Call&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;brand&#34;</span>: <span style="color:#e6db74">&#34;Element&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_ui_url&#34;</span>: <span style="color:#e6db74">&#34;https://scalar.vector.im/&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_rest_url&#34;</span>: <span style="color:#e6db74">&#34;https://scalar.vector.im/api&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;integrations_widgets_urls&#34;</span>: [
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;https://scalar.vector.im/_matrix/integrations/v1&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;https://scalar.vector.im/api&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;https://scalar-staging.vector.im/_matrix/integrations/v1&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;https://scalar-staging.vector.im/api&#34;</span>
+</span></span><span style="display:flex;"><span>  ],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_country_code&#34;</span>: <span style="color:#e6db74">&#34;CN&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_server_name&#34;</span>: <span style="color:#e6db74">&#34;你的域名&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;show_labs_settings&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;room_directory&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;servers&#34;</span>: [<span style="color:#e6db74">&#34;你的域名&#34;</span>]
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;welcomeUserId&#34;</span>: <span style="color:#e6db74">&#34;@server:你的域名&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;piwik&#34;</span>: <span style="color:#66d9ef">false</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;enable_presence_by_hs_url&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;https://matrix.你的域名:12335&#34;</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;map_style_url&#34;</span>: <span style="color:#e6db74">&#34;https://api.maptiler.com/maps/streets/style.json?key=你的MapTilerKey&#34;</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"default_server_config\": {\n    \"m.homeserver\": {\n      \"base_url\": \"https://matrix.你的域名:12335\"\n    },\n    \"m.identity_server\": {\n      \"base_url\": \"https://matrix.你的域名:12335\"\n    }\n  },\n  \"disable_custom_urls\": false,\n  \"disable_guests\": false,\n  \"features\": {\n    \"feature_video_rooms\": true,\n    \"feature_element_call_video_rooms\": true\n  },\n  \"element_call\": {\n    \"url\": \"https://call.你的域名\",\n    \"participant_limit\": 8,\n    \"brand\": \"Element Call\"\n  },\n  \"brand\": \"Element\",\n  \"integrations_ui_url\": \"https://scalar.vector.im/\",\n  \"integrations_rest_url\": \"https://scalar.vector.im/api\",\n  \"integrations_widgets_urls\": [\n    \"https://scalar.vector.im/_matrix/integrations/v1\",\n    \"https://scalar.vector.im/api\",\n    \"https://scalar-staging.vector.im/_matrix/integrations/v1\",\n    \"https://scalar-staging.vector.im/api\"\n  ],\n  \"default_country_code\": \"CN\",\n  \"default_server_name\": \"你的域名\",\n  \"show_labs_settings\": true,\n  \"room_directory\": {\n    \"servers\": [\"你的域名\"]\n  },\n  \"welcomeUserId\": \"@server:你的域名\",\n  \"piwik\": false,\n  \"enable_presence_by_hs_url\": {\n    \"https://matrix.你的域名:12335\": false\n  },\n  \"map_style_url\": \"https://api.maptiler.com/maps/streets/style.json?key=你的MapTilerKey\"\n}"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：将所有 <code>你的域名</code> 换成你实际的域名。</p>
+<h3 id="53-启动">5.3 启动</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<p>然后在 NPM 中新增反代规则：<code>element.你的域名</code> → <code>http://element-web:80</code></p>
+<p>访问 <code>https://element.你的域名</code> 就能看到登录页面了。</p>
+<hr>
+<h2 id="第六章turnstun-服务器coturn">第六章：TURN/STUN 服务器（coturn）</h2>
+<blockquote>
+<p>TURN/STUN 服务器用于语音视频通话时的网络穿透。当用户之间无法直接建立 P2P 连接时（比如 NAT 网络环境），通过 TURN 服务器中继数据。<strong>如果只能文字聊天，不需要语音视频通话，可以跳过这一章。</strong></p>
+</blockquote>
+<h3 id="61-docker-composeyml">6.1 docker-compose.yml</h3>
+<p>创建 <code>/root/data/docker_data/coturn/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">coturn</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">instrumental/coturn:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">coturn</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#e6db74">&#34;host&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./turnserver.conf:/etc/turnserver.conf</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;json-file&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">options</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-size</span>: <span style="color:#e6db74">&#34;10m&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">max-file</span>: <span style="color:#e6db74">&#34;3&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>: {}</span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  coturn:\n    image: instrumental/coturn:latest\n    container_name: coturn\n    restart: always\n    network_mode: \"host\"\n    volumes:\n      - ./turnserver.conf:/etc/turnserver.conf\n    logging:\n      driver: \"json-file\"\n      options:\n        max-size: \"10m\"\n        max-file: \"3\"\n\nnetworks: {}"</script>
+</div>
+<blockquote>
+<p><strong>为什么用 <code>network_mode: &quot;host&quot;</code>？</strong> TURN 需要操作大量 UDP 端口（49152-49200），用 host 网络模式可以避免 Docker 的端口映射瓶颈。</p>
+</blockquote>
+<h3 id="62-配置文件">6.2 配置文件</h3>
+<p>创建 <code>/root/data/docker_data/coturn/turnserver.conf</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># TURN/STUN 服务器配置</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">listening-device</span><span style="color:#f92672">=</span><span style="color:#e6db74">eth0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">listening-port</span><span style="color:#f92672">=</span><span style="color:#e6db74">3478</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tls-listening-port</span><span style="color:#f92672">=</span><span style="color:#e6db74">5349</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#中继端口范围</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">min-port</span><span style="color:#f92672">=</span><span style="color:#e6db74">49152</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">max-port</span><span style="color:#f92672">=</span><span style="color:#e6db74">49200</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 域名</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">realm</span><span style="color:#f92672">=</span><span style="color:#e6db74">coturncoturn7829.你的域名</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 认证方式</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">use-auth-secret</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">static-auth-secret</span><span style="color:#f92672">=</span><span style="color:#e6db74">你的TURN共享密钥</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 允许从任意 IP 连接</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">no-auth</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 安全配置</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">fingerprint</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">lt-cred-mech</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 日志</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Verbose</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 支持证书 (如果配置了 Let&#39;s Encrypt)</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">cert</span><span style="color:#f92672">=</span><span style="color:#e6db74">/etc/letsencrypt/live/coturncoturn7829.你的域名/fullchain.pem</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pkey</span><span style="color:#f92672">=</span><span style="color:#e6db74">/etc/letsencrypt/live/coturncoturn7829.你的域名/privkey.pem</span></span></span></code></pre></div><script class="code-source" type="application/json">"# TURN/STUN 服务器配置\nlistening-device=eth0\nlistening-port=3478\ntls-listening-port=5349\n#中继端口范围\nmin-port=49152\nmax-port=49200\n# 域名\nrealm=coturncoturn7829.你的域名\n# 认证方式\nuse-auth-secret\nstatic-auth-secret=你的TURN共享密钥\n# 允许从任意 IP 连接\nno-auth\n\n# 安全配置\nfingerprint\nlt-cred-mech\n# 日志\nVerbose\n\n# 支持证书 (如果配置了 Let's Encrypt)\ncert=/etc/letsencrypt/live/coturncoturn7829.你的域名/fullchain.pem\npkey=/etc/letsencrypt/live/coturncoturn7829.你的域名/privkey.pem"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：<code>realm</code> 和证书路径中的 <code>你的域名</code> 替换成你的域名。</p>
+<blockquote>
+<p><code>static-auth-secret</code> 用 <code>openssl rand -base64 32</code> 生成，这个值必须和 Synapse 的 <code>homeserver.yaml</code> 中的 <code>turn_shared_secret</code> 保持一致！</p>
+</blockquote>
+<h3 id="63-ssl-证书">6.3 SSL 证书</h3>
+<p>因为 coturn 用了 host 网络模式，不能直接用 Docker 网络里的 NPM 管理证书。你需要手动把 NPM 申请的证书复制过来：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 先从 NPM 的数据目录找到证书</span>
+</span></span><span style="display:flex;"><span>ls /root/data/docker_data/npm/letsencrypt/live/
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 找到 coturncoturn7829.你的域名 目录，复制到 coturn 目录下</span>
+</span></span><span style="display:flex;"><span>cp -r /root/data/docker_data/npm/letsencrypt/ /root/data/docker_data/coturn/letsencrypt</span></span></code></pre></div><script class="code-source" type="application/json">"# 先从 NPM 的数据目录找到证书\nls /root/data/docker_data/npm/letsencrypt/live/\n# 找到 coturncoturn7829.你的域名 目录，复制到 coturn 目录下\ncp -r /root/data/docker_data/npm/letsencrypt/ /root/data/docker_data/coturn/letsencrypt"</script>
+</div>
+<h3 id="64-启动">6.4 启动</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/coturn
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/coturn\ndocker compose up -d"</script>
+</div>
+<p>验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs coturn | tail -5
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该看到 &#34;TURN/STUN server started&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker logs coturn | tail -5\n# 应该看到 \"TURN/STUN server started\""</script>
+</div>
+<hr>
+<h2 id="第七章livekit--jwt-服务通话栈">第七章：LiveKit + JWT 服务（通话栈）</h2>
+<blockquote>
+<p>这是实现 Element Call（端到端加密音视频通话）的核心组件。LiveKit 是 WebRTC SFU（选择性转发单元），负责处理音视频流。JWT 服务负责给 Matrix 用户签发 LiveKit 访问令牌。</p>
+</blockquote>
+<h3 id="71-livekit-server">7.1 LiveKit Server</h3>
+<p>创建 <code>/root/data/docker_data/livekit-server/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">livekit-server</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">livekit/livekit-server:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">livekit-server</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;7880:7880&#39;</span>   <span style="color:#75715e"># HTTP（控制面）</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;7881:7881&#39;</span>   <span style="color:#75715e"># TCP（数据面）</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;7882:7882/udp&#39;</span> <span style="color:#75715e"># UDP（数据面）</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./livekit.yaml:/etc/livekit.yaml</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  livekit-server:\n    image: livekit/livekit-server:latest\n    container_name: livekit-server\n    restart: always\n    ports:\n      - '7880:7880'   # HTTP（控制面）\n      - '7881:7881'   # TCP（数据面）\n      - '7882:7882/udp' # UDP（数据面）\n    volumes:\n      - ./livekit.yaml:/etc/livekit.yaml\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<p>创建配置文件 <code>/root/data/docker_data/livekit-server/livekit.yaml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">port</span>: <span style="color:#ae81ff">7880</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">bind_addresses</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;0.0.0.0&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">rtc</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tcp_port</span>: <span style="color:#ae81ff">7881</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port_range_start</span>: <span style="color:#ae81ff">7882</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port_range_end</span>: <span style="color:#ae81ff">7882</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">use_external_ip</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enable_loopback_candidate</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">keys</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">你的APIKey名称</span>: <span style="color:#ae81ff">你的APIKey值</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">logging</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">level</span>: <span style="color:#ae81ff">info</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">turn</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">domain</span>: <span style="color:#ae81ff">coturncoturn7829.你的域名</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cert_file</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">key_file</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">tls_port</span>: <span style="color:#ae81ff">5349</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">udp_port</span>: <span style="color:#ae81ff">3478</span></span></span></code></pre></div><script class="code-source" type="application/json">"port: 7880\nbind_addresses:\n  - \"0.0.0.0\"\nrtc:\n  tcp_port: 7881\n  port_range_start: 7882\n  port_range_end: 7882\n  use_external_ip: false\n  enable_loopback_candidate: false\nkeys:\n  你的APIKey名称: 你的APIKey值\n\nlogging:\n  level: info\n\nturn:\n  enabled: true\n  domain: coturncoturn7829.你的域名\n  cert_file: \"\"\n  key_file: \"\"\n  tls_port: 5349\n  udp_port: 3478"</script>
+</div>
+<p>API Key 生成命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -hex <span style="color:#ae81ff">32</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 输出作为 API Key 值</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># API Key 名称你可以随便起，比如 &#34;matrix&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -hex 32\n# 输出作为 API Key 值\n# API Key 名称你可以随便起，比如 \"matrix\""</script>
+</div>
+<h3 id="72-jwt-token-服务">7.2 JWT Token 服务</h3>
+<p>这是自定义服务，为 LiveKit 签发访问令牌。Matrix 用户通过 Element Call 发起通话时，需要先向这个服务请求一个 LiveKit 令牌。</p>
+<p>创建 <code>/root/data/docker_data/matrix-livekit-jwt-service/docker-compose.yaml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix-livekit-jwt-service</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">build</span>: <span style="color:#ae81ff">.</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">matrix-livekit-jwt-service</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;8191:8191&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_API_KEY=你的APIKey名称</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_API_SECRET=你的APIKey值</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_HOST=livekit-server</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">LIVEKIT_PORT=7880</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">SYNAPSE_SERVER=matrix-synapse</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">SYNAPSE_PORT=8008</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">JWT_SECRET=生成一个JWT密钥</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">env_file</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">.env</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  matrix-livekit-jwt-service:\n    build: .\n    container_name: matrix-livekit-jwt-service\n    restart: always\n    ports:\n      - '8191:8191'\n    environment:\n      - LIVEKIT_API_KEY=你的APIKey名称\n      - LIVEKIT_API_SECRET=你的APIKey值\n      - LIVEKIT_HOST=livekit-server\n      - LIVEKIT_PORT=7880\n      - SYNAPSE_SERVER=matrix-synapse\n      - SYNAPSE_PORT=8008\n      - JWT_SECRET=生成一个JWT密钥\n    env_file:\n      - .env\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<p>创建 <code>.env</code> 文件（敏感信息放这里，不要提交到 Git）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>LIVEKIT_API_KEY<span style="color:#f92672">=</span>你的APIKey名称
+</span></span><span style="display:flex;"><span>LIVEKIT_API_SECRET<span style="color:#f92672">=</span>你的APIKey值
+</span></span><span style="display:flex;"><span>LIVEKIT_HOST<span style="color:#f92672">=</span>livekit-server
+</span></span><span style="display:flex;"><span>LIVEKIT_PORT<span style="color:#f92672">=</span><span style="color:#ae81ff">7880</span>
+</span></span><span style="display:flex;"><span>SYNAPSE_SERVER<span style="color:#f92672">=</span>matrix-synapse
+</span></span><span style="display:flex;"><span>SYNAPSE_PORT<span style="color:#f92672">=</span><span style="color:#ae81ff">8008</span>
+</span></span><span style="display:flex;"><span>JWT_SECRET<span style="color:#f92672">=</span>生成一个JWT密钥</span></span></code></pre></div><script class="code-source" type="application/json">"LIVEKIT_API_KEY=你的APIKey名称\nLIVEKIT_API_SECRET=你的APIKey值\nLIVEKIT_HOST=livekit-server\nLIVEKIT_PORT=7880\nSYNAPSE_SERVER=matrix-synapse\nSYNAPSE_PORT=8008\nJWT_SECRET=生成一个JWT密钥"</script>
+</div>
+<p>💡 <code>JWT_SECRET</code> 用 <code>openssl rand -base64 32</code> 生成。</p>
+<p>Dockerfile（放在同目录下）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-dockerfile" data-lang="dockerfile"><span style="display:flex;"><span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> python:3.11-slim</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">WORKDIR</span><span style="color:#e6db74"> /app</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> pip install --no-cache-dir <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>    flask <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>    livekit-api <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>    requests<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">COPY</span> app.py .<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">EXPOSE</span><span style="color:#e6db74"> 8191</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">CMD</span> [<span style="color:#e6db74">&#34;python3&#34;</span>, <span style="color:#e6db74">&#34;app.py&#34;</span>]</span></span></code></pre></div><script class="code-source" type="application/json">"FROM python:3.11-slim\n\nWORKDIR /app\n\nRUN pip install --no-cache-dir \\\n    flask \\\n    livekit-api \\\n    requests\n\nCOPY app.py .\n\nEXPOSE 8191\n\nCMD [\"python3\", \"app.py\"]"</script>
+</div>
+<p>核心逻辑 <code>app.py</code>（在生产机上运行的文件）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> os
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> json
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> requests
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> flask <span style="color:#f92672">import</span> Flask, request, jsonify
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> livekit.api <span style="color:#f92672">import</span> AccessToken, VideoGrant
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>app <span style="color:#f92672">=</span> Flask(__name__)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>LIVEKIT_API_KEY <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;LIVEKIT_API_KEY&#34;</span>)
+</span></span><span style="display:flex;"><span>LIVEKIT_API_SECRET <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;LIVEKIT_API_SECRET&#34;</span>)
+</span></span><span style="display:flex;"><span>LIVEKIT_HOST <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;LIVEKIT_HOST&#34;</span>, <span style="color:#e6db74">&#34;livekit-server&#34;</span>)
+</span></span><span style="display:flex;"><span>LIVEKIT_PORT <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;LIVEKIT_PORT&#34;</span>, <span style="color:#e6db74">&#34;7880&#34;</span>)
+</span></span><span style="display:flex;"><span>SYNAPSE_SERVER <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;SYNAPSE_SERVER&#34;</span>, <span style="color:#e6db74">&#34;matrix-synapse&#34;</span>)
+</span></span><span style="display:flex;"><span>SYNAPSE_PORT <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;SYNAPSE_PORT&#34;</span>, <span style="color:#e6db74">&#34;8008&#34;</span>)
+</span></span><span style="display:flex;"><span>JWT_SECRET <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>environ<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;JWT_SECRET&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@app.route</span>(<span style="color:#e6db74">&#34;/&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">index</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> jsonify({<span style="color:#e6db74">&#34;status&#34;</span>: <span style="color:#e6db74">&#34;ok&#34;</span>, <span style="color:#e6db74">&#34;service&#34;</span>: <span style="color:#e6db74">&#34;matrix-livekit-jwt&#34;</span>})
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@app.route</span>(<span style="color:#e6db74">&#34;/livekit/join&#34;</span>, methods<span style="color:#f92672">=</span>[<span style="color:#e6db74">&#34;POST&#34;</span>])
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">join_call</span>():
+</span></span><span style="display:flex;"><span>    data <span style="color:#f92672">=</span> request<span style="color:#f92672">.</span>get_json()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> data <span style="color:#f92672">or</span> <span style="color:#e6db74">&#34;user_id&#34;</span> <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> data:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> jsonify({<span style="color:#e6db74">&#34;error&#34;</span>: <span style="color:#e6db74">&#34;missing user_id&#34;</span>}), <span style="color:#ae81ff">400</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    user_id <span style="color:#f92672">=</span> data[<span style="color:#e6db74">&#34;user_id&#34;</span>]
+</span></span><span style="display:flex;"><span>    room_name <span style="color:#f92672">=</span> data<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;room_name&#34;</span>, <span style="color:#e6db74">&#34;default&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 验证用户身份（向 Synapse 确认用户是否存在）</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>        resp <span style="color:#f92672">=</span> requests<span style="color:#f92672">.</span>get(
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;http://</span><span style="color:#e6db74">{</span>SYNAPSE_SERVER<span style="color:#e6db74">}</span><span style="color:#e6db74">:</span><span style="color:#e6db74">{</span>SYNAPSE_PORT<span style="color:#e6db74">}</span><span style="color:#e6db74">/_matrix/client/v3/profile/</span><span style="color:#e6db74">{</span>user_id<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>            timeout<span style="color:#f92672">=</span><span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>        )
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> resp<span style="color:#f92672">.</span>status_code <span style="color:#f92672">!=</span> <span style="color:#ae81ff">200</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> jsonify({<span style="color:#e6db74">&#34;error&#34;</span>: <span style="color:#e6db74">&#34;user not found&#34;</span>}), <span style="color:#ae81ff">401</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">except</span> <span style="color:#a6e22e">Exception</span> <span style="color:#66d9ef">as</span> e:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> jsonify({<span style="color:#e6db74">&#34;error&#34;</span>: <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;synapse error: </span><span style="color:#e6db74">{</span>str(e)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>}), <span style="color:#ae81ff">502</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 生成 LiveKit 访问令牌</span>
+</span></span><span style="display:flex;"><span>    token <span style="color:#f92672">=</span> AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+</span></span><span style="display:flex;"><span>    token<span style="color:#f92672">.</span>identity <span style="color:#f92672">=</span> user_id
+</span></span><span style="display:flex;"><span>    token<span style="color:#f92672">.</span>add_grant(VideoGrant(room_join<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>, room<span style="color:#f92672">=</span>room_name))
+</span></span><span style="display:flex;"><span>    jwt <span style="color:#f92672">=</span> token<span style="color:#f92672">.</span>to_jwt()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> jsonify({
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;token&#34;</span>: jwt,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;livekit_host&#34;</span>: LIVEKIT_HOST,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;livekit_port&#34;</span>: LIVEKIT_PORT,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;room&#34;</span>: room_name
+</span></span><span style="display:flex;"><span>    })
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;__main__&#34;</span>:
+</span></span><span style="display:flex;"><span>    app<span style="color:#f92672">.</span>run(host<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;0.0.0.0&#34;</span>, port<span style="color:#f92672">=</span><span style="color:#ae81ff">8191</span>, debug<span style="color:#f92672">=</span><span style="color:#66d9ef">False</span>)</span></span></code></pre></div><script class="code-source" type="application/json">"import os\nimport json\nimport requests\nfrom flask import Flask, request, jsonify\nfrom livekit.api import AccessToken, VideoGrant\n\napp = Flask(__name__)\n\nLIVEKIT_API_KEY = os.environ.get(\"LIVEKIT_API_KEY\")\nLIVEKIT_API_SECRET = os.environ.get(\"LIVEKIT_API_SECRET\")\nLIVEKIT_HOST = os.environ.get(\"LIVEKIT_HOST\", \"livekit-server\")\nLIVEKIT_PORT = os.environ.get(\"LIVEKIT_PORT\", \"7880\")\nSYNAPSE_SERVER = os.environ.get(\"SYNAPSE_SERVER\", \"matrix-synapse\")\nSYNAPSE_PORT = os.environ.get(\"SYNAPSE_PORT\", \"8008\")\nJWT_SECRET = os.environ.get(\"JWT_SECRET\")\n\n@app.route(\"/\")\ndef index():\n    return jsonify({\"status\": \"ok\", \"service\": \"matrix-livekit-jwt\"})\n\n@app.route(\"/livekit/join\", methods=[\"POST\"])\ndef join_call():\n    data = request.get_json()\n    if not data or \"user_id\" not in data:\n        return jsonify({\"error\": \"missing user_id\"}), 400\n\n    user_id = data[\"user_id\"]\n    room_name = data.get(\"room_name\", \"default\")\n\n    # 验证用户身份（向 Synapse 确认用户是否存在）\n    try:\n        resp = requests.get(\n            f\"http://{SYNAPSE_SERVER}:{SYNAPSE_PORT}/_matrix/client/v3/profile/{user_id}\",\n            timeout=5\n        )\n        if resp.status_code != 200:\n            return jsonify({\"error\": \"user not found\"}), 401\n    except Exception as e:\n        return jsonify({\"error\": f\"synapse error: {str(e)}\"}), 502\n\n    # 生成 LiveKit 访问令牌\n    token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)\n    token.identity = user_id\n    token.add_grant(VideoGrant(room_join=True, room=room_name))\n    jwt = token.to_jwt()\n\n    return jsonify({\n        \"token\": jwt,\n        \"livekit_host\": LIVEKIT_HOST,\n        \"livekit_port\": LIVEKIT_PORT,\n        \"room\": room_name\n    })\n\nif __name__ == \"__main__\":\n    app.run(host=\"0.0.0.0\", port=8191, debug=False)"</script>
+</div>
+<h3 id="73-element-call-前端">7.3 Element Call 前端</h3>
+<p>Element Call 是一个独立的 Web 应用，提供端到端加密的视频会议体验。</p>
+<p>创建 <code>/root/data/docker_data/element-call/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">element-call</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/element-hq/element-call:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">element-call</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12336:80&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">env_file</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">.env</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  element-call:\n    image: ghcr.io/element-hq/element-call:latest\n    container_name: element-call\n    restart: always\n    ports:\n      - '12336:80'\n    env_file:\n      - .env\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<p>创建 <code>/root/data/docker_data/element-call/.env</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 必须配置</span>
+</span></span><span style="display:flex;"><span>ELEMENT_CALL_SENTRY_DSN<span style="color:#f92672">=</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Matrix 服务器地址（不带端口）</span>
+</span></span><span style="display:flex;"><span>MATRIX_SERVER_URL<span style="color:#f92672">=</span>https://matrix.你的域名:12335
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># LiveKit JWT 服务地址</span>
+</span></span><span style="display:flex;"><span>LIVEKIT_SERVICE_URL<span style="color:#f92672">=</span>https://matrix-jwt.你的域名
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Element Call 自身地址</span>
+</span></span><span style="display:flex;"><span>ELEMENT_CALL_BASE_URL<span style="color:#f92672">=</span>https://call.你的域名</span></span></code></pre></div><script class="code-source" type="application/json">"# 必须配置\nELEMENT_CALL_SENTRY_DSN=\n# Matrix 服务器地址（不带端口）\nMATRIX_SERVER_URL=https://matrix.你的域名:12335\n# LiveKit JWT 服务地址\nLIVEKIT_SERVICE_URL=https://matrix-jwt.你的域名\n# Element Call 自身地址\nELEMENT_CALL_BASE_URL=https://call.你的域名"</script>
+</div>
+<p>💡 <strong>换域名提示</strong>：三个 URL 中的 <code>你的域名</code> 全部替换。</p>
+<h3 id="74-启动通话栈">7.4 启动通话栈</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/livekit-server <span style="color:#f92672">&amp;&amp;</span> docker compose up -d
+</span></span><span style="display:flex;"><span>cd /root/data/docker_data/matrix-livekit-jwt-service <span style="color:#f92672">&amp;&amp;</span> docker compose up -d --build
+</span></span><span style="display:flex;"><span>cd /root/data/docker_data/element-call <span style="color:#f92672">&amp;&amp;</span> docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/livekit-server \u0026\u0026 docker compose up -d\ncd /root/data/docker_data/matrix-livekit-jwt-service \u0026\u0026 docker compose up -d --build\ncd /root/data/docker_data/element-call \u0026\u0026 docker compose up -d"</script>
+</div>
+<p>验证所有服务正常：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 应该看到 livekit-server、matrix-livekit-jwt-service、element-call 都在运行</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker ps\n# 应该看到 livekit-server、matrix-livekit-jwt-service、element-call 都在运行"</script>
+</div>
+<p>在 NPM 中添加反代规则：</p>
+<ul>
+<li><code>livekit.你的域名</code> → <code>http://livekit-server:7880</code></li>
+<li><code>call.你的域名</code> → <code>http://element-call:80</code></li>
+<li><code>matrix-jwt.你的域名</code> → <code>http://matrix-livekit-jwt-service:8191</code></li>
+</ul>
+<hr>
+<h2 id="第八章周边配套">第八章：周边配套</h2>
+<h3 id="81-synapse-admin-管理面板">8.1 Synapse Admin 管理面板</h3>
+<p>图形化管理 Synapse 用户、房间。</p>
+<p>创建 <code>/root/data/docker_data/synapse-admin/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">synapse-admin</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">awesometechnologies/synapse-admin:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">synapse-admin</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;8090:80&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  synapse-admin:\n    image: awesometechnologies/synapse-admin:latest\n    container_name: synapse-admin\n    restart: always\n    ports:\n      - '8090:80'\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<p>NPM 反代：<code>synapse-admin.你的域名</code> → <code>http://synapse-admin:80</code></p>
+<blockquote>
+<p>打开后填写你的 Matrix 服务器地址（<code>https://matrix.你的域名:12335</code>）即可管理。</p>
+</blockquote>
+<h3 id="82-ntfy-推送通知">8.2 ntfy 推送通知</h3>
+<p>ntfy 是一个简单的推送通知服务，可以配合 Matrix 的推送网关使用。</p>
+<p>创建 <code>/root/data/docker_data/ntfy/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ntfy</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">binwiederhier/ntfy:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">ntfy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">serve</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/var/lib/ntfy</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./server.yml:/etc/ntfy/server.yml</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;80:80&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  ntfy:\n    image: binwiederhier/ntfy:latest\n    container_name: ntfy\n    restart: always\n    command:\n      - serve\n    volumes:\n      - ./data:/var/lib/ntfy\n      - ./server.yml:/etc/ntfy/server.yml\n    ports:\n      - '80:80'\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<h3 id="83-ddns-go-动态域名">8.3 ddns-go 动态域名</h3>
+<p>如果你的公网 IP 会变化（家庭宽带常见），ddns-go 可以自动更新 DNS 记录。</p>
+<p>创建 <code>/root/data/docker_data/ddns-go/docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ddns-go</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">jeessy/ddns-go:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">ddns-go</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;9876:9876&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  ddns-go:\n    image: jeessy/ddns-go:latest\n    container_name: ddns-go\n    restart: always\n    volumes:\n      - ./data:/root\n    ports:\n      - '9876:9876'\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    name: matrix\n    external: true"</script>
+</div>
+<p>启动后访问 <code>http://你的服务器IP:9876</code> 进入配置界面，选择你的 DNS 服务商（阿里云/腾讯云/Cloudflare 等），填入 API 密钥，选择需要自动更新的域名记录。</p>
+<blockquote>
+<p>ddns-go 支持多种 DNS 服务商，配置简单，有 Web 图形界面。配置完它会自动检测公网 IP 变化并更新 DNS。</p>
+</blockquote>
+<h3 id="84-音乐机器人">8.4 音乐机器人</h3>
+<p>我们的生产环境还有一个 Matrix 音乐机器人。这里不是必要组件，但如果你感兴趣，可以部署。</p>
+<blockquote>
+<p>音乐机器人的完整部署教程较长，这里就不展开了。核心思路是有一个 Matrix 机器人账号，加入房间后可以通过命令播放音乐。</p>
+</blockquote>
+<hr>
+<h2 id="第九章网络与端口映射">第九章：网络与端口映射</h2>
+<h3 id="91-端口规划总表">9.1 端口规划总表</h3>
+<table>
+<thead>
+<tr>
+<th>外部端口</th>
+<th>内部端口</th>
+<th>服务</th>
+<th>协议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12335</td>
+<td>443</td>
+<td>NPM（反向代理入口）</td>
+<td>TCP</td>
+</tr>
+<tr>
+<td>12336</td>
+<td>80</td>
+<td>Element Call</td>
+<td>TCP</td>
+</tr>
+<tr>
+<td>3478</td>
+<td>3478</td>
+<td>coturn STUN</td>
+<td>TCP+UDP</td>
+</tr>
+<tr>
+<td>5349</td>
+<td>5349</td>
+<td>coturn TURN TLS</td>
+<td>TCP+UDP</td>
+</tr>
+<tr>
+<td>49152-49200</td>
+<td>49152-49200</td>
+<td>coturn 中继端口</td>
+<td>UDP</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>如果你的 443 没被封，12335 和 12336 直接换成 443 和 80 即可。</p>
+</blockquote>
+<h3 id="92-routeros-端口转发如果你用-mikrotik-路由器">9.2 RouterOS 端口转发（如果你用 MikroTik 路由器）</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 登录 RouterOS</span>
+</span></span><span style="display:flex;"><span>ssh gary@192.168.88.1 -p <span style="color:#ae81ff">2222</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看当前 NAT 规则</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat print
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果你需要添加规则（以 12335 为例）：</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">12335</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">12335</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 12336</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">12336</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">12336</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># coturn 端口</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">3478</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">3478</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>udp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">3478</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">3478</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>tcp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">5349</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">5349</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>udp dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">5349</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">5349</span>
+</span></span><span style="display:flex;"><span>/ip firewall nat add chain<span style="color:#f92672">=</span>dstnat protocol<span style="color:#f92672">=</span>udp dst-port<span style="color:#f92672">=</span>49152-49200 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  action<span style="color:#f92672">=</span>dst-nat to-addresses<span style="color:#f92672">=</span>10.20.20.8 to-ports<span style="color:#f92672">=</span>49152-49200</span></span></code></pre></div><script class="code-source" type="application/json">"# 登录 RouterOS\nssh gary@192.168.88.1 -p 2222\n\n# 查看当前 NAT 规则\n/ip firewall nat print\n\n# 如果你需要添加规则（以 12335 为例）：\n/ip firewall nat add chain=dstnat protocol=tcp dst-port=12335 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=12335\n\n# 12336\n/ip firewall nat add chain=dstnat protocol=tcp dst-port=12336 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=12336\n\n# coturn 端口\n/ip firewall nat add chain=dstnat protocol=tcp dst-port=3478 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=3478\n/ip firewall nat add chain=dstnat protocol=udp dst-port=3478 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=3478\n/ip firewall nat add chain=dstnat protocol=tcp dst-port=5349 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=5349\n/ip firewall nat add chain=dstnat protocol=udp dst-port=5349 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=5349\n/ip firewall nat add chain=dstnat protocol=udp dst-port=49152-49200 \\\n  action=dst-nat to-addresses=10.20.20.8 to-ports=49152-49200"</script>
+</div>
+<p>💡 <strong>不是你家的路由</strong>：你的路由器不一定是 MikroTik，在「端口转发」或「虚拟服务器」功能中做类似设置即可。</p>
+<h3 id="93-整体流量架构图">9.3 整体流量架构图</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>                  互联网
+                    │
+        ┌───────────┼───────────┐
+        │           │           │
+  443 (CF Worker)  12335     12336
+        │           │           │
+  .well-known/matrix/*           │
+        │           │           │
+  ┌─────┴─────┐     │           │
+  │  Router   │─────┘           │
+  │(10.20.20.1)│─────────────────┘
+  └─────┬─────┘
+        │
+  ┌─────┴──────┐
+  │  服务器   │
+  │10.20.20.8 │
+  └─────┬──────┘
+        │
+  ┌─────┴─────────────────────┐
+  │   NPM (nginx-proxy-manager)│
+  │   12335→NPM:443           │
+  └─────┬─────────────────────┘
+        │ 根据域名分发
+  ┌─────┼─────────┬──────────┬──────────┐
+  │     │         │          │          │
+  │  matrix-jwt  │  matrix  │  element │  livekit
+  │  :8191     │  :8008   │  :80     │  :7880
+  │     │         │          │          │
+  │  JWT  │  Synapse│  Element│  LiveKit
+  │  Service│         │  Web    │  Server
+  │     │         │          │          │
+  └─────┴─────────┴──────────┴──────────┘
+        │
+  12336→ Element Call:80</code></pre><script class="code-source" type="application/json">"                  互联网\n                    │\n        ┌───────────┼───────────┐\n        │           │           │\n  443 (CF Worker)  12335     12336\n        │           │           │\n  .well-known/matrix/*           │\n        │           │           │\n  ┌─────┴─────┐     │           │\n  │  Router   │─────┘           │\n  │(10.20.20.1)│─────────────────┘\n  └─────┬─────┘\n        │\n  ┌─────┴──────┐\n  │  服务器   │\n  │10.20.20.8 │\n  └─────┬──────┘\n        │\n  ┌─────┴─────────────────────┐\n  │   NPM (nginx-proxy-manager)│\n  │   12335→NPM:443           │\n  └─────┬─────────────────────┘\n        │ 根据域名分发\n  ┌─────┼─────────┬──────────┬──────────┐\n  │     │         │          │          │\n  │  matrix-jwt  │  matrix  │  element │  livekit\n  │  :8191     │  :8008   │  :80     │  :7880\n  │     │         │          │          │\n  │  JWT  │  Synapse│  Element│  LiveKit\n  │  Service│         │  Web    │  Server\n  │     │         │          │          │\n  └─────┴─────────┴──────────┴──────────┘\n        │\n  12336→ Element Call:80"</script>
+</div>
+<hr>
+<h2 id="第十章日常运维">第十章：日常运维</h2>
+<h3 id="101-查看所有容器状态">10.1 查看所有容器状态</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps"</script>
+</div>
+<h3 id="102-查看服务日志">10.2 查看服务日志</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Synapse</span>
+</span></span><span style="display:flex;"><span>docker logs -f matrix-synapse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># NPM</span>
+</span></span><span style="display:flex;"><span>docker logs -f nginx-proxy-manager
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># LiveKit</span>
+</span></span><span style="display:flex;"><span>docker logs -f livekit-server
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 指定行数</span>
+</span></span><span style="display:flex;"><span>docker logs --tail <span style="color:#ae81ff">50</span> matrix-synapse</span></span></code></pre></div><script class="code-source" type="application/json">"# Synapse\ndocker logs -f matrix-synapse\n\n# NPM\ndocker logs -f nginx-proxy-manager\n\n# LiveKit\ndocker logs -f livekit-server\n\n# 指定行数\ndocker logs --tail 50 matrix-synapse"</script>
+</div>
+<h3 id="103-重启服务">10.3 重启服务</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
+</span></span><span style="display:flex;"><span>docker compose restart
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 或者重启全部</span>
+</span></span><span style="display:flex;"><span>cd /root/data/docker_data <span style="color:#f92672">&amp;&amp;</span> <span style="color:#66d9ef">for</span> d in */; <span style="color:#66d9ef">do</span> <span style="color:#f92672">(</span>cd <span style="color:#e6db74">&#34;</span>$d<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">&amp;&amp;</span> docker compose restart<span style="color:#f92672">)</span>; <span style="color:#66d9ef">done</span></span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose restart\n\n# 或者重启全部\ncd /root/data/docker_data \u0026\u0026 for d in */; do (cd \"$d\" \u0026\u0026 docker compose restart); done"</script>
+</div>
+<h3 id="104-更新服务">10.4 更新服务</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/synapse
+</span></span><span style="display:flex;"><span>docker compose pull
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/synapse\ndocker compose pull\ndocker compose up -d"</script>
+</div>
+<h3 id="105-创建普通用户">10.5 创建普通用户</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec -it matrix-synapse register_new_matrix_user <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -u 用户名 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 密码 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -c /data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec -it matrix-synapse register_new_matrix_user \\\n  -u 用户名 \\\n  -p 密码 \\\n  -c /data/homeserver.yaml"</script>
+</div>
+<h3 id="106-备份">10.6 备份</h3>
+<p>至少备份这些：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 配置文件</span>
+</span></span><span style="display:flex;"><span>tar -czf /root/backup/synapse-config-<span style="color:#66d9ef">$(</span>date +%Y%m%d<span style="color:#66d9ef">)</span>.tar.gz <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/synapse/data/homeserver.yaml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/synapse/data/*.signing.key <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/synapse/data/*.log.config <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/postgres16/init.sql <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/*/docker-compose.yml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/*/.env
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 数据库（PostgreSQL）</span>
+</span></span><span style="display:flex;"><span>docker exec postgres16 pg_dump -U synapse_user synapse <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  &gt; /root/backup/synapse-db-<span style="color:#66d9ef">$(</span>date +%Y%m%d<span style="color:#66d9ef">)</span>.sql</span></span></code></pre></div><script class="code-source" type="application/json">"# 配置文件\ntar -czf /root/backup/synapse-config-$(date +%Y%m%d).tar.gz \\\n  /root/data/docker_data/synapse/data/homeserver.yaml \\\n  /root/data/docker_data/synapse/data/*.signing.key \\\n  /root/data/docker_data/synapse/data/*.log.config \\\n  /root/data/docker_data/postgres16/init.sql \\\n  /root/data/docker_data/*/docker-compose.yml \\\n  /root/data/docker_data/*/.env\n\n# 数据库（PostgreSQL）\ndocker exec postgres16 pg_dump -U synapse_user synapse \\\n  \u003e /root/backup/synapse-db-$(date +%Y%m%d).sql"</script>
+</div>
+<hr>
+<h2 id="附录密码生成参考">附录：密码生成参考</h2>
+<p>本文中所有需要「生成一个密码」的地方，统一使用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -base64 <span style="color:#ae81ff">32</span></span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -base64 32"</script>
+</div>
+<p>各密码用途对照表：</p>
+<table>
+<thead>
+<tr>
+<th>密码名称</th>
+<th>在哪里设置</th>
+<th>在哪里引用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL synapse_user 密码</td>
+<td><code>init.sql</code></td>
+<td>Synapse <code>homeserver.yaml</code> database.password</td>
+</tr>
+<tr>
+<td><code>registration_shared_secret</code></td>
+<td><code>homeserver.yaml</code></td>
+<td>创建用户时 <code>-c</code> 参数</td>
+</tr>
+<tr>
+<td><code>macaroon_secret_key</code></td>
+<td><code>homeserver.yaml</code></td>
+<td>会话签名</td>
+</tr>
+<tr>
+<td><code>form_secret</code></td>
+<td><code>homeserver.yaml</code></td>
+<td>表单签名</td>
+</tr>
+<tr>
+<td><code>turn_shared_secret</code></td>
+<td><code>homeserver.yaml</code></td>
+<td>coturn <code>turnserver.conf</code></td>
+</tr>
+<tr>
+<td>LiveKit API Key 值</td>
+<td><code>livekit.yaml</code></td>
+<td>JWT 服务 <code>.env</code></td>
+</tr>
+<tr>
+<td><code>JWT_SECRET</code></td>
+<td>JWT 服务 <code>.env</code></td>
+<td>Token 签名</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="附录域名替换速查表">附录：域名替换速查表</h2>
+<p>如果你用的是自己的域名而不是 <code>116160.xyz</code>，需要修改的地方：</p>
+<table>
+<thead>
+<tr>
+<th>文件/位置</th>
+<th>需要替换的内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeserver.yaml</code></td>
+<td><code>server_name</code>, <code>public_baseurl</code>, <code>turn_uris</code>, <code>federation_domain_whitelist</code>, <code>livekit_service_url</code></td>
+</tr>
+<tr>
+<td>CF Worker 代码</td>
+<td><code>homeserverUrl</code>, <code>jwtUrl</code>, <code>federationServer</code></td>
+</tr>
+<tr>
+<td>CF Worker 路由</td>
+<td><code>你的域名/.well-known/matrix/*</code></td>
+</tr>
+<tr>
+<td>Element Web <code>config.json</code></td>
+<td>所有 <code>你的域名</code> 出现的地方</td>
+</tr>
+<tr>
+<td>LiveKit <code>livekit.yaml</code></td>
+<td><code>domain</code> 字段</td>
+</tr>
+<tr>
+<td>JWT 服务 <code>.env</code></td>
+<td>不需要（容器名通信）</td>
+</tr>
+<tr>
+<td>Element Call <code>.env</code></td>
+<td><code>MATRIX_SERVER_URL</code>, <code>LIVEKIT_SERVICE_URL</code>, <code>ELEMENT_CALL_BASE_URL</code></td>
+</tr>
+<tr>
+<td>coturn <code>turnserver.conf</code></td>
+<td><code>realm</code>, SSL 证书路径</td>
+</tr>
+<tr>
+<td>NPM 反代规则</td>
+<td>每条规则的域名</td>
+</tr>
+<tr>
+<td>NPM SSL 证书</td>
+<td>每个子域名申请证书</td>
+</tr>
+<tr>
+<td>DDNS 配置面板</td>
+<td>选择要更新的域名和子域名</td>
+</tr>
+<tr>
+<td>DNS 管理后台</td>
+<td>9 条 A 记录</td>
+</tr>
+<tr>
+<td>RouterOS 端口转发</td>
+<td>不需要改（只涉及 IP 和端口，不涉及域名）</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p><strong>教程到此结束。</strong> 如果你按步骤做下来，应该已经拥有了一套完整的、可以日常使用的 Matrix 聊天服务，包含文字聊天、文件传输、群组、语音视频通话等功能。</p>
+<p>有什么问题或哪里卡住了，随时问 👌</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-disaster-recovery-manual/">
+            <img src="/posts/ai/hermes-disaster-recovery-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes 灾难恢复手册 — 从零手动重建所有服务</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

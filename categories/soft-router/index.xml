@@ -1,1 +1,11 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>软路由 on 电脑自习室</title><link>https://purodn.tk/categories/soft-router/</link><description>Recent content in 软路由 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><atom:link href="https://purodn.tk/categories/soft-router/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>软路由 on 电脑自习室</title>
+    <link>https://purodn.tk/categories/soft-router/</link>
+    <description>Recent content in 软路由 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="https://purodn.tk/categories/soft-router/index.xml" rel="self" type="application/rss+xml" />
+  </channel>
+</rss>

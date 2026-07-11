@@ -1,15 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Debian on 电脑自习室</title><link>https://purodn.tk/tags/debian/</link><description>Recent content in Debian on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Thu, 14 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/debian/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。
-视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：
-复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：
-用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。
-还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。
-二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：
-复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：
-复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description></item><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。
-视频演示 这套配置包含：
-lazy.nvim 插件管理器 onedark.nvim 护眼深色主题 nvim-tree.lua 文件树 nvim-osc52 远程复制 conform.nvim 代码格式化 jq JSON 格式化工具 prettier 前端、Markdown 与 YAML 格式化工具 ;t 智能切换文件树 ;f 手动格式化 ;w 保存并自动格式化 一、安装 Neovim 要求 Neovim 版本不低于 0.10.0。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。
-Debian / Ubuntu 复制sudo apt update sudo apt install -y neovim git curl nvim --version | grep ^NVIM Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 neovim 仍可能停留在 0.9.x：</description></item><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 /srv/backup 单向同步到 B 机器，不让备份端的改动反向影响源端。
-如果前面还有一台业务服务器只负责打包并上传备份，生产链路可以拆成三段：
-复制业务服务器 A -&amp;gt; SSH 上传 tar.gz -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 单向同步 -&amp;gt; 最终备份端 C:/srv/backup 这种情况下，A 不必运行 Syncthing；A 只需要把完整备份包原子地放入 B 的 /srv/backup。真正负责同步状态、设备连接和最终落盘的是 B 与 C 上的 Syncthing。
-Syncthing 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。
-适用场景 源端目录：/srv/backup 备份端目录：/srv/backup 目录属主：syncthing:syncthing 同步模式：源端 仅发送，备份端 仅接收 运行用户：专门创建的 syncthing 普通服务用户 管理方式：通过 SSH 隧道访问 Syncthing Web GUI 实际生产里也可以把源端同步端口改成非默认端口，例如 B 机监听 29029/tcp 和 29029/udp，C 机继续监听默认 22000。Syncthing 设备地址保留 dynamic 时会通过发现服务交换真实地址；手动指定地址时才需要写成 tcp://公网IP:端口。</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Debian on 电脑自习室</title>
+    <link>https://purodn.tk/tags/debian/</link>
+    <description>Recent content in Debian on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 14 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/debian/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title>
+      <link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link>
+      <pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid>
+      <description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&#xA;视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：&#xA;用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。&#xA;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&#xA;二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：&#xA;复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：&#xA;复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description>
+    </item>
+    <item>
+      <title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title>
+      <link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link>
+      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid>
+      <description>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&#xA;视频演示 这套配置包含：&#xA;lazy.nvim 插件管理器 onedark.nvim 护眼深色主题 nvim-tree.lua 文件树 nvim-osc52 远程复制 conform.nvim 代码格式化 jq JSON 格式化工具 prettier 前端、Markdown 与 YAML 格式化工具 ;t 智能切换文件树 ;f 手动格式化 ;w 保存并自动格式化 一、安装 Neovim 要求 Neovim 版本不低于 0.10.0。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。&#xA;Debian / Ubuntu 复制sudo apt update sudo apt install -y neovim git curl nvim --version | grep ^NVIM Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 neovim 仍可能停留在 0.9.x：</description>
+    </item>
+    <item>
+      <title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title>
+      <link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link>
+      <pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid>
+      <description>这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 /srv/backup 单向同步到 B 机器，不让备份端的改动反向影响源端。&#xA;如果前面还有一台业务服务器只负责打包并上传备份，生产链路可以拆成三段：&#xA;复制业务服务器 A -&amp;gt; SSH 上传 tar.gz -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 单向同步 -&amp;gt; 最终备份端 C:/srv/backup 这种情况下，A 不必运行 Syncthing；A 只需要把完整备份包原子地放入 B 的 /srv/backup。真正负责同步状态、设备连接和最终落盘的是 B 与 C 上的 Syncthing。&#xA;Syncthing 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。&#xA;适用场景 源端目录：/srv/backup 备份端目录：/srv/backup 目录属主：syncthing:syncthing 同步模式：源端 仅发送，备份端 仅接收 运行用户：专门创建的 syncthing 普通服务用户 管理方式：通过 SSH 隧道访问 Syncthing Web GUI 实际生产里也可以把源端同步端口改成非默认端口，例如 B 机监听 29029/tcp 和 29029/udp，C 机继续监听默认 22000。Syncthing 设备地址保留 dynamic 时会通过发现服务交换真实地址；手动指定地址时才需要写成 tcp://公网IP:端口。</description>
+    </item>
+  </channel>
+</rss>

@@ -1,20 +1,342 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>RouterOS Mangle 小包优先规则与带宽配置生成器 | 电脑自习室</title>
-<meta name=description content="整理 RouterOS Mangle 小包规则和 Queue Tree 流控思路，解释 default-small 的适用边界，并提供一个可输入上下行带宽自动生成配置的工具。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
-<time datetime=2026-06-21>2026年6月21日</time></div><h1>RouterOS Mangle 小包优先规则与带宽配置生成器</h1><p>整理 RouterOS Mangle 小包规则和 Queue Tree 流控思路，解释 default-small 的适用边界，并提供一个可输入上下行带宽自动生成配置的工具。</p></header><img class=article-cover src=/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg alt><div class=article-content><p>本文整理自旧文 <a href=https://blog.jgaga.tk/posts/routers/ros%E7%9A%84mangle%E5%B0%8F%E5%8C%85%E8%A7%84%E5%88%99/>ROS 的 Mangle 小包规则</a> 和本站现有的 <a href=/posts/routeros/routeros-04-queue-tree/>RouterOS 使用 queue tree 配置流量整形</a>。</p><p>这套规则的目标不是让测速数字更好看，而是在下载、上传、BT/PT、代理网关同时工作的情况下，让 DNS、握手、小包和网页交互别被大流量挤死。家庭宽带场景下，最重要的是先把总带宽控制在真实带宽略低一点的位置，再按包类型分优先级。</p><h2 id=什么时候需要小包规则>什么时候需要小包规则</h2><p>如果家里只有一两台设备轻量上网，RouterOS 默认队列通常够用。小包优先适合下面这些场景：</p><ul><li>宽带上传比较小，例如 30M、50M，但家里有 NAS、PT、网盘同步或代理节点。</li><li>一测速或下载，网页打开、DNS 查询、SSH、游戏延迟明显抖动。</li><li>RouterOS 作为主路由，LAN 侧还有 sing-box、mihomo、旁路网关或 Docker 服务。</li><li>想保留总带宽限制，例如下载 300M 设置成 285M，上传 30M 设置成 28M，避免把运营商侧队列打满。</li></ul><p>不要把这套规则理解成“神奇加速”。它只是把拥塞点尽量留在 RouterOS 自己可控的队列里，并且给关键小包更高优先级。</p><h2 id=default-small-为什么可能变慢>default-small 为什么可能变慢</h2><p>RouterOS 自带的 <code>default-small</code> 是 <code>pfifo-limit=10</code>。这个队列很短，低带宽或小流量时反应很快，但在 300M 以上的下载、网页测速、多连接下载时，10 个包的队列太容易被打满，TCP 会频繁误判拥塞并回退。</p><p>更稳妥的选择：</p><ul><li>普通家庭宽带：先用 <code>default</code>，默认 <code>pfifo-limit=50</code>，不激进，容易排查。</li><li>RouterOS 版本支持 <code>fq-codel</code>：可以参考本站 Queue Tree 文章做更细的队列类型。</li><li>极低延迟优先并且带宽不高：才考虑 <code>default-small</code> 或更小队列，但要用实际下载和延迟一起验证。</li></ul><p>这也是为什么我现在更倾向于把基础小包规则的叶子队列设为 <code>default</code>：优先保证稳定吞吐，再在稳定基础上调延迟。</p><h2 id=规则结构>规则结构</h2><p>基础版规则分三层：</p><ol><li><code>mangle</code> 给包打标：DNS、小包、中包、大包。</li><li><code>queue tree</code> 建立上传总队列和下载总队列。</li><li>子队列按优先级分配：DNS 最高，小包其次，中包居中，大包最低。</li></ol><p>这里使用的 packet mark：</p><table><thead><tr><th>标记</th><th>用途</th><th>优先级</th></tr></thead><tbody><tr><td><code>dns</code></td><td>DNS、DoT 基础查询</td><td>1</td></tr><tr><td><code>small-packet</code></td><td>ICMP、0-128 字节的小包</td><td>2</td></tr><tr><td><code>medium-packet</code></td><td>129-512 字节的中小包</td><td>3</td></tr><tr><td><code>large-packet</code></td><td>剩余流量兜底</td><td>8</td></tr></tbody></table><p>如果你的网络里有独立代理网关，例如 sing-box 机器，也可以另加 <code>proxy-packet</code> 标记，但基础版先不强行加入，避免规则互相覆盖。</p><h2 id=队列类型怎么选>队列类型怎么选</h2><p>生成器里可以选择 <code>default</code>、<code>default-small</code>、<code>fq-codel</code> 和 <code>cake</code>。简单建议如下：</p><table><thead><tr><th>带宽环境</th><th>建议队列</th><th>说明</th></tr></thead><tbody><tr><td>100M 以下</td><td>可以尝试 <code>default-small</code></td><td>小带宽下更容易感受到低延迟收益，但要实测吞吐是否被压得太狠。</td></tr><tr><td>300M 左右家宽</td><td>优先用 <code>default</code></td><td>比 <code>default-small</code> 更稳，测速和大流量下载不容易被队列长度限制拖慢。</td></tr><tr><td>1000M 家宽</td><td>先用 <code>default</code> 起步</td><td>千兆下更考验 CPU，能用 <code>fq-codel</code>、<code>cake</code> 并且路由器性能足够的话，体验通常更好。</td></tr></tbody></table><p>关键不是哪个队列绝对最好，而是看满速下载、满速上传时延迟是否稳定。<code>default-small</code> 更偏低延迟，但队列太短，带宽高时可能影响吞吐；<code>default</code> 更均衡，适合作为通用默认值；<code>fq-codel</code> / <code>cake</code> 更适合现代 SQM，但前提是 RouterOS 版本支持、设备 CPU 扛得住。</p><p>RouterOS 默认通常只有 <code>default</code>、<code>default-small</code>、<code>pcq-*</code>、<code>sfq</code>、<code>red</code> 等队列类型，不一定会预置名为 <code>fq-codel</code> 或 <code>cake</code> 的 queue type。本文生成器在选择 <code>fq-codel</code> 或 <code>cake</code> 时，会先创建 <code>qos-gen-fq-codel</code> 或 <code>qos-gen-cake</code>，后面的 Queue Tree 再引用这个名字。</p><h2 id=配置生成器>配置生成器</h2><p>下面输入你的真实宽带上下行、RouterOS 的 WAN/LAN parent 名称和队列类型，点击生成即可。下载和上传建议填运营商标称值，例如 300M/30M；生成器会默认按 95% 和 93% 收敛，避免打满运营商侧缓冲。</p><div class=ros-qos-tool id=ros-qos-tool><div class=ros-qos-grid><label>下载带宽 Mbps<input id=ros-qos-down type=number min=1 step=1 value=300></label>
-<label>上传带宽 Mbps<input id=ros-qos-up type=number min=1 step=1 value=30></label>
-<label>下载 parent<input id=ros-qos-lan type=text value=bridge1></label>
-<label>上传 parent<input id=ros-qos-wan type=text value=pppoe-out1></label>
-<label>下载收敛比例<input id=ros-qos-down-ratio type=number min=50 max=100 step=1 value=95></label>
-<label>上传收敛比例<input id=ros-qos-up-ratio type=number min=50 max=100 step=1 value=93></label>
-<label>队列类型
-<select id=ros-qos-queue><option value=default selected>default</option><option value=default-small>default-small</option><option value=fq-codel>fq-codel</option><option value=cake>cake</option></select></label></div><div class=ros-qos-actions><button type=button id=ros-qos-generate>生成配置</button>
-<button type=button id=ros-qos-copy>复制配置</button></div><textarea id=ros-qos-output spellcheck=false rows=26></textarea><p class=ros-qos-note>生成的命令会先删除 comment 中带有 <code>qos-gen:</code> 的旧规则，不会清理你手工建立的其它 mangle 或 queue tree。</p></div><style>.ros-qos-tool{border:1px solid rgba(120,120,120,.35);border-radius:8px;padding:16px;margin:20px 0;background:rgba(245,247,250,.72)}.ros-qos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.ros-qos-grid label{display:grid;gap:6px;font-weight:600}.ros-qos-grid input,.ros-qos-grid select{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(120,120,120,.5);border-radius:6px;font:inherit}.ros-qos-actions{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.ros-qos-actions button{border:0;border-radius:6px;padding:9px 14px;cursor:pointer;background:#165dff;color:#fff;font-weight:700}#ros-qos-copy{background:#2b7a4b}#ros-qos-output{width:100%;box-sizing:border-box;min-height:520px;padding:12px;border-radius:8px;border:1px solid rgba(120,120,120,.45);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,liberation mono,monospace;font-size:.88rem;line-height:1.55;letter-spacing:0;word-spacing:normal;white-space:pre}.ros-qos-note{margin-bottom:0;color:#555;font-size:.92rem}</style><script>(function(){const t=e=>document.getElementById(e),n=(e,t)=>{const n=Number(e);return Number.isFinite(n)&&n>0?n:t},s=(e,t)=>{const n=String(e||"").trim();return n||t},i=e=>{const t=["default","default-small","fq-codel","cake"];return t.includes(e)?e:"default"},a=e=>e==="fq-codel"?"qos-gen-fq-codel":e==="cake"?"qos-gen-cake":e,r=e=>e==="fq-codel"?['/queue type remove [find name="qos-gen-fq-codel"]',"/queue type add name=qos-gen-fq-codel kind=fq-codel fq-codel-flows=1024 fq-codel-limit=1024 fq-codel-memlimit=32.0MiB fq-codel-interval=100ms fq-codel-target=5ms fq-codel-quantum=1514"]:e==="cake"?['/queue type remove [find name="qos-gen-cake"]',"/queue type add name=qos-gen-cake kind=cake"]:[],e=e=>`${Math.max(1,Math.round(e))}M`,c=e=>e.join(`
-`);function o(){const g=n(t("ros-qos-down").value,300),b=n(t("ros-qos-up").value,30),v=Math.min(100,Math.max(50,n(t("ros-qos-down-ratio").value,95)))/100,p=Math.min(100,Math.max(50,n(t("ros-qos-up-ratio").value,93)))/100,f=s(t("ros-qos-lan").value,"bridge1"),j=s(t("ros-qos-wan").value,"pppoe-out1"),u=i(t("ros-qos-queue").value),o=a(u),h=r(u),d=Math.max(1,g*v),l=Math.max(1,b*p),m=Math.min(5,Math.max(1,d*.02)),y=Math.min(2,Math.max(1,l*.08)),_=Math.max(2,d*.08),w=Math.max(2,l*.18),O=Math.max(5,d*.2),x=Math.max(3,l*.35),C=["# RouterOS 小包优先基础规则","# 生成前请先确认 parent 名称正确：下载 parent 通常是 LAN bridge，上传 parent 通常是 PPPoE/WAN 接口。",`# 当前选择：${u}；Queue Tree 实际引用：${o}`,"/system backup save name=before-qos-gen",'/ip firewall mangle remove [find comment~"qos-gen:"]','/queue tree remove [find comment~"qos-gen:"]',...h,"","/ip firewall mangle",'add chain=prerouting action=mark-packet comment="qos-gen: dns udp" new-packet-mark=dns passthrough=no protocol=udp dst-port=53','add chain=prerouting action=mark-packet comment="qos-gen: dns tcp" new-packet-mark=dns passthrough=no protocol=tcp dst-port=53,853','add chain=prerouting action=mark-packet comment="qos-gen: icmp small" new-packet-mark=small-packet passthrough=no protocol=icmp','add chain=prerouting action=mark-packet comment="qos-gen: small" new-packet-mark=small-packet packet-mark=no-mark packet-size=0-128 passthrough=no','add chain=prerouting action=mark-packet comment="qos-gen: medium" new-packet-mark=medium-packet packet-mark=no-mark packet-size=129-512 passthrough=no','add chain=prerouting action=mark-packet comment="qos-gen: large" new-packet-mark=large-packet packet-mark=no-mark passthrough=no',"","/queue tree",`add comment="qos-gen: upload parent" name=Upload-Total parent=${j} limit-at=0 queue=${o} priority=8 max-limit=${e(l)} bucket-size=0.1`,`add comment="qos-gen: upload dns" name=U1-Dns parent=Upload-Total packet-mark=dns limit-at=${e(y)} queue=${o} priority=1 max-limit=${e(l)} bucket-size=0.1`,`add comment="qos-gen: upload small" name=U2-Small parent=Upload-Total packet-mark=small-packet limit-at=${e(w)} queue=${o} priority=2 max-limit=${e(l)} bucket-size=0.1`,`add comment="qos-gen: upload medium" name=U3-Medium parent=Upload-Total packet-mark=medium-packet limit-at=${e(x)} queue=${o} priority=3 max-limit=${e(l)} bucket-size=0.1`,`add comment="qos-gen: upload large" name=U4-Large parent=Upload-Total packet-mark=large-packet limit-at=0 queue=${o} priority=8 max-limit=${e(l)} bucket-size=0.1`,`add comment="qos-gen: download parent" name=Download-Total parent=${f} limit-at=0 queue=${o} priority=8 max-limit=${e(d)} bucket-size=0.1`,`add comment="qos-gen: download dns" name=D1-Dns parent=Download-Total packet-mark=dns limit-at=${e(m)} queue=${o} priority=1 max-limit=${e(d)} bucket-size=0.1`,`add comment="qos-gen: download small" name=D2-Small parent=Download-Total packet-mark=small-packet limit-at=${e(_)} queue=${o} priority=2 max-limit=${e(d)} bucket-size=0.1`,`add comment="qos-gen: download medium" name=D3-Medium parent=Download-Total packet-mark=medium-packet limit-at=${e(O)} queue=${o} priority=3 max-limit=${e(d)} bucket-size=0.1`,`add comment="qos-gen: download large" name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=${o} priority=8 max-limit=${e(d)} bucket-size=0.1`,"","/queue tree print",'/ip firewall mangle print where comment~"qos-gen:"'];t("ros-qos-output").value=c(C)}t("ros-qos-generate").addEventListener("click",o),t("ros-qos-copy").addEventListener("click",async()=>{const e=t("ros-qos-output");e.select();try{await navigator.clipboard.writeText(e.value)}catch{document.execCommand("copy")}}),o()})()</script><h2 id=手工配置模板>手工配置模板</h2><p>如果你不需要网页生成器，也可以按下面的结构手工改。这里以 <code>300M/30M</code> 宽带为例，实际总上限收敛成 <code>285M/28M</code>。</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-routeros data-lang=routeros>/system backup save name=before-small-packet-qos
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RouterOS Mangle 小包优先规则与带宽配置生成器 | 电脑自习室</title>
+    <meta name="description" content="整理 RouterOS Mangle 小包规则和 Queue Tree 流控思路，解释 default-small 的适用边界，并提供一个可输入上下行带宽自动生成配置的工具。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>软路由</span>
+          <time datetime="2026-06-21">2026年6月21日</time>
+        </div>
+        <h1>RouterOS Mangle 小包优先规则与带宽配置生成器</h1>
+          <p>整理 RouterOS Mangle 小包规则和 Queue Tree 流控思路，解释 default-small 的适用边界，并提供一个可输入上下行带宽自动生成配置的工具。</p>
+      </header>
+          <img class="article-cover" src="/posts/routeros/routeros-mangle-small-packet-generator/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>本文整理自旧文 <a href="https://blog.jgaga.tk/posts/routers/ros%E7%9A%84mangle%E5%B0%8F%E5%8C%85%E8%A7%84%E5%88%99/">ROS 的 Mangle 小包规则</a> 和本站现有的 <a href="/posts/routeros/routeros-04-queue-tree/">RouterOS 使用 queue tree 配置流量整形</a>。</p>
+<p>这套规则的目标不是让测速数字更好看，而是在下载、上传、BT/PT、代理网关同时工作的情况下，让 DNS、握手、小包和网页交互别被大流量挤死。家庭宽带场景下，最重要的是先把总带宽控制在真实带宽略低一点的位置，再按包类型分优先级。</p>
+<h2 id="什么时候需要小包规则">什么时候需要小包规则</h2>
+<p>如果家里只有一两台设备轻量上网，RouterOS 默认队列通常够用。小包优先适合下面这些场景：</p>
+<ul>
+<li>宽带上传比较小，例如 30M、50M，但家里有 NAS、PT、网盘同步或代理节点。</li>
+<li>一测速或下载，网页打开、DNS 查询、SSH、游戏延迟明显抖动。</li>
+<li>RouterOS 作为主路由，LAN 侧还有 sing-box、mihomo、旁路网关或 Docker 服务。</li>
+<li>想保留总带宽限制，例如下载 300M 设置成 285M，上传 30M 设置成 28M，避免把运营商侧队列打满。</li>
+</ul>
+<p>不要把这套规则理解成“神奇加速”。它只是把拥塞点尽量留在 RouterOS 自己可控的队列里，并且给关键小包更高优先级。</p>
+<h2 id="default-small-为什么可能变慢">default-small 为什么可能变慢</h2>
+<p>RouterOS 自带的 <code>default-small</code> 是 <code>pfifo-limit=10</code>。这个队列很短，低带宽或小流量时反应很快，但在 300M 以上的下载、网页测速、多连接下载时，10 个包的队列太容易被打满，TCP 会频繁误判拥塞并回退。</p>
+<p>更稳妥的选择：</p>
+<ul>
+<li>普通家庭宽带：先用 <code>default</code>，默认 <code>pfifo-limit=50</code>，不激进，容易排查。</li>
+<li>RouterOS 版本支持 <code>fq-codel</code>：可以参考本站 Queue Tree 文章做更细的队列类型。</li>
+<li>极低延迟优先并且带宽不高：才考虑 <code>default-small</code> 或更小队列，但要用实际下载和延迟一起验证。</li>
+</ul>
+<p>这也是为什么我现在更倾向于把基础小包规则的叶子队列设为 <code>default</code>：优先保证稳定吞吐，再在稳定基础上调延迟。</p>
+<h2 id="规则结构">规则结构</h2>
+<p>基础版规则分三层：</p>
+<ol>
+<li><code>mangle</code> 给包打标：DNS、小包、中包、大包。</li>
+<li><code>queue tree</code> 建立上传总队列和下载总队列。</li>
+<li>子队列按优先级分配：DNS 最高，小包其次，中包居中，大包最低。</li>
+</ol>
+<p>这里使用的 packet mark：</p>
+<table>
+<thead>
+<tr>
+<th>标记</th>
+<th>用途</th>
+<th>优先级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dns</code></td>
+<td>DNS、DoT 基础查询</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>small-packet</code></td>
+<td>ICMP、0-128 字节的小包</td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>medium-packet</code></td>
+<td>129-512 字节的中小包</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>large-packet</code></td>
+<td>剩余流量兜底</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<p>如果你的网络里有独立代理网关，例如 sing-box 机器，也可以另加 <code>proxy-packet</code> 标记，但基础版先不强行加入，避免规则互相覆盖。</p>
+<h2 id="队列类型怎么选">队列类型怎么选</h2>
+<p>生成器里可以选择 <code>default</code>、<code>default-small</code>、<code>fq-codel</code> 和 <code>cake</code>。简单建议如下：</p>
+<table>
+<thead>
+<tr>
+<th>带宽环境</th>
+<th>建议队列</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100M 以下</td>
+<td>可以尝试 <code>default-small</code></td>
+<td>小带宽下更容易感受到低延迟收益，但要实测吞吐是否被压得太狠。</td>
+</tr>
+<tr>
+<td>300M 左右家宽</td>
+<td>优先用 <code>default</code></td>
+<td>比 <code>default-small</code> 更稳，测速和大流量下载不容易被队列长度限制拖慢。</td>
+</tr>
+<tr>
+<td>1000M 家宽</td>
+<td>先用 <code>default</code> 起步</td>
+<td>千兆下更考验 CPU，能用 <code>fq-codel</code>、<code>cake</code> 并且路由器性能足够的话，体验通常更好。</td>
+</tr>
+</tbody>
+</table>
+<p>关键不是哪个队列绝对最好，而是看满速下载、满速上传时延迟是否稳定。<code>default-small</code> 更偏低延迟，但队列太短，带宽高时可能影响吞吐；<code>default</code> 更均衡，适合作为通用默认值；<code>fq-codel</code> / <code>cake</code> 更适合现代 SQM，但前提是 RouterOS 版本支持、设备 CPU 扛得住。</p>
+<p>RouterOS 默认通常只有 <code>default</code>、<code>default-small</code>、<code>pcq-*</code>、<code>sfq</code>、<code>red</code> 等队列类型，不一定会预置名为 <code>fq-codel</code> 或 <code>cake</code> 的 queue type。本文生成器在选择 <code>fq-codel</code> 或 <code>cake</code> 时，会先创建 <code>qos-gen-fq-codel</code> 或 <code>qos-gen-cake</code>，后面的 Queue Tree 再引用这个名字。</p>
+<h2 id="配置生成器">配置生成器</h2>
+<p>下面输入你的真实宽带上下行、RouterOS 的 WAN/LAN parent 名称和队列类型，点击生成即可。下载和上传建议填运营商标称值，例如 300M/30M；生成器会默认按 95% 和 93% 收敛，避免打满运营商侧缓冲。</p>
+<div class="ros-qos-tool" id="ros-qos-tool">
+  <div class="ros-qos-grid">
+    <label>下载带宽 Mbps<input id="ros-qos-down" type="number" min="1" step="1" value="300"></label>
+    <label>上传带宽 Mbps<input id="ros-qos-up" type="number" min="1" step="1" value="30"></label>
+    <label>下载 parent<input id="ros-qos-lan" type="text" value="bridge1"></label>
+    <label>上传 parent<input id="ros-qos-wan" type="text" value="pppoe-out1"></label>
+    <label>下载收敛比例<input id="ros-qos-down-ratio" type="number" min="50" max="100" step="1" value="95"></label>
+    <label>上传收敛比例<input id="ros-qos-up-ratio" type="number" min="50" max="100" step="1" value="93"></label>
+    <label>队列类型
+      <select id="ros-qos-queue">
+        <option value="default" selected>default</option>
+        <option value="default-small">default-small</option>
+        <option value="fq-codel">fq-codel</option>
+        <option value="cake">cake</option>
+      </select>
+    </label>
+  </div>
+  <div class="ros-qos-actions">
+    <button type="button" id="ros-qos-generate">生成配置</button>
+    <button type="button" id="ros-qos-copy">复制配置</button>
+  </div>
+  <textarea id="ros-qos-output" spellcheck="false" rows="26"></textarea>
+  <p class="ros-qos-note">生成的命令会先删除 comment 中带有 <code>qos-gen:</code> 的旧规则，不会清理你手工建立的其它 mangle 或 queue tree。</p>
+</div>
+<style>
+.ros-qos-tool {
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  background: rgba(245, 247, 250, 0.72);
+}
+.ros-qos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.ros-qos-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.ros-qos-grid input,
+.ros-qos-grid select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 120, 120, 0.5);
+  border-radius: 6px;
+  font: inherit;
+}
+.ros-qos-actions {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.ros-qos-actions button {
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 14px;
+  cursor: pointer;
+  background: #165dff;
+  color: #fff;
+  font-weight: 700;
+}
+#ros-qos-copy {
+  background: #2b7a4b;
+}
+#ros-qos-output {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 520px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 120, 120, 0.45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  letter-spacing: 0;
+  word-spacing: normal;
+  white-space: pre;
+}
+.ros-qos-note {
+  margin-bottom: 0;
+  color: #555;
+  font-size: 0.92rem;
+}
+</style>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const mbps = (value, fallback) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : fallback;
+  };
+  const cleanName = (value, fallback) => {
+    const text = String(value || "").trim();
+    return text || fallback;
+  };
+  const queueName = (value) => {
+    const allowed = ["default", "default-small", "fq-codel", "cake"];
+    return allowed.includes(value) ? value : "default";
+  };
+  const queueTypeName = (value) => {
+    if (value === "fq-codel") return "qos-gen-fq-codel";
+    if (value === "cake") return "qos-gen-cake";
+    return value;
+  };
+  const queueTypeCommands = (value) => {
+    if (value === "fq-codel") {
+      return [
+        "/queue type remove [find name=\"qos-gen-fq-codel\"]",
+        "/queue type add name=qos-gen-fq-codel kind=fq-codel fq-codel-flows=1024 fq-codel-limit=1024 fq-codel-memlimit=32.0MiB fq-codel-interval=100ms fq-codel-target=5ms fq-codel-quantum=1514"
+      ];
+    }
+    if (value === "cake") {
+      return [
+        "/queue type remove [find name=\"qos-gen-cake\"]",
+        "/queue type add name=qos-gen-cake kind=cake"
+      ];
+    }
+    return [];
+  };
+  const m = (value) => `${Math.max(1, Math.round(value))}M`;
+  const lines = (items) => items.join("\n");
+
+  function generate() {
+    const down = mbps($("ros-qos-down").value, 300);
+    const up = mbps($("ros-qos-up").value, 30);
+    const downRatio = Math.min(100, Math.max(50, mbps($("ros-qos-down-ratio").value, 95))) / 100;
+    const upRatio = Math.min(100, Math.max(50, mbps($("ros-qos-up-ratio").value, 93))) / 100;
+    const lan = cleanName($("ros-qos-lan").value, "bridge1");
+    const wan = cleanName($("ros-qos-wan").value, "pppoe-out1");
+    const queue = queueName($("ros-qos-queue").value);
+    const queueType = queueTypeName(queue);
+    const queueSetup = queueTypeCommands(queue);
+
+    const downLimit = Math.max(1, down * downRatio);
+    const upLimit = Math.max(1, up * upRatio);
+    const dnsDown = Math.min(5, Math.max(1, downLimit * 0.02));
+    const dnsUp = Math.min(2, Math.max(1, upLimit * 0.08));
+    const smallDown = Math.max(2, downLimit * 0.08);
+    const smallUp = Math.max(2, upLimit * 0.18);
+    const mediumDown = Math.max(5, downLimit * 0.2);
+    const mediumUp = Math.max(3, upLimit * 0.35);
+
+    const config = [
+      "# RouterOS 小包优先基础规则",
+      "# 生成前请先确认 parent 名称正确：下载 parent 通常是 LAN bridge，上传 parent 通常是 PPPoE/WAN 接口。",
+      `# 当前选择：${queue}；Queue Tree 实际引用：${queueType}`,
+      "/system backup save name=before-qos-gen",
+      "/ip firewall mangle remove [find comment~\"qos-gen:\"]",
+      "/queue tree remove [find comment~\"qos-gen:\"]",
+      ...queueSetup,
+      "",
+      "/ip firewall mangle",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: dns udp\" new-packet-mark=dns passthrough=no protocol=udp dst-port=53",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: dns tcp\" new-packet-mark=dns passthrough=no protocol=tcp dst-port=53,853",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: icmp small\" new-packet-mark=small-packet passthrough=no protocol=icmp",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: small\" new-packet-mark=small-packet packet-mark=no-mark packet-size=0-128 passthrough=no",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: medium\" new-packet-mark=medium-packet packet-mark=no-mark packet-size=129-512 passthrough=no",
+      "add chain=prerouting action=mark-packet comment=\"qos-gen: large\" new-packet-mark=large-packet packet-mark=no-mark passthrough=no",
+      "",
+      "/queue tree",
+      `add comment=\"qos-gen: upload parent\" name=Upload-Total parent=${wan} limit-at=0 queue=${queueType} priority=8 max-limit=${m(upLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: upload dns\" name=U1-Dns parent=Upload-Total packet-mark=dns limit-at=${m(dnsUp)} queue=${queueType} priority=1 max-limit=${m(upLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: upload small\" name=U2-Small parent=Upload-Total packet-mark=small-packet limit-at=${m(smallUp)} queue=${queueType} priority=2 max-limit=${m(upLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: upload medium\" name=U3-Medium parent=Upload-Total packet-mark=medium-packet limit-at=${m(mediumUp)} queue=${queueType} priority=3 max-limit=${m(upLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: upload large\" name=U4-Large parent=Upload-Total packet-mark=large-packet limit-at=0 queue=${queueType} priority=8 max-limit=${m(upLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: download parent\" name=Download-Total parent=${lan} limit-at=0 queue=${queueType} priority=8 max-limit=${m(downLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: download dns\" name=D1-Dns parent=Download-Total packet-mark=dns limit-at=${m(dnsDown)} queue=${queueType} priority=1 max-limit=${m(downLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: download small\" name=D2-Small parent=Download-Total packet-mark=small-packet limit-at=${m(smallDown)} queue=${queueType} priority=2 max-limit=${m(downLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: download medium\" name=D3-Medium parent=Download-Total packet-mark=medium-packet limit-at=${m(mediumDown)} queue=${queueType} priority=3 max-limit=${m(downLimit)} bucket-size=0.1`,
+      `add comment=\"qos-gen: download large\" name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=${queueType} priority=8 max-limit=${m(downLimit)} bucket-size=0.1`,
+      "",
+      "/queue tree print",
+      "/ip firewall mangle print where comment~\"qos-gen:\""
+    ];
+
+    $("ros-qos-output").value = lines(config);
+  }
+
+  $("ros-qos-generate").addEventListener("click", generate);
+  $("ros-qos-copy").addEventListener("click", async () => {
+    const output = $("ros-qos-output");
+    output.select();
+    try {
+      await navigator.clipboard.writeText(output.value);
+    } catch (error) {
+      document.execCommand("copy");
+    }
+  });
+  generate();
+})();
+</script>
+<h2 id="手工配置模板">手工配置模板</h2>
+<p>如果你不需要网页生成器，也可以按下面的结构手工改。这里以 <code>300M/30M</code> 宽带为例，实际总上限收敛成 <code>285M/28M</code>。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/system backup save name=before-small-packet-qos
 /ip firewall mangle remove [find comment~&#34;qos-gen:&#34;]
 /queue tree remove [find comment~&#34;qos-gen:&#34;]
 
@@ -37,25 +359,148 @@ add comment=&#34;qos-gen: download parent&#34; name=Download-Total parent=bridge
 add comment=&#34;qos-gen: download dns&#34; name=D1-Dns parent=Download-Total packet-mark=dns limit-at=5M queue=default priority=1 max-limit=285M bucket-size=0.1
 add comment=&#34;qos-gen: download small&#34; name=D2-Small parent=Download-Total packet-mark=small-packet limit-at=23M queue=default priority=2 max-limit=285M bucket-size=0.1
 add comment=&#34;qos-gen: download medium&#34; name=D3-Medium parent=Download-Total packet-mark=medium-packet limit-at=57M queue=default priority=3 max-limit=285M bucket-size=0.1
-add comment=&#34;qos-gen: download large&#34; name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1</code></pre><script class=code-source type=application/json>"/system backup save name=before-small-packet-qos\n/ip firewall mangle remove [find comment~\"qos-gen:\"]\n/queue tree remove [find comment~\"qos-gen:\"]\n\n/ip firewall mangle\nadd chain=prerouting action=mark-packet comment=\"qos-gen: dns udp\" new-packet-mark=dns passthrough=no protocol=udp dst-port=53\nadd chain=prerouting action=mark-packet comment=\"qos-gen: dns tcp\" new-packet-mark=dns passthrough=no protocol=tcp dst-port=53,853\nadd chain=prerouting action=mark-packet comment=\"qos-gen: icmp small\" new-packet-mark=small-packet passthrough=no protocol=icmp\nadd chain=prerouting action=mark-packet comment=\"qos-gen: small\" new-packet-mark=small-packet packet-mark=no-mark packet-size=0-128 passthrough=no\nadd chain=prerouting action=mark-packet comment=\"qos-gen: medium\" new-packet-mark=medium-packet packet-mark=no-mark packet-size=129-512 passthrough=no\nadd chain=prerouting action=mark-packet comment=\"qos-gen: large\" new-packet-mark=large-packet packet-mark=no-mark passthrough=no\n\n/queue tree\n# 这里示例使用 queue=default；如果你确认 RouterOS 有 fq-codel 或 cake，也可以替换成对应队列类型。\nadd comment=\"qos-gen: upload parent\" name=Upload-Total parent=pppoe-out1 limit-at=0 queue=default priority=8 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload dns\" name=U1-Dns parent=Upload-Total packet-mark=dns limit-at=2M queue=default priority=1 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload small\" name=U2-Small parent=Upload-Total packet-mark=small-packet limit-at=5M queue=default priority=2 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload medium\" name=U3-Medium parent=Upload-Total packet-mark=medium-packet limit-at=10M queue=default priority=3 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload large\" name=U4-Large parent=Upload-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: download parent\" name=Download-Total parent=bridge1 limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download dns\" name=D1-Dns parent=Download-Total packet-mark=dns limit-at=5M queue=default priority=1 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download small\" name=D2-Small parent=Download-Total packet-mark=small-packet limit-at=23M queue=default priority=2 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download medium\" name=D3-Medium parent=Download-Total packet-mark=medium-packet limit-at=57M queue=default priority=3 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download large\" name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1"</script></div><h2 id=应用顺序>应用顺序</h2><p>建议按下面顺序操作：</p><ol><li>在 RouterOS 里先导出或保存备份。</li><li>确认 <code>parent</code> 名称。下载 parent 通常是 LAN bridge，比如 <code>bridge1</code>；上传 parent 通常是 <code>pppoe-out1</code> 或实际 WAN 口。</li><li>粘贴生成的命令。</li><li>执行测速，同时开一个终端看队列状态。</li></ol><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-routeros data-lang=routeros>/queue tree print stats
-/ip firewall mangle print stats where comment~&#34;qos-gen:&#34;</code></pre><script class=code-source type=application/json>"/queue tree print stats\n/ip firewall mangle print stats where comment~\"qos-gen:\""</script></div><p>如果 <code>large-packet</code> 长期大量 drop，而测速远低于总上限，先不要急着降低总带宽。可以先把队列从 <code>default-small</code> 改成 <code>default</code>，再观察单连接和多连接下载的区别。</p><h2 id=验证方法>验证方法</h2><p>单看网页测速不够。至少做三类验证：</p><ul><li>浏览器测速：Speedtest、fast.com、运营商测速各测一次。</li><li>普通下载：找一个稳定的大文件源，跑单连接和多连接。</li><li>延迟观察：下载时持续 ping 常用 DNS 或游戏服务器。</li></ul><p>RouterOS 侧重点看：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-routeros data-lang=routeros>/queue tree print stats
-/tool profile</code></pre><script class=code-source type=application/json>"/queue tree print stats\n/tool profile"</script></div><p>如果 CPU 很低、WAN 物理口没有错误、普通多连接下载能跑满，但某个测速站只有几十兆，那通常是测速站或线路互联问题，不要把它误判成家里网关限速。</p><h2 id=常见问题>常见问题</h2><h3 id=queue-tree-会不会影响-fasttrack>Queue Tree 会不会影响 FastTrack</h3><p>会。需要被 Queue Tree 管理的流量不能走 FastTrack，否则队列看不到流量。很多家庭路由为了流控稳定，会禁用 FastTrack 或让需要整形的流量绕开 FastTrack。</p><h3 id=packet-size-应该怎么分>packet-size 应该怎么分</h3><p>基础版用 <code>0-128</code> 和 <code>129-512</code> 是为了简单稳定。旧方案里也可以用 <code>0-512 + connection-bytes=0-256k</code> 来定义初始小连接，这种规则更偏交互体验，但要注意不要误把大量下载前段一直提到高优先级。</p><h3 id=上传为什么要收敛更多>上传为什么要收敛更多</h3><p>上传小的时候，运营商侧缓冲一旦被打满，DNS、ACK、SSH、游戏包都会一起抖。300M/30M 宽带可以先设成 <code>285M/28M</code>，上传宁可少一点，也比满速时延迟爆炸更可控。</p><h3 id=routeros-支持-fq-codel-或-cake-怎么办>RouterOS 支持 fq-codel 或 cake 怎么办</h3><p>如果版本支持 <code>fq-codel</code> 或 <code>cake</code>，可以直接在生成器里选择对应队列类型。生成器会先创建 <code>qos-gen-fq-codel</code> 或 <code>qos-gen-cake</code>，再让 Queue Tree 引用它们。应用前仍建议确认当前 RouterOS 是否支持对应 kind：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-routeros data-lang=routeros>/queue type print</code></pre><script class=code-source type=application/json>"/queue type print"</script></div><p>如果 RouterOS 提示 <code>kind</code> 不支持，就先改回 <code>default</code>。如果创建成功但性能不稳，说明设备 CPU 或队列参数不适合当前带宽，也先回到 <code>default</code> 再继续调。</p><h2 id=回滚>回滚</h2><p>本文生成的规则都带有 <code>qos-gen:</code> 注释，回滚时可以只删这批规则：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code class=language-routeros data-lang=routeros>/ip firewall mangle remove [find comment~&#34;qos-gen:&#34;]
+add comment=&#34;qos-gen: download large&#34; name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1</code></pre><script class="code-source" type="application/json">"/system backup save name=before-small-packet-qos\n/ip firewall mangle remove [find comment~\"qos-gen:\"]\n/queue tree remove [find comment~\"qos-gen:\"]\n\n/ip firewall mangle\nadd chain=prerouting action=mark-packet comment=\"qos-gen: dns udp\" new-packet-mark=dns passthrough=no protocol=udp dst-port=53\nadd chain=prerouting action=mark-packet comment=\"qos-gen: dns tcp\" new-packet-mark=dns passthrough=no protocol=tcp dst-port=53,853\nadd chain=prerouting action=mark-packet comment=\"qos-gen: icmp small\" new-packet-mark=small-packet passthrough=no protocol=icmp\nadd chain=prerouting action=mark-packet comment=\"qos-gen: small\" new-packet-mark=small-packet packet-mark=no-mark packet-size=0-128 passthrough=no\nadd chain=prerouting action=mark-packet comment=\"qos-gen: medium\" new-packet-mark=medium-packet packet-mark=no-mark packet-size=129-512 passthrough=no\nadd chain=prerouting action=mark-packet comment=\"qos-gen: large\" new-packet-mark=large-packet packet-mark=no-mark passthrough=no\n\n/queue tree\n# 这里示例使用 queue=default；如果你确认 RouterOS 有 fq-codel 或 cake，也可以替换成对应队列类型。\nadd comment=\"qos-gen: upload parent\" name=Upload-Total parent=pppoe-out1 limit-at=0 queue=default priority=8 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload dns\" name=U1-Dns parent=Upload-Total packet-mark=dns limit-at=2M queue=default priority=1 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload small\" name=U2-Small parent=Upload-Total packet-mark=small-packet limit-at=5M queue=default priority=2 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload medium\" name=U3-Medium parent=Upload-Total packet-mark=medium-packet limit-at=10M queue=default priority=3 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: upload large\" name=U4-Large parent=Upload-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=28M bucket-size=0.1\nadd comment=\"qos-gen: download parent\" name=Download-Total parent=bridge1 limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download dns\" name=D1-Dns parent=Download-Total packet-mark=dns limit-at=5M queue=default priority=1 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download small\" name=D2-Small parent=Download-Total packet-mark=small-packet limit-at=23M queue=default priority=2 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download medium\" name=D3-Medium parent=Download-Total packet-mark=medium-packet limit-at=57M queue=default priority=3 max-limit=285M bucket-size=0.1\nadd comment=\"qos-gen: download large\" name=D4-Large parent=Download-Total packet-mark=large-packet limit-at=0 queue=default priority=8 max-limit=285M bucket-size=0.1"</script>
+</div>
+<h2 id="应用顺序">应用顺序</h2>
+<p>建议按下面顺序操作：</p>
+<ol>
+<li>在 RouterOS 里先导出或保存备份。</li>
+<li>确认 <code>parent</code> 名称。下载 parent 通常是 LAN bridge，比如 <code>bridge1</code>；上传 parent 通常是 <code>pppoe-out1</code> 或实际 WAN 口。</li>
+<li>粘贴生成的命令。</li>
+<li>执行测速，同时开一个终端看队列状态。</li>
+</ol>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/queue tree print stats
+/ip firewall mangle print stats where comment~&#34;qos-gen:&#34;</code></pre><script class="code-source" type="application/json">"/queue tree print stats\n/ip firewall mangle print stats where comment~\"qos-gen:\""</script>
+</div>
+<p>如果 <code>large-packet</code> 长期大量 drop，而测速远低于总上限，先不要急着降低总带宽。可以先把队列从 <code>default-small</code> 改成 <code>default</code>，再观察单连接和多连接下载的区别。</p>
+<h2 id="验证方法">验证方法</h2>
+<p>单看网页测速不够。至少做三类验证：</p>
+<ul>
+<li>浏览器测速：Speedtest、fast.com、运营商测速各测一次。</li>
+<li>普通下载：找一个稳定的大文件源，跑单连接和多连接。</li>
+<li>延迟观察：下载时持续 ping 常用 DNS 或游戏服务器。</li>
+</ul>
+<p>RouterOS 侧重点看：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/queue tree print stats
+/tool profile</code></pre><script class="code-source" type="application/json">"/queue tree print stats\n/tool profile"</script>
+</div>
+<p>如果 CPU 很低、WAN 物理口没有错误、普通多连接下载能跑满，但某个测速站只有几十兆，那通常是测速站或线路互联问题，不要把它误判成家里网关限速。</p>
+<h2 id="常见问题">常见问题</h2>
+<h3 id="queue-tree-会不会影响-fasttrack">Queue Tree 会不会影响 FastTrack</h3>
+<p>会。需要被 Queue Tree 管理的流量不能走 FastTrack，否则队列看不到流量。很多家庭路由为了流控稳定，会禁用 FastTrack 或让需要整形的流量绕开 FastTrack。</p>
+<h3 id="packet-size-应该怎么分">packet-size 应该怎么分</h3>
+<p>基础版用 <code>0-128</code> 和 <code>129-512</code> 是为了简单稳定。旧方案里也可以用 <code>0-512 + connection-bytes=0-256k</code> 来定义初始小连接，这种规则更偏交互体验，但要注意不要误把大量下载前段一直提到高优先级。</p>
+<h3 id="上传为什么要收敛更多">上传为什么要收敛更多</h3>
+<p>上传小的时候，运营商侧缓冲一旦被打满，DNS、ACK、SSH、游戏包都会一起抖。300M/30M 宽带可以先设成 <code>285M/28M</code>，上传宁可少一点，也比满速时延迟爆炸更可控。</p>
+<h3 id="routeros-支持-fq-codel-或-cake-怎么办">RouterOS 支持 fq-codel 或 cake 怎么办</h3>
+<p>如果版本支持 <code>fq-codel</code> 或 <code>cake</code>，可以直接在生成器里选择对应队列类型。生成器会先创建 <code>qos-gen-fq-codel</code> 或 <code>qos-gen-cake</code>，再让 Queue Tree 引用它们。应用前仍建议确认当前 RouterOS 是否支持对应 kind：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/queue type print</code></pre><script class="code-source" type="application/json">"/queue type print"</script>
+</div>
+<p>如果 RouterOS 提示 <code>kind</code> 不支持，就先改回 <code>default</code>。如果创建成功但性能不稳，说明设备 CPU 或队列参数不适合当前带宽，也先回到 <code>default</code> 再继续调。</p>
+<h2 id="回滚">回滚</h2>
+<p>本文生成的规则都带有 <code>qos-gen:</code> 注释，回滚时可以只删这批规则：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code class="language-routeros" data-lang="routeros">/ip firewall mangle remove [find comment~&#34;qos-gen:&#34;]
 /queue tree remove [find comment~&#34;qos-gen:&#34;]
 /queue type remove [find name=&#34;qos-gen-fq-codel&#34;]
-/queue type remove [find name=&#34;qos-gen-cake&#34;]</code></pre><script class=code-source type=application/json>"/ip firewall mangle remove [find comment~\"qos-gen:\"]\n/queue tree remove [find comment~\"qos-gen:\"]\n/queue type remove [find name=\"qos-gen-fq-codel\"]\n/queue type remove [find name=\"qos-gen-cake\"]"</script></div><p>如果你已经有复杂 mangle、代理标记、PT 限速或 VLAN 分流，建议不要直接覆盖；先把生成结果当模板，把 packet mark 和 parent 名称并入现有规则。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+/queue type remove [find name=&#34;qos-gen-cake&#34;]</code></pre><script class="code-source" type="application/json">"/ip firewall mangle remove [find comment~\"qos-gen:\"]\n/queue tree remove [find comment~\"qos-gen:\"]\n/queue type remove [find name=\"qos-gen-fq-codel\"]\n/queue type remove [find name=\"qos-gen-cake\"]"</script>
+</div>
+<p>如果你已经有复杂 mangle、代理标记、PT 限速或 VLAN 分流，建议不要直接覆盖；先把生成结果当模板，把 packet mark 和 parent 名称并入现有规则。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

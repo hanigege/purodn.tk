@@ -1,46 +1,248 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin | 电脑自习室</title>
-<meta name=description content="在 FreeBSD 上使用 Go 安装 trzsz-go 的 trz 和 tsz 命令，并将二进制文件放到 /usr/local/bin 供全局使用。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>FreeBSD</span>
-<time datetime=2026-05-24>2026年5月24日</time></div><h1>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</h1><p>在 FreeBSD 上使用 Go 安装 trzsz-go 的 trz 和 tsz 命令，并将二进制文件放到 /usr/local/bin 供全局使用。</p></header><img class=article-cover src=/posts/freebsd/freebsd-install-trzsz-go/assets/cover.svg alt><div class=article-content><p><code>trzsz-go</code> 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
-</span></span><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class=code-source type=application/json>"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script></div><p>默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/root/go/bin/trz
-</span></span><span style=display:flex><span>/root/go/bin/tsz</span></span></code></pre></div><script class=code-source type=application/json>"/root/go/bin/trz\n/root/go/bin/tsz"</script></div><p>如果只是 root 自己使用，可以把 <code>$HOME/go/bin</code> 加入 <code>PATH</code>。但在 FreeBSD 上，更推荐把这种全局命令放到 <code>/usr/local/bin</code>，这样所有用户和脚本都更容易调用。</p><h2 id=准备-go-环境>准备 Go 环境</h2><p>先确认 Go 已经可用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>go version</span></span></code></pre></div><script class=code-source type=application/json>"go version"</script></div><p>如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 <code>/usr/local/go/bin/go</code>。</p><p>如果当前终端还找不到 <code>go</code>，可以临时加入 PATH：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>export PATH<span style=color:#f92672>=</span>$PATH:/usr/local/go/bin</span></span></code></pre></div><script class=code-source type=application/json>"export PATH=$PATH:/usr/local/go/bin"</script></div><h2 id=方案一直接安装到-usrlocalbin>方案一：直接安装到 /usr/local/bin</h2><p>可以。<code>go install</code> 支持通过 <code>GOBIN</code> 指定输出目录，所以最干净的方式是直接把 <code>trz</code> 和 <code>tsz</code> 安装到 <code>/usr/local/bin</code>。</p><p>以 root 用户执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>env GOBIN<span style=color:#f92672>=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
-</span></span><span style=display:flex><span>env GOBIN<span style=color:#f92672>=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class=code-source type=application/json>"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script></div><p>确认文件已经生成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>ls -l /usr/local/bin/trz /usr/local/bin/tsz</span></span></code></pre></div><script class=code-source type=application/json>"ls -l /usr/local/bin/trz /usr/local/bin/tsz"</script></div><p>确认命令可用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>which trz
-</span></span><span style=display:flex><span>which tsz
-</span></span><span style=display:flex><span>trz -v
-</span></span><span style=display:flex><span>tsz -v</span></span></code></pre></div><script class=code-source type=application/json>"which trz\nwhich tsz\ntrz -v\ntsz -v"</script></div><p>这种方式不会把最终命令留在 <code>/root/go/bin</code>，后续使用最省心。</p><h2 id=方案二先默认安装再移动到-usrlocalbin>方案二：先默认安装，再移动到 /usr/local/bin</h2><p>如果你已经执行过默认安装命令，也没问题。先让 Go 把命令编译到默认目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
-</span></span><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class=code-source type=application/json>"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script></div><p>root 用户执行后，通常会生成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/root/go/bin/trz
-</span></span><span style=display:flex><span>/root/go/bin/tsz</span></span></code></pre></div><script class=code-source type=application/json>"/root/go/bin/trz\n/root/go/bin/tsz"</script></div><p>把它们移动到 <code>/usr/local/bin</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>install -m <span style=color:#ae81ff>755</span> /root/go/bin/trz /usr/local/bin/trz
-</span></span><span style=display:flex><span>install -m <span style=color:#ae81ff>755</span> /root/go/bin/tsz /usr/local/bin/tsz</span></span></code></pre></div><script class=code-source type=application/json>"install -m 755 /root/go/bin/trz /usr/local/bin/trz\ninstall -m 755 /root/go/bin/tsz /usr/local/bin/tsz"</script></div><p>确认可用后，再删除 root 目录下的 Go 工作目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>which trz
-</span></span><span style=display:flex><span>which tsz
-</span></span><span style=display:flex><span>trz -v
-</span></span><span style=display:flex><span>tsz -v
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>rm -rf /root/go</span></span></code></pre></div><script class=code-source type=application/json>"which trz\nwhich tsz\ntrz -v\ntsz -v\n\nrm -rf /root/go"</script></div><p>这里用 <code>install -m 755</code> 而不是 <code>mv</code>，是为了顺手设置可执行权限。确认 <code>/usr/local/bin/trz</code> 和 <code>/usr/local/bin/tsz</code> 都能正常执行后，再清理 <code>/root/go</code> 更稳。</p><h2 id=普通用户-path-写法>普通用户 PATH 写法</h2><p>如果你不想安装到 <code>/usr/local/bin</code>，只想当前用户自己使用，也可以保留默认安装位置。</p><p>普通用户执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
-</span></span><span style=display:flex><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class=code-source type=application/json>"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script></div><p>生成的命令通常在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>$HOME/go/bin/trz
-</span></span><span style=display:flex><span>$HOME/go/bin/tsz</span></span></code></pre></div><script class=code-source type=application/json>"$HOME/go/bin/trz\n$HOME/go/bin/tsz"</script></div><p>把它加入 <code>~/.profile</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>printf <span style=color:#e6db74>&#39;\nexport PATH=$PATH:$HOME/go/bin\n&#39;</span> &gt;&gt; ~/.profile</span></span></code></pre></div><script class=code-source type=application/json>"printf '\\nexport PATH=$PATH:$HOME/go/bin\\n' \u003e\u003e ~/.profile"</script></div><p>让当前终端立即生效：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>. ~/.profile</span></span></code></pre></div><script class=code-source type=application/json>". ~/.profile"</script></div><p>然后验证：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>which trz
-</span></span><span style=display:flex><span>which tsz
-</span></span><span style=display:flex><span>trz -v
-</span></span><span style=display:flex><span>tsz -v</span></span></code></pre></div><script class=code-source type=application/json>"which trz\nwhich tsz\ntrz -v\ntsz -v"</script></div><h2 id=推荐选择>推荐选择</h2><p>如果这是自己的 FreeBSD 服务器，并且你希望 root 和普通用户都能直接使用 <code>trz</code>、<code>tsz</code>，推荐使用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>env GOBIN<span style=color:#f92672>=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
-</span></span><span style=display:flex><span>env GOBIN<span style=color:#f92672>=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class=code-source type=application/json>"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script></div><p>如果已经装到了 <code>/root/go/bin</code>，就把文件复制到 <code>/usr/local/bin</code>，验证成功后删除 <code>/root/go</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>install -m <span style=color:#ae81ff>755</span> /root/go/bin/trz /usr/local/bin/trz
-</span></span><span style=display:flex><span>install -m <span style=color:#ae81ff>755</span> /root/go/bin/tsz /usr/local/bin/tsz
-</span></span><span style=display:flex><span>rm -rf /root/go</span></span></code></pre></div><script class=code-source type=application/json>"install -m 755 /root/go/bin/trz /usr/local/bin/trz\ninstall -m 755 /root/go/bin/tsz /usr/local/bin/tsz\nrm -rf /root/go"</script></div><p>至此，FreeBSD 上的 <code>trz</code> 和 <code>tsz</code> 就可以直接使用了。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin | 电脑自习室</title>
+    <meta name="description" content="在 FreeBSD 上使用 Go 安装 trzsz-go 的 trz 和 tsz 命令，并将二进制文件放到 /usr/local/bin 供全局使用。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>FreeBSD</span>
+          <time datetime="2026-05-24">2026年5月24日</time>
+        </div>
+        <h1>FreeBSD 安装 trzsz-go 并放到 /usr/local/bin</h1>
+          <p>在 FreeBSD 上使用 Go 安装 trzsz-go 的 trz 和 tsz 命令，并将二进制文件放到 /usr/local/bin 供全局使用。</p>
+      </header>
+          <img class="article-cover" src="/posts/freebsd/freebsd-install-trzsz-go/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p><code>trzsz-go</code> 是一个命令行工具，不是普通 Go 库。安装时不能只写到仓库根目录，而是要安装它下面的命令入口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
+</span></span><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class="code-source" type="application/json">"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script>
+</div>
+<p>默认情况下，如果你以 root 用户执行上面两条命令，生成的二进制文件通常会放到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/go/bin/trz
+</span></span><span style="display:flex;"><span>/root/go/bin/tsz</span></span></code></pre></div><script class="code-source" type="application/json">"/root/go/bin/trz\n/root/go/bin/tsz"</script>
+</div>
+<p>如果只是 root 自己使用，可以把 <code>$HOME/go/bin</code> 加入 <code>PATH</code>。但在 FreeBSD 上，更推荐把这种全局命令放到 <code>/usr/local/bin</code>，这样所有用户和脚本都更容易调用。</p>
+<h2 id="准备-go-环境">准备 Go 环境</h2>
+<p>先确认 Go 已经可用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>go version</span></span></code></pre></div><script class="code-source" type="application/json">"go version"</script>
+</div>
+<p>如果还没有安装 Go，可以先参考本站的 FreeBSD Go 安装教程，或者确认你的系统里已经有 <code>/usr/local/go/bin/go</code>。</p>
+<p>如果当前终端还找不到 <code>go</code>，可以临时加入 PATH：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>export PATH<span style="color:#f92672">=</span>$PATH:/usr/local/go/bin</span></span></code></pre></div><script class="code-source" type="application/json">"export PATH=$PATH:/usr/local/go/bin"</script>
+</div>
+<h2 id="方案一直接安装到-usrlocalbin">方案一：直接安装到 /usr/local/bin</h2>
+<p>可以。<code>go install</code> 支持通过 <code>GOBIN</code> 指定输出目录，所以最干净的方式是直接把 <code>trz</code> 和 <code>tsz</code> 安装到 <code>/usr/local/bin</code>。</p>
+<p>以 root 用户执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>env GOBIN<span style="color:#f92672">=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
+</span></span><span style="display:flex;"><span>env GOBIN<span style="color:#f92672">=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class="code-source" type="application/json">"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script>
+</div>
+<p>确认文件已经生成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls -l /usr/local/bin/trz /usr/local/bin/tsz</span></span></code></pre></div><script class="code-source" type="application/json">"ls -l /usr/local/bin/trz /usr/local/bin/tsz"</script>
+</div>
+<p>确认命令可用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>which trz
+</span></span><span style="display:flex;"><span>which tsz
+</span></span><span style="display:flex;"><span>trz -v
+</span></span><span style="display:flex;"><span>tsz -v</span></span></code></pre></div><script class="code-source" type="application/json">"which trz\nwhich tsz\ntrz -v\ntsz -v"</script>
+</div>
+<p>这种方式不会把最终命令留在 <code>/root/go/bin</code>，后续使用最省心。</p>
+<h2 id="方案二先默认安装再移动到-usrlocalbin">方案二：先默认安装，再移动到 /usr/local/bin</h2>
+<p>如果你已经执行过默认安装命令，也没问题。先让 Go 把命令编译到默认目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
+</span></span><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class="code-source" type="application/json">"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script>
+</div>
+<p>root 用户执行后，通常会生成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/go/bin/trz
+</span></span><span style="display:flex;"><span>/root/go/bin/tsz</span></span></code></pre></div><script class="code-source" type="application/json">"/root/go/bin/trz\n/root/go/bin/tsz"</script>
+</div>
+<p>把它们移动到 <code>/usr/local/bin</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>install -m <span style="color:#ae81ff">755</span> /root/go/bin/trz /usr/local/bin/trz
+</span></span><span style="display:flex;"><span>install -m <span style="color:#ae81ff">755</span> /root/go/bin/tsz /usr/local/bin/tsz</span></span></code></pre></div><script class="code-source" type="application/json">"install -m 755 /root/go/bin/trz /usr/local/bin/trz\ninstall -m 755 /root/go/bin/tsz /usr/local/bin/tsz"</script>
+</div>
+<p>确认可用后，再删除 root 目录下的 Go 工作目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>which trz
+</span></span><span style="display:flex;"><span>which tsz
+</span></span><span style="display:flex;"><span>trz -v
+</span></span><span style="display:flex;"><span>tsz -v
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>rm -rf /root/go</span></span></code></pre></div><script class="code-source" type="application/json">"which trz\nwhich tsz\ntrz -v\ntsz -v\n\nrm -rf /root/go"</script>
+</div>
+<p>这里用 <code>install -m 755</code> 而不是 <code>mv</code>，是为了顺手设置可执行权限。确认 <code>/usr/local/bin/trz</code> 和 <code>/usr/local/bin/tsz</code> 都能正常执行后，再清理 <code>/root/go</code> 更稳。</p>
+<h2 id="普通用户-path-写法">普通用户 PATH 写法</h2>
+<p>如果你不想安装到 <code>/usr/local/bin</code>，只想当前用户自己使用，也可以保留默认安装位置。</p>
+<p>普通用户执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/trz@latest
+</span></span><span style="display:flex;"><span>go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class="code-source" type="application/json">"go install github.com/trzsz/trzsz-go/cmd/trz@latest\ngo install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script>
+</div>
+<p>生成的命令通常在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>$HOME/go/bin/trz
+</span></span><span style="display:flex;"><span>$HOME/go/bin/tsz</span></span></code></pre></div><script class="code-source" type="application/json">"$HOME/go/bin/trz\n$HOME/go/bin/tsz"</script>
+</div>
+<p>把它加入 <code>~/.profile</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>printf <span style="color:#e6db74">&#39;\nexport PATH=$PATH:$HOME/go/bin\n&#39;</span> &gt;&gt; ~/.profile</span></span></code></pre></div><script class="code-source" type="application/json">"printf '\\nexport PATH=$PATH:$HOME/go/bin\\n' \u003e\u003e ~/.profile"</script>
+</div>
+<p>让当前终端立即生效：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>. ~/.profile</span></span></code></pre></div><script class="code-source" type="application/json">". ~/.profile"</script>
+</div>
+<p>然后验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>which trz
+</span></span><span style="display:flex;"><span>which tsz
+</span></span><span style="display:flex;"><span>trz -v
+</span></span><span style="display:flex;"><span>tsz -v</span></span></code></pre></div><script class="code-source" type="application/json">"which trz\nwhich tsz\ntrz -v\ntsz -v"</script>
+</div>
+<h2 id="推荐选择">推荐选择</h2>
+<p>如果这是自己的 FreeBSD 服务器，并且你希望 root 和普通用户都能直接使用 <code>trz</code>、<code>tsz</code>，推荐使用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>env GOBIN<span style="color:#f92672">=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest
+</span></span><span style="display:flex;"><span>env GOBIN<span style="color:#f92672">=</span>/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest</span></span></code></pre></div><script class="code-source" type="application/json">"env GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/trz@latest\nenv GOBIN=/usr/local/bin go install github.com/trzsz/trzsz-go/cmd/tsz@latest"</script>
+</div>
+<p>如果已经装到了 <code>/root/go/bin</code>，就把文件复制到 <code>/usr/local/bin</code>，验证成功后删除 <code>/root/go</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>install -m <span style="color:#ae81ff">755</span> /root/go/bin/trz /usr/local/bin/trz
+</span></span><span style="display:flex;"><span>install -m <span style="color:#ae81ff">755</span> /root/go/bin/tsz /usr/local/bin/tsz
+</span></span><span style="display:flex;"><span>rm -rf /root/go</span></span></code></pre></div><script class="code-source" type="application/json">"install -m 755 /root/go/bin/trz /usr/local/bin/trz\ninstall -m 755 /root/go/bin/tsz /usr/local/bin/tsz\nrm -rf /root/go"</script>
+</div>
+<p>至此，FreeBSD 上的 <code>trz</code> 和 <code>tsz</code> 就可以直接使用了。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

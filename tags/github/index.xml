@@ -1,20 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>GitHub on 电脑自习室</title><link>https://purodn.tk/tags/github/</link><description>Recent content in GitHub on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/github/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。
-最终效果是：
-复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：
-复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。
-准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。
-先在终端检查 Git：
-复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。
-然后确认当前 Mac 能通过 SSH 连接 GitHub：
-复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。
-在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。
-仓库名称填写：</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
-它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
-使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
-更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
-GitHub 公钥地址格式是：
-复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
-root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
-复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
-root 用户配置项核对 root 用户版本推荐状态如下：
-复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>GitHub on 电脑自习室</title>
+    <link>https://purodn.tk/tags/github/</link>
+    <description>Recent content in GitHub on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 13 Jun 2026 11:34:12 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/github/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title>
+      <link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link>
+      <pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid>
+      <description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&#xA;最终效果是：&#xA;复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：&#xA;复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。&#xA;准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。&#xA;先在终端检查 Git：&#xA;复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。&#xA;然后确认当前 Mac 能通过 SSH 连接 GitHub：&#xA;复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。&#xA;在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。&#xA;仓库名称填写：</description>
+    </item>
+    <item>
+      <title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title>
+      <link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid>
+      <description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。&#xA;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&#xA;使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&#xA;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&#xA;GitHub 公钥地址格式是：&#xA;复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&#xA;root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&#xA;复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。&#xA;root 用户配置项核对 root 用户版本推荐状态如下：&#xA;复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description>
+    </item>
+  </channel>
+</rss>

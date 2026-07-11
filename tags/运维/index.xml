@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>运维 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E8%BF%90%E7%BB%B4/</link>
+    <description>Recent content in 运维 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 11 Jul 2026 22:45:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E8%BF%90%E7%BB%B4/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</title>
+      <link>https://purodn.tk/posts/linux/alpine-configure-timezone/</link>
+      <pubDate>Sat, 11 Jul 2026 22:45:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/alpine-configure-timezone/</guid>
+      <description>为什么 Alpine Linux 需要单独配置时区？ 大多数 Linux 发行版（如 Ubuntu、Debian、CentOS）基于 glibc，默认携带完整的时区数据库。Alpine Linux 使用 musl libc，为追求极致精简，默认不安装 tzdata 包。这意味着：&#xA;date 命令默认输出 UTC 时间 容器日志、定时任务（crond）、应用时间戳全部以 UTC 记录 对于部署在东八区或其它非 UTC 时区的生产环境，排查问题时时间换算十分痛苦 因此，安装并配置时区是 Alpine 环境初始化中不可跳过的一步。&#xA;完整配置步骤 1. 安装 tzdata 包 复制apk add tzdata 安装后，时区文件被释放到 /usr/share/zoneinfo/ 目录下。&#xA;💡 tzdata 仅有数百 KB，安装后可通过 ls /usr/share/zoneinfo/ 查看所有可用时区。&#xA;2. 复制对应的时区文件 以 Asia/Shanghai（北京时间，UTC+8） 为例：&#xA;复制cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime /etc/localtime 是一个二进制时区描述文件，内核和 musl libc 通过读取该文件确定系统时区。&#xA;其他时区：如果需要其它时区，先通过 ls /usr/share/zoneinfo/ 浏览可用区域，再选择具体城市或时区。例如：&#xA;Asia/Tokyo — 日本东京（UTC+9） America/New_York — 美国东部（UTC-5） Europe/London — 英国伦敦（UTC+0/+1） UTC — 世界协调时 复制cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime 3.</description>
+    </item>
+  </channel>
+</rss>

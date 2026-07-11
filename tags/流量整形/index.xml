@@ -1,2 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>流量整形 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E6%95%B4%E5%BD%A2/</link><description>Recent content in 流量整形 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E6%95%B4%E5%BD%A2/index.xml" rel="self" type="application/rss+xml"/><item><title>04.RouterOS 使用 queue tree 配置流量整形</title><link>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</guid><description>使用 queue tree 配置 RouterOS 流控 介绍两种流量整形，第一种适用于家庭普通用户，第二种适用经常有于BT PT等大流量应用占用带宽的用户
-1. 低延迟优先级流控 1.1 添加 queue type 复制/queue type add fq-codel-flows=128 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=4096.0KiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Up /queue type add fq-codel-flows=256 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Down /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Up /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=16.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Down /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=2048 fq-codel-memlimit=64.0MiB fq-codel-quantum=1400 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Web_Up /queue type add fq-codel-flows=1024 fq-codel-interval=50ms fq-codel-limit=4096 fq-codel-memlimit=128.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>流量整形 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E6%95%B4%E5%BD%A2/</link>
+    <description>Recent content in 流量整形 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E6%B5%81%E9%87%8F%E6%95%B4%E5%BD%A2/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>04.RouterOS 使用 queue tree 配置流量整形</title>
+      <link>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</link>
+      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/routeros/routeros-04-queue-tree/</guid>
+      <description>使用 queue tree 配置 RouterOS 流控 介绍两种流量整形，第一种适用于家庭普通用户，第二种适用经常有于BT PT等大流量应用占用带宽的用户&#xA;1. 低延迟优先级流控 1.1 添加 queue type 复制/queue type add fq-codel-flows=128 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=4096.0KiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Up /queue type add fq-codel-flows=256 fq-codel-interval=30ms fq-codel-limit=128 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=3ms kind=fq-codel name=Fq_Codel_Dns_Down /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=8.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Up /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=512 fq-codel-memlimit=16.0MiB fq-codel-quantum=512 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Small_Down /queue type add fq-codel-flows=512 fq-codel-interval=50ms fq-codel-limit=2048 fq-codel-memlimit=64.0MiB fq-codel-quantum=1400 fq-codel-target=5ms kind=fq-codel name=Fq_Codel_Web_Up /queue type add fq-codel-flows=1024 fq-codel-interval=50ms fq-codel-limit=4096 fq-codel-memlimit=128.</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1b2a"/>
+      <stop offset="50%" stop-color="#1b2838"/>
+      <stop offset="100%" stop-color="#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g stroke="#1e3a5f" stroke-width="0.5" opacity="0.3">
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="450"/>
+    <line x1="400" y1="0" x2="400" y2="450"/>
+    <line x1="600" y1="0" x2="600" y2="450"/>
+  </g>
+
+  <!-- Glow behind clock -->
+  <ellipse cx="300" cy="220" rx="140" ry="140" fill="url(#glow)"/>
+
+  <!-- Clock face -->
+  <circle cx="300" cy="220" r="120" fill="#0f1e33" stroke="#3b82f6" stroke-width="3"/>
+  <circle cx="300" cy="220" r="115" fill="none" stroke="#2a4a7f" stroke-width="1"/>
+
+  <!-- Hour markers -->
+  <g fill="#5b9af5" font-family="monospace" font-size="18" text-anchor="middle" dominant-baseline="central">
+    <text x="300" y="115">12</text>
+    <text x="380" y="127">1</text>
+    <text x="403" y="172">2</text>
+    <text x="408" y="222">3</text>
+    <text x="403" y="270">4</text>
+    <text x="380" y="312">5</text>
+    <text x="300" y="325">6</text>
+    <text x="220" y="312">7</text>
+    <text x="197" y="270">8</text>
+    <text x="192" y="222">9</text>
+    <text x="197" y="172">10</text>
+    <text x="220" y="127">11</text>
+  </g>
+
+  <!-- Hour hand (pointing to ~8) -->
+  <line x1="300" y1="220" x2="265" y2="152" stroke="#60a5fa" stroke-width="5" stroke-linecap="round"/>
+  <!-- Minute hand (pointing to ~10) -->
+  <line x1="300" y1="220" x2="340" y2="140" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/>
+  <!-- Second hand -->
+  <line x1="300" y1="220" x2="270" y2="290" stroke="#f87171" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Center dot -->
+  <circle cx="300" cy="220" r="5" fill="#3b82f6"/>
+
+  <!-- Time zone text on clock -->
+  <text x="300" y="305" fill="#5b9af5" font-family="monospace" font-size="12" text-anchor="middle">CST +8</text>
+
+  <!-- Terminal window on the right -->
+  <rect x="470" y="130" width="280" height="200" rx="8" fill="#0d1b2a" stroke="#2a4a7f" stroke-width="1.5"/>
+  <!-- Title bar -->
+  <rect x="470" y="130" width="280" height="30" rx="8" fill="#1b2838"/>
+  <rect x="470" y="148" width="280" height="12" fill="#1b2838"/>
+  <!-- Window dots -->
+  <circle cx="490" cy="145" r="5" fill="#f87171"/>
+  <circle cx="508" cy="145" r="5" fill="#fbbf24"/>
+  <circle cx="526" cy="145" r="5" fill="#34d399"/>
+
+  <!-- Terminal text -->
+  <g font-family="monospace" font-size="14">
+    <text x="485" y="185" fill="#34d399">$ apk add tzdata</text>
+    <text x="485" y="207" fill="#9ca3af">(1/1) Installing tzdata (2024a)</text>
+    <text x="485" y="229" fill="#9ca3af">OK: 243 MiB in 62 packages</text>
+    <text x="485" y="255" fill="#34d399">$ cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime</text>
+    <text x="485" y="277" fill="#34d399">$ echo "Asia/Shanghai" > /etc/timezone</text>
+    <text x="485" y="303" fill="#34d399">$ date</text>
+    <text x="485" y="325" fill="#fbbf24">Fri Jul 11 22:45:00 CST 2026</text>
+  </g>
+
+  <!-- Title -->
+  <text x="400" y="405" fill="#e2e8f0" font-family="sans-serif" font-size="28" font-weight="bold" text-anchor="middle" letter-spacing="2">Alpine Linux 时区配置</text>
+  <text x="400" y="430" fill="#64748b" font-family="sans-serif" font-size="14" text-anchor="middle" letter-spacing="1">Alpine Linux Timezone Configuration Guide</text>
+</svg>

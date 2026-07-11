@@ -1,139 +1,420 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型 | 电脑自习室</title>
-<meta name=description content="通过 Moon Bridge 本地代理桥接 Codex Responses API 与 DeepSeek Chat API 的完整配置指南，支持 Flash 和 Pro 模型切换"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-06-24>2026年6月24日</time></div><h1>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</h1><p>通过 Moon Bridge 本地代理桥接 Codex Responses API 与 DeepSeek Chat API 的完整配置指南，支持 Flash 和 Pro 模型切换</p></header><img class=article-cover src=/posts/ai/moon-bridge-config-tutorial/assets/cover.svg alt><div class=article-content><h2 id=概述>概述</h2><p>Codex 桌面应用从 v0.142 开始仅支持 Responses API（<code>/v1/responses</code>）协议，而 DeepSeek 官方只提供 Chat Completions API（<code>/v1/chat/completions</code>）。两种协议互不兼容，无法直连。</p><p><a href=https://github.com/ZhiYi-R/moon-bridge>Moon Bridge</a> 是一个轻量本地代理，运行在 Mac 上，负责将 Codex 发出的 Responses 请求实时翻译为 DeepSeek 能理解的 Chat 请求，使得在 Codex 桌面 App 中直接使用 DeepSeek 模型成为可能。</p><p>通讯拓扑如下：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API</code></pre><script class=code-source type=application/json>"Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API"</script></div><hr><h2 id=前置条件>前置条件</h2><ul><li>macOS 操作系统</li><li><a href=https://brew.sh/>Homebrew</a> 包管理器（用于安装 Go）</li><li>DeepSeek API Key（从 <a href=https://platform.deepseek.com/>DeepSeek 开发者平台</a> 获取）</li></ul><hr><h2 id=安装步骤>安装步骤</h2><h3 id=第一步安装-go-语言>第一步：安装 Go 语言</h3><p>Moon Bridge 使用 Go 编写，需要先安装 Go 运行环境：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>brew install go</span></span></code></pre></div><script class=code-source type=application/json>"brew install go"</script></div><p>验证安装：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>go version
-</span></span><span style=display:flex><span><span style=color:#75715e># 输出示例：go version go1.22.x darwin/arm64</span></span></span></code></pre></div><script class=code-source type=application/json>"go version\n# 输出示例：go version go1.22.x darwin/arm64"</script></div><h3 id=第二步克隆-moon-bridge-仓库>第二步：克隆 Moon Bridge 仓库</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git clone https://github.com/ZhiYi-R/moon-bridge.git
-</span></span><span style=display:flex><span>cd moon-bridge</span></span></code></pre></div><script class=code-source type=application/json>"git clone https://github.com/ZhiYi-R/moon-bridge.git\ncd moon-bridge"</script></div><h3 id=第三步创建配置文件>第三步：创建配置文件</h3><p>在项目根目录创建 <code>config.yml</code>，填入 DeepSeek API Key：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>mode</span>: <span style=color:#e6db74>&#34;Transform&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>server</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>addr</span>: <span style=color:#e6db74>&#34;127.0.0.1:38440&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>models</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>deepseek-v4-flash</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>context_window</span>: <span style=color:#ae81ff>1000000</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>max_output_tokens</span>: <span style=color:#ae81ff>384000</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>default_reasoning_level</span>: <span style=color:#e6db74>&#34;high&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>supported_reasoning_levels</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>effort</span>: <span style=color:#e6db74>&#34;high&#34;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>description</span>: <span style=color:#e6db74>&#34;High reasoning effort&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>effort</span>: <span style=color:#e6db74>&#34;xhigh&#34;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>description</span>: <span style=color:#e6db74>&#34;Extra high reasoning effort&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>supports_reasoning_summaries</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>default_reasoning_summary</span>: <span style=color:#e6db74>&#34;auto&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>extensions</span>:
-</span></span><span style=display:flex><span>      <span style=color:#f92672>deepseek_v4</span>:
-</span></span><span style=display:flex><span>        <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>deepseek-v4-pro</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>context_window</span>: <span style=color:#ae81ff>1000000</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>max_output_tokens</span>: <span style=color:#ae81ff>384000</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>default_reasoning_level</span>: <span style=color:#e6db74>&#34;high&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>supported_reasoning_levels</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>effort</span>: <span style=color:#e6db74>&#34;high&#34;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>description</span>: <span style=color:#e6db74>&#34;High reasoning effort&#34;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>effort</span>: <span style=color:#e6db74>&#34;xhigh&#34;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>description</span>: <span style=color:#e6db74>&#34;Extra high reasoning effort&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>supports_reasoning_summaries</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>default_reasoning_summary</span>: <span style=color:#e6db74>&#34;auto&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>extensions</span>:
-</span></span><span style=display:flex><span>      <span style=color:#f92672>deepseek_v4</span>:
-</span></span><span style=display:flex><span>        <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>providers</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>deepseek</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>base_url</span>: <span style=color:#e6db74>&#34;https://api.deepseek.com/anthropic&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>api_key</span>: <span style=color:#e6db74>&#34;sk-你的DeepSeekAPIKey粘贴到这里&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>offers</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-flash</span>
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-pro</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>routes</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>moonbridge</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-flash</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>provider</span>: <span style=color:#ae81ff>deepseek</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>defaults</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>model</span>: <span style=color:#ae81ff>moonbridge</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>max_tokens</span>: <span style=color:#ae81ff>65536</span></span></span></code></pre></div><script class=code-source type=application/json>"mode: \"Transform\"\n\nserver:\n  addr: \"127.0.0.1:38440\"\n\nmodels:\n  deepseek-v4-flash:\n    context_window: 1000000\n    max_output_tokens: 384000\n    default_reasoning_level: \"high\"\n    supported_reasoning_levels:\n      - effort: \"high\"\n        description: \"High reasoning effort\"\n      - effort: \"xhigh\"\n        description: \"Extra high reasoning effort\"\n    supports_reasoning_summaries: true\n    default_reasoning_summary: \"auto\"\n    extensions:\n      deepseek_v4:\n        enabled: true\n\n  deepseek-v4-pro:\n    context_window: 1000000\n    max_output_tokens: 384000\n    default_reasoning_level: \"high\"\n    supported_reasoning_levels:\n      - effort: \"high\"\n        description: \"High reasoning effort\"\n      - effort: \"xhigh\"\n        description: \"Extra high reasoning effort\"\n    supports_reasoning_summaries: true\n    default_reasoning_summary: \"auto\"\n    extensions:\n      deepseek_v4:\n        enabled: true\n\nproviders:\n  deepseek:\n    base_url: \"https://api.deepseek.com/anthropic\"\n    api_key: \"sk-你的DeepSeekAPIKey粘贴到这里\"\n    offers:\n      - model: deepseek-v4-flash\n      - model: deepseek-v4-pro\n\nroutes:\n  moonbridge:\n    model: deepseek-v4-flash\n    provider: deepseek\n\ndefaults:\n  model: moonbridge\n  max_tokens: 65536"</script></div><h4 id=配置说明>配置说明</h4><table><thead><tr><th>字段</th><th>说明</th></tr></thead><tbody><tr><td><code>server.addr</code></td><td>Moon Bridge 监听地址，默认使用本地 38440 端口</td></tr><tr><td><code>models.*</code></td><td>定义可用模型及其参数，包括上下文窗口、最大输出 Token、推理级别等</td></tr><tr><td><code>providers.deepseek.base_url</code></td><td>DeepSeek API 端点，固定为 <code>https://api.deepseek.com/anthropic</code></td></tr><tr><td><code>providers.deepseek.api_key</code></td><td>替换为你的真实 API Key</td></tr><tr><td><code>routes.moonbridge</code></td><td>默认路由，指定使用的模型和供应商</td></tr><tr><td><code>defaults.model</code></td><td>默认生效的模型路由名称</td></tr><tr><td><code>defaults.max_tokens</code></td><td>每次请求的最大输出 Token 数</td></tr></tbody></table><h3 id=第四步启动-moon-bridge>第四步：启动 Moon Bridge</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>go run ./cmd/moonbridge --config config.yml</span></span></code></pre></div><script class=code-source type=application/json>"go run ./cmd/moonbridge --config config.yml"</script></div><p>启动后 Moon Bridge 将监听 <code>127.0.0.1:38440</code>，暴露兼容 Responses API 的端点。终端需要保持运行，关闭后 Codex 将无法连接。</p><blockquote><p><strong>提示</strong>：首次启动需要下载依赖，耗时取决于网络状况。后续启动会直接使用已缓存的模块。</p></blockquote><h3 id=第五步生成-codex-配置>第五步：生成 Codex 配置</h3><p>保持 Moon Bridge 运行，另开一个终端窗口执行以下命令，自动生成 Codex 配置文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 定义 Codex 配置目录</span>
-</span></span><span style=display:flex><span>CODEX_HOME_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>CODEX_HOME<span style=color:#66d9ef>:-</span>$HOME/.codex<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$CODEX_HOME_DIR<span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 备份现有配置</span>
-</span></span><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span>$CODEX_HOME_DIR<span style=color:#e6db74>/config.toml&#34;</span> <span style=color:#e6db74>&#34;</span>$CODEX_HOME_DIR<span style=color:#e6db74>/config.toml.bak&#34;</span> 2&gt;/dev/null <span style=color:#f92672>||</span> true
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 获取当前 Moon Bridge 暴露的模型名称</span>
-</span></span><span style=display:flex><span>MODEL<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>go run ./cmd/moonbridge --config config.yml --print-codex-model<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 生成 Codex 配置</span>
-</span></span><span style=display:flex><span>go run ./cmd/moonbridge <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --config config.yml <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --print-codex-config <span style=color:#e6db74>&#34;</span>$MODEL<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --codex-base-url <span style=color:#e6db74>&#34;http://127.0.0.1:38440/v1&#34;</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --codex-home <span style=color:#e6db74>&#34;</span>$CODEX_HOME_DIR<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  &gt; <span style=color:#e6db74>&#34;</span>$CODEX_HOME_DIR<span style=color:#e6db74>/config.toml&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"# 定义 Codex 配置目录\nCODEX_HOME_DIR=\"${CODEX_HOME:-$HOME/.codex}\"\nmkdir -p \"$CODEX_HOME_DIR\"\n\n# 备份现有配置\ncp \"$CODEX_HOME_DIR/config.toml\" \"$CODEX_HOME_DIR/config.toml.bak\" 2\u003e/dev/null || true\n\n# 获取当前 Moon Bridge 暴露的模型名称\nMODEL=\"$(go run ./cmd/moonbridge --config config.yml --print-codex-model)\"\n\n# 生成 Codex 配置\ngo run ./cmd/moonbridge \\\n  --config config.yml \\\n  --print-codex-config \"$MODEL\" \\\n  --codex-base-url \"http://127.0.0.1:38440/v1\" \\\n  --codex-home \"$CODEX_HOME_DIR\" \\\n  \u003e \"$CODEX_HOME_DIR/config.toml\""</script></div><p>配置生成完毕后，重新打开 Codex 桌面 App，它将自动通过 Moon Bridge 代理连接 DeepSeek。</p><hr><h2 id=模型切换>模型切换</h2><h3 id=使用-flash-模型>使用 Flash 模型</h3><p>按上述步骤配置完成后，默认使用 <code>deepseek-v4-flash</code> 模型。如需确认，检查 <code>routes</code> 段：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>routes</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>moonbridge</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-flash   </span> <span style=color:#75715e># 使用 Flash 模型</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>provider</span>: <span style=color:#ae81ff>deepseek</span></span></span></code></pre></div><script class=code-source type=application/json>"routes:\n  moonbridge:\n    model: deepseek-v4-flash    # 使用 Flash 模型\n    provider: deepseek"</script></div><h3 id=切换到-pro-模型>切换到 Pro 模型</h3><p>将路由中的模型改为 <code>deepseek-v4-pro</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>routes</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>moonbridge</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-pro   </span> <span style=color:#75715e># 切换到 Pro 模型</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>provider</span>: <span style=color:#ae81ff>deepseek</span></span></span></code></pre></div><script class=code-source type=application/json>"routes:\n  moonbridge:\n    model: deepseek-v4-pro    # 切换到 Pro 模型\n    provider: deepseek"</script></div><p>修改后需要重启 Moon Bridge（<code>Ctrl+C</code> 停止，重新运行 <code>go run ./cmd/moonbridge --config config.yml</code>），然后重新打开 Codex 桌面 App。</p><h3 id=配置多路由同时支持-flash-和-pro>配置多路由（同时支持 Flash 和 Pro）</h3><p>如果需要在不修改配置文件的情况下切换模型，可以定义多条路由：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>routes</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>flash</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-flash</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>provider</span>: <span style=color:#ae81ff>deepseek</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>pro</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>model</span>: <span style=color:#ae81ff>deepseek-v4-pro</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>provider</span>: <span style=color:#ae81ff>deepseek</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>defaults</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>model</span>: <span style=color:#ae81ff>flash   </span> <span style=color:#75715e># 默认使用 Flash</span></span></span></code></pre></div><script class=code-source type=application/json>"routes:\n  flash:\n    model: deepseek-v4-flash\n    provider: deepseek\n  pro:\n    model: deepseek-v4-pro\n    provider: deepseek\n\ndefaults:\n  model: flash    # 默认使用 Flash"</script></div><p>多路由配置完成后，需要重新执行配置生成命令，让 Codex 识别到多个可用模型。之后即可在 Codex 桌面 App 的模型选择器中自由切换。</p><hr><h2 id=后台持久化运行>后台持久化运行</h2><p>Moon Bridge 终端不能关闭，否则 Codex 无法连接。建议以下两种方式持久化运行。</p><h3 id=方式一tmux-会话>方式一：tmux 会话</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 安装 tmux</span>
-</span></span><span style=display:flex><span>brew install tmux
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 创建独立会话</span>
-</span></span><span style=display:flex><span>tmux new-session -d -s moonbridge <span style=color:#e6db74>&#39;cd ~/moonbridge &amp;&amp; go run ./cmd/moonbridge --config config.yml&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"# 安装 tmux\nbrew install tmux\n\n# 创建独立会话\ntmux new-session -d -s moonbridge 'cd ~/moonbridge \u0026\u0026 go run ./cmd/moonbridge --config config.yml'"</script></div><h3 id=方式二launchd-开机自启>方式二：launchd 开机自启</h3><p>创建 plist 文件 <code>~/Library/LaunchAgents/com.moonbridge.plist</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-xml data-lang=xml><span style=display:flex><span><span style=color:#75715e>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34;?&gt;</span>
-</span></span><span style=display:flex><span><span style=color:#75715e>&lt;!DOCTYPE plist PUBLIC &#34;-//Apple//DTD PLIST 1.0//EN&#34;
-</span></span></span><span style=display:flex><span><span style=color:#75715e>  &#34;http://www.apple.com/DTDs/PropertyList-1.0.dtd&#34;&gt;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>&lt;plist</span> <span style=color:#a6e22e>version=</span><span style=color:#e6db74>&#34;1.0&#34;</span><span style=color:#f92672>&gt;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>&lt;dict&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>Label<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;string&gt;</span>com.moonbridge<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>ProgramArguments<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;array&gt;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;string&gt;</span>/usr/local/bin/go<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;string&gt;</span>run<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;string&gt;</span>./cmd/moonbridge<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;string&gt;</span>--config<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;string&gt;</span>/Users/你的用户名/moonbridge/config.yml<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;/array&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>WorkingDirectory<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;string&gt;</span>/Users/你的用户名/moonbridge<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>RunAtLoad<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;true/&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>KeepAlive<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;true/&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>StandardOutPath<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;string&gt;</span>/tmp/moonbridge.log<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;key&gt;</span>StandardErrorPath<span style=color:#f92672>&lt;/key&gt;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;string&gt;</span>/tmp/moonbridge.log<span style=color:#f92672>&lt;/string&gt;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/dict&gt;</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/plist&gt;</span></span></span></code></pre></div><script class=code-source type=application/json>"\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003c!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\"\n  \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"\u003e\n\u003cplist version=\"1.0\"\u003e\n\u003cdict\u003e\n    \u003ckey\u003eLabel\u003c/key\u003e\n    \u003cstring\u003ecom.moonbridge\u003c/string\u003e\n    \u003ckey\u003eProgramArguments\u003c/key\u003e\n    \u003carray\u003e\n        \u003cstring\u003e/usr/local/bin/go\u003c/string\u003e\n        \u003cstring\u003erun\u003c/string\u003e\n        \u003cstring\u003e./cmd/moonbridge\u003c/string\u003e\n        \u003cstring\u003e--config\u003c/string\u003e\n        \u003cstring\u003e/Users/你的用户名/moonbridge/config.yml\u003c/string\u003e\n    \u003c/array\u003e\n    \u003ckey\u003eWorkingDirectory\u003c/key\u003e\n    \u003cstring\u003e/Users/你的用户名/moonbridge\u003c/string\u003e\n    \u003ckey\u003eRunAtLoad\u003c/key\u003e\n    \u003ctrue/\u003e\n    \u003ckey\u003eKeepAlive\u003c/key\u003e\n    \u003ctrue/\u003e\n    \u003ckey\u003eStandardOutPath\u003c/key\u003e\n    \u003cstring\u003e/tmp/moonbridge.log\u003c/string\u003e\n    \u003ckey\u003eStandardErrorPath\u003c/key\u003e\n    \u003cstring\u003e/tmp/moonbridge.log\u003c/string\u003e\n\u003c/dict\u003e\n\u003c/plist\u003e"</script></div><p>加载自启服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>launchctl load ~/Library/LaunchAgents/com.moonbridge.plist</span></span></code></pre></div><script class=code-source type=application/json>"launchctl load ~/Library/LaunchAgents/com.moonbridge.plist"</script></div><hr><h2 id=验证配置>验证配置</h2><p>启动 Moon Bridge 和 Codex 后，可通过以下方式验证连通性：</p><ol><li><strong>检查 Moon Bridge 日志</strong>：终端输出应显示服务启动信息，无连接错误。</li><li><strong>Codex 桌面 App 状态</strong>：打开 Codex，如配置正确，模型选择器中应出现 Moon Bridge 映射的模型名称。</li><li><strong>发送测试消息</strong>：在 Codex 中发起一次对话，观察 Moon Bridge 终端是否打印请求转发日志。</li></ol><hr><h2 id=常见问题>常见问题</h2><h3 id=连接被拒绝>连接被拒绝</h3><ul><li>确认 Moon Bridge 正在运行：检查 38440 端口是否在监听：</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>lsof -nP -iTCP:38440 -sTCP:LISTEN</span></span></code></pre></div><script class=code-source type=application/json>"lsof -nP -iTCP:38440 -sTCP:LISTEN"</script></div><ul><li>确认 Codex 配置文件中的 <code>base_url</code> 正确指向 <code>http://127.0.0.1:38440/v1</code>。</li></ul><h3 id=api-认证失败>API 认证失败</h3><ul><li>检查 <code>config.yml</code> 中的 <code>api_key</code> 是否正确。</li><li>确认 DeepSeek 账户余额充足，API Key 未过期。</li><li>可在终端直接测试 API 连通性：</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl https://api.deepseek.com/anthropic/v1/models <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer sk-你的DeepSeekAPIKey&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl https://api.deepseek.com/anthropic/v1/models \\\n  -H \"Authorization: Bearer sk-你的DeepSeekAPIKey\""</script></div><h3 id=模型不可用>模型不可用</h3><ul><li>确认 <code>models</code> 段中定义的模型名称与 <code>routes</code> 中引用的名称一致。</li><li>多路由配置下，确认 Codex 配置已重新生成。</li></ul><hr><h2 id=参考链接>参考链接</h2><ul><li><a href=https://github.com/ZhiYi-R/moon-bridge>Moon Bridge GitHub 仓库</a></li><li><a href=https://platform.deepseek.com/>DeepSeek 开发者平台</a></li><li><a href=https://codex.so/docs>Codex 官方文档</a></li></ul></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型 | 电脑自习室</title>
+    <meta name="description" content="通过 Moon Bridge 本地代理桥接 Codex Responses API 与 DeepSeek Chat API 的完整配置指南，支持 Flash 和 Pro 模型切换">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-24">2026年6月24日</time>
+        </div>
+        <h1>Moon Bridge 配置教程：在 Codex 中使用 DeepSeek 模型</h1>
+          <p>通过 Moon Bridge 本地代理桥接 Codex Responses API 与 DeepSeek Chat API 的完整配置指南，支持 Flash 和 Pro 模型切换</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/moon-bridge-config-tutorial/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="概述">概述</h2>
+<p>Codex 桌面应用从 v0.142 开始仅支持 Responses API（<code>/v1/responses</code>）协议，而 DeepSeek 官方只提供 Chat Completions API（<code>/v1/chat/completions</code>）。两种协议互不兼容，无法直连。</p>
+<p><a href="https://github.com/ZhiYi-R/moon-bridge">Moon Bridge</a> 是一个轻量本地代理，运行在 Mac 上，负责将 Codex 发出的 Responses 请求实时翻译为 DeepSeek 能理解的 Chat 请求，使得在 Codex 桌面 App 中直接使用 DeepSeek 模型成为可能。</p>
+<p>通讯拓扑如下：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API</code></pre><script class="code-source" type="application/json">"Codex 桌面 App → Moon Bridge (127.0.0.1:38440) → DeepSeek API"</script>
+</div>
+<hr>
+<h2 id="前置条件">前置条件</h2>
+<ul>
+<li>macOS 操作系统</li>
+<li><a href="https://brew.sh/">Homebrew</a> 包管理器（用于安装 Go）</li>
+<li>DeepSeek API Key（从 <a href="https://platform.deepseek.com/">DeepSeek 开发者平台</a> 获取）</li>
+</ul>
+<hr>
+<h2 id="安装步骤">安装步骤</h2>
+<h3 id="第一步安装-go-语言">第一步：安装 Go 语言</h3>
+<p>Moon Bridge 使用 Go 编写，需要先安装 Go 运行环境：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>brew install go</span></span></code></pre></div><script class="code-source" type="application/json">"brew install go"</script>
+</div>
+<p>验证安装：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go version
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 输出示例：go version go1.22.x darwin/arm64</span></span></span></code></pre></div><script class="code-source" type="application/json">"go version\n# 输出示例：go version go1.22.x darwin/arm64"</script>
+</div>
+<h3 id="第二步克隆-moon-bridge-仓库">第二步：克隆 Moon Bridge 仓库</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git clone https://github.com/ZhiYi-R/moon-bridge.git
+</span></span><span style="display:flex;"><span>cd moon-bridge</span></span></code></pre></div><script class="code-source" type="application/json">"git clone https://github.com/ZhiYi-R/moon-bridge.git\ncd moon-bridge"</script>
+</div>
+<h3 id="第三步创建配置文件">第三步：创建配置文件</h3>
+<p>在项目根目录创建 <code>config.yml</code>，填入 DeepSeek API Key：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#34;Transform&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">server</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">addr</span>: <span style="color:#e6db74">&#34;127.0.0.1:38440&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">models</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">deepseek-v4-flash</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">context_window</span>: <span style="color:#ae81ff">1000000</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">max_output_tokens</span>: <span style="color:#ae81ff">384000</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">default_reasoning_level</span>: <span style="color:#e6db74">&#34;high&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">supported_reasoning_levels</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">effort</span>: <span style="color:#e6db74">&#34;high&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">description</span>: <span style="color:#e6db74">&#34;High reasoning effort&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">effort</span>: <span style="color:#e6db74">&#34;xhigh&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">description</span>: <span style="color:#e6db74">&#34;Extra high reasoning effort&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">supports_reasoning_summaries</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">default_reasoning_summary</span>: <span style="color:#e6db74">&#34;auto&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extensions</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">deepseek_v4</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">deepseek-v4-pro</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">context_window</span>: <span style="color:#ae81ff">1000000</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">max_output_tokens</span>: <span style="color:#ae81ff">384000</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">default_reasoning_level</span>: <span style="color:#e6db74">&#34;high&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">supported_reasoning_levels</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">effort</span>: <span style="color:#e6db74">&#34;high&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">description</span>: <span style="color:#e6db74">&#34;High reasoning effort&#34;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">effort</span>: <span style="color:#e6db74">&#34;xhigh&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">description</span>: <span style="color:#e6db74">&#34;Extra high reasoning effort&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">supports_reasoning_summaries</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">default_reasoning_summary</span>: <span style="color:#e6db74">&#34;auto&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extensions</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">deepseek_v4</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">providers</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">deepseek</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">base_url</span>: <span style="color:#e6db74">&#34;https://api.deepseek.com/anthropic&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">api_key</span>: <span style="color:#e6db74">&#34;sk-你的DeepSeekAPIKey粘贴到这里&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">offers</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-flash</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-pro</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">routes</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">moonbridge</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-flash</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">deepseek</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">defaults</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">model</span>: <span style="color:#ae81ff">moonbridge</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">max_tokens</span>: <span style="color:#ae81ff">65536</span></span></span></code></pre></div><script class="code-source" type="application/json">"mode: \"Transform\"\n\nserver:\n  addr: \"127.0.0.1:38440\"\n\nmodels:\n  deepseek-v4-flash:\n    context_window: 1000000\n    max_output_tokens: 384000\n    default_reasoning_level: \"high\"\n    supported_reasoning_levels:\n      - effort: \"high\"\n        description: \"High reasoning effort\"\n      - effort: \"xhigh\"\n        description: \"Extra high reasoning effort\"\n    supports_reasoning_summaries: true\n    default_reasoning_summary: \"auto\"\n    extensions:\n      deepseek_v4:\n        enabled: true\n\n  deepseek-v4-pro:\n    context_window: 1000000\n    max_output_tokens: 384000\n    default_reasoning_level: \"high\"\n    supported_reasoning_levels:\n      - effort: \"high\"\n        description: \"High reasoning effort\"\n      - effort: \"xhigh\"\n        description: \"Extra high reasoning effort\"\n    supports_reasoning_summaries: true\n    default_reasoning_summary: \"auto\"\n    extensions:\n      deepseek_v4:\n        enabled: true\n\nproviders:\n  deepseek:\n    base_url: \"https://api.deepseek.com/anthropic\"\n    api_key: \"sk-你的DeepSeekAPIKey粘贴到这里\"\n    offers:\n      - model: deepseek-v4-flash\n      - model: deepseek-v4-pro\n\nroutes:\n  moonbridge:\n    model: deepseek-v4-flash\n    provider: deepseek\n\ndefaults:\n  model: moonbridge\n  max_tokens: 65536"</script>
+</div>
+<h4 id="配置说明">配置说明</h4>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server.addr</code></td>
+<td>Moon Bridge 监听地址，默认使用本地 38440 端口</td>
+</tr>
+<tr>
+<td><code>models.*</code></td>
+<td>定义可用模型及其参数，包括上下文窗口、最大输出 Token、推理级别等</td>
+</tr>
+<tr>
+<td><code>providers.deepseek.base_url</code></td>
+<td>DeepSeek API 端点，固定为 <code>https://api.deepseek.com/anthropic</code></td>
+</tr>
+<tr>
+<td><code>providers.deepseek.api_key</code></td>
+<td>替换为你的真实 API Key</td>
+</tr>
+<tr>
+<td><code>routes.moonbridge</code></td>
+<td>默认路由，指定使用的模型和供应商</td>
+</tr>
+<tr>
+<td><code>defaults.model</code></td>
+<td>默认生效的模型路由名称</td>
+</tr>
+<tr>
+<td><code>defaults.max_tokens</code></td>
+<td>每次请求的最大输出 Token 数</td>
+</tr>
+</tbody>
+</table>
+<h3 id="第四步启动-moon-bridge">第四步：启动 Moon Bridge</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go run ./cmd/moonbridge --config config.yml</span></span></code></pre></div><script class="code-source" type="application/json">"go run ./cmd/moonbridge --config config.yml"</script>
+</div>
+<p>启动后 Moon Bridge 将监听 <code>127.0.0.1:38440</code>，暴露兼容 Responses API 的端点。终端需要保持运行，关闭后 Codex 将无法连接。</p>
+<blockquote>
+<p><strong>提示</strong>：首次启动需要下载依赖，耗时取决于网络状况。后续启动会直接使用已缓存的模块。</p>
+</blockquote>
+<h3 id="第五步生成-codex-配置">第五步：生成 Codex 配置</h3>
+<p>保持 Moon Bridge 运行，另开一个终端窗口执行以下命令，自动生成 Codex 配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 定义 Codex 配置目录</span>
+</span></span><span style="display:flex;"><span>CODEX_HOME_DIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>CODEX_HOME<span style="color:#66d9ef">:-</span>$HOME/.codex<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$CODEX_HOME_DIR<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 备份现有配置</span>
+</span></span><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span>$CODEX_HOME_DIR<span style="color:#e6db74">/config.toml&#34;</span> <span style="color:#e6db74">&#34;</span>$CODEX_HOME_DIR<span style="color:#e6db74">/config.toml.bak&#34;</span> 2&gt;/dev/null <span style="color:#f92672">||</span> true
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 获取当前 Moon Bridge 暴露的模型名称</span>
+</span></span><span style="display:flex;"><span>MODEL<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>go run ./cmd/moonbridge --config config.yml --print-codex-model<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 生成 Codex 配置</span>
+</span></span><span style="display:flex;"><span>go run ./cmd/moonbridge <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --config config.yml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --print-codex-config <span style="color:#e6db74">&#34;</span>$MODEL<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --codex-base-url <span style="color:#e6db74">&#34;http://127.0.0.1:38440/v1&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --codex-home <span style="color:#e6db74">&#34;</span>$CODEX_HOME_DIR<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  &gt; <span style="color:#e6db74">&#34;</span>$CODEX_HOME_DIR<span style="color:#e6db74">/config.toml&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 定义 Codex 配置目录\nCODEX_HOME_DIR=\"${CODEX_HOME:-$HOME/.codex}\"\nmkdir -p \"$CODEX_HOME_DIR\"\n\n# 备份现有配置\ncp \"$CODEX_HOME_DIR/config.toml\" \"$CODEX_HOME_DIR/config.toml.bak\" 2\u003e/dev/null || true\n\n# 获取当前 Moon Bridge 暴露的模型名称\nMODEL=\"$(go run ./cmd/moonbridge --config config.yml --print-codex-model)\"\n\n# 生成 Codex 配置\ngo run ./cmd/moonbridge \\\n  --config config.yml \\\n  --print-codex-config \"$MODEL\" \\\n  --codex-base-url \"http://127.0.0.1:38440/v1\" \\\n  --codex-home \"$CODEX_HOME_DIR\" \\\n  \u003e \"$CODEX_HOME_DIR/config.toml\""</script>
+</div>
+<p>配置生成完毕后，重新打开 Codex 桌面 App，它将自动通过 Moon Bridge 代理连接 DeepSeek。</p>
+<hr>
+<h2 id="模型切换">模型切换</h2>
+<h3 id="使用-flash-模型">使用 Flash 模型</h3>
+<p>按上述步骤配置完成后，默认使用 <code>deepseek-v4-flash</code> 模型。如需确认，检查 <code>routes</code> 段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">routes</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">moonbridge</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-flash   </span> <span style="color:#75715e"># 使用 Flash 模型</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">deepseek</span></span></span></code></pre></div><script class="code-source" type="application/json">"routes:\n  moonbridge:\n    model: deepseek-v4-flash    # 使用 Flash 模型\n    provider: deepseek"</script>
+</div>
+<h3 id="切换到-pro-模型">切换到 Pro 模型</h3>
+<p>将路由中的模型改为 <code>deepseek-v4-pro</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">routes</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">moonbridge</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-pro   </span> <span style="color:#75715e"># 切换到 Pro 模型</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">deepseek</span></span></span></code></pre></div><script class="code-source" type="application/json">"routes:\n  moonbridge:\n    model: deepseek-v4-pro    # 切换到 Pro 模型\n    provider: deepseek"</script>
+</div>
+<p>修改后需要重启 Moon Bridge（<code>Ctrl+C</code> 停止，重新运行 <code>go run ./cmd/moonbridge --config config.yml</code>），然后重新打开 Codex 桌面 App。</p>
+<h3 id="配置多路由同时支持-flash-和-pro">配置多路由（同时支持 Flash 和 Pro）</h3>
+<p>如果需要在不修改配置文件的情况下切换模型，可以定义多条路由：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">routes</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">flash</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-flash</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">deepseek</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">pro</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">model</span>: <span style="color:#ae81ff">deepseek-v4-pro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">deepseek</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">defaults</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">model</span>: <span style="color:#ae81ff">flash   </span> <span style="color:#75715e"># 默认使用 Flash</span></span></span></code></pre></div><script class="code-source" type="application/json">"routes:\n  flash:\n    model: deepseek-v4-flash\n    provider: deepseek\n  pro:\n    model: deepseek-v4-pro\n    provider: deepseek\n\ndefaults:\n  model: flash    # 默认使用 Flash"</script>
+</div>
+<p>多路由配置完成后，需要重新执行配置生成命令，让 Codex 识别到多个可用模型。之后即可在 Codex 桌面 App 的模型选择器中自由切换。</p>
+<hr>
+<h2 id="后台持久化运行">后台持久化运行</h2>
+<p>Moon Bridge 终端不能关闭，否则 Codex 无法连接。建议以下两种方式持久化运行。</p>
+<h3 id="方式一tmux-会话">方式一：tmux 会话</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 安装 tmux</span>
+</span></span><span style="display:flex;"><span>brew install tmux
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 创建独立会话</span>
+</span></span><span style="display:flex;"><span>tmux new-session -d -s moonbridge <span style="color:#e6db74">&#39;cd ~/moonbridge &amp;&amp; go run ./cmd/moonbridge --config config.yml&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 安装 tmux\nbrew install tmux\n\n# 创建独立会话\ntmux new-session -d -s moonbridge 'cd ~/moonbridge \u0026\u0026 go run ./cmd/moonbridge --config config.yml'"</script>
+</div>
+<h3 id="方式二launchd-开机自启">方式二：launchd 开机自启</h3>
+<p>创建 plist 文件 <code>~/Library/LaunchAgents/com.moonbridge.plist</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#75715e">&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">&lt;!DOCTYPE plist PUBLIC &#34;-//Apple//DTD PLIST 1.0//EN&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">  &#34;http://www.apple.com/DTDs/PropertyList-1.0.dtd&#34;&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;plist</span> <span style="color:#a6e22e">version=</span><span style="color:#e6db74">&#34;1.0&#34;</span><span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;dict&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>Label<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;string&gt;</span>com.moonbridge<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>ProgramArguments<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;array&gt;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;string&gt;</span>/usr/local/bin/go<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;string&gt;</span>run<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;string&gt;</span>./cmd/moonbridge<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;string&gt;</span>--config<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;string&gt;</span>/Users/你的用户名/moonbridge/config.yml<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;/array&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>WorkingDirectory<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;string&gt;</span>/Users/你的用户名/moonbridge<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>RunAtLoad<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;true/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>KeepAlive<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;true/&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>StandardOutPath<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;string&gt;</span>/tmp/moonbridge.log<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;key&gt;</span>StandardErrorPath<span style="color:#f92672">&lt;/key&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;string&gt;</span>/tmp/moonbridge.log<span style="color:#f92672">&lt;/string&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/dict&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/plist&gt;</span></span></span></code></pre></div><script class="code-source" type="application/json">"\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003c!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\"\n  \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"\u003e\n\u003cplist version=\"1.0\"\u003e\n\u003cdict\u003e\n    \u003ckey\u003eLabel\u003c/key\u003e\n    \u003cstring\u003ecom.moonbridge\u003c/string\u003e\n    \u003ckey\u003eProgramArguments\u003c/key\u003e\n    \u003carray\u003e\n        \u003cstring\u003e/usr/local/bin/go\u003c/string\u003e\n        \u003cstring\u003erun\u003c/string\u003e\n        \u003cstring\u003e./cmd/moonbridge\u003c/string\u003e\n        \u003cstring\u003e--config\u003c/string\u003e\n        \u003cstring\u003e/Users/你的用户名/moonbridge/config.yml\u003c/string\u003e\n    \u003c/array\u003e\n    \u003ckey\u003eWorkingDirectory\u003c/key\u003e\n    \u003cstring\u003e/Users/你的用户名/moonbridge\u003c/string\u003e\n    \u003ckey\u003eRunAtLoad\u003c/key\u003e\n    \u003ctrue/\u003e\n    \u003ckey\u003eKeepAlive\u003c/key\u003e\n    \u003ctrue/\u003e\n    \u003ckey\u003eStandardOutPath\u003c/key\u003e\n    \u003cstring\u003e/tmp/moonbridge.log\u003c/string\u003e\n    \u003ckey\u003eStandardErrorPath\u003c/key\u003e\n    \u003cstring\u003e/tmp/moonbridge.log\u003c/string\u003e\n\u003c/dict\u003e\n\u003c/plist\u003e"</script>
+</div>
+<p>加载自启服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>launchctl load ~/Library/LaunchAgents/com.moonbridge.plist</span></span></code></pre></div><script class="code-source" type="application/json">"launchctl load ~/Library/LaunchAgents/com.moonbridge.plist"</script>
+</div>
+<hr>
+<h2 id="验证配置">验证配置</h2>
+<p>启动 Moon Bridge 和 Codex 后，可通过以下方式验证连通性：</p>
+<ol>
+<li><strong>检查 Moon Bridge 日志</strong>：终端输出应显示服务启动信息，无连接错误。</li>
+<li><strong>Codex 桌面 App 状态</strong>：打开 Codex，如配置正确，模型选择器中应出现 Moon Bridge 映射的模型名称。</li>
+<li><strong>发送测试消息</strong>：在 Codex 中发起一次对话，观察 Moon Bridge 终端是否打印请求转发日志。</li>
+</ol>
+<hr>
+<h2 id="常见问题">常见问题</h2>
+<h3 id="连接被拒绝">连接被拒绝</h3>
+<ul>
+<li>确认 Moon Bridge 正在运行：检查 38440 端口是否在监听：</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>lsof -nP -iTCP:38440 -sTCP:LISTEN</span></span></code></pre></div><script class="code-source" type="application/json">"lsof -nP -iTCP:38440 -sTCP:LISTEN"</script>
+</div>
+<ul>
+<li>确认 Codex 配置文件中的 <code>base_url</code> 正确指向 <code>http://127.0.0.1:38440/v1</code>。</li>
+</ul>
+<h3 id="api-认证失败">API 认证失败</h3>
+<ul>
+<li>检查 <code>config.yml</code> 中的 <code>api_key</code> 是否正确。</li>
+<li>确认 DeepSeek 账户余额充足，API Key 未过期。</li>
+<li>可在终端直接测试 API 连通性：</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl https://api.deepseek.com/anthropic/v1/models <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer sk-你的DeepSeekAPIKey&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl https://api.deepseek.com/anthropic/v1/models \\\n  -H \"Authorization: Bearer sk-你的DeepSeekAPIKey\""</script>
+</div>
+<h3 id="模型不可用">模型不可用</h3>
+<ul>
+<li>确认 <code>models</code> 段中定义的模型名称与 <code>routes</code> 中引用的名称一致。</li>
+<li>多路由配置下，确认 Codex 配置已重新生成。</li>
+</ul>
+<hr>
+<h2 id="参考链接">参考链接</h2>
+<ul>
+<li><a href="https://github.com/ZhiYi-R/moon-bridge">Moon Bridge GitHub 仓库</a></li>
+<li><a href="https://platform.deepseek.com/">DeepSeek 开发者平台</a></li>
+<li><a href="https://codex.so/docs">Codex 官方文档</a></li>
+</ul>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

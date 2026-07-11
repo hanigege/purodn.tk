@@ -1,6 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Radio on 电脑自习室</title><link>https://purodn.tk/tags/radio/</link><description>Recent content in Radio on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 07 Jun 2026 07:35:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/radio/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title><link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link><pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid><description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。
-上游项目是 SultanAlburaq/matrix-element-call-musicbot。本文使用的是我整理后的 Docker 部署包 hanigege/matrix-element-call-musicbot-docker-pro，它保留上游镜像，通过只读挂载增强版 patches/bot.py，补上电台短命令、Podcast RSS 别名、房间白名单和管理员控制边界。
-本文使用的实际环境如下：
-复制Matrix server_name: 666666.xyz Synapse client API: https://matrix.666666.xyz:12335 Docker 数据目录: /root/data/docker_data MusicBot 账号: @musicbot:666666.xyz MusicBot 目录: /root/data/docker_data/matrix-musicbot Docker 网络: matrix 这个机器人适合在 Matrix 房间里用命令点歌、播放 URL 或网络电台，然后把声音推入 Element Call。它不是普通聊天窗口里的音频播放器：要听到声音，用户自己的 Element 客户端也必须点击右上角“加入”进入通话。
-如果只是想复刻本文的生产方案，推荐直接使用 Docker 部署包：
-复制git clone https://github.com/hanigege/matrix-element-call-musicbot-docker-pro.git cd matrix-element-call-musicbot-docker-pro cp .env.example .env vi .env chmod +x scripts/*.sh ./scripts/install.sh 这会渲染 config/config.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Radio on 电脑自习室</title>
+    <link>https://purodn.tk/tags/radio/</link>
+    <description>Recent content in Radio on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 07 Jun 2026 07:35:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/radio/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title>
+      <link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link>
+      <pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid>
+      <description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。&#xA;上游项目是 SultanAlburaq/matrix-element-call-musicbot。本文使用的是我整理后的 Docker 部署包 hanigege/matrix-element-call-musicbot-docker-pro，它保留上游镜像，通过只读挂载增强版 patches/bot.py，补上电台短命令、Podcast RSS 别名、房间白名单和管理员控制边界。&#xA;本文使用的实际环境如下：&#xA;复制Matrix server_name: 666666.xyz Synapse client API: https://matrix.666666.xyz:12335 Docker 数据目录: /root/data/docker_data MusicBot 账号: @musicbot:666666.xyz MusicBot 目录: /root/data/docker_data/matrix-musicbot Docker 网络: matrix 这个机器人适合在 Matrix 房间里用命令点歌、播放 URL 或网络电台，然后把声音推入 Element Call。它不是普通聊天窗口里的音频播放器：要听到声音，用户自己的 Element 客户端也必须点击右上角“加入”进入通话。&#xA;如果只是想复刻本文的生产方案，推荐直接使用 Docker 部署包：&#xA;复制git clone https://github.com/hanigege/matrix-element-call-musicbot-docker-pro.git cd matrix-element-call-musicbot-docker-pro cp .env.example .env vi .env chmod +x scripts/*.sh ./scripts/install.sh 这会渲染 config/config.</description>
+    </item>
+  </channel>
+</rss>

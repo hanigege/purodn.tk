@@ -1,13 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Cloud-Init on 电脑自习室</title><link>https://purodn.tk/tags/cloud-init/</link><description>Recent content in Cloud-Init on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/cloud-init/index.xml" rel="self" type="application/rss+xml"/><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。
-后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。
-准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：
-https://cloud-images.ubuntu.com/
-在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。
-创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：
-复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：
-复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
-适用场景：
-使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
-一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
-Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
-复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Cloud-Init on 电脑自习室</title>
+    <link>https://purodn.tk/tags/cloud-init/</link>
+    <description>Recent content in Cloud-Init on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/cloud-init/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title>
+      <link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link>
+      <pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid>
+      <description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。&#xA;后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。&#xA;准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：&#xA;https://cloud-images.ubuntu.com/&#xA;在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。&#xA;创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：&#xA;复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：&#xA;复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description>
+    </item>
+    <item>
+      <title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title>
+      <link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link>
+      <pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid>
+      <description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&#xA;适用场景：&#xA;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&#xA;一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：&#xA;Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.</description>
+    </item>
+  </channel>
+</rss>

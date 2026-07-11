@@ -1,15 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>LXC on 电脑自习室</title><link>https://purodn.tk/tags/lxc/</link><description>Recent content in LXC on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/lxc/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title><link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link><pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid><description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。
-这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。
-具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：
-PVE LXC sing-box 网关 sysctl 与 UDP 性能优化
-这篇不再重复具体配置，避免两篇文章参数互相打架。
-一、先判断 sing-box 的角色 最简单的判断标准：
-复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。
-二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。
-典型链路：
-复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description></item><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：
-在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：
-LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。
-1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。
-先列出容器，确认 sing-box 所在的 LXC ID：
-复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>LXC on 电脑自习室</title>
+    <link>https://purodn.tk/tags/lxc/</link>
+    <description>Recent content in LXC on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/lxc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
+      <link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
+      <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
+      <description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。&#xA;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。&#xA;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：&#xA;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&#xA;这篇不再重复具体配置，避免两篇文章参数互相打架。&#xA;一、先判断 sing-box 的角色 最简单的判断标准：&#xA;复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&#xA;二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。&#xA;典型链路：&#xA;复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description>
+    </item>
+    <item>
+      <title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title>
+      <link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link>
+      <pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate>
+      <guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid>
+      <description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&#xA;在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：&#xA;LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。&#xA;1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。&#xA;先列出容器，确认 sing-box 所在的 LXC ID：&#xA;复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description>
+    </item>
+  </channel>
+</rss>

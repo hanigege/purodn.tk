@@ -1,5 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TCP on 电脑自习室</title><link>https://purodn.tk/tags/tcp/</link><description>Recent content in TCP on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tcp/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。
-先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
-这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
-整体结构如下：
-复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>TCP on 电脑自习室</title>
+    <link>https://purodn.tk/tags/tcp/</link>
+    <description>Recent content in TCP on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 25 May 2026 21:25:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/tcp/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title>
+      <link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link>
+      <pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid>
+      <description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。&#xA;先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。&#xA;这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。&#xA;整体结构如下：&#xA;复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description>
+    </item>
+  </channel>
+</rss>

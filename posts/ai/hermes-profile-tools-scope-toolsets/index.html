@@ -1,88 +1,692 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离 | 电脑自习室</title>
-<meta name=description content="整理 Hermes tools 和 toolsets 的影响范围：profile 级工具配置会影响同 profile 的 Matrix、Telegram 和后续会话；单次启动、Cron、delegate task 只影响当前任务；多机器人建议用不同 profile 做权限隔离。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-06-02>2026年6月2日</time></div><h1>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</h1><p>整理 Hermes tools 和 toolsets 的影响范围：profile 级工具配置会影响同 profile 的 Matrix、Telegram 和后续会话；单次启动、Cron、delegate task 只影响当前任务；多机器人建议用不同 profile 做权限隔离。</p></header><img class=article-cover src=/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg alt><div class=article-content><p>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，<code>hermes tools</code> 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。</p><p>一句话结论：</p><blockquote><p>在某个 profile 里全局改 <code>tools</code>，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。</p></blockquote><p>这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 <code>-t web</code>，什么时候应该新建 <code>webonly</code> / <code>safe</code> profile。</p><h2 id=先分清四个层级>先分清四个层级</h2><table><thead><tr><th>层级</th><th>常见写法</th><th>影响范围</th><th>是否长期保存</th></tr></thead><tbody><tr><td>profile 级 tools 配置</td><td><code>hermes tools</code>、<code>hermes tools enable web</code>、<code>hermes tools disable terminal</code></td><td>当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session</td><td>是</td></tr><tr><td>指定 profile 的 tools 配置</td><td><code>hermes -p webonly tools disable terminal</code></td><td><code>webonly</code> 这个 profile 下的后续会话和机器人</td><td>是</td></tr><tr><td>单次启动 toolsets</td><td><code>hermes chat -t web -q "查一下..."</code></td><td>只影响这一次 Hermes 进程</td><td>否</td></tr><tr><td>Cron / 子任务 toolsets</td><td><code>enabled_toolsets: ["web"]</code>、<code>toolsets: ["web"]</code></td><td>只影响这个 cron job 或子 agent</td><td>通常只保存在该任务配置里</td></tr></tbody></table><p>如果你不确定自己正在改哪个 profile，先查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile list
-</span></span><span style=display:flex><span>hermes config path
-</span></span><span style=display:flex><span>hermes config env-path</span></span></code></pre></div><script class=code-source type=application/json>"hermes profile list\nhermes config path\nhermes config env-path"</script></div><p>在 Matrix / Element 里也可以看当前会话状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//profile
-</span></span><span style=display:flex><span>//status</span></span></code></pre></div><script class=code-source type=application/json>"//profile\n//status"</script></div><h2 id=配置文件路径在哪里>配置文件路径在哪里</h2><p>默认 profile 通常在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>~/.hermes/config.yaml
-</span></span><span style=display:flex><span>~/.hermes/.env</span></span></code></pre></div><script class=code-source type=application/json>"~/.hermes/config.yaml\n~/.hermes/.env"</script></div><p>具名 profile 例如 <code>webonly</code> 通常在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>~/.hermes/profiles/webonly/config.yaml
-</span></span><span style=display:flex><span>~/.hermes/profiles/webonly/.env</span></span></code></pre></div><script class=code-source type=application/json>"~/.hermes/profiles/webonly/config.yaml\n~/.hermes/profiles/webonly/.env"</script></div><p>更稳妥的查法是用 Hermes 自己返回路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config path
-</span></span><span style=display:flex><span>hermes config env-path</span></span></code></pre></div><script class=code-source type=application/json>"hermes config path\nhermes config env-path"</script></div><p>查看指定 profile 的配置路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly config path
-</span></span><span style=display:flex><span>hermes -p webonly config env-path</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly config path\nhermes -p webonly config env-path"</script></div><p>修改前建议先备份：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>CFG<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>hermes config path<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>&#34;</span> <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>.bak.</span><span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"CFG=\"$(hermes config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script></div><p>指定 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>CFG<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>hermes -p webonly config path<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>&#34;</span> <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>.bak.</span><span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"CFG=\"$(hermes -p webonly config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script></div><p>不要直接把 <code>.env</code> 内容贴到群里或日志里，里面可能有 Matrix access token、Telegram bot token、OpenAI / Anthropic / OpenRouter API key。</p><h2 id=1-profile-级-tools-配置会影响同-profile-的机器人>1. Profile 级 tools 配置会影响同 profile 的机器人</h2><p>如果你在 <code>code</code> profile 里运行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools"</script></div><p>或者：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools enable web
-</span></span><span style=display:flex><span>hermes tools disable terminal
-</span></span><span style=display:flex><span>hermes tools disable file</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools enable web\nhermes tools disable terminal\nhermes tools disable file"</script></div><p>这些改动通常会写进当前 profile 的配置里。只要 Matrix、Telegram、CLI、Cron 都用的是同一个 <code>code</code> profile，它们后续都会吃到这个工具范围。</p><p>影响对象包括：</p><ul><li>同一个 <code>code</code> profile 的 CLI 会话；</li><li>同一个 <code>code</code> profile 的 Matrix gateway；</li><li>同一个 <code>code</code> profile 的 Telegram gateway；</li><li>后续 <code>//new</code>、<code>//reset</code> 后的新 session；</li><li>使用这个 profile 新启动的 Hermes 进程。</li></ul><p>所以，在私有运维机器人上关闭 <code>terminal</code>，可能会让 Matrix 机器人也不能跑命令；在群聊机器人上开启 <code>terminal</code>，也可能把高风险工具开放给这个 profile 下的其它入口。</p><p>查看当前工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools list</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools list"</script></div><p>进入交互式工具开关界面：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools"</script></div><p>开启 web：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools enable web</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools enable web"</script></div><p>关闭 terminal：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools disable terminal</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools disable terminal"</script></div><p>关闭 file：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools disable file</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools disable file"</script></div><p>如果这是接了 Matrix 的 gateway，改完后建议在 Element 里重置会话：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//reset</span></span></code></pre></div><script class=code-source type=application/json>"//reset"</script></div><p>必要时重启 gateway：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//restart</span></span></code></pre></div><script class=code-source type=application/json>"//restart"</script></div><p>或者在服务器上执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes gateway restart</span></span></code></pre></div><script class=code-source type=application/json>"hermes gateway restart"</script></div><p>如果 gateway 是 systemd user 服务托管的，先确认服务名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user list-units <span style=color:#e6db74>&#39;hermes*&#39;</span> --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user list-units 'hermes*' --no-pager"</script></div><p>再重启对应服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user restart hermes-gateway.service"</script></div><p>服务名不一定完全相同，实际以 <code>systemctl --user list-units 'hermes*'</code> 输出为准。</p><h2 id=2-指定-profile-改-tools只影响那个-profile>2. 指定 profile 改 tools，只影响那个 profile</h2><p>如果你已经创建了 <code>webonly</code> profile，就不要直接运行不带 <code>-p</code> 的命令。要写成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly tools list
-</span></span><span style=display:flex><span>hermes -p webonly tools</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly tools list\nhermes -p webonly tools"</script></div><p>把 <code>webonly</code> 改成只适合公开群的低权限机器人：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly tools enable web
-</span></span><span style=display:flex><span>hermes -p webonly tools disable terminal
-</span></span><span style=display:flex><span>hermes -p webonly tools disable file
-</span></span><span style=display:flex><span>hermes -p webonly tools disable browser
-</span></span><span style=display:flex><span>hermes -p webonly tools disable cronjob
-</span></span><span style=display:flex><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script></div><p>这样改的是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>~/.hermes/profiles/webonly/config.yaml</span></span></code></pre></div><script class=code-source type=application/json>"~/.hermes/profiles/webonly/config.yaml"</script></div><p>不会直接改默认 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>~/.hermes/config.yaml</span></span></code></pre></div><script class=code-source type=application/json>"~/.hermes/config.yaml"</script></div><p>验证路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly config path
-</span></span><span style=display:flex><span>hermes config path</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly config path\nhermes config path"</script></div><p>如果两个路径不同，说明 profile 隔离是成立的。</p><h2 id=3-单次启动限制-toolsets只影响那一个进程>3. 单次启动限制 toolsets，只影响那一个进程</h2><p>有些时候只是临时查资料，不想改 profile 全局配置，可以用启动参数限制本次工具范围。</p><p>例如只给这次查询 web 工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes chat -t web -q <span style=color:#e6db74>&#34;查一下 Debian 13 当前稳定版内核信息，给我摘要&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"hermes chat -t web -q \"查一下 Debian 13 当前稳定版内核信息，给我摘要\""</script></div><p>这类写法的特点：</p><ul><li>不改 <code>config.yaml</code>；</li><li>不影响 Matrix / Telegram gateway；</li><li>不影响同 profile 的其它会话；</li><li>命令结束后限制也结束。</li></ul><p>适合这类场景：</p><table><thead><tr><th>场景</th><th>推荐</th></tr></thead><tbody><tr><td>临时联网查资料</td><td><code>hermes chat -t web -q "..."</code></td></tr><tr><td>临时只做普通问答</td><td>用低权限 toolset 启动一次</td></tr><tr><td>不想影响正在运行的 Matrix 机器人</td><td>用单次启动参数，不改 <code>hermes tools</code></td></tr></tbody></table><p>如果你要确认这次没有改到配置，可以前后对比配置文件时间：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>stat <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>hermes config path<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>hermes chat -t web -q <span style=color:#e6db74>&#34;只回答：测试&#34;</span>
-</span></span><span style=display:flex><span>stat <span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>hermes config path<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"stat \"$(hermes config path)\"\nhermes chat -t web -q \"只回答：测试\"\nstat \"$(hermes config path)\""</script></div><p>如果 <code>config.yaml</code> 修改时间没有变化，说明这次限制没有写进 profile 配置。</p><h2 id=4-cron--子任务限制只影响那个任务>4. Cron / 子任务限制，只影响那个任务</h2><p>Cron job 或子 agent 通常可以在任务配置里单独限制工具。例如某个定时任务只允许联网查询，不允许文件和终端：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>enabled_toolsets</span>:
-</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>web</span></span></span></code></pre></div><script class=code-source type=application/json>"enabled_toolsets:\n  - web"</script></div><p>或者子任务委派时指定：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>toolsets</span>:
-</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>web</span></span></span></code></pre></div><script class=code-source type=application/json>"toolsets:\n  - web"</script></div><p>这种限制只应该影响那个 job 或那次 delegate task，不应该改 profile 全局 tools。</p><p>适合这类任务：</p><table><thead><tr><th>任务</th><th>建议工具</th></tr></thead><tbody><tr><td>每天查新闻摘要</td><td><code>web</code></td></tr><tr><td>监控公开网页变化</td><td><code>web</code></td></tr><tr><td>让子 agent 总结资料</td><td><code>web</code>、<code>safe</code></td></tr><tr><td>自动改服务器配置</td><td>不建议给公开入口自动做</td></tr></tbody></table><p>如果 Cron 是 Hermes 自己管理的，先查实际命令和配置格式：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes cron --help
-</span></span><span style=display:flex><span>hermes cron list</span></span></code></pre></div><script class=code-source type=application/json>"hermes cron --help\nhermes cron list"</script></div><p>如果你不确定当前 Hermes 版本的字段名是不是 <code>enabled_toolsets</code>，不要硬写。先让 Hermes 输出已有 cron 配置，再按当前版本的真实格式修改。</p><h2 id=5-不同机器人最好用不同-profile>5. 不同机器人最好用不同 profile</h2><p>如果你想让 Matrix、Telegram、公开群、私人运维机器人拥有不同工具，最干净的做法是分 profile。</p><p>推荐拆法：</p><table><thead><tr><th>profile</th><th>用途</th><th>工具策略</th></tr></thead><tbody><tr><td><code>code</code></td><td>私人运维和写代码</td><td>保留 <code>terminal</code>、<code>file</code>、<code>web</code></td></tr><tr><td><code>webonly</code></td><td>公开群或低权限问答</td><td>只开 <code>web</code>，关闭 <code>terminal</code> / <code>file</code></td></tr><tr><td><code>safe</code></td><td>低风险聊天</td><td>只开 <code>safe</code> / <code>clarify</code> 一类低风险工具</td></tr><tr><td><code>matrixops</code></td><td>私人 Matrix 运维机器人</td><td>可以开运维工具，但限制 allowed users / rooms</td></tr></tbody></table><p>创建 <code>webonly</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile create webonly</span></span></code></pre></div><script class=code-source type=application/json>"hermes profile create webonly"</script></div><p>如果想从当前 profile 复制基础模型配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile create webonly --clone</span></span></code></pre></div><script class=code-source type=application/json>"hermes profile create webonly --clone"</script></div><p>然后收窄工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly tools enable web
-</span></span><span style=display:flex><span>hermes -p webonly tools disable terminal
-</span></span><span style=display:flex><span>hermes -p webonly tools disable file
-</span></span><span style=display:flex><span>hermes -p webonly tools disable browser
-</span></span><span style=display:flex><span>hermes -p webonly tools disable cronjob
-</span></span><span style=display:flex><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script></div><p>创建 <code>safe</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile create safe</span></span></code></pre></div><script class=code-source type=application/json>"hermes profile create safe"</script></div><p>进入交互式工具界面，只留下低风险工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p safe tools</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p safe tools"</script></div><p>如果当前版本支持直接 enable / disable 对应 toolset，也可以按实际名称设置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p safe tools list</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p safe tools list"</script></div><p>以 <code>tools list</code> 输出为准，不要凭空猜工具名。</p><h2 id=6-matrix-机器人怎么套用-profile>6. Matrix 机器人怎么套用 profile</h2><p>Matrix gateway 如果要绑定到某个 profile，启动或服务命令里应该明确带 profile。</p><p>手动启动示例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway start</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway start"</script></div><p>查看状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway status</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway status"</script></div><p>重启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway restart</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway restart"</script></div><p>如果使用 systemd user 服务，服务文件里也要明确 profile。先找到服务：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user list-units <span style=color:#e6db74>&#39;hermes*&#39;</span> --no-pager
-</span></span><span style=display:flex><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user list-units 'hermes*' --no-pager\nsystemctl --user cat hermes-gateway.service"</script></div><p>服务里的启动命令应该能看出用的是哪个 profile，例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>ExecStart</span><span style=color:#f92672>=</span><span style=color:#e6db74>/usr/bin/hermes -p webonly gateway start</span></span></span></code></pre></div><script class=code-source type=application/json>"ExecStart=/usr/bin/hermes -p webonly gateway start"</script></div><p>如果服务里没有 <code>-p webonly</code>，那很可能跑的是默认 profile。这个时候你在 <code>webonly</code> 里改工具，Matrix 机器人并不会吃到；你在默认 profile 里改工具，Matrix 机器人反而会被影响。</p><p>修改服务前先备份：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/.config/systemd/user/backup
-</span></span><span style=display:flex><span>cp ~/.config/systemd/user/hermes-gateway.service ~/.config/systemd/user/backup/hermes-gateway.service.<span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span></span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p ~/.config/systemd/user/backup\ncp ~/.config/systemd/user/hermes-gateway.service ~/.config/systemd/user/backup/hermes-gateway.service.$(date +%Y%m%d-%H%M%S)"</script></div><p>修改后重载并重启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user daemon-reload
-</span></span><span style=display:flex><span>systemctl --user restart hermes-gateway.service
-</span></span><span style=display:flex><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user daemon-reload\nsystemctl --user restart hermes-gateway.service\nsystemctl --user status hermes-gateway.service --no-pager"</script></div><p>如果退出 SSH 后也要继续运行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>loginctl show-user <span style=color:#e6db74>&#34;</span>$USER<span style=color:#e6db74>&#34;</span> -p Linger
-</span></span><span style=display:flex><span>sudo loginctl enable-linger <span style=color:#e6db74>&#34;</span>$USER<span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"loginctl show-user \"$USER\" -p Linger\nsudo loginctl enable-linger \"$USER\""</script></div><h2 id=7-telegram-机器人同理>7. Telegram 机器人同理</h2><p>Telegram gateway 也一样。关键不是平台名字，而是它使用哪个 profile。</p><p>查看指定 profile 的 gateway 状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p code gateway status
-</span></span><span style=display:flex><span>hermes -p webonly gateway status</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p code gateway status\nhermes -p webonly gateway status"</script></div><p>如果 Telegram 和 Matrix 都共用 <code>code</code> profile，那么：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p code tools disable terminal</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p code tools disable terminal"</script></div><p>会同时影响这个 profile 下的 Telegram 和 Matrix 后续会话。</p><p>如果希望 Telegram 私聊保留全功能、Matrix 群聊只保留 web，就拆成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>code      -&gt; Telegram 私聊 / 私人运维
-</span></span><span style=display:flex><span>webonly   -&gt; Matrix 公开群 / 低权限查询</span></span></code></pre></div><script class=code-source type=application/json>"code      -\u003e Telegram 私聊 / 私人运维\nwebonly   -\u003e Matrix 公开群 / 低权限查询"</script></div><p>分别配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p code tools list
-</span></span><span style=display:flex><span>hermes -p webonly tools list</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p code tools list\nhermes -p webonly tools list"</script></div><p>不要让两个机器人共用同一个 token，也不要把群聊 bot 放到带高权限工具的 profile 里。</p><h2 id=8-生效规则resetrestart-和新-session>8. 生效规则：reset、restart 和新 session</h2><p>工具配置不是所有情况下都会立刻改变当前对话。稳妥做法：</p><table><thead><tr><th>修改内容</th><th>建议动作</th></tr></thead><tbody><tr><td>只改当前 CLI 启动参数</td><td>不需要 reset</td></tr><tr><td>改 profile 级 tools</td><td>新开 session，或在 Matrix 里 <code>//reset</code></td></tr><tr><td>改 gateway 相关配置</td><td><code>//restart</code> 或重启 systemd user 服务</td></tr><tr><td>改 systemd 服务文件</td><td><code>systemctl --user daemon-reload</code> 后重启服务</td></tr><tr><td>改 <code>.env</code> token / homeserver</td><td>重启 gateway</td></tr></tbody></table><p>Element / Matrix 里常用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//status
-</span></span><span style=display:flex><span>//profile
-</span></span><span style=display:flex><span>//reset
-</span></span><span style=display:flex><span>//restart</span></span></code></pre></div><script class=code-source type=application/json>"//status\n//profile\n//reset\n//restart"</script></div><p>服务器上常用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway status
-</span></span><span style=display:flex><span>hermes -p webonly gateway restart
-</span></span><span style=display:flex><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway status\nhermes -p webonly gateway restart\nsystemctl --user status hermes-gateway.service --no-pager"</script></div><h2 id=9-推荐实操做一个只开-web-的-matrix-群聊机器人>9. 推荐实操：做一个只开 web 的 Matrix 群聊机器人</h2><p>下面是一套相对保守的流程。</p><p>创建 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes profile create webonly --clone</span></span></code></pre></div><script class=code-source type=application/json>"hermes profile create webonly --clone"</script></div><p>确认路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly config path
-</span></span><span style=display:flex><span>hermes -p webonly config env-path</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly config path\nhermes -p webonly config env-path"</script></div><p>备份配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>CFG<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span><span style=color:#66d9ef>$(</span>hermes -p webonly config path<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span>
-</span></span><span style=display:flex><span>cp <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>&#34;</span> <span style=color:#e6db74>&#34;</span>$CFG<span style=color:#e6db74>.bak.</span><span style=color:#66d9ef>$(</span>date +%Y%m%d-%H%M%S<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"CFG=\"$(hermes -p webonly config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script></div><p>收窄工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly tools enable web
-</span></span><span style=display:flex><span>hermes -p webonly tools disable terminal
-</span></span><span style=display:flex><span>hermes -p webonly tools disable file
-</span></span><span style=display:flex><span>hermes -p webonly tools disable browser
-</span></span><span style=display:flex><span>hermes -p webonly tools disable cronjob
-</span></span><span style=display:flex><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script></div><p>检查工具列表：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly tools list</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly tools list"</script></div><p>配置 Matrix 前先确认当前版本帮助：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway --help
-</span></span><span style=display:flex><span>hermes -p webonly config --help</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway --help\nhermes -p webonly config --help"</script></div><p>启动 gateway：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes -p webonly gateway start</span></span></code></pre></div><script class=code-source type=application/json>"hermes -p webonly gateway start"</script></div><p>如果已经用 systemd 管理，就确认服务是否带 <code>-p webonly</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user cat hermes-gateway.service"</script></div><p>最后在 Element 里检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//profile
-</span></span><span style=display:flex><span>//status
-</span></span><span style=display:flex><span>//reset</span></span></code></pre></div><script class=code-source type=application/json>"//profile\n//status\n//reset"</script></div><p>如果 <code>//profile</code> 显示的不是 <code>webonly</code>，说明 gateway 没跑在你以为的 profile 上，先修服务或启动命令，不要继续改工具。</p><h2 id=10-排错清单>10. 排错清单</h2><h3 id=改了工具但-matrix-没变化>改了工具但 Matrix 没变化</h3><p>先看当前 Matrix 会话用哪个 profile：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//profile</span></span></code></pre></div><script class=code-source type=application/json>"//profile"</script></div><p>再看服务器上的服务命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"systemctl --user cat hermes-gateway.service"</script></div><p>如果服务没有带 <code>-p webonly</code>，那它可能不是在跑 <code>webonly</code>。</p><p>然后重置会话：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//reset</span></span></code></pre></div><script class=code-source type=application/json>"//reset"</script></div><p>必要时重启 gateway：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>//restart</span></span></code></pre></div><script class=code-source type=application/json>"//restart"</script></div><h3 id=改错-profile-了>改错 profile 了</h3><p>先查两个配置路径：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes config path
-</span></span><span style=display:flex><span>hermes -p webonly config path</span></span></code></pre></div><script class=code-source type=application/json>"hermes config path\nhermes -p webonly config path"</script></div><p>如果刚才改错了默认 profile，可以用备份恢复：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cp ~/.hermes/config.yaml.bak.YYYYMMDD-HHMMSS ~/.hermes/config.yaml</span></span></code></pre></div><script class=code-source type=application/json>"cp ~/.hermes/config.yaml.bak.YYYYMMDD-HHMMSS ~/.hermes/config.yaml"</script></div><p>恢复后重启相关 gateway。</p><h3 id=不知道工具名叫什么>不知道工具名叫什么</h3><p>不要猜，直接列：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes tools list
-</span></span><span style=display:flex><span>hermes -p webonly tools list</span></span></code></pre></div><script class=code-source type=application/json>"hermes tools list\nhermes -p webonly tools list"</script></div><p>文章里的 <code>terminal</code>、<code>file</code>、<code>web</code>、<code>browser</code>、<code>cronjob</code>、<code>messaging</code> 是常见写法；如果你当前版本名字不同，以 <code>tools list</code> 输出为准。</p><h3 id=不确定当前版本支持哪些参数>不确定当前版本支持哪些参数</h3><p>先看帮助：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hermes --help
-</span></span><span style=display:flex><span>hermes chat --help
-</span></span><span style=display:flex><span>hermes tools --help
-</span></span><span style=display:flex><span>hermes gateway --help
-</span></span><span style=display:flex><span>hermes cron --help</span></span></code></pre></div><script class=code-source type=application/json>"hermes --help\nhermes chat --help\nhermes tools --help\nhermes gateway --help\nhermes cron --help"</script></div><p>Hermes 版本更新后，字段名和命令参数可能会变。教程里的原则不变：先确认当前 profile 和配置路径，再决定改全局还是只改单次任务。</p><h2 id=最后建议>最后建议</h2><p>私人运维机器人不要和公开群机器人共用 profile。</p><p>推荐长期结构：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>code
-</span></span><span style=display:flex><span>  私人使用，能跑命令、能改文件、能联网查资料。
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>webonly
-</span></span><span style=display:flex><span>  公开群或低权限 Matrix，尽量只开 web/search。
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>safe
-</span></span><span style=display:flex><span>  低风险聊天，只保留安全工具。</span></span></code></pre></div><script class=code-source type=application/json>"code\n  私人使用，能跑命令、能改文件、能联网查资料。\n\nwebonly\n  公开群或低权限 Matrix，尽量只开 web/search。\n\nsafe\n  低风险聊天，只保留安全工具。"</script></div><p>日常判断只记这一句：</p><blockquote><p><code>hermes tools</code> 是 profile 级长期配置；<code>hermes chat -t web</code> 是单次进程限制；Cron / delegate task 里的 toolsets 是任务级限制；不同机器人最好用不同 profile 隔离。</p></blockquote></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离 | 电脑自习室</title>
+    <meta name="description" content="整理 Hermes tools 和 toolsets 的影响范围：profile 级工具配置会影响同 profile 的 Matrix、Telegram 和后续会话；单次启动、Cron、delegate task 只影响当前任务；多机器人建议用不同 profile 做权限隔离。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-06-02">2026年6月2日</time>
+        </div>
+        <h1>Hermes 工具权限范围说明：profile、单次启动、Cron 和多机器人隔离</h1>
+          <p>整理 Hermes tools 和 toolsets 的影响范围：profile 级工具配置会影响同 profile 的 Matrix、Telegram 和后续会话；单次启动、Cron、delegate task 只影响当前任务；多机器人建议用不同 profile 做权限隔离。</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-profile-tools-scope-toolsets/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Hermes 里的工具权限不要随手全局改。特别是已经接了 Matrix、Telegram、Cron 或多个机器人时，<code>hermes tools</code> 改到哪里、影响谁、什么时候生效，这几个问题必须先分清。</p>
+<p>一句话结论：</p>
+<blockquote>
+<p>在某个 profile 里全局改 <code>tools</code>，会影响这个 profile 下的后续会话和同 profile 的机器人；用启动参数、Cron 配置或子任务参数限制工具，通常只影响那一次进程或那一个任务。</p>
+</blockquote>
+<p>这篇按实操方式整理。读完后应该能判断：什么时候该改 profile，什么时候只临时加 <code>-t web</code>，什么时候应该新建 <code>webonly</code> / <code>safe</code> profile。</p>
+<h2 id="先分清四个层级">先分清四个层级</h2>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>常见写法</th>
+<th>影响范围</th>
+<th>是否长期保存</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>profile 级 tools 配置</td>
+<td><code>hermes tools</code>、<code>hermes tools enable web</code>、<code>hermes tools disable terminal</code></td>
+<td>当前 profile 下的后续会话、gateway、Matrix、Telegram、reset 后新 session</td>
+<td>是</td>
+</tr>
+<tr>
+<td>指定 profile 的 tools 配置</td>
+<td><code>hermes -p webonly tools disable terminal</code></td>
+<td><code>webonly</code> 这个 profile 下的后续会话和机器人</td>
+<td>是</td>
+</tr>
+<tr>
+<td>单次启动 toolsets</td>
+<td><code>hermes chat -t web -q &quot;查一下...&quot;</code></td>
+<td>只影响这一次 Hermes 进程</td>
+<td>否</td>
+</tr>
+<tr>
+<td>Cron / 子任务 toolsets</td>
+<td><code>enabled_toolsets: [&quot;web&quot;]</code>、<code>toolsets: [&quot;web&quot;]</code></td>
+<td>只影响这个 cron job 或子 agent</td>
+<td>通常只保存在该任务配置里</td>
+</tr>
+</tbody>
+</table>
+<p>如果你不确定自己正在改哪个 profile，先查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile list
+</span></span><span style="display:flex;"><span>hermes config path
+</span></span><span style="display:flex;"><span>hermes config env-path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile list\nhermes config path\nhermes config env-path"</script>
+</div>
+<p>在 Matrix / Element 里也可以看当前会话状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//profile
+</span></span><span style="display:flex;"><span>//status</span></span></code></pre></div><script class="code-source" type="application/json">"//profile\n//status"</script>
+</div>
+<h2 id="配置文件路径在哪里">配置文件路径在哪里</h2>
+<p>默认 profile 通常在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/config.yaml
+</span></span><span style="display:flex;"><span>~/.hermes/.env</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/config.yaml\n~/.hermes/.env"</script>
+</div>
+<p>具名 profile 例如 <code>webonly</code> 通常在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/profiles/webonly/config.yaml
+</span></span><span style="display:flex;"><span>~/.hermes/profiles/webonly/.env</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/profiles/webonly/config.yaml\n~/.hermes/profiles/webonly/.env"</script>
+</div>
+<p>更稳妥的查法是用 Hermes 自己返回路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config path
+</span></span><span style="display:flex;"><span>hermes config env-path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config path\nhermes config env-path"</script>
+</div>
+<p>查看指定 profile 的配置路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly config path
+</span></span><span style="display:flex;"><span>hermes -p webonly config env-path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly config path\nhermes -p webonly config env-path"</script>
+</div>
+<p>修改前建议先备份：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>CFG<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>hermes config path<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">.bak.</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"CFG=\"$(hermes config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script>
+</div>
+<p>指定 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>CFG<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>hermes -p webonly config path<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">.bak.</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"CFG=\"$(hermes -p webonly config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script>
+</div>
+<p>不要直接把 <code>.env</code> 内容贴到群里或日志里，里面可能有 Matrix access token、Telegram bot token、OpenAI / Anthropic / OpenRouter API key。</p>
+<h2 id="1-profile-级-tools-配置会影响同-profile-的机器人">1. Profile 级 tools 配置会影响同 profile 的机器人</h2>
+<p>如果你在 <code>code</code> profile 里运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools"</script>
+</div>
+<p>或者：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools enable web
+</span></span><span style="display:flex;"><span>hermes tools disable terminal
+</span></span><span style="display:flex;"><span>hermes tools disable file</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools enable web\nhermes tools disable terminal\nhermes tools disable file"</script>
+</div>
+<p>这些改动通常会写进当前 profile 的配置里。只要 Matrix、Telegram、CLI、Cron 都用的是同一个 <code>code</code> profile，它们后续都会吃到这个工具范围。</p>
+<p>影响对象包括：</p>
+<ul>
+<li>同一个 <code>code</code> profile 的 CLI 会话；</li>
+<li>同一个 <code>code</code> profile 的 Matrix gateway；</li>
+<li>同一个 <code>code</code> profile 的 Telegram gateway；</li>
+<li>后续 <code>//new</code>、<code>//reset</code> 后的新 session；</li>
+<li>使用这个 profile 新启动的 Hermes 进程。</li>
+</ul>
+<p>所以，在私有运维机器人上关闭 <code>terminal</code>，可能会让 Matrix 机器人也不能跑命令；在群聊机器人上开启 <code>terminal</code>，也可能把高风险工具开放给这个 profile 下的其它入口。</p>
+<p>查看当前工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools list"</script>
+</div>
+<p>进入交互式工具开关界面：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools"</script>
+</div>
+<p>开启 web：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools enable web</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools enable web"</script>
+</div>
+<p>关闭 terminal：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools disable terminal</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools disable terminal"</script>
+</div>
+<p>关闭 file：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools disable file</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools disable file"</script>
+</div>
+<p>如果这是接了 Matrix 的 gateway，改完后建议在 Element 里重置会话：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//reset</span></span></code></pre></div><script class="code-source" type="application/json">"//reset"</script>
+</div>
+<p>必要时重启 gateway：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//restart</span></span></code></pre></div><script class="code-source" type="application/json">"//restart"</script>
+</div>
+<p>或者在服务器上执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes gateway restart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes gateway restart"</script>
+</div>
+<p>如果 gateway 是 systemd user 服务托管的，先确认服务名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user list-units <span style="color:#e6db74">&#39;hermes*&#39;</span> --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user list-units 'hermes*' --no-pager"</script>
+</div>
+<p>再重启对应服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user restart hermes-gateway.service"</script>
+</div>
+<p>服务名不一定完全相同，实际以 <code>systemctl --user list-units 'hermes*'</code> 输出为准。</p>
+<h2 id="2-指定-profile-改-tools只影响那个-profile">2. 指定 profile 改 tools，只影响那个 profile</h2>
+<p>如果你已经创建了 <code>webonly</code> profile，就不要直接运行不带 <code>-p</code> 的命令。要写成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly tools list
+</span></span><span style="display:flex;"><span>hermes -p webonly tools</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly tools list\nhermes -p webonly tools"</script>
+</div>
+<p>把 <code>webonly</code> 改成只适合公开群的低权限机器人：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly tools enable web
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable terminal
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable file
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable browser
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable cronjob
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script>
+</div>
+<p>这样改的是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/profiles/webonly/config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/profiles/webonly/config.yaml"</script>
+</div>
+<p>不会直接改默认 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/.hermes/config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"~/.hermes/config.yaml"</script>
+</div>
+<p>验证路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly config path
+</span></span><span style="display:flex;"><span>hermes config path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly config path\nhermes config path"</script>
+</div>
+<p>如果两个路径不同，说明 profile 隔离是成立的。</p>
+<h2 id="3-单次启动限制-toolsets只影响那一个进程">3. 单次启动限制 toolsets，只影响那一个进程</h2>
+<p>有些时候只是临时查资料，不想改 profile 全局配置，可以用启动参数限制本次工具范围。</p>
+<p>例如只给这次查询 web 工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes chat -t web -q <span style="color:#e6db74">&#34;查一下 Debian 13 当前稳定版内核信息，给我摘要&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"hermes chat -t web -q \"查一下 Debian 13 当前稳定版内核信息，给我摘要\""</script>
+</div>
+<p>这类写法的特点：</p>
+<ul>
+<li>不改 <code>config.yaml</code>；</li>
+<li>不影响 Matrix / Telegram gateway；</li>
+<li>不影响同 profile 的其它会话；</li>
+<li>命令结束后限制也结束。</li>
+</ul>
+<p>适合这类场景：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>临时联网查资料</td>
+<td><code>hermes chat -t web -q &quot;...&quot;</code></td>
+</tr>
+<tr>
+<td>临时只做普通问答</td>
+<td>用低权限 toolset 启动一次</td>
+</tr>
+<tr>
+<td>不想影响正在运行的 Matrix 机器人</td>
+<td>用单次启动参数，不改 <code>hermes tools</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果你要确认这次没有改到配置，可以前后对比配置文件时间：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>stat <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>hermes config path<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>hermes chat -t web -q <span style="color:#e6db74">&#34;只回答：测试&#34;</span>
+</span></span><span style="display:flex;"><span>stat <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>hermes config path<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"stat \"$(hermes config path)\"\nhermes chat -t web -q \"只回答：测试\"\nstat \"$(hermes config path)\""</script>
+</div>
+<p>如果 <code>config.yaml</code> 修改时间没有变化，说明这次限制没有写进 profile 配置。</p>
+<h2 id="4-cron--子任务限制只影响那个任务">4. Cron / 子任务限制，只影响那个任务</h2>
+<p>Cron job 或子 agent 通常可以在任务配置里单独限制工具。例如某个定时任务只允许联网查询，不允许文件和终端：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">enabled_toolsets</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">web</span></span></span></code></pre></div><script class="code-source" type="application/json">"enabled_toolsets:\n  - web"</script>
+</div>
+<p>或者子任务委派时指定：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">toolsets</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">web</span></span></span></code></pre></div><script class="code-source" type="application/json">"toolsets:\n  - web"</script>
+</div>
+<p>这种限制只应该影响那个 job 或那次 delegate task，不应该改 profile 全局 tools。</p>
+<p>适合这类任务：</p>
+<table>
+<thead>
+<tr>
+<th>任务</th>
+<th>建议工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每天查新闻摘要</td>
+<td><code>web</code></td>
+</tr>
+<tr>
+<td>监控公开网页变化</td>
+<td><code>web</code></td>
+</tr>
+<tr>
+<td>让子 agent 总结资料</td>
+<td><code>web</code>、<code>safe</code></td>
+</tr>
+<tr>
+<td>自动改服务器配置</td>
+<td>不建议给公开入口自动做</td>
+</tr>
+</tbody>
+</table>
+<p>如果 Cron 是 Hermes 自己管理的，先查实际命令和配置格式：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes cron --help
+</span></span><span style="display:flex;"><span>hermes cron list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes cron --help\nhermes cron list"</script>
+</div>
+<p>如果你不确定当前 Hermes 版本的字段名是不是 <code>enabled_toolsets</code>，不要硬写。先让 Hermes 输出已有 cron 配置，再按当前版本的真实格式修改。</p>
+<h2 id="5-不同机器人最好用不同-profile">5. 不同机器人最好用不同 profile</h2>
+<p>如果你想让 Matrix、Telegram、公开群、私人运维机器人拥有不同工具，最干净的做法是分 profile。</p>
+<p>推荐拆法：</p>
+<table>
+<thead>
+<tr>
+<th>profile</th>
+<th>用途</th>
+<th>工具策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td>私人运维和写代码</td>
+<td>保留 <code>terminal</code>、<code>file</code>、<code>web</code></td>
+</tr>
+<tr>
+<td><code>webonly</code></td>
+<td>公开群或低权限问答</td>
+<td>只开 <code>web</code>，关闭 <code>terminal</code> / <code>file</code></td>
+</tr>
+<tr>
+<td><code>safe</code></td>
+<td>低风险聊天</td>
+<td>只开 <code>safe</code> / <code>clarify</code> 一类低风险工具</td>
+</tr>
+<tr>
+<td><code>matrixops</code></td>
+<td>私人 Matrix 运维机器人</td>
+<td>可以开运维工具，但限制 allowed users / rooms</td>
+</tr>
+</tbody>
+</table>
+<p>创建 <code>webonly</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile create webonly</span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile create webonly"</script>
+</div>
+<p>如果想从当前 profile 复制基础模型配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile create webonly --clone</span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile create webonly --clone"</script>
+</div>
+<p>然后收窄工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly tools enable web
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable terminal
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable file
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable browser
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable cronjob
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script>
+</div>
+<p>创建 <code>safe</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile create safe</span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile create safe"</script>
+</div>
+<p>进入交互式工具界面，只留下低风险工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p safe tools</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p safe tools"</script>
+</div>
+<p>如果当前版本支持直接 enable / disable 对应 toolset，也可以按实际名称设置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p safe tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p safe tools list"</script>
+</div>
+<p>以 <code>tools list</code> 输出为准，不要凭空猜工具名。</p>
+<h2 id="6-matrix-机器人怎么套用-profile">6. Matrix 机器人怎么套用 profile</h2>
+<p>Matrix gateway 如果要绑定到某个 profile，启动或服务命令里应该明确带 profile。</p>
+<p>手动启动示例：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway start</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway start"</script>
+</div>
+<p>查看状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway status</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway status"</script>
+</div>
+<p>重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway restart</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway restart"</script>
+</div>
+<p>如果使用 systemd user 服务，服务文件里也要明确 profile。先找到服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user list-units <span style="color:#e6db74">&#39;hermes*&#39;</span> --no-pager
+</span></span><span style="display:flex;"><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user list-units 'hermes*' --no-pager\nsystemctl --user cat hermes-gateway.service"</script>
+</div>
+<p>服务里的启动命令应该能看出用的是哪个 profile，例如：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/usr/bin/hermes -p webonly gateway start</span></span></span></code></pre></div><script class="code-source" type="application/json">"ExecStart=/usr/bin/hermes -p webonly gateway start"</script>
+</div>
+<p>如果服务里没有 <code>-p webonly</code>，那很可能跑的是默认 profile。这个时候你在 <code>webonly</code> 里改工具，Matrix 机器人并不会吃到；你在默认 profile 里改工具，Matrix 机器人反而会被影响。</p>
+<p>修改服务前先备份：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p ~/.config/systemd/user/backup
+</span></span><span style="display:flex;"><span>cp ~/.config/systemd/user/hermes-gateway.service ~/.config/systemd/user/backup/hermes-gateway.service.<span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p ~/.config/systemd/user/backup\ncp ~/.config/systemd/user/hermes-gateway.service ~/.config/systemd/user/backup/hermes-gateway.service.$(date +%Y%m%d-%H%M%S)"</script>
+</div>
+<p>修改后重载并重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user daemon-reload
+</span></span><span style="display:flex;"><span>systemctl --user restart hermes-gateway.service
+</span></span><span style="display:flex;"><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user daemon-reload\nsystemctl --user restart hermes-gateway.service\nsystemctl --user status hermes-gateway.service --no-pager"</script>
+</div>
+<p>如果退出 SSH 后也要继续运行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>loginctl show-user <span style="color:#e6db74">&#34;</span>$USER<span style="color:#e6db74">&#34;</span> -p Linger
+</span></span><span style="display:flex;"><span>sudo loginctl enable-linger <span style="color:#e6db74">&#34;</span>$USER<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"loginctl show-user \"$USER\" -p Linger\nsudo loginctl enable-linger \"$USER\""</script>
+</div>
+<h2 id="7-telegram-机器人同理">7. Telegram 机器人同理</h2>
+<p>Telegram gateway 也一样。关键不是平台名字，而是它使用哪个 profile。</p>
+<p>查看指定 profile 的 gateway 状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p code gateway status
+</span></span><span style="display:flex;"><span>hermes -p webonly gateway status</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p code gateway status\nhermes -p webonly gateway status"</script>
+</div>
+<p>如果 Telegram 和 Matrix 都共用 <code>code</code> profile，那么：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p code tools disable terminal</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p code tools disable terminal"</script>
+</div>
+<p>会同时影响这个 profile 下的 Telegram 和 Matrix 后续会话。</p>
+<p>如果希望 Telegram 私聊保留全功能、Matrix 群聊只保留 web，就拆成：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>code      -&gt; Telegram 私聊 / 私人运维
+</span></span><span style="display:flex;"><span>webonly   -&gt; Matrix 公开群 / 低权限查询</span></span></code></pre></div><script class="code-source" type="application/json">"code      -\u003e Telegram 私聊 / 私人运维\nwebonly   -\u003e Matrix 公开群 / 低权限查询"</script>
+</div>
+<p>分别配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p code tools list
+</span></span><span style="display:flex;"><span>hermes -p webonly tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p code tools list\nhermes -p webonly tools list"</script>
+</div>
+<p>不要让两个机器人共用同一个 token，也不要把群聊 bot 放到带高权限工具的 profile 里。</p>
+<h2 id="8-生效规则resetrestart-和新-session">8. 生效规则：reset、restart 和新 session</h2>
+<p>工具配置不是所有情况下都会立刻改变当前对话。稳妥做法：</p>
+<table>
+<thead>
+<tr>
+<th>修改内容</th>
+<th>建议动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只改当前 CLI 启动参数</td>
+<td>不需要 reset</td>
+</tr>
+<tr>
+<td>改 profile 级 tools</td>
+<td>新开 session，或在 Matrix 里 <code>//reset</code></td>
+</tr>
+<tr>
+<td>改 gateway 相关配置</td>
+<td><code>//restart</code> 或重启 systemd user 服务</td>
+</tr>
+<tr>
+<td>改 systemd 服务文件</td>
+<td><code>systemctl --user daemon-reload</code> 后重启服务</td>
+</tr>
+<tr>
+<td>改 <code>.env</code> token / homeserver</td>
+<td>重启 gateway</td>
+</tr>
+</tbody>
+</table>
+<p>Element / Matrix 里常用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//status
+</span></span><span style="display:flex;"><span>//profile
+</span></span><span style="display:flex;"><span>//reset
+</span></span><span style="display:flex;"><span>//restart</span></span></code></pre></div><script class="code-source" type="application/json">"//status\n//profile\n//reset\n//restart"</script>
+</div>
+<p>服务器上常用：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway status
+</span></span><span style="display:flex;"><span>hermes -p webonly gateway restart
+</span></span><span style="display:flex;"><span>systemctl --user status hermes-gateway.service --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway status\nhermes -p webonly gateway restart\nsystemctl --user status hermes-gateway.service --no-pager"</script>
+</div>
+<h2 id="9-推荐实操做一个只开-web-的-matrix-群聊机器人">9. 推荐实操：做一个只开 web 的 Matrix 群聊机器人</h2>
+<p>下面是一套相对保守的流程。</p>
+<p>创建 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes profile create webonly --clone</span></span></code></pre></div><script class="code-source" type="application/json">"hermes profile create webonly --clone"</script>
+</div>
+<p>确认路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly config path
+</span></span><span style="display:flex;"><span>hermes -p webonly config env-path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly config path\nhermes -p webonly config env-path"</script>
+</div>
+<p>备份配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>CFG<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>hermes -p webonly config path<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>cp <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$CFG<span style="color:#e6db74">.bak.</span><span style="color:#66d9ef">$(</span>date +%Y%m%d-%H%M%S<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"CFG=\"$(hermes -p webonly config path)\"\ncp \"$CFG\" \"$CFG.bak.$(date +%Y%m%d-%H%M%S)\""</script>
+</div>
+<p>收窄工具：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly tools enable web
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable terminal
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable file
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable browser
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable cronjob
+</span></span><span style="display:flex;"><span>hermes -p webonly tools disable messaging</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly tools enable web\nhermes -p webonly tools disable terminal\nhermes -p webonly tools disable file\nhermes -p webonly tools disable browser\nhermes -p webonly tools disable cronjob\nhermes -p webonly tools disable messaging"</script>
+</div>
+<p>检查工具列表：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly tools list"</script>
+</div>
+<p>配置 Matrix 前先确认当前版本帮助：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway --help
+</span></span><span style="display:flex;"><span>hermes -p webonly config --help</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway --help\nhermes -p webonly config --help"</script>
+</div>
+<p>启动 gateway：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes -p webonly gateway start</span></span></code></pre></div><script class="code-source" type="application/json">"hermes -p webonly gateway start"</script>
+</div>
+<p>如果已经用 systemd 管理，就确认服务是否带 <code>-p webonly</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user cat hermes-gateway.service"</script>
+</div>
+<p>最后在 Element 里检查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//profile
+</span></span><span style="display:flex;"><span>//status
+</span></span><span style="display:flex;"><span>//reset</span></span></code></pre></div><script class="code-source" type="application/json">"//profile\n//status\n//reset"</script>
+</div>
+<p>如果 <code>//profile</code> 显示的不是 <code>webonly</code>，说明 gateway 没跑在你以为的 profile 上，先修服务或启动命令，不要继续改工具。</p>
+<h2 id="10-排错清单">10. 排错清单</h2>
+<h3 id="改了工具但-matrix-没变化">改了工具但 Matrix 没变化</h3>
+<p>先看当前 Matrix 会话用哪个 profile：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//profile</span></span></code></pre></div><script class="code-source" type="application/json">"//profile"</script>
+</div>
+<p>再看服务器上的服务命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl --user cat hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl --user cat hermes-gateway.service"</script>
+</div>
+<p>如果服务没有带 <code>-p webonly</code>，那它可能不是在跑 <code>webonly</code>。</p>
+<p>然后重置会话：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//reset</span></span></code></pre></div><script class="code-source" type="application/json">"//reset"</script>
+</div>
+<p>必要时重启 gateway：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//restart</span></span></code></pre></div><script class="code-source" type="application/json">"//restart"</script>
+</div>
+<h3 id="改错-profile-了">改错 profile 了</h3>
+<p>先查两个配置路径：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes config path
+</span></span><span style="display:flex;"><span>hermes -p webonly config path</span></span></code></pre></div><script class="code-source" type="application/json">"hermes config path\nhermes -p webonly config path"</script>
+</div>
+<p>如果刚才改错了默认 profile，可以用备份恢复：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp ~/.hermes/config.yaml.bak.YYYYMMDD-HHMMSS ~/.hermes/config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"cp ~/.hermes/config.yaml.bak.YYYYMMDD-HHMMSS ~/.hermes/config.yaml"</script>
+</div>
+<p>恢复后重启相关 gateway。</p>
+<h3 id="不知道工具名叫什么">不知道工具名叫什么</h3>
+<p>不要猜，直接列：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes tools list
+</span></span><span style="display:flex;"><span>hermes -p webonly tools list</span></span></code></pre></div><script class="code-source" type="application/json">"hermes tools list\nhermes -p webonly tools list"</script>
+</div>
+<p>文章里的 <code>terminal</code>、<code>file</code>、<code>web</code>、<code>browser</code>、<code>cronjob</code>、<code>messaging</code> 是常见写法；如果你当前版本名字不同，以 <code>tools list</code> 输出为准。</p>
+<h3 id="不确定当前版本支持哪些参数">不确定当前版本支持哪些参数</h3>
+<p>先看帮助：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>hermes --help
+</span></span><span style="display:flex;"><span>hermes chat --help
+</span></span><span style="display:flex;"><span>hermes tools --help
+</span></span><span style="display:flex;"><span>hermes gateway --help
+</span></span><span style="display:flex;"><span>hermes cron --help</span></span></code></pre></div><script class="code-source" type="application/json">"hermes --help\nhermes chat --help\nhermes tools --help\nhermes gateway --help\nhermes cron --help"</script>
+</div>
+<p>Hermes 版本更新后，字段名和命令参数可能会变。教程里的原则不变：先确认当前 profile 和配置路径，再决定改全局还是只改单次任务。</p>
+<h2 id="最后建议">最后建议</h2>
+<p>私人运维机器人不要和公开群机器人共用 profile。</p>
+<p>推荐长期结构：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>code
+</span></span><span style="display:flex;"><span>  私人使用，能跑命令、能改文件、能联网查资料。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>webonly
+</span></span><span style="display:flex;"><span>  公开群或低权限 Matrix，尽量只开 web/search。
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>safe
+</span></span><span style="display:flex;"><span>  低风险聊天，只保留安全工具。</span></span></code></pre></div><script class="code-source" type="application/json">"code\n  私人使用，能跑命令、能改文件、能联网查资料。\n\nwebonly\n  公开群或低权限 Matrix，尽量只开 web/search。\n\nsafe\n  低风险聊天，只保留安全工具。"</script>
+</div>
+<p>日常判断只记这一句：</p>
+<blockquote>
+<p><code>hermes tools</code> 是 profile 级长期配置；<code>hermes chat -t web</code> 是单次进程限制；Cron / delegate task 里的 toolsets 是任务级限制；不同机器人最好用不同 profile 隔离。</p>
+</blockquote>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

@@ -1,6 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ros基础配置 on 电脑自习室</title><link>https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/</link><description>Recent content in Ros基础配置 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/index.xml" rel="self" type="application/rss+xml"/><item><title>00.RouterOS 初始化及基础配置</title><link>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</guid><description>本文介绍RouterOS初始化后的一些基础配置。第一次进入RouterOS先恢复原厂设置，Winbox以mac地址登录 1. 恢复出厂设置 复制/system reset-configuration 2. 接口命名与桥接 确认接口，区分lan，wan，更改名称为方便以后操作（建议手动操作）
-复制/interface set ether1 name=lan /interface set ether2 name=wan 建立bridge1，并将所有lan接口添加进桥 复制/interface bridge add name=bridge1 /interface bridge port add bridge=bridge1 interface=lan 注：如果双网口，且不打算用ros的容器，可不建bridge，直接使用lan口，并接入物理交换机
-3. 本机地址 为bridge1设置IP。本教程以bridge1为例，即ros本机ip为10.0.0.1/24
-复制/ip address add interface=bridge1 address=10.0.0.1/24 network=10.0.0.0 4. 时间与 NTP 配置时区，配置NTP服务器
-复制/system clock set time-zone-name=&amp;#34;Asia/Shanghai&amp;#34; /system clock manual set time-zone=+08:00 /system ntp client set enabled=yes servers=cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com 5. 服务与端口硬化 关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段
-复制/ip smb set enabled=no /ip smb shares disable numbers=0 /ip ssh set forwarding-enabled=no /ip socks set enabled=no /ip upnp set enabled=no /ip proxy set enabled=no /ip service disable api /ip service disable api-ssl /ip service disable ftp /ip service disable ssh /ip service disable telnet /ip service disable www /ip service disable www-ssl /ip service set winbox port=5391 address=10.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Ros基础配置 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/</link>
+    <description>Recent content in Ros基础配置 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/ros%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>00.RouterOS 初始化及基础配置</title>
+      <link>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</link>
+      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/routeros/routeros-00-basic-setup/</guid>
+      <description>本文介绍RouterOS初始化后的一些基础配置。第一次进入RouterOS先恢复原厂设置，Winbox以mac地址登录 1. 恢复出厂设置 复制/system reset-configuration 2. 接口命名与桥接 确认接口，区分lan，wan，更改名称为方便以后操作（建议手动操作）&#xA;复制/interface set ether1 name=lan /interface set ether2 name=wan 建立bridge1，并将所有lan接口添加进桥 复制/interface bridge add name=bridge1 /interface bridge port add bridge=bridge1 interface=lan 注：如果双网口，且不打算用ros的容器，可不建bridge，直接使用lan口，并接入物理交换机&#xA;3. 本机地址 为bridge1设置IP。本教程以bridge1为例，即ros本机ip为10.0.0.1/24&#xA;复制/ip address add interface=bridge1 address=10.0.0.1/24 network=10.0.0.0 4. 时间与 NTP 配置时区，配置NTP服务器&#xA;复制/system clock set time-zone-name=&amp;#34;Asia/Shanghai&amp;#34; /system clock manual set time-zone=+08:00 /system ntp client set enabled=yes servers=cn.pool.ntp.org,ntp1.aliyun.com,time1.cloud.tencent.com 5. 服务与端口硬化 关闭所有不需要的服务及端口，更改Winbox登陆端口为5391（可自定义），并开启仅允许内网访问，注意下方address=10.0.0.0/24修改为自己的内网网段&#xA;复制/ip smb set enabled=no /ip smb shares disable numbers=0 /ip ssh set forwarding-enabled=no /ip socks set enabled=no /ip upnp set enabled=no /ip proxy set enabled=no /ip service disable api /ip service disable api-ssl /ip service disable ftp /ip service disable ssh /ip service disable telnet /ip service disable www /ip service disable www-ssl /ip service set winbox port=5391 address=10.</description>
+    </item>
+  </channel>
+</rss>

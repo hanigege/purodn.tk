@@ -1,101 +1,320 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置 | 电脑自习室</title>
-<meta name=description content="记录 Nginx Proxy Manager 的 Docker Compose 部署方式：提前创建 matrix 外部网络，并同时监听 IPv4 与 IPv6 HTTPS 端口。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Docker</span>
-<time datetime=2026-05-18>2026年5月18日</time></div><h1>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</h1><p>记录 Nginx Proxy Manager 的 Docker Compose 部署方式：提前创建 matrix 外部网络，并同时监听 IPv4 与 IPv6 HTTPS 端口。</p></header><img class=article-cover src=/posts/docker/nginx-proxy-manager-ipv6/assets/cover.svg alt><div class=article-content><p>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 <code>matrix</code>，NPM 再通过多个宿主机端口把请求转发到容器内部的 <code>443</code>。</p><p>这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。</p><p>注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 <code>3478/udp</code> 和大范围 UDP 中继端口，更适合单独使用 <code>network_mode: host</code>，不要接入 <code>matrix</code> 网络，也不要交给 NPM 反代。</p><h2 id=一先创建-matrix-网络>一、先创建 matrix 网络</h2><p>在启动需要接入 <code>matrix</code> 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network create matrix</span></span></code></pre></div><script class=code-source type=application/json>"docker network create matrix"</script></div><p>这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 <code>matrix</code>。</p><p>可以用下面的命令确认网络是否已经存在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker network ls | grep matrix</span></span></code></pre></div><script class=code-source type=application/json>"docker network ls | grep matrix"</script></div><p>如果已经能看到 <code>matrix</code>，就可以继续写 Compose 配置。</p><h2 id=二创建-docker-composeyml>二、创建 docker-compose.yml</h2><p>新建并编辑 <code>docker-compose.yml</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nvim docker-compose.yml</span></span></code></pre></div><script class=code-source type=application/json>"nvim docker-compose.yml"</script></div><p>写入下面的配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>app</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#e6db74>&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>nginx-proxy-manager</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
-</span></span><span style=display:flex><span>      <span style=color:#75715e># HTTP 端口</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;12332:80&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 管理后台</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;81:81&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># HTTPS 端口：在 Docker 层面做非对称映射</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 12335 -&gt; 443，Synapse 适用</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;0.0.0.0:12335:443&#39;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;[::]:12335:443&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 12336 -&gt; 443，JWT 适用</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;0.0.0.0:12336:443&#39;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;[::]:12336:443&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 12337 -&gt; 443，LiveKit 适用</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;0.0.0.0:12337:443&#39;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;[::]:12337:443&#39;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># coturn 不写在这里。</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># TURN 不是普通 HTTP/HTTPS 服务，不建议通过 NPM 转发。</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># coturn 请单独使用 network_mode: host，直接监听宿主机端口。</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 下面这些 coturn 端口应在宿主机防火墙/云安全组/路由器里放行，</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 不要添加到 NPM 的 ports 里：</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># - 3478/tcp</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># - 3478/udp</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># - 5349/tcp</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># - 64000-64099/udp</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 如果公网入口在 RouterOS 软路由上，</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，</span>
-</span></span><span style=display:flex><span>      <span style=color:#75715e># 可以不加 in-interface-list=WAN。</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./data:/data</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./letsencrypt:/etc/letsencrypt</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>matrix</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#f92672>networks</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>matrix</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>external</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>matrix</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    container_name: nginx-proxy-manager\n    restart: unless-stopped\n    ports:\n      # HTTP 端口\n      - '12332:80'\n\n      # 管理后台\n      - '81:81'\n\n      # HTTPS 端口：在 Docker 层面做非对称映射\n      # 12335 -\u003e 443，Synapse 适用\n      - '0.0.0.0:12335:443'\n      - '[::]:12335:443'\n\n      # 12336 -\u003e 443，JWT 适用\n      - '0.0.0.0:12336:443'\n      - '[::]:12336:443'\n\n      # 12337 -\u003e 443，LiveKit 适用\n      - '0.0.0.0:12337:443'\n      - '[::]:12337:443'\n\n      # coturn 不写在这里。\n      # TURN 不是普通 HTTP/HTTPS 服务，不建议通过 NPM 转发。\n      # coturn 请单独使用 network_mode: host，直接监听宿主机端口。\n      # 下面这些 coturn 端口应在宿主机防火墙/云安全组/路由器里放行，\n      # 不要添加到 NPM 的 ports 里：\n      # - 3478/tcp\n      # - 3478/udp\n      # - 5349/tcp\n      # - 64000-64099/udp\n      # 如果公网入口在 RouterOS 软路由上，\n      # 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。\n      # IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链\n      # 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，\n      # 可以不加 in-interface-list=WAN。\n\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script></div><p>这里有三个重点：</p><ul><li><code>matrix</code> 使用的是外部网络，所以 Compose 不会自动创建它，必须提前执行 <code>docker network create matrix</code>。</li><li>HTTPS 端口同时写了 <code>0.0.0.0</code> 和 <code>[::]</code>，分别用于 IPv4 和 IPv6 监听。</li><li>coturn 不属于 NPM 反代配置的一部分，不要在 NPM 的 <code>ports</code> 里添加 <code>3478</code>、<code>5349</code> 或 <code>64000-64099/udp</code>。</li></ul><h2 id=三启动-npm>三、启动 NPM</h2><p>确认配置无误后启动：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose up -d</span></span></code></pre></div><script class=code-source type=application/json>"docker compose up -d"</script></div><p>查看容器状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker ps | grep nginx-proxy-manager</span></span></code></pre></div><script class=code-source type=application/json>"docker ps | grep nginx-proxy-manager"</script></div><p>查看日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker logs -f nginx-proxy-manager</span></span></code></pre></div><script class=code-source type=application/json>"docker logs -f nginx-proxy-manager"</script></div><p>管理后台访问地址：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>http://服务器IP:81</span></span></code></pre></div><script class=code-source type=application/json>"http://服务器IP:81"</script></div><p>首次登录后，进入 NPM 后台添加 Proxy Host，并把目标服务地址指向同一个 <code>matrix</code> 网络里的容器名和端口。</p><h2 id=四端口对应关系>四、端口对应关系</h2><p>这份配置中的端口用途如下：</p><table><thead><tr><th>宿主机端口</th><th>容器端口</th><th>用途</th></tr></thead><tbody><tr><td><code>12332</code></td><td><code>80</code></td><td>HTTP 入口</td></tr><tr><td><code>81</code></td><td><code>81</code></td><td>NPM 管理后台</td></tr><tr><td><code>12335</code></td><td><code>443</code></td><td>Synapse HTTPS 入口</td></tr><tr><td><code>12336</code></td><td><code>443</code></td><td>JWT HTTPS 入口</td></tr><tr><td><code>12337</code></td><td><code>443</code></td><td>LiveKit HTTPS 入口</td></tr></tbody></table><p>如果服务器防火墙、云安全组或路由器里有限制，需要同步放行这些端口的 IPv4 和 IPv6 入站访问。</p><h2 id=五注意事项>五、注意事项</h2><p>所有需要被 NPM 反代的 HTTP/HTTPS 容器，网络都统一接入 <code>matrix</code>。例如其他服务的 Compose 文件里也应使用类似配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>networks</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>matrix</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>external</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>matrix</span></span></span></code></pre></div><script class=code-source type=application/json>"networks:\n  matrix:\n    external: true\n    name: matrix"</script></div><p>服务本身再挂到这个网络：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>your-service</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>matrix</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  your-service:\n    networks:\n      - matrix"</script></div><p>这样 NPM 后台里就可以直接用容器名作为上游地址，避免跨网络访问失败。</p><p>coturn 是例外。它不要写成 <code>ports</code> 大范围映射，也不要挂到 <code>matrix</code> 网络里。单独部署 coturn 时，Compose 里直接写成下面这样：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>coturn</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>coturn/coturn:latest</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>coturn</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># network_mode: host 会让 coturn 直接使用宿主机网络栈。</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 容器内监听的 3478、5349 和 64000-64099/udp 就是宿主机上的端口。</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 需要在宿主机防火墙/云安全组/路由器里放行：</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># - 3478/tcp</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># - 3478/udp</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># - 5349/tcp</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># - 64000-64099/udp</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 如果公网入口在 RouterOS 软路由上，</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 可以不加 in-interface-list=WAN。</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>network_mode</span>: <span style=color:#ae81ff>host</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/root/data/docker_data/coturn/etc/:/etc/</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/root/data/docker_data/coturn/var/run/turnserver.pid:/var/run/turnserver.pid</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  coturn:\n    image: coturn/coturn:latest\n    container_name: coturn\n    restart: unless-stopped\n    # 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。\n    # network_mode: host 会让 coturn 直接使用宿主机网络栈。\n    # 容器内监听的 3478、5349 和 64000-64099/udp 就是宿主机上的端口。\n    # 需要在宿主机防火墙/云安全组/路由器里放行：\n    # - 3478/tcp\n    # - 3478/udp\n    # - 5349/tcp\n    # - 64000-64099/udp\n    # 如果公网入口在 RouterOS 软路由上，\n    # 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。\n    # IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链\n    # 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，\n    # 可以不加 in-interface-list=WAN。\n    network_mode: host\n    volumes:\n      - /root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf\n      - /root/data/docker_data/coturn/etc/:/etc/\n      - /root/data/docker_data/coturn/var/run/turnserver.pid:/var/run/turnserver.pid"</script></div><p>也就是说，NPM 继续处理 Synapse、ntfy、LiveKit 这类 Web 服务；coturn 的 DNS 直接指向宿主机公网 IP，服务器防火墙直接放行 <code>3478/tcp</code>、<code>3478/udp</code>、<code>5349/tcp</code> 和 <code>64000-64099/udp</code>。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置 | 电脑自习室</title>
+    <meta name="description" content="记录 Nginx Proxy Manager 的 Docker Compose 部署方式：提前创建 matrix 外部网络，并同时监听 IPv4 与 IPv6 HTTPS 端口。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-05-18">2026年5月18日</time>
+        </div>
+        <h1>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</h1>
+          <p>记录 Nginx Proxy Manager 的 Docker Compose 部署方式：提前创建 matrix 外部网络，并同时监听 IPv4 与 IPv6 HTTPS 端口。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/nginx-proxy-manager-ipv6/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 <code>matrix</code>，NPM 再通过多个宿主机端口把请求转发到容器内部的 <code>443</code>。</p>
+<p>这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。</p>
+<p>注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 <code>3478/udp</code> 和大范围 UDP 中继端口，更适合单独使用 <code>network_mode: host</code>，不要接入 <code>matrix</code> 网络，也不要交给 NPM 反代。</p>
+<h2 id="一先创建-matrix-网络">一、先创建 matrix 网络</h2>
+<p>在启动需要接入 <code>matrix</code> 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network create matrix</span></span></code></pre></div><script class="code-source" type="application/json">"docker network create matrix"</script>
+</div>
+<p>这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 <code>matrix</code>。</p>
+<p>可以用下面的命令确认网络是否已经存在：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker network ls | grep matrix</span></span></code></pre></div><script class="code-source" type="application/json">"docker network ls | grep matrix"</script>
+</div>
+<p>如果已经能看到 <code>matrix</code>，就可以继续写 Compose 配置。</p>
+<h2 id="二创建-docker-composeyml">二、创建 docker-compose.yml</h2>
+<p>新建并编辑 <code>docker-compose.yml</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim docker-compose.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim docker-compose.yml"</script>
+</div>
+<p>写入下面的配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#e6db74">&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">nginx-proxy-manager</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># HTTP 端口</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12332:80&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 管理后台</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;81:81&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># HTTPS 端口：在 Docker 层面做非对称映射</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12335 -&gt; 443，Synapse 适用</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12336 -&gt; 443，JWT 适用</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12336:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 12337 -&gt; 443，LiveKit 适用</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;0.0.0.0:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;[::]:12337:443&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># coturn 不写在这里。</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># TURN 不是普通 HTTP/HTTPS 服务，不建议通过 NPM 转发。</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># coturn 请单独使用 network_mode: host，直接监听宿主机端口。</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 下面这些 coturn 端口应在宿主机防火墙/云安全组/路由器里放行，</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 不要添加到 NPM 的 ports 里：</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># - 3478/tcp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># - 3478/udp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># - 5349/tcp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># - 64000-64099/udp</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 如果公网入口在 RouterOS 软路由上，</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e"># 可以不加 in-interface-list=WAN。</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./letsencrypt:/etc/letsencrypt</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    container_name: nginx-proxy-manager\n    restart: unless-stopped\n    ports:\n      # HTTP 端口\n      - '12332:80'\n\n      # 管理后台\n      - '81:81'\n\n      # HTTPS 端口：在 Docker 层面做非对称映射\n      # 12335 -\u003e 443，Synapse 适用\n      - '0.0.0.0:12335:443'\n      - '[::]:12335:443'\n\n      # 12336 -\u003e 443，JWT 适用\n      - '0.0.0.0:12336:443'\n      - '[::]:12336:443'\n\n      # 12337 -\u003e 443，LiveKit 适用\n      - '0.0.0.0:12337:443'\n      - '[::]:12337:443'\n\n      # coturn 不写在这里。\n      # TURN 不是普通 HTTP/HTTPS 服务，不建议通过 NPM 转发。\n      # coturn 请单独使用 network_mode: host，直接监听宿主机端口。\n      # 下面这些 coturn 端口应在宿主机防火墙/云安全组/路由器里放行，\n      # 不要添加到 NPM 的 ports 里：\n      # - 3478/tcp\n      # - 3478/udp\n      # - 5349/tcp\n      # - 64000-64099/udp\n      # 如果公网入口在 RouterOS 软路由上，\n      # 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。\n      # IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链\n      # 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，\n      # 可以不加 in-interface-list=WAN。\n\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt\n    networks:\n      - matrix\n\nnetworks:\n  matrix:\n    external: true\n    name: matrix"</script>
+</div>
+<p>这里有三个重点：</p>
+<ul>
+<li><code>matrix</code> 使用的是外部网络，所以 Compose 不会自动创建它，必须提前执行 <code>docker network create matrix</code>。</li>
+<li>HTTPS 端口同时写了 <code>0.0.0.0</code> 和 <code>[::]</code>，分别用于 IPv4 和 IPv6 监听。</li>
+<li>coturn 不属于 NPM 反代配置的一部分，不要在 NPM 的 <code>ports</code> 里添加 <code>3478</code>、<code>5349</code> 或 <code>64000-64099/udp</code>。</li>
+</ul>
+<h2 id="三启动-npm">三、启动 NPM</h2>
+<p>确认配置无误后启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<p>查看容器状态：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps | grep nginx-proxy-manager</span></span></code></pre></div><script class="code-source" type="application/json">"docker ps | grep nginx-proxy-manager"</script>
+</div>
+<p>查看日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs -f nginx-proxy-manager</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs -f nginx-proxy-manager"</script>
+</div>
+<p>管理后台访问地址：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>http://服务器IP:81</span></span></code></pre></div><script class="code-source" type="application/json">"http://服务器IP:81"</script>
+</div>
+<p>首次登录后，进入 NPM 后台添加 Proxy Host，并把目标服务地址指向同一个 <code>matrix</code> 网络里的容器名和端口。</p>
+<h2 id="四端口对应关系">四、端口对应关系</h2>
+<p>这份配置中的端口用途如下：</p>
+<table>
+<thead>
+<tr>
+<th>宿主机端口</th>
+<th>容器端口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>12332</code></td>
+<td><code>80</code></td>
+<td>HTTP 入口</td>
+</tr>
+<tr>
+<td><code>81</code></td>
+<td><code>81</code></td>
+<td>NPM 管理后台</td>
+</tr>
+<tr>
+<td><code>12335</code></td>
+<td><code>443</code></td>
+<td>Synapse HTTPS 入口</td>
+</tr>
+<tr>
+<td><code>12336</code></td>
+<td><code>443</code></td>
+<td>JWT HTTPS 入口</td>
+</tr>
+<tr>
+<td><code>12337</code></td>
+<td><code>443</code></td>
+<td>LiveKit HTTPS 入口</td>
+</tr>
+</tbody>
+</table>
+<p>如果服务器防火墙、云安全组或路由器里有限制，需要同步放行这些端口的 IPv4 和 IPv6 入站访问。</p>
+<h2 id="五注意事项">五、注意事项</h2>
+<p>所有需要被 NPM 反代的 HTTP/HTTPS 容器，网络都统一接入 <code>matrix</code>。例如其他服务的 Compose 文件里也应使用类似配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">matrix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">external</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"networks:\n  matrix:\n    external: true\n    name: matrix"</script>
+</div>
+<p>服务本身再挂到这个网络：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">your-service</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  your-service:\n    networks:\n      - matrix"</script>
+</div>
+<p>这样 NPM 后台里就可以直接用容器名作为上游地址，避免跨网络访问失败。</p>
+<p>coturn 是例外。它不要写成 <code>ports</code> 大范围映射，也不要挂到 <code>matrix</code> 网络里。单独部署 coturn 时，Compose 里直接写成下面这样：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">coturn</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">coturn/coturn:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">coturn</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># network_mode: host 会让 coturn 直接使用宿主机网络栈。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 容器内监听的 3478、5349 和 64000-64099/udp 就是宿主机上的端口。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 需要在宿主机防火墙/云安全组/路由器里放行：</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 3478/tcp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 3478/udp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 5349/tcp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># - 64000-64099/udp</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 如果公网入口在 RouterOS 软路由上，</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 可以不加 in-interface-list=WAN。</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/etc/:/etc/</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/root/data/docker_data/coturn/var/run/turnserver.pid:/var/run/turnserver.pid</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  coturn:\n    image: coturn/coturn:latest\n    container_name: coturn\n    restart: unless-stopped\n    # 这里不要再写 ports，也不要把 coturn 接入 matrix 网络。\n    # network_mode: host 会让 coturn 直接使用宿主机网络栈。\n    # 容器内监听的 3478、5349 和 64000-64099/udp 就是宿主机上的端口。\n    # 需要在宿主机防火墙/云安全组/路由器里放行：\n    # - 3478/tcp\n    # - 3478/udp\n    # - 5349/tcp\n    # - 64000-64099/udp\n    # 如果公网入口在 RouterOS 软路由上，\n    # 就在 RouterOS 上把这些端口转发到 Docker 主机 10.20.20.8。\n    # IPv6 不做 dstnat，需要在 /ipv6 firewall filter 的 forward 链\n    # 放行转发到 coturn 的这些端口。为兼容内网访问公网域名，\n    # 可以不加 in-interface-list=WAN。\n    network_mode: host\n    volumes:\n      - /root/data/docker_data/coturn/etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf\n      - /root/data/docker_data/coturn/etc/:/etc/\n      - /root/data/docker_data/coturn/var/run/turnserver.pid:/var/run/turnserver.pid"</script>
+</div>
+<p>也就是说，NPM 继续处理 Synapse、ntfy、LiveKit 这类 Web 服务；coturn 的 DNS 直接指向宿主机公网 IP，服务器防火墙直接放行 <code>3478/tcp</code>、<code>3478/udp</code>、<code>5349/tcp</code> 和 <code>64000-64099/udp</code>。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

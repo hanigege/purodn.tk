@@ -1,298 +1,744 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法 | 电脑自习室</title>
-<meta name=description content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
-<time datetime=2026-05-24>2026年5月24日</time></div><h1>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</h1></header><img class=article-cover src=/posts/linux/docker-headscale-derp-tailscale-npm-proxy/assets/cover.svg alt><div class=article-content><h2 id=说明-这教程全网应该是唯一的-内网部署>说明 这教程全网应该是唯一的 内网部署。</h2><h3 id=因为太实用了不管是回家还是建立私有隧道或者是添加节点等等吧都行不过也有硬性要求就是家里要使用pve或其它虚拟系统软路由是ros其它的路由系统道理也是相通的才可以部署>因为太实用了，不管是回家，还是建立私有隧道，或者是添加节点等等吧都行,不过也有硬性要求，就是家里要使用pve或其它虚拟系统，<code>软路由是ros</code>（其它的路由系统道理也是相通的）才可以部署！</h3><h2 id=pve下新建一个vm虚拟机-ubuntu-2404为例>pve下新建一个vm虚拟机 ubuntu 24.04为例：</h2><h3 id=目录结构需要建立4个容器>目录结构(需要建立4个容器）</h3><h3 id=都装在同一台机器上内网ip例如1020208>都装在同一台机器上，内网ip例如：10.20.20.8</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>~/data/docker_data/
-</span></span><span style=display:flex><span>├── headscale及headscale-UI/ <span style=color:#75715e># 服务端与配置</span>
-</span></span><span style=display:flex><span>├── derps/              <span style=color:#75715e># 中继服务器</span>
-</span></span><span style=display:flex><span>└── tailscale/          <span style=color:#75715e># 网关节点</span>
-</span></span><span style=display:flex><span>|—— Nginx Proxy Manager / <span style=color:#75715e># 反向代理服务 后面引用会简称npm</span></span></span></code></pre></div><script class=code-source type=application/json>"~/data/docker_data/\n├── headscale及headscale-UI/ # 服务端与配置\n├── derps/              # 中继服务器\n└── tailscale/          # 网关节点\n|—— Nginx Proxy Manager / # 反向代理服务 后面引用会简称npm"</script></div><h3 id=域名只供参考只是举例-域名可以在内网搭建好npm容器后通过npm申请证书下面有教程>域名只供参考，只是举例 ，域名可以在内网搭建好npm容器后，通过npm申请证书，下面有教程。</h3><table><thead><tr><th>Domain</th><th>Forward IP</th><th>Forward Port</th></tr></thead><tbody><tr><td><a href=https://hs.jgaga.xyz:12335>https://hs.jgaga.xyz:12335</a></td><td>10.20.20.8</td><td>8080 (Headscale 容器对外服务端口)</td></tr><tr><td><a href=https://derps.jgaga.xyz:12335>https://derps.jgaga.xyz:12335</a></td><td>10.20.20.8</td><td>8082 (DERP 容器对外服务端口)</td></tr><tr><td><a href=https://hs-ui.jgaga.xyz:12335>https://hs-ui.jgaga.xyz:12335</a></td><td>10.20.20.8</td><td>9443 (web页后台管理端口)</td></tr><tr><td>http://10.20.20.8</td><td>10.20.20.8</td><td>81 (Nginx Proxy Manage后台管理端口)</td></tr></tbody></table><h2 id=开始安装>开始安装</h2><h3 id=docker一键安装>docker一键安装</h3><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh &amp;&amp; sh docker.sh</code></pre><script class=code-source type=application/json>"curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh \u0026\u0026 sh docker.sh"</script></div><p>docker.sh
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法 | 电脑自习室</title>
+    <meta name="description" content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-05-24">2026年5月24日</time>
+        </div>
+        <h1>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</h1>
+      </header>
+          <img class="article-cover" src="/posts/linux/docker-headscale-derp-tailscale-npm-proxy/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="说明-这教程全网应该是唯一的-内网部署">说明 这教程全网应该是唯一的 内网部署。</h2>
+<h3 id="因为太实用了不管是回家还是建立私有隧道或者是添加节点等等吧都行不过也有硬性要求就是家里要使用pve或其它虚拟系统软路由是ros其它的路由系统道理也是相通的才可以部署">因为太实用了，不管是回家，还是建立私有隧道，或者是添加节点等等吧都行,不过也有硬性要求，就是家里要使用pve或其它虚拟系统，<code>软路由是ros</code>（其它的路由系统道理也是相通的）才可以部署！</h3>
+<h2 id="pve下新建一个vm虚拟机-ubuntu-2404为例">pve下新建一个vm虚拟机 ubuntu 24.04为例：</h2>
+<h3 id="目录结构需要建立4个容器">目录结构(需要建立4个容器）</h3>
+<h3 id="都装在同一台机器上内网ip例如1020208">都装在同一台机器上，内网ip例如：10.20.20.8</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>~/data/docker_data/
+</span></span><span style="display:flex;"><span>├── headscale及headscale-UI/ <span style="color:#75715e"># 服务端与配置</span>
+</span></span><span style="display:flex;"><span>├── derps/              <span style="color:#75715e"># 中继服务器</span>
+</span></span><span style="display:flex;"><span>└── tailscale/          <span style="color:#75715e"># 网关节点</span>
+</span></span><span style="display:flex;"><span>|—— Nginx Proxy Manager / <span style="color:#75715e"># 反向代理服务 后面引用会简称npm</span></span></span></code></pre></div><script class="code-source" type="application/json">"~/data/docker_data/\n├── headscale及headscale-UI/ # 服务端与配置\n├── derps/              # 中继服务器\n└── tailscale/          # 网关节点\n|—— Nginx Proxy Manager / # 反向代理服务 后面引用会简称npm"</script>
+</div>
+<h3 id="域名只供参考只是举例-域名可以在内网搭建好npm容器后通过npm申请证书下面有教程">域名只供参考，只是举例 ，域名可以在内网搭建好npm容器后，通过npm申请证书，下面有教程。</h3>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Forward IP</th>
+<th>Forward Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://hs.jgaga.xyz:12335">https://hs.jgaga.xyz:12335</a></td>
+<td>10.20.20.8</td>
+<td>8080 (Headscale 容器对外服务端口)</td>
+</tr>
+<tr>
+<td><a href="https://derps.jgaga.xyz:12335">https://derps.jgaga.xyz:12335</a></td>
+<td>10.20.20.8</td>
+<td>8082 (DERP 容器对外服务端口)</td>
+</tr>
+<tr>
+<td><a href="https://hs-ui.jgaga.xyz:12335">https://hs-ui.jgaga.xyz:12335</a></td>
+<td>10.20.20.8</td>
+<td>9443 (web页后台管理端口)</td>
+</tr>
+<tr>
+<td>http://10.20.20.8</td>
+<td>10.20.20.8</td>
+<td>81 (Nginx Proxy Manage后台管理端口)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="开始安装">开始安装</h2>
+<h3 id="docker一键安装">docker一键安装</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh &amp;&amp; sh docker.sh</code></pre><script class="code-source" type="application/json">"curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh \u0026\u0026 sh docker.sh"</script>
+</div>
+<p>docker.sh
 该脚本用于自动安装 docker 以及 docker 插件(composes、buildx 等), 同时该脚本将会自动配置 /etc/docker/daemon.json 文件, 目前针对 docker daemon 的配置逻辑如下:
 默认开启 init 支持, 防止容器产生僵尸进程
 切换 docker 存储目录为 /data/docker, 此后所有 docker 数据将会存放于此
 限制容器日志文件大小, 单个容器最多 5 个日志文件, 单个日志文件最大 10m, 防止容器 stdout 过量输出导致占满磁盘空间
 开启 live-restore 防止 docker daemon 意外重启导致容器重启
 Debian、Redhat 系列系统默认 CGroups Driver 切换为 systemd, Alpine 系统保持默认 cgroupfs v2
-该脚本安装完成后默认会 Pin 住 docker 相关软件包, 防止自动升级导致容器重启或出现不可逆故障.</p><p><strong>如果是linux下的用普通用户操作的，请记的添加到docker组：</strong></p><ul><li>一步解决</li></ul><p>把用户加入 docker 组：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>sudo usermod -aG docker $USER</code></pre><script class=code-source type=application/json>"sudo usermod -aG docker $USER"</script></div><p>然后 重新登录一次系统（很重要）。</p><p>如果是 SSH：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>exit</code></pre><script class=code-source type=application/json>"exit"</script></div><p>再重新登录。</p><p>然后再测试</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker ps</code></pre><script class=code-source type=application/json>"docker ps"</script></div><p>如果成功，会显示：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES</code></pre><script class=code-source type=application/json>"CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES"</script></div><h2 id=1-宿主机底层网络与内核准备-tun--iptables>1. 宿主机底层网络与内核准备 (TUN & iptables)</h2><p>在部署 Tailscale 容器前，必须确保宿主机内核支持虚拟网卡和底层防火墙路由。</p><p>针对 Alpine 系统（当前环境）：
-Alpine 内核精简，需手动加载模块并设置开机自启。在宿主机终端执行：</p><p>Bash</p><p>加载虚拟网卡与防火墙模块</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>modprobe tun
+该脚本安装完成后默认会 Pin 住 docker 相关软件包, 防止自动升级导致容器重启或出现不可逆故障.</p>
+<p><strong>如果是linux下的用普通用户操作的，请记的添加到docker组：</strong></p>
+<ul>
+<li>一步解决</li>
+</ul>
+<p>把用户加入 docker 组：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>sudo usermod -aG docker $USER</code></pre><script class="code-source" type="application/json">"sudo usermod -aG docker $USER"</script>
+</div>
+<p>然后 重新登录一次系统（很重要）。</p>
+<p>如果是 SSH：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>exit</code></pre><script class="code-source" type="application/json">"exit"</script>
+</div>
+<p>再重新登录。</p>
+<p>然后再测试</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker ps</code></pre><script class="code-source" type="application/json">"docker ps"</script>
+</div>
+<p>如果成功，会显示：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES</code></pre><script class="code-source" type="application/json">"CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES"</script>
+</div>
+<h2 id="1-宿主机底层网络与内核准备-tun--iptables">1. 宿主机底层网络与内核准备 (TUN &amp; iptables)</h2>
+<p>在部署 Tailscale 容器前，必须确保宿主机内核支持虚拟网卡和底层防火墙路由。</p>
+<p>针对 Alpine 系统（当前环境）：
+Alpine 内核精简，需手动加载模块并设置开机自启。在宿主机终端执行：</p>
+<p>Bash</p>
+<p>加载虚拟网卡与防火墙模块</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>modprobe tun
 modprobe ip_tables
 modprobe iptable_filter
-modprobe iptable_nat</code></pre><script class=code-source type=application/json>"modprobe tun\nmodprobe ip_tables\nmodprobe iptable_filter\nmodprobe iptable_nat"</script></div><p>写入开机自启名单</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>echo &#34;tun&#34; &gt;&gt; /etc/modules
+modprobe iptable_nat</code></pre><script class="code-source" type="application/json">"modprobe tun\nmodprobe ip_tables\nmodprobe iptable_filter\nmodprobe iptable_nat"</script>
+</div>
+<p>写入开机自启名单</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>echo &#34;tun&#34; &gt;&gt; /etc/modules
 echo &#34;ip_tables&#34; &gt;&gt; /etc/modules
 echo &#34;iptable_filter&#34; &gt;&gt; /etc/modules
-echo &#34;iptable_nat&#34; &gt;&gt; /etc/modules</code></pre><script class=code-source type=application/json>"echo \"tun\" \u003e\u003e /etc/modules\necho \"ip_tables\" \u003e\u003e /etc/modules\necho \"iptable_filter\" \u003e\u003e /etc/modules\necho \"iptable_nat\" \u003e\u003e /etc/modules"</script></div><p>开启 IPv4 转发</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>echo &#34;net.ipv4.ip_forward = 1&#34; &gt;&gt; /etc/sysctl.conf
-sysctl -p</code></pre><script class=code-source type=application/json>"echo \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p"</script></div><p>针对 Ubuntu 系统（迁移备用）：
-Ubuntu 默认已内置并加载了所需的 tun 和 iptables 模块，无需手动 modprobe。仅需开启内核 IP 转发即可：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-Bash data-lang=Bash><span style=display:flex><span><span style=color:#75715e># 开启 IPv4 转发</span>
-</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;net.ipv4.ip_forward = 1&#34;</span> | sudo tee -a /etc/sysctl.conf
-</span></span><span style=display:flex><span>sudo sysctl -p</span></span></code></pre></div><script class=code-source type=application/json>"# 开启 IPv4 转发\necho \"net.ipv4.ip_forward = 1\" | sudo tee -a /etc/sysctl.conf\nsudo sysctl -p"</script></div><h2 id=2-tailscale-docker-composeyml-双系统通用>2. Tailscale docker-compose.yml (双系统通用)</h2><p>此配置在 Alpine 和 Ubuntu 下均可完美运行。保留了 /lib/modules 映射以防部分精简版 Linux 动态调用模块失败。</p><ul><li>建立目录</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>mkdir -p ~/data/docker_data/tailscale
-cd ~/data/docker_data/tailscale</code></pre><script class=code-source type=application/json>"mkdir -p ~/data/docker_data/tailscale\ncd ~/data/docker_data/tailscale"</script></div><ul><li>建立docker-compose.yaml</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano docker-compose.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano docker-compose.yaml"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>services:
-</span></span><span style=display:flex><span>  tailscale:
-</span></span><span style=display:flex><span>    image: tailscale/tailscale:latest
-</span></span><span style=display:flex><span>    container_name: tailscale-node
-</span></span><span style=display:flex><span>    hostname: home-gateway
-</span></span><span style=display:flex><span>    restart: always
-</span></span><span style=display:flex><span>    network_mode: <span style=color:#e6db74>&#34;host&#34;</span>  <span style=color:#75715e># 必须使用 host 模式获取真实物理网卡权限</span>
-</span></span><span style=display:flex><span>    cap_add:
-</span></span><span style=display:flex><span>      - NET_ADMIN
-</span></span><span style=display:flex><span>      - NET_RAW
-</span></span><span style=display:flex><span>    devices:
-</span></span><span style=display:flex><span>      - /dev/net/tun:/dev/net/tun
-</span></span><span style=display:flex><span>    volumes:
-</span></span><span style=display:flex><span>      - ./tailscale-state:/var/lib/tailscale
-</span></span><span style=display:flex><span>      - /lib/modules:/lib/modules:ro  <span style=color:#75715e># 允许容器读取宿主机内核模块（对 Alpine 必须，对 Ubuntu 无害）</span>
-</span></span><span style=display:flex><span>    environment:
-</span></span><span style=display:flex><span>      - TS_STATE_DIR<span style=color:#f92672>=</span>/var/lib/tailscale
-</span></span><span style=display:flex><span>      - TS_USERSPACE<span style=color:#f92672>=</span>false            <span style=color:#75715e># 禁用用户态，强制使用内核驱动建立物理级路由</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 强制监听固定入站端口，为外部 P2P 打洞提供明确入口</span>
-</span></span><span style=display:flex><span>    command: tailscaled --port<span style=color:#f92672>=</span><span style=color:#ae81ff>7829</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  tailscale:\n    image: tailscale/tailscale:latest\n    container_name: tailscale-node\n    hostname: home-gateway\n    restart: always\n    network_mode: \"host\"  # 必须使用 host 模式获取真实物理网卡权限\n    cap_add:\n      - NET_ADMIN\n      - NET_RAW\n    devices:\n      - /dev/net/tun:/dev/net/tun\n    volumes:\n      - ./tailscale-state:/var/lib/tailscale\n      - /lib/modules:/lib/modules:ro  # 允许容器读取宿主机内核模块（对 Alpine 必须，对 Ubuntu 无害）\n    environment:\n      - TS_STATE_DIR=/var/lib/tailscale\n      - TS_USERSPACE=false            # 禁用用户态，强制使用内核驱动建立物理级路由\n    # 强制监听固定入站端口，为外部 P2P 打洞提供明确入口\n    command: tailscaled --port=7829"</script></div><h2 id=3-derper中继容器安装>3. derper中继容器安装</h2><ul><li>建立目录</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>mkdir ~/data/docker_data/derps
-cd ~/data/docker_data/derps</code></pre><script class=code-source type=application/json>"mkdir ~/data/docker_data/derps\ncd ~/data/docker_data/derps"</script></div><ul><li>建立docker-compose.yaml</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano docker-compose.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano docker-compose.yaml"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>derper</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>fredliang/derper</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>derper</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>always</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8082:80&#34;</span>    <span style=color:#75715e># 专门用于接收 NPM 的反代流量</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 核心修正：保持后端 HTTP 监听，坚决关闭 STUN 避免内网 IP 污染</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>/app/derper --a :80 --http-port 80 --stun=false --verify-clients=false</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DERP_ADDR=:80</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DERP_HTTP_PORT=80</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  derper:\n    image: fredliang/derper\n    container_name: derper\n    restart: always\n    ports:\n      - \"8082:80\"    # 专门用于接收 NPM 的反代流量\n    # 核心修正：保持后端 HTTP 监听，坚决关闭 STUN 避免内网 IP 污染\n    command: /app/derper --a :80 --http-port 80 --stun=false --verify-clients=false\n    environment:\n      - DERP_ADDR=:80\n      - DERP_HTTP_PORT=80"</script></div><ul><li><code>VERIFY_CLIENTS=false</code> # 暂设为 <code>false</code> 以确保连接成功（意思是不用认证了）</li></ul><h2 id=4-headscale容器安装包含headscale-ui-web管理容器>4. headscale容器安装(包含Headscale UI WEB管理容器）</h2><ul><li>建立目录</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>mkdir -p ~/data/docker_data/headscale
-cd ~/data/docker_data/headscale</code></pre><script class=code-source type=application/json>"mkdir -p ~/data/docker_data/headscale\ncd ~/data/docker_data/headscale"</script></div><ul><li>建立docker-compose.yaml</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano docker-compose.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano docker-compose.yaml"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#75715e># 服务 1：Headscale 主程序</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>headscale</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>headscale/headscale:latest</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>headscale-server</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>always</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./config:/etc/headscale</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./data:/var/lib/headscale</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8080:8080&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>serve</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>  <span style=color:#75715e># 服务 2：Headscale UI 界面 (注意：现在它和上面的 headscale 对齐了)</span>
-</span></span><span style=display:flex><span>  <span style=color:#f92672>headscale-ui</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>ghcr.io/gurucomputing/headscale-ui:latest</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>headscale-ui</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>always</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 建议映射一个端口，方便你在 NPM 还没配好时先用内网 IP 验证一下</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;9443:8080&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  # 服务 1：Headscale 主程序\n  headscale:\n    image: headscale/headscale:latest\n    container_name: headscale-server\n    restart: always\n    volumes:\n      - ./config:/etc/headscale\n      - ./data:/var/lib/headscale\n    ports:\n      - \"8080:8080\"\n    command: serve\n\n  # 服务 2：Headscale UI 界面 (注意：现在它和上面的 headscale 对齐了)\n  headscale-ui:\n    image: ghcr.io/gurucomputing/headscale-ui:latest\n    container_name: headscale-ui\n    restart: always\n    # 建议映射一个端口，方便你在 NPM 还没配好时先用内网 IP 验证一下\n    ports:\n      - \"9443:8080\""</script></div><h4 id=headscale-服务端配置-configyaml>Headscale 服务端配置 (config.yaml)</h4><p><strong>文件就位：</strong>
-将下面的 <code>config.yaml</code> 和 <code>derp.yaml</code> 放入 <code>~/data/docker_data/headscale/config/</code></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 进入目录</span>
-</span></span><span style=display:flex><span>cd ~/data/docker_data/headscale/config
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>nano config.yaml</span></span></code></pre></div><script class=code-source type=application/json>"# 进入目录\ncd ~/data/docker_data/headscale/config\n\nnano config.yaml"</script></div><ul><li>添加内容：</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Headscale 容器版完整配置 (更改你的域名）</span>
-</span></span><span style=display:flex><span>server_url: https://hs.jgaga.xyz:12335
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 容器内必须监听 0.0.0.0 才能接收来自 NPM 的转发</span>
-</span></span><span style=display:flex><span>listen_addr: 0.0.0.0:8080
-</span></span><span style=display:flex><span>metrics_listen_addr: 0.0.0.0:9090
-</span></span><span style=display:flex><span>grpc_listen_addr: 0.0.0.0:50443
-</span></span><span style=display:flex><span>grpc_allow_insecure: false
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>noise:
-</span></span><span style=display:flex><span>  <span style=color:#75715e># 路径映射到容器内的 /var/lib/headscale</span>
-</span></span><span style=display:flex><span>  private_key_path: /var/lib/headscale/noise_private.key
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>prefixes:
-</span></span><span style=display:flex><span>  v4: 100.64.0.0/10
-</span></span><span style=display:flex><span>  allocation: sequential
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>derp:
-</span></span><span style=display:flex><span>  server:
-</span></span><span style=display:flex><span>    enabled: false <span style=color:#75715e># 独立容器运行 DERP，此处关闭</span>
-</span></span><span style=display:flex><span>    automatically_add_embedded_derp_region: false
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>  urls: <span style=color:#f92672>[]</span> <span style=color:#75715e># 禁用官方节点，专注自建</span>
-</span></span><span style=display:flex><span>  paths:
-</span></span><span style=display:flex><span>    - /etc/headscale/derp.yaml <span style=color:#75715e># 映射在 config 目录下的文件</span>
-</span></span><span style=display:flex><span>  auto_update_enabled: true
-</span></span><span style=display:flex><span>  update_frequency: 1h
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>database:
-</span></span><span style=display:flex><span>  type: sqlite
-</span></span><span style=display:flex><span>  sqlite:
-</span></span><span style=display:flex><span>    path: /var/lib/headscale/db.sqlite
-</span></span><span style=display:flex><span>    write_ahead_log: true
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 日志级别设为 info，确保能看到 DERP 加载记录</span>
-</span></span><span style=display:flex><span>log:
-</span></span><span style=display:flex><span>  level: info
-</span></span><span style=display:flex><span>  format: text
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>dns:
-</span></span><span style=display:flex><span>  magic_dns: false
-</span></span><span style=display:flex><span>  base_domain: i.love.you
-</span></span><span style=display:flex><span>  override_local_dns: true
-</span></span><span style=display:flex><span><span style=color:#75715e># 下面更改为你的内网的 DNS </span>
-</span></span><span style=display:flex><span>  nameservers:
-</span></span><span style=display:flex><span>    global:
-</span></span><span style=display:flex><span>      - 10.20.20.6.           <span style=color:#75715e># 优先级最高，所有解析全部扔进隧道，交给内网 MosDNS 处理</span>
-</span></span><span style=display:flex><span>      - 1.1.1.1               <span style=color:#75715e># 救命稻草，负责在隧道断开时解析控制端域名</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>unix_socket: /var/run/headscale/headscale.sock
-</span></span><span style=display:flex><span>unix_socket_permission: <span style=color:#e6db74>&#34;0770&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>randomize_client_port: false
-</span></span><span style=display:flex><span>taildrop:
-</span></span><span style=display:flex><span>  enabled: true</span></span></code></pre></div><script class=code-source type=application/json>"# Headscale 容器版完整配置 (更改你的域名）\nserver_url: https://hs.jgaga.xyz:12335\n\n# 容器内必须监听 0.0.0.0 才能接收来自 NPM 的转发\nlisten_addr: 0.0.0.0:8080\nmetrics_listen_addr: 0.0.0.0:9090\ngrpc_listen_addr: 0.0.0.0:50443\ngrpc_allow_insecure: false\n\nnoise:\n  # 路径映射到容器内的 /var/lib/headscale\n  private_key_path: /var/lib/headscale/noise_private.key\n\nprefixes:\n  v4: 100.64.0.0/10\n  allocation: sequential\n\nderp:\n  server:\n    enabled: false # 独立容器运行 DERP，此处关闭\n    automatically_add_embedded_derp_region: false\n\n  urls: [] # 禁用官方节点，专注自建\n  paths:\n    - /etc/headscale/derp.yaml # 映射在 config 目录下的文件\n  auto_update_enabled: true\n  update_frequency: 1h\n\ndatabase:\n  type: sqlite\n  sqlite:\n    path: /var/lib/headscale/db.sqlite\n    write_ahead_log: true\n\n# 日志级别设为 info，确保能看到 DERP 加载记录\nlog:\n  level: info\n  format: text\n\ndns:\n  magic_dns: false\n  base_domain: i.love.you\n  override_local_dns: true\n# 下面更改为你的内网的 DNS \n  nameservers:\n    global:\n      - 10.20.20.6.           # 优先级最高，所有解析全部扔进隧道，交给内网 MosDNS 处理\n      - 1.1.1.1               # 救命稻草，负责在隧道断开时解析控制端域名\n\nunix_socket: /var/run/headscale/headscale.sock\nunix_socket_permission: \"0770\"\n\nrandomize_client_port: false\ntaildrop:\n  enabled: true"</script></div><p>** 上面配置需要更改两处，注释里已经注明，注意查看（域名、内网dns)</p><h4 id=headscale-服务端配置-derpyaml>Headscale 服务端配置 (derp.yaml)</h4><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 进入目录</span>
-</span></span><span style=display:flex><span>cd ~/data/docker_data/headscale/config
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>nvim derp.yaml</span></span></code></pre></div><script class=code-source type=application/json>"# 进入目录\ncd ~/data/docker_data/headscale/config\n\nnvim derp.yaml"</script></div><ul><li></li></ul><p>路径： ~/data/docker_data/headscale/config/derp.yaml</p><ul><li></li></ul><p>关键点： derpport 必须填手机从公网访问的端口（12335）。</p><ul><li></li></ul><p>Headscale derp.yaml 终态配置
-将 TCP 流量中转与 UDP 探测彻底分离，防止内网网关 IP 污染外部设备的 STUN 寻址。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>regions</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>900</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>regionid</span>: <span style=color:#ae81ff>900</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>regioncode</span>: <span style=color:#ae81ff>Gary</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>regionname</span>: <span style=color:#ae81ff>Gary Home Network</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>nodes</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>900a</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>regionid</span>: <span style=color:#ae81ff>900</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>hostname</span>: <span style=color:#ae81ff>derps.jgaga.xyz</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>derpport</span>: <span style=color:#ae81ff>12335</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>stunport</span>: -<span style=color:#ae81ff>1</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>stunonly</span>: <span style=color:#66d9ef>false</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>derponly</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>900b</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>regionid</span>: <span style=color:#ae81ff>900</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>hostname</span>: <span style=color:#ae81ff>stun.miwifi.com</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>stunport</span>: <span style=color:#ae81ff>3478</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>stunonly</span>: <span style=color:#66d9ef>true</span>
-</span></span><span style=display:flex><span>        <span style=color:#f92672>derponly</span>: <span style=color:#66d9ef>false</span></span></span></code></pre></div><script class=code-source type=application/json>"regions:\n  900:\n    regionid: 900\n    regioncode: Gary\n    regionname: Gary Home Network\n    nodes:\n      - name: 900a\n        regionid: 900\n        hostname: derps.jgaga.xyz\n        derpport: 12335\n        stunport: -1\n        stunonly: false\n        derponly: true\n      - name: 900b\n        regionid: 900\n        hostname: stun.miwifi.com\n        stunport: 3478\n        stunonly: true\n        derponly: false"</script></div><ul><li>上面的配置中derps.jgaga.xyz改为你的域名就可以了,下面的域名不要动是第三方公共的</li></ul><h4 id=headscale-服务端配置-dbsqlite建立一个数据库>Headscale 服务端配置 (db.sqlite)建立一个数据库</h4><p>新建一个：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code># 创建配置目录
+echo &#34;iptable_nat&#34; &gt;&gt; /etc/modules</code></pre><script class="code-source" type="application/json">"echo \"tun\" \u003e\u003e /etc/modules\necho \"ip_tables\" \u003e\u003e /etc/modules\necho \"iptable_filter\" \u003e\u003e /etc/modules\necho \"iptable_nat\" \u003e\u003e /etc/modules"</script>
+</div>
+<p>开启 IPv4 转发</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>echo &#34;net.ipv4.ip_forward = 1&#34; &gt;&gt; /etc/sysctl.conf
+sysctl -p</code></pre><script class="code-source" type="application/json">"echo \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p"</script>
+</div>
+<p>针对 Ubuntu 系统（迁移备用）：
+Ubuntu 默认已内置并加载了所需的 tun 和 iptables 模块，无需手动 modprobe。仅需开启内核 IP 转发即可：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Bash" data-lang="Bash"><span style="display:flex;"><span><span style="color:#75715e"># 开启 IPv4 转发</span>
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;net.ipv4.ip_forward = 1&#34;</span> | sudo tee -a /etc/sysctl.conf
+</span></span><span style="display:flex;"><span>sudo sysctl -p</span></span></code></pre></div><script class="code-source" type="application/json">"# 开启 IPv4 转发\necho \"net.ipv4.ip_forward = 1\" | sudo tee -a /etc/sysctl.conf\nsudo sysctl -p"</script>
+</div>
+<h2 id="2-tailscale-docker-composeyml-双系统通用">2. Tailscale docker-compose.yml (双系统通用)</h2>
+<p>此配置在 Alpine 和 Ubuntu 下均可完美运行。保留了 /lib/modules 映射以防部分精简版 Linux 动态调用模块失败。</p>
+<ul>
+<li>建立目录</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>mkdir -p ~/data/docker_data/tailscale
+cd ~/data/docker_data/tailscale</code></pre><script class="code-source" type="application/json">"mkdir -p ~/data/docker_data/tailscale\ncd ~/data/docker_data/tailscale"</script>
+</div>
+<ul>
+<li>建立docker-compose.yaml</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano docker-compose.yaml"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>services:
+</span></span><span style="display:flex;"><span>  tailscale:
+</span></span><span style="display:flex;"><span>    image: tailscale/tailscale:latest
+</span></span><span style="display:flex;"><span>    container_name: tailscale-node
+</span></span><span style="display:flex;"><span>    hostname: home-gateway
+</span></span><span style="display:flex;"><span>    restart: always
+</span></span><span style="display:flex;"><span>    network_mode: <span style="color:#e6db74">&#34;host&#34;</span>  <span style="color:#75715e"># 必须使用 host 模式获取真实物理网卡权限</span>
+</span></span><span style="display:flex;"><span>    cap_add:
+</span></span><span style="display:flex;"><span>      - NET_ADMIN
+</span></span><span style="display:flex;"><span>      - NET_RAW
+</span></span><span style="display:flex;"><span>    devices:
+</span></span><span style="display:flex;"><span>      - /dev/net/tun:/dev/net/tun
+</span></span><span style="display:flex;"><span>    volumes:
+</span></span><span style="display:flex;"><span>      - ./tailscale-state:/var/lib/tailscale
+</span></span><span style="display:flex;"><span>      - /lib/modules:/lib/modules:ro  <span style="color:#75715e"># 允许容器读取宿主机内核模块（对 Alpine 必须，对 Ubuntu 无害）</span>
+</span></span><span style="display:flex;"><span>    environment:
+</span></span><span style="display:flex;"><span>      - TS_STATE_DIR<span style="color:#f92672">=</span>/var/lib/tailscale
+</span></span><span style="display:flex;"><span>      - TS_USERSPACE<span style="color:#f92672">=</span>false            <span style="color:#75715e"># 禁用用户态，强制使用内核驱动建立物理级路由</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 强制监听固定入站端口，为外部 P2P 打洞提供明确入口</span>
+</span></span><span style="display:flex;"><span>    command: tailscaled --port<span style="color:#f92672">=</span><span style="color:#ae81ff">7829</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  tailscale:\n    image: tailscale/tailscale:latest\n    container_name: tailscale-node\n    hostname: home-gateway\n    restart: always\n    network_mode: \"host\"  # 必须使用 host 模式获取真实物理网卡权限\n    cap_add:\n      - NET_ADMIN\n      - NET_RAW\n    devices:\n      - /dev/net/tun:/dev/net/tun\n    volumes:\n      - ./tailscale-state:/var/lib/tailscale\n      - /lib/modules:/lib/modules:ro  # 允许容器读取宿主机内核模块（对 Alpine 必须，对 Ubuntu 无害）\n    environment:\n      - TS_STATE_DIR=/var/lib/tailscale\n      - TS_USERSPACE=false            # 禁用用户态，强制使用内核驱动建立物理级路由\n    # 强制监听固定入站端口，为外部 P2P 打洞提供明确入口\n    command: tailscaled --port=7829"</script>
+</div>
+<h2 id="3-derper中继容器安装">3. derper中继容器安装</h2>
+<ul>
+<li>建立目录</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>mkdir ~/data/docker_data/derps
+cd ~/data/docker_data/derps</code></pre><script class="code-source" type="application/json">"mkdir ~/data/docker_data/derps\ncd ~/data/docker_data/derps"</script>
+</div>
+<ul>
+<li>建立docker-compose.yaml</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano docker-compose.yaml"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">derper</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">fredliang/derper</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">derper</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;8082:80&#34;</span>    <span style="color:#75715e"># 专门用于接收 NPM 的反代流量</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 核心修正：保持后端 HTTP 监听，坚决关闭 STUN 避免内网 IP 污染</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: <span style="color:#ae81ff">/app/derper --a :80 --http-port 80 --stun=false --verify-clients=false</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">DERP_ADDR=:80</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">DERP_HTTP_PORT=80</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  derper:\n    image: fredliang/derper\n    container_name: derper\n    restart: always\n    ports:\n      - \"8082:80\"    # 专门用于接收 NPM 的反代流量\n    # 核心修正：保持后端 HTTP 监听，坚决关闭 STUN 避免内网 IP 污染\n    command: /app/derper --a :80 --http-port 80 --stun=false --verify-clients=false\n    environment:\n      - DERP_ADDR=:80\n      - DERP_HTTP_PORT=80"</script>
+</div>
+<ul>
+<li><code>VERIFY_CLIENTS=false</code> # 暂设为 <code>false</code> 以确保连接成功（意思是不用认证了）</li>
+</ul>
+<h2 id="4-headscale容器安装包含headscale-ui-web管理容器">4. headscale容器安装(包含Headscale UI WEB管理容器）</h2>
+<ul>
+<li>建立目录</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>mkdir -p ~/data/docker_data/headscale
+cd ~/data/docker_data/headscale</code></pre><script class="code-source" type="application/json">"mkdir -p ~/data/docker_data/headscale\ncd ~/data/docker_data/headscale"</script>
+</div>
+<ul>
+<li>建立docker-compose.yaml</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano docker-compose.yaml"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 服务 1：Headscale 主程序</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">headscale</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">headscale/headscale:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">headscale-server</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config:/etc/headscale</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/var/lib/headscale</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;8080:8080&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: <span style="color:#ae81ff">serve</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 服务 2：Headscale UI 界面 (注意：现在它和上面的 headscale 对齐了)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">headscale-ui</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/gurucomputing/headscale-ui:latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">headscale-ui</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 建议映射一个端口，方便你在 NPM 还没配好时先用内网 IP 验证一下</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;9443:8080&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  # 服务 1：Headscale 主程序\n  headscale:\n    image: headscale/headscale:latest\n    container_name: headscale-server\n    restart: always\n    volumes:\n      - ./config:/etc/headscale\n      - ./data:/var/lib/headscale\n    ports:\n      - \"8080:8080\"\n    command: serve\n\n  # 服务 2：Headscale UI 界面 (注意：现在它和上面的 headscale 对齐了)\n  headscale-ui:\n    image: ghcr.io/gurucomputing/headscale-ui:latest\n    container_name: headscale-ui\n    restart: always\n    # 建议映射一个端口，方便你在 NPM 还没配好时先用内网 IP 验证一下\n    ports:\n      - \"9443:8080\""</script>
+</div>
+<h4 id="headscale-服务端配置-configyaml">Headscale 服务端配置 (config.yaml)</h4>
+<p><strong>文件就位：</strong>
+将下面的 <code>config.yaml</code> 和 <code>derp.yaml</code> 放入 <code>~/data/docker_data/headscale/config/</code></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 进入目录</span>
+</span></span><span style="display:flex;"><span>cd ~/data/docker_data/headscale/config
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>nano config.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"# 进入目录\ncd ~/data/docker_data/headscale/config\n\nnano config.yaml"</script>
+</div>
+<ul>
+<li>添加内容：</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Headscale 容器版完整配置 (更改你的域名）</span>
+</span></span><span style="display:flex;"><span>server_url: https://hs.jgaga.xyz:12335
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 容器内必须监听 0.0.0.0 才能接收来自 NPM 的转发</span>
+</span></span><span style="display:flex;"><span>listen_addr: 0.0.0.0:8080
+</span></span><span style="display:flex;"><span>metrics_listen_addr: 0.0.0.0:9090
+</span></span><span style="display:flex;"><span>grpc_listen_addr: 0.0.0.0:50443
+</span></span><span style="display:flex;"><span>grpc_allow_insecure: false
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>noise:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 路径映射到容器内的 /var/lib/headscale</span>
+</span></span><span style="display:flex;"><span>  private_key_path: /var/lib/headscale/noise_private.key
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>prefixes:
+</span></span><span style="display:flex;"><span>  v4: 100.64.0.0/10
+</span></span><span style="display:flex;"><span>  allocation: sequential
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>derp:
+</span></span><span style="display:flex;"><span>  server:
+</span></span><span style="display:flex;"><span>    enabled: false <span style="color:#75715e"># 独立容器运行 DERP，此处关闭</span>
+</span></span><span style="display:flex;"><span>    automatically_add_embedded_derp_region: false
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  urls: <span style="color:#f92672">[]</span> <span style="color:#75715e"># 禁用官方节点，专注自建</span>
+</span></span><span style="display:flex;"><span>  paths:
+</span></span><span style="display:flex;"><span>    - /etc/headscale/derp.yaml <span style="color:#75715e"># 映射在 config 目录下的文件</span>
+</span></span><span style="display:flex;"><span>  auto_update_enabled: true
+</span></span><span style="display:flex;"><span>  update_frequency: 1h
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>database:
+</span></span><span style="display:flex;"><span>  type: sqlite
+</span></span><span style="display:flex;"><span>  sqlite:
+</span></span><span style="display:flex;"><span>    path: /var/lib/headscale/db.sqlite
+</span></span><span style="display:flex;"><span>    write_ahead_log: true
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 日志级别设为 info，确保能看到 DERP 加载记录</span>
+</span></span><span style="display:flex;"><span>log:
+</span></span><span style="display:flex;"><span>  level: info
+</span></span><span style="display:flex;"><span>  format: text
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>dns:
+</span></span><span style="display:flex;"><span>  magic_dns: false
+</span></span><span style="display:flex;"><span>  base_domain: i.love.you
+</span></span><span style="display:flex;"><span>  override_local_dns: true
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 下面更改为你的内网的 DNS </span>
+</span></span><span style="display:flex;"><span>  nameservers:
+</span></span><span style="display:flex;"><span>    global:
+</span></span><span style="display:flex;"><span>      - 10.20.20.6.           <span style="color:#75715e"># 优先级最高，所有解析全部扔进隧道，交给内网 MosDNS 处理</span>
+</span></span><span style="display:flex;"><span>      - 1.1.1.1               <span style="color:#75715e"># 救命稻草，负责在隧道断开时解析控制端域名</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>unix_socket: /var/run/headscale/headscale.sock
+</span></span><span style="display:flex;"><span>unix_socket_permission: <span style="color:#e6db74">&#34;0770&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>randomize_client_port: false
+</span></span><span style="display:flex;"><span>taildrop:
+</span></span><span style="display:flex;"><span>  enabled: true</span></span></code></pre></div><script class="code-source" type="application/json">"# Headscale 容器版完整配置 (更改你的域名）\nserver_url: https://hs.jgaga.xyz:12335\n\n# 容器内必须监听 0.0.0.0 才能接收来自 NPM 的转发\nlisten_addr: 0.0.0.0:8080\nmetrics_listen_addr: 0.0.0.0:9090\ngrpc_listen_addr: 0.0.0.0:50443\ngrpc_allow_insecure: false\n\nnoise:\n  # 路径映射到容器内的 /var/lib/headscale\n  private_key_path: /var/lib/headscale/noise_private.key\n\nprefixes:\n  v4: 100.64.0.0/10\n  allocation: sequential\n\nderp:\n  server:\n    enabled: false # 独立容器运行 DERP，此处关闭\n    automatically_add_embedded_derp_region: false\n\n  urls: [] # 禁用官方节点，专注自建\n  paths:\n    - /etc/headscale/derp.yaml # 映射在 config 目录下的文件\n  auto_update_enabled: true\n  update_frequency: 1h\n\ndatabase:\n  type: sqlite\n  sqlite:\n    path: /var/lib/headscale/db.sqlite\n    write_ahead_log: true\n\n# 日志级别设为 info，确保能看到 DERP 加载记录\nlog:\n  level: info\n  format: text\n\ndns:\n  magic_dns: false\n  base_domain: i.love.you\n  override_local_dns: true\n# 下面更改为你的内网的 DNS \n  nameservers:\n    global:\n      - 10.20.20.6.           # 优先级最高，所有解析全部扔进隧道，交给内网 MosDNS 处理\n      - 1.1.1.1               # 救命稻草，负责在隧道断开时解析控制端域名\n\nunix_socket: /var/run/headscale/headscale.sock\nunix_socket_permission: \"0770\"\n\nrandomize_client_port: false\ntaildrop:\n  enabled: true"</script>
+</div>
+<p>** 上面配置需要更改两处，注释里已经注明，注意查看（域名、内网dns)</p>
+<h4 id="headscale-服务端配置-derpyaml">Headscale 服务端配置 (derp.yaml)</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 进入目录</span>
+</span></span><span style="display:flex;"><span>cd ~/data/docker_data/headscale/config
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>nvim derp.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"# 进入目录\ncd ~/data/docker_data/headscale/config\n\nnvim derp.yaml"</script>
+</div>
+<ul>
+<li></li>
+</ul>
+<p>路径： ~/data/docker_data/headscale/config/derp.yaml</p>
+<ul>
+<li></li>
+</ul>
+<p>关键点： derpport 必须填手机从公网访问的端口（12335）。</p>
+<ul>
+<li></li>
+</ul>
+<p>Headscale derp.yaml 终态配置
+将 TCP 流量中转与 UDP 探测彻底分离，防止内网网关 IP 污染外部设备的 STUN 寻址。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">regions</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">900</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">regionid</span>: <span style="color:#ae81ff">900</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">regioncode</span>: <span style="color:#ae81ff">Gary</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">regionname</span>: <span style="color:#ae81ff">Gary Home Network</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">nodes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">900a</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">regionid</span>: <span style="color:#ae81ff">900</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">hostname</span>: <span style="color:#ae81ff">derps.jgaga.xyz</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">derpport</span>: <span style="color:#ae81ff">12335</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">stunport</span>: -<span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">stunonly</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">derponly</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">900b</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">regionid</span>: <span style="color:#ae81ff">900</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">hostname</span>: <span style="color:#ae81ff">stun.miwifi.com</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">stunport</span>: <span style="color:#ae81ff">3478</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">stunonly</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">derponly</span>: <span style="color:#66d9ef">false</span></span></span></code></pre></div><script class="code-source" type="application/json">"regions:\n  900:\n    regionid: 900\n    regioncode: Gary\n    regionname: Gary Home Network\n    nodes:\n      - name: 900a\n        regionid: 900\n        hostname: derps.jgaga.xyz\n        derpport: 12335\n        stunport: -1\n        stunonly: false\n        derponly: true\n      - name: 900b\n        regionid: 900\n        hostname: stun.miwifi.com\n        stunport: 3478\n        stunonly: true\n        derponly: false"</script>
+</div>
+<ul>
+<li>上面的配置中derps.jgaga.xyz改为你的域名就可以了,下面的域名不要动是第三方公共的</li>
+</ul>
+<h4 id="headscale-服务端配置-dbsqlite建立一个数据库">Headscale 服务端配置 (db.sqlite)建立一个数据库</h4>
+<p>新建一个：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code># 创建配置目录
 mkdir -p ~/data/docker_data/headscale/config
 
 # 进入目录
 cd ~/data/docker_data/headscale/config
 
 # 创建一个空白的数据库文件
-touch db.sqlite</code></pre><script class=code-source type=application/json>"# 创建配置目录\nmkdir -p ~/data/docker_data/headscale/config\n\n# 进入目录\ncd ~/data/docker_data/headscale/config\n\n# 创建一个空白的数据库文件\ntouch db.sqlite"</script></div><h3 id=4-nginx-proxy-manager容器安装>4. Nginx Proxy Manager容器安装</h3><ul><li>建立目录</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>mkdir ~/data/docker_data/npm
-cd ~/data/docker_data/npm</code></pre><script class=code-source type=application/json>"mkdir ~/data/docker_data/npm\ncd ~/data/docker_data/npm"</script></div><ul><li>建立docker-compose.yaml</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano docker-compose.yaml</span></span></code></pre></div><script class=code-source type=application/json>"nano docker-compose.yaml"</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
-</span></span><span style=display:flex><span>  <span style=color:#f92672>app</span>:
-</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#e6db74>&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;12332:80&#39;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;81:81&#39;</span>
-</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#39;12335:443&#39;</span>
-</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./data:/data</span>
-</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./letsencrypt:/etc/letsencrypt</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    restart: unless-stopped\n    ports:\n      - '12332:80'\n      - '81:81'\n      - '12335:443'\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt"</script></div><ul><li>说明：对外的https端口为12335，<code>内网管理端口为81</code> 对外80端口为12332</li><li></li><li>登录Nginx Proxy Manage管理平台：<code>http://10.20.20.8:81</code> (改你的ip)</li></ul><h4 id=配置nginx-proxy-manager>配置Nginx Proxy Manager</h4><ul><li>Nginx Proxy Manager里的域名下图这块，先自行建立好：不会可以看<a href="https://www.youtube.com/watch?v=3dK87Ov-URk">咕咕的教学视频</a></li></ul><p><img src=assets/CleanShot-2026-03-02-at-11.47.51-2x.png alt="CleanShot 2026-03-02 at 11.47.51@2x"></p><h2 id=npm上的域名反向配置可以绑定docker接口的ip或者是内网ip1020208>npm上的域名反向配置,可以绑定docker接口的ip或者是内网ip:10.20.20.8</h2><table><thead><tr><th>Domain</th><th>内网 IP</th><th>端口</th></tr></thead><tbody><tr><td>hs.jgaga.xyz</td><td>172.17.0.1</td><td>8080</td></tr><tr><td>derps.jgaga.xyz</td><td>172.17.0.1</td><td>8082</td></tr><tr><td>hs-ui.jgaga.xyz</td><td>172.17.0.1</td><td>9443</td></tr></tbody></table><h3 id=下面的配置选项都照下图开启就可以了>下面的配置选项都照下图开启就可以了</h3><p><img src=assets/CleanShot-2026-03-02-at-12.58.56-2x.png alt="CleanShot 2026-03-02 at 12.58.56@2x"></p><p><strong>Websockets Support 必须开启 长连接支持</strong></p><p><img src=assets/CleanShot-2026-03-02-at-12.50.09-2x.png alt="CleanShot 2026-03-02 at 12.50.09@2x"></p><p><strong>SSL开启，支持https</strong></p><h2 id=ros篇>Ros篇</h2><p><strong>都配置好以后，后面需要手动做好ros的端口映射、回流，（本站有这方面的教程）</strong>
-<strong>即：tailscale打洞的的端口<code>7829</code>的nat转发，及npm的对外的https端口（tcp)<code>12335</code></strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ae81ff>4</span><span style=color:#ae81ff>. RouterOS (ROS) 核心防火墙恢复指令</span>
-</span></span><span style=display:flex><span><span style=color:#ae81ff>确保外网探测包和内网回环（Hairpin NAT）均能准确到达 10.20.20.8 宿主机。在 ROS 终端直接粘贴执行：</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ae81ff>代码段</span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 放行 Tailscale 固定入站端口 (核心打洞入口) </span>
-</span></span><span style=display:flex><span><span style=color:#ae81ff>/ip firewall nat add action=dst-nat chain=dstnat comment=&#34;Tailscale_Inbound_Fixed&#34; dst-port=7829 protocol=udp dst-address-type=local to-addresses=10.20.20.8 to-ports=7829</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 放行 DERP TCP/UDP 中转端口 npm的对外的https端口</span>
-</span></span><span style=display:flex><span><span style=color:#ae81ff>/ip firewall nat add action=dst-nat chain=dstnat comment=&#34;https-tcp&#34; dst-port=12335 protocol=tcp dst-address-type=local to-addresses=10.20.20.8 to-ports=12335</span></span></span></code></pre></div><script class=code-source type=application/json>"4. RouterOS (ROS) 核心防火墙恢复指令\n确保外网探测包和内网回环（Hairpin NAT）均能准确到达 10.20.20.8 宿主机。在 ROS 终端直接粘贴执行：\n\n代码段\n# 放行 Tailscale 固定入站端口 (核心打洞入口) \n/ip firewall nat add action=dst-nat chain=dstnat comment=\"Tailscale_Inbound_Fixed\" dst-port=7829 protocol=udp dst-address-type=local to-addresses=10.20.20.8 to-ports=7829\n\n# 放行 DERP TCP/UDP 中转端口 npm的对外的https端口\n/ip firewall nat add action=dst-nat chain=dstnat comment=\"https-tcp\" dst-port=12335 protocol=tcp dst-address-type=local to-addresses=10.20.20.8 to-ports=12335"</script></div><p>(注：前提是 ROS 全局 masquerade 伪装规则已正常配置，保障内网设备回环与正常出海)</p><p><strong>导入后，如下图，关注导入规则的位置，都放最上面就行了！</strong></p><p><img src=assets/ros.png alt=ros></p><h2 id=derp域名服务及headscale域名服务的优化必须操作在npm中下面的域名的配置里添加以下><code>derp域名服务及headscale域名服务的优化</code>（必须操作）在npm中，下面的域名的配置里添加以下：</h2><p><img src=assets/CleanShot-2026-03-02-at-14.08.59-2x.png alt="CleanShot 2026-03-02 at 14.08.59@2x"></p><p><code>derps.jgaga.xyz 高级中填写：</code></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>location / <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    proxy_pass http://10.20.20.8:8082;
-</span></span><span style=display:flex><span>    proxy_http_version 1.1;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># --- 关键修正：去掉端口号，仅透传域名 ---</span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 这样可以匹配 DERP 容器内部的证书/域名校验</span>
-</span></span><span style=display:flex><span>    proxy_set_header Host $host; 
-</span></span><span style=display:flex><span>    proxy_set_header X-Real-IP $remote_addr;
-</span></span><span style=display:flex><span>    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-</span></span><span style=display:flex><span>    proxy_set_header X-Forwarded-Proto $scheme;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># --- 保持长连接稳定性 ---</span>
-</span></span><span style=display:flex><span>    proxy_buffering off;
-</span></span><span style=display:flex><span>    proxy_request_buffering off;
-</span></span><span style=display:flex><span>    proxy_socket_keepalive on;
-</span></span><span style=display:flex><span>    tcp_nodelay on;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 超时设置，防止感叹号</span>
-</span></span><span style=display:flex><span>    proxy_connect_timeout 60s;
-</span></span><span style=display:flex><span>    proxy_read_timeout 300s;
-</span></span><span style=display:flex><span>    proxy_send_timeout 300s;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># --- 必须：WebSocket 协议升级 ---</span>
-</span></span><span style=display:flex><span>    proxy_set_header Upgrade $http_upgrade;
-</span></span><span style=display:flex><span>    proxy_set_header Connection <span style=color:#e6db74>&#34;upgrade&#34;</span>;
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"location / {\n    proxy_pass http://10.20.20.8:8082;\n    proxy_http_version 1.1;\n\n    # --- 关键修正：去掉端口号，仅透传域名 ---\n    # 这样可以匹配 DERP 容器内部的证书/域名校验\n    proxy_set_header Host $host; \n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n\n    # --- 保持长连接稳定性 ---\n    proxy_buffering off;\n    proxy_request_buffering off;\n    proxy_socket_keepalive on;\n    tcp_nodelay on;\n\n    # 超时设置，防止感叹号\n    proxy_connect_timeout 60s;\n    proxy_read_timeout 300s;\n    proxy_send_timeout 300s;\n\n    # --- 必须：WebSocket 协议升级 ---\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection \"upgrade\";\n}"</script></div><p><code>hs.jgaga.xyz 高级中填写：</code></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 1. 针对 UI 的 API 请求，允许跨域</span>
-</span></span><span style=display:flex><span>location ~ ^/<span style=color:#f92672>(</span>admin|web|api<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    proxy_pass http://10.20.20.8:8080;
-</span></span><span style=display:flex><span>    proxy_http_version 1.1;
-</span></span><span style=display:flex><span>    proxy_set_header Host $http_host;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 跨域头只在这些路径生效</span>
-</span></span><span style=display:flex><span>    add_header Access-Control-Allow-Origin * always;
-</span></span><span style=display:flex><span>    add_header Access-Control-Allow-Methods <span style=color:#e6db74>&#34;GET, POST, OPTIONS, PUT, DELETE&#34;</span> always;
-</span></span><span style=display:flex><span>    add_header Access-Control-Allow-Headers * always;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>$request_method <span style=color:#f92672>=</span> OPTIONS<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> 204;
-</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 2. 针对手机客户端的 Noise 协议通讯，保持纯净（解决 Out of sync）</span>
-</span></span><span style=display:flex><span>location / <span style=color:#f92672>{</span>
-</span></span><span style=display:flex><span>    proxy_pass http://10.20.20.8:8080;
-</span></span><span style=display:flex><span>    proxy_http_version 1.1;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 核心：必须使用动态 Upgrade，不要硬编码 Connection &#34;upgrade&#34;</span>
-</span></span><span style=display:flex><span>    proxy_set_header Upgrade $http_upgrade;
-</span></span><span style=display:flex><span>    proxy_set_header Connection $http_upgrade; 
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    proxy_set_header Host $http_host;
-</span></span><span style=display:flex><span>    proxy_set_header X-Real-IP $remote_addr;
-</span></span><span style=display:flex><span>    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-</span></span><span style=display:flex><span>    proxy_set_header X-Forwarded-Proto $scheme;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 实时性优化</span>
-</span></span><span style=display:flex><span>    proxy_buffering off;
-</span></span><span style=display:flex><span>    proxy_request_buffering off;
-</span></span><span style=display:flex><span>    proxy_socket_keepalive on;
-</span></span><span style=display:flex><span>    tcp_nodelay on;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#75715e># 延长超时</span>
-</span></span><span style=display:flex><span>    proxy_connect_timeout 60s;
-</span></span><span style=display:flex><span>    proxy_read_timeout 600s;
-</span></span><span style=display:flex><span>    proxy_send_timeout 600s;
-</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"# 1. 针对 UI 的 API 请求，允许跨域\nlocation ~ ^/(admin|web|api) {\n    proxy_pass http://10.20.20.8:8080;\n    proxy_http_version 1.1;\n    proxy_set_header Host $http_host;\n\n    # 跨域头只在这些路径生效\n    add_header Access-Control-Allow-Origin * always;\n    add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\" always;\n    add_header Access-Control-Allow-Headers * always;\n\n    if ($request_method = OPTIONS) {\n        return 204;\n    }\n}\n\n# 2. 针对手机客户端的 Noise 协议通讯，保持纯净（解决 Out of sync）\nlocation / {\n    proxy_pass http://10.20.20.8:8080;\n    proxy_http_version 1.1;\n\n    # 核心：必须使用动态 Upgrade，不要硬编码 Connection \"upgrade\"\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection $http_upgrade; \n\n    proxy_set_header Host $http_host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n\n    # 实时性优化\n    proxy_buffering off;\n    proxy_request_buffering off;\n    proxy_socket_keepalive on;\n    tcp_nodelay on;\n\n    # 延长超时\n    proxy_connect_timeout 60s;\n    proxy_read_timeout 600s;\n    proxy_send_timeout 600s;\n}"</script></div><h3 id=分别启动容器>分别启动容器</h3><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker-compose up -d</code></pre><script class=code-source type=application/json>"docker-compose up -d"</script></div><ul><li>注意：为了确保 derper 能够正确验证客户端，<code>derper</code> 应该在 <code>tailscaled</code> 启动之后再运行</li></ul><h3 id=登录服务端管理平台httpshs-uijgagatk12335>登录服务端管理平台：https://hs-ui.jgaga.tk:12335</h3><p>终端下生成 99 年 API Key (UI 用)：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec headscale-server headscale apikeys create --expiration 99y</code></pre><script class=code-source type=application/json>"docker exec headscale-server headscale apikeys create --expiration 99y"</script></div><p>得到密钥后，先在平台上注册个通用帐号（也就是新用户）。</p><p><img src=assets/CleanShot-2026-03-02-at-13.53.10-2x.png alt="CleanShot 2026-03-02 at 13.53.10@2x"></p><p><strong>上图绿色的地点一下，填写一个用户名，即后面注册的节点都在这个用户下。</strong></p><p><img src=assets/CleanShot-2026-03-02-at-13.53.30-2x.png alt="CleanShot 2026-03-02 at 13.53.30@2x"></p><h3 id=注册本地客户端linux下1020208本地tailscale节点-这是纯路由的方式-不指定出口网关只适合回家走家里的网络推荐这种手机省电>注册本地客户端linux下（10.20.20.8）本地tailscale节点 这是纯路由的方式 ，<code>不指定出口网关</code>，只适合回家，走家里的网络（推荐这种）手机省电。</h3><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale-node tailscale up --login-server https://hs.jgaga.xyz:12335 --advertise-routes=fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48  --accept-dns=false -reset</code></pre><script class=code-source type=application/json>"docker exec tailscale-node tailscale up --login-server https://hs.jgaga.xyz:12335 --advertise-routes=fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48  --accept-dns=false -reset"</script></div><p><strong>上面的ip段中，你需要修改4个ip段，即你的内网ipv4,ipv6的段，还有fakeip的v4和v6的ip段,如上面我的四个段为：</strong>
-<code>fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,</code></p><p><strong>运行完上面的命令，会得到一个链接，后面就是密钥，得到密钥后再登录管理平台：</strong>
+touch db.sqlite</code></pre><script class="code-source" type="application/json">"# 创建配置目录\nmkdir -p ~/data/docker_data/headscale/config\n\n# 进入目录\ncd ~/data/docker_data/headscale/config\n\n# 创建一个空白的数据库文件\ntouch db.sqlite"</script>
+</div>
+<h3 id="4-nginx-proxy-manager容器安装">4. Nginx Proxy Manager容器安装</h3>
+<ul>
+<li>建立目录</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>mkdir ~/data/docker_data/npm
+cd ~/data/docker_data/npm</code></pre><script class="code-source" type="application/json">"mkdir ~/data/docker_data/npm\ncd ~/data/docker_data/npm"</script>
+</div>
+<ul>
+<li>建立docker-compose.yaml</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano docker-compose.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"nano docker-compose.yaml"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">app</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#e6db74">&#39;docker.io/jc21/nginx-proxy-manager:latest&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12332:80&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;81:81&#39;</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#39;12335:443&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./letsencrypt:/etc/letsencrypt</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  app:\n    image: 'docker.io/jc21/nginx-proxy-manager:latest'\n    restart: unless-stopped\n    ports:\n      - '12332:80'\n      - '81:81'\n      - '12335:443'\n    volumes:\n      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt"</script>
+</div>
+<ul>
+<li>说明：对外的https端口为12335，<code>内网管理端口为81</code> 对外80端口为12332</li>
+<li></li>
+<li>登录Nginx Proxy Manage管理平台：<code>http://10.20.20.8:81</code> (改你的ip)</li>
+</ul>
+<h4 id="配置nginx-proxy-manager">配置Nginx Proxy Manager</h4>
+<ul>
+<li>Nginx Proxy Manager里的域名下图这块，先自行建立好：不会可以看<a href="https://www.youtube.com/watch?v=3dK87Ov-URk">咕咕的教学视频</a></li>
+</ul>
+<p><img src="assets/CleanShot-2026-03-02-at-11.47.51-2x.png" alt="CleanShot 2026-03-02 at 11.47.51@2x"></p>
+<h2 id="npm上的域名反向配置可以绑定docker接口的ip或者是内网ip1020208">npm上的域名反向配置,可以绑定docker接口的ip或者是内网ip:10.20.20.8</h2>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>内网 IP</th>
+<th>端口</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hs.jgaga.xyz</td>
+<td>172.17.0.1</td>
+<td>8080</td>
+</tr>
+<tr>
+<td>derps.jgaga.xyz</td>
+<td>172.17.0.1</td>
+<td>8082</td>
+</tr>
+<tr>
+<td>hs-ui.jgaga.xyz</td>
+<td>172.17.0.1</td>
+<td>9443</td>
+</tr>
+</tbody>
+</table>
+<h3 id="下面的配置选项都照下图开启就可以了">下面的配置选项都照下图开启就可以了</h3>
+<p><img src="assets/CleanShot-2026-03-02-at-12.58.56-2x.png" alt="CleanShot 2026-03-02 at 12.58.56@2x"></p>
+<p><strong>Websockets Support 必须开启 长连接支持</strong></p>
+<p><img src="assets/CleanShot-2026-03-02-at-12.50.09-2x.png" alt="CleanShot 2026-03-02 at 12.50.09@2x"></p>
+<p><strong>SSL开启，支持https</strong></p>
+<h2 id="ros篇">Ros篇</h2>
+<p><strong>都配置好以后，后面需要手动做好ros的端口映射、回流，（本站有这方面的教程）</strong>
+<strong>即：tailscale打洞的的端口<code>7829</code>的nat转发，及npm的对外的https端口（tcp)<code>12335</code></strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ae81ff">4</span><span style="color:#ae81ff">. RouterOS (ROS) 核心防火墙恢复指令</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">确保外网探测包和内网回环（Hairpin NAT）均能准确到达 10.20.20.8 宿主机。在 ROS 终端直接粘贴执行：</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">代码段</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 放行 Tailscale 固定入站端口 (核心打洞入口) </span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">/ip firewall nat add action=dst-nat chain=dstnat comment=&#34;Tailscale_Inbound_Fixed&#34; dst-port=7829 protocol=udp dst-address-type=local to-addresses=10.20.20.8 to-ports=7829</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 放行 DERP TCP/UDP 中转端口 npm的对外的https端口</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">/ip firewall nat add action=dst-nat chain=dstnat comment=&#34;https-tcp&#34; dst-port=12335 protocol=tcp dst-address-type=local to-addresses=10.20.20.8 to-ports=12335</span></span></span></code></pre></div><script class="code-source" type="application/json">"4. RouterOS (ROS) 核心防火墙恢复指令\n确保外网探测包和内网回环（Hairpin NAT）均能准确到达 10.20.20.8 宿主机。在 ROS 终端直接粘贴执行：\n\n代码段\n# 放行 Tailscale 固定入站端口 (核心打洞入口) \n/ip firewall nat add action=dst-nat chain=dstnat comment=\"Tailscale_Inbound_Fixed\" dst-port=7829 protocol=udp dst-address-type=local to-addresses=10.20.20.8 to-ports=7829\n\n# 放行 DERP TCP/UDP 中转端口 npm的对外的https端口\n/ip firewall nat add action=dst-nat chain=dstnat comment=\"https-tcp\" dst-port=12335 protocol=tcp dst-address-type=local to-addresses=10.20.20.8 to-ports=12335"</script>
+</div>
+<p>(注：前提是 ROS 全局 masquerade 伪装规则已正常配置，保障内网设备回环与正常出海)</p>
+<p><strong>导入后，如下图，关注导入规则的位置，都放最上面就行了！</strong></p>
+<p><img src="assets/ros.png" alt="ros"></p>
+<h2 id="derp域名服务及headscale域名服务的优化必须操作在npm中下面的域名的配置里添加以下"><code>derp域名服务及headscale域名服务的优化</code>（必须操作）在npm中，下面的域名的配置里添加以下：</h2>
+<p><img src="assets/CleanShot-2026-03-02-at-14.08.59-2x.png" alt="CleanShot 2026-03-02 at 14.08.59@2x"></p>
+<p><code>derps.jgaga.xyz 高级中填写：</code></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>location / <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    proxy_pass http://10.20.20.8:8082;
+</span></span><span style="display:flex;"><span>    proxy_http_version 1.1;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># --- 关键修正：去掉端口号，仅透传域名 ---</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 这样可以匹配 DERP 容器内部的证书/域名校验</span>
+</span></span><span style="display:flex;"><span>    proxy_set_header Host $host; 
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Real-IP $remote_addr;
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Forwarded-Proto $scheme;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># --- 保持长连接稳定性 ---</span>
+</span></span><span style="display:flex;"><span>    proxy_buffering off;
+</span></span><span style="display:flex;"><span>    proxy_request_buffering off;
+</span></span><span style="display:flex;"><span>    proxy_socket_keepalive on;
+</span></span><span style="display:flex;"><span>    tcp_nodelay on;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 超时设置，防止感叹号</span>
+</span></span><span style="display:flex;"><span>    proxy_connect_timeout 60s;
+</span></span><span style="display:flex;"><span>    proxy_read_timeout 300s;
+</span></span><span style="display:flex;"><span>    proxy_send_timeout 300s;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># --- 必须：WebSocket 协议升级 ---</span>
+</span></span><span style="display:flex;"><span>    proxy_set_header Upgrade $http_upgrade;
+</span></span><span style="display:flex;"><span>    proxy_set_header Connection <span style="color:#e6db74">&#34;upgrade&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"location / {\n    proxy_pass http://10.20.20.8:8082;\n    proxy_http_version 1.1;\n\n    # --- 关键修正：去掉端口号，仅透传域名 ---\n    # 这样可以匹配 DERP 容器内部的证书/域名校验\n    proxy_set_header Host $host; \n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n\n    # --- 保持长连接稳定性 ---\n    proxy_buffering off;\n    proxy_request_buffering off;\n    proxy_socket_keepalive on;\n    tcp_nodelay on;\n\n    # 超时设置，防止感叹号\n    proxy_connect_timeout 60s;\n    proxy_read_timeout 300s;\n    proxy_send_timeout 300s;\n\n    # --- 必须：WebSocket 协议升级 ---\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection \"upgrade\";\n}"</script>
+</div>
+<p><code>hs.jgaga.xyz 高级中填写：</code></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. 针对 UI 的 API 请求，允许跨域</span>
+</span></span><span style="display:flex;"><span>location ~ ^/<span style="color:#f92672">(</span>admin|web|api<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    proxy_pass http://10.20.20.8:8080;
+</span></span><span style="display:flex;"><span>    proxy_http_version 1.1;
+</span></span><span style="display:flex;"><span>    proxy_set_header Host $http_host;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 跨域头只在这些路径生效</span>
+</span></span><span style="display:flex;"><span>    add_header Access-Control-Allow-Origin * always;
+</span></span><span style="display:flex;"><span>    add_header Access-Control-Allow-Methods <span style="color:#e6db74">&#34;GET, POST, OPTIONS, PUT, DELETE&#34;</span> always;
+</span></span><span style="display:flex;"><span>    add_header Access-Control-Allow-Headers * always;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#f92672">(</span>$request_method <span style="color:#f92672">=</span> OPTIONS<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> 204;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. 针对手机客户端的 Noise 协议通讯，保持纯净（解决 Out of sync）</span>
+</span></span><span style="display:flex;"><span>location / <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    proxy_pass http://10.20.20.8:8080;
+</span></span><span style="display:flex;"><span>    proxy_http_version 1.1;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 核心：必须使用动态 Upgrade，不要硬编码 Connection &#34;upgrade&#34;</span>
+</span></span><span style="display:flex;"><span>    proxy_set_header Upgrade $http_upgrade;
+</span></span><span style="display:flex;"><span>    proxy_set_header Connection $http_upgrade; 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    proxy_set_header Host $http_host;
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Real-IP $remote_addr;
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+</span></span><span style="display:flex;"><span>    proxy_set_header X-Forwarded-Proto $scheme;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 实时性优化</span>
+</span></span><span style="display:flex;"><span>    proxy_buffering off;
+</span></span><span style="display:flex;"><span>    proxy_request_buffering off;
+</span></span><span style="display:flex;"><span>    proxy_socket_keepalive on;
+</span></span><span style="display:flex;"><span>    tcp_nodelay on;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 延长超时</span>
+</span></span><span style="display:flex;"><span>    proxy_connect_timeout 60s;
+</span></span><span style="display:flex;"><span>    proxy_read_timeout 600s;
+</span></span><span style="display:flex;"><span>    proxy_send_timeout 600s;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 1. 针对 UI 的 API 请求，允许跨域\nlocation ~ ^/(admin|web|api) {\n    proxy_pass http://10.20.20.8:8080;\n    proxy_http_version 1.1;\n    proxy_set_header Host $http_host;\n\n    # 跨域头只在这些路径生效\n    add_header Access-Control-Allow-Origin * always;\n    add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\" always;\n    add_header Access-Control-Allow-Headers * always;\n\n    if ($request_method = OPTIONS) {\n        return 204;\n    }\n}\n\n# 2. 针对手机客户端的 Noise 协议通讯，保持纯净（解决 Out of sync）\nlocation / {\n    proxy_pass http://10.20.20.8:8080;\n    proxy_http_version 1.1;\n\n    # 核心：必须使用动态 Upgrade，不要硬编码 Connection \"upgrade\"\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection $http_upgrade; \n\n    proxy_set_header Host $http_host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n\n    # 实时性优化\n    proxy_buffering off;\n    proxy_request_buffering off;\n    proxy_socket_keepalive on;\n    tcp_nodelay on;\n\n    # 延长超时\n    proxy_connect_timeout 60s;\n    proxy_read_timeout 600s;\n    proxy_send_timeout 600s;\n}"</script>
+</div>
+<h3 id="分别启动容器">分别启动容器</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker-compose up -d</code></pre><script class="code-source" type="application/json">"docker-compose up -d"</script>
+</div>
+<ul>
+<li>注意：为了确保 derper 能够正确验证客户端，<code>derper</code> 应该在 <code>tailscaled</code> 启动之后再运行</li>
+</ul>
+<h3 id="登录服务端管理平台httpshs-uijgagatk12335">登录服务端管理平台：https://hs-ui.jgaga.tk:12335</h3>
+<p>终端下生成 99 年 API Key (UI 用)：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec headscale-server headscale apikeys create --expiration 99y</code></pre><script class="code-source" type="application/json">"docker exec headscale-server headscale apikeys create --expiration 99y"</script>
+</div>
+<p>得到密钥后，先在平台上注册个通用帐号（也就是新用户）。</p>
+<p><img src="assets/CleanShot-2026-03-02-at-13.53.10-2x.png" alt="CleanShot 2026-03-02 at 13.53.10@2x"></p>
+<p><strong>上图绿色的地点一下，填写一个用户名，即后面注册的节点都在这个用户下。</strong></p>
+<p><img src="assets/CleanShot-2026-03-02-at-13.53.30-2x.png" alt="CleanShot 2026-03-02 at 13.53.30@2x"></p>
+<h3 id="注册本地客户端linux下1020208本地tailscale节点-这是纯路由的方式-不指定出口网关只适合回家走家里的网络推荐这种手机省电">注册本地客户端linux下（10.20.20.8）本地tailscale节点 这是纯路由的方式 ，<code>不指定出口网关</code>，只适合回家，走家里的网络（推荐这种）手机省电。</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale-node tailscale up --login-server https://hs.jgaga.xyz:12335 --advertise-routes=fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48  --accept-dns=false -reset</code></pre><script class="code-source" type="application/json">"docker exec tailscale-node tailscale up --login-server https://hs.jgaga.xyz:12335 --advertise-routes=fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48  --accept-dns=false -reset"</script>
+</div>
+<p><strong>上面的ip段中，你需要修改4个ip段，即你的内网ipv4,ipv6的段，还有fakeip的v4和v6的ip段,如上面我的四个段为：</strong>
+<code>fd88::/64,10.20.20.0/24,f2b0::/18,28.0.0.0/8,</code></p>
+<p><strong>运行完上面的命令，会得到一个链接，后面就是密钥，得到密钥后再登录管理平台：</strong>
 <code>https://hs-ui.jgaga.xyz:12335</code>
-<strong>添加客户端，完成注册～</strong></p><p><img src=assets/CleanShot-2026-03-02-at-13.54.04-2x.png alt="CleanShot 2026-03-02 at 13.54.04@2x"></p><p><strong>下图是添加客户端，会提示输入密钥：</strong></p><p><img src=assets/CleanShot-2026-03-02-at-13.57.24-2x.png alt="CleanShot 2026-03-02 at 13.57.24@2x"></p><h3 id=服务端安装配置完了>服务端安装配置完了～</h3><p>客户端不管是linux下，还是手机端,还是windows端，向注册流程都是一样的，找到客户端的注册入口，输入服务端的网址如：https://hs.jgaga.tk:12335/通用帐号</p><h3 id=手机客户端手可下载tailcals客户端软件>手机客户端手可下载tailcals客户端软件。</h3><p>添加新设备：手机端选 Log in to another server -> 填入你的域名及刚才在服务平台注册的通用帐号，确认后会出现密钥。
+<strong>添加客户端，完成注册～</strong></p>
+<p><img src="assets/CleanShot-2026-03-02-at-13.54.04-2x.png" alt="CleanShot 2026-03-02 at 13.54.04@2x"></p>
+<p><strong>下图是添加客户端，会提示输入密钥：</strong></p>
+<p><img src="assets/CleanShot-2026-03-02-at-13.57.24-2x.png" alt="CleanShot 2026-03-02 at 13.57.24@2x"></p>
+<h3 id="服务端安装配置完了">服务端安装配置完了～</h3>
+<p>客户端不管是linux下，还是手机端,还是windows端，向注册流程都是一样的，找到客户端的注册入口，输入服务端的网址如：https://hs.jgaga.tk:12335/通用帐号</p>
+<h3 id="手机客户端手可下载tailcals客户端软件">手机客户端手可下载tailcals客户端软件。</h3>
+<p>添加新设备：手机端选 Log in to another server -&gt; 填入你的域名及刚才在服务平台注册的通用帐号，确认后会出现密钥。
 注册节点，手机端获取密钥后，在服务端添加密钥，完成手机端在服务端的注册
-现在手机打开客户端，直接即可路由走隧道了～</p><h2 id=其它说明>其它说明：</h2><ul><li>查看客户端节点命令</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale status</code></pre><script class=code-source type=application/json>"docker exec tailscale status"</script></div><ul><li>查看当前使用 / 可用的 DERP</li></ul><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale-node tailscale netcheck</code></pre><script class=code-source type=application/json>"docker exec tailscale-node tailscale netcheck"</script></div><h3 id=上面完成了就可以正常使用了下面的只是做为一些知识扩展>上面完成了，就可以正常使用了，下面的只是做为一些知识扩展</h3><h3 id=下面是linux下的tailscale客户端做出口网关的命令组合>下面是linux下的tailscale客户端做出口网关的命令组合：</h3><p>linux客户端注册服务端开启各种功能，各命令参数配合使用会有不同的功能。</p><h4 id=例如>例如：</h4><p>如果你确实想重新触发登录流程：
-如果你想彻底退出当前账号并重新获取登录链接，可以执行命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker exec tailscale-node tailscale up <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --login-server https://hs.jgaga.xyz:12335 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --advertise-routes<span style=color:#f92672>=</span>10.20.20.0/24 <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --advertise-exit-node <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --accept-routes <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --accept-dns<span style=color:#f92672>=</span>false <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --force-reauth <span style=color:#ae81ff>\
-</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  --reset</span></span></code></pre></div><script class=code-source type=application/json>"docker exec tailscale-node tailscale up \\\n  --login-server https://hs.jgaga.xyz:12335 \\\n  --advertise-routes=10.20.20.0/24 \\\n  --advertise-exit-node \\\n  --accept-routes \\\n  --accept-dns=false \\\n  --force-reauth \\\n  --reset"</script></div><p>–accept-dns=true \ #接受服务端指定的dns</p><p>–advertise-exit-node \ # 指定为出口网关</p><p>–advertise-routes=10.20.20.0/24 \ #允许其它节点访问内网段</p><p>去掉–accept-routes \ #这是让这台设备不让其它设备看到自己的内网–
-advertise-routes=10.20.20.0/24 \</p><h3 id=如果是第三方出口网关linux节点>如果是第三方出口网关linux节点：</h3><p>第三方节点设备可以用tailscale官方的一键安装命令即可：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre><script class=code-source type=application/json>"curl -fsSL https://tailscale.com/install.sh | sh"</script></div><p>既然你只想让它做出口网关（Exit Node）和子网路由器（Subnet Router），
-请使用以下去掉了 –accept-routes 的命令：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale-node tailscale up \
+现在手机打开客户端，直接即可路由走隧道了～</p>
+<h2 id="其它说明">其它说明：</h2>
+<ul>
+<li>查看客户端节点命令</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale status</code></pre><script class="code-source" type="application/json">"docker exec tailscale status"</script>
+</div>
+<ul>
+<li>查看当前使用 / 可用的 DERP</li>
+</ul>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale-node tailscale netcheck</code></pre><script class="code-source" type="application/json">"docker exec tailscale-node tailscale netcheck"</script>
+</div>
+<h3 id="上面完成了就可以正常使用了下面的只是做为一些知识扩展">上面完成了，就可以正常使用了，下面的只是做为一些知识扩展</h3>
+<h3 id="下面是linux下的tailscale客户端做出口网关的命令组合">下面是linux下的tailscale客户端做出口网关的命令组合：</h3>
+<p>linux客户端注册服务端开启各种功能，各命令参数配合使用会有不同的功能。</p>
+<h4 id="例如">例如：</h4>
+<p>如果你确实想重新触发登录流程：
+如果你想彻底退出当前账号并重新获取登录链接，可以执行命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec tailscale-node tailscale up <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --login-server https://hs.jgaga.xyz:12335 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --advertise-routes<span style="color:#f92672">=</span>10.20.20.0/24 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --advertise-exit-node <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --accept-routes <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --accept-dns<span style="color:#f92672">=</span>false <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --force-reauth <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --reset</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec tailscale-node tailscale up \\\n  --login-server https://hs.jgaga.xyz:12335 \\\n  --advertise-routes=10.20.20.0/24 \\\n  --advertise-exit-node \\\n  --accept-routes \\\n  --accept-dns=false \\\n  --force-reauth \\\n  --reset"</script>
+</div>
+<p>–accept-dns=true \ #接受服务端指定的dns</p>
+<p>–advertise-exit-node \ # 指定为出口网关</p>
+<p>–advertise-routes=10.20.20.0/24 \ #允许其它节点访问内网段</p>
+<p>去掉–accept-routes \ #这是让这台设备不让其它设备看到自己的内网–
+advertise-routes=10.20.20.0/24 \</p>
+<h3 id="如果是第三方出口网关linux节点">如果是第三方出口网关linux节点：</h3>
+<p>第三方节点设备可以用tailscale官方的一键安装命令即可：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre><script class="code-source" type="application/json">"curl -fsSL https://tailscale.com/install.sh | sh"</script>
+</div>
+<p>既然你只想让它做出口网关（Exit Node）和子网路由器（Subnet Router），
+请使用以下去掉了 –accept-routes 的命令：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale-node tailscale up \
   --login-server=https://hs.jgaga.xyz:12335 \
   --accept-dns=false \
   --advertise-exit-node \
-  --reset</code></pre><script class=code-source type=application/json>"docker exec tailscale-node tailscale up \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --accept-dns=false \\\n  --advertise-exit-node \\\n  --reset"</script></div><h3 id=两个更干净的推荐模板>两个更“干净”的推荐模板</h3><p>🔹 纯出口节点</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale-node tailscale up \
+  --reset</code></pre><script class="code-source" type="application/json">"docker exec tailscale-node tailscale up \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --accept-dns=false \\\n  --advertise-exit-node \\\n  --reset"</script>
+</div>
+<h3 id="两个更干净的推荐模板">两个更“干净”的推荐模板</h3>
+<p>🔹 纯出口节点</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale-node tailscale up \
   --reset \
   --login-server=https://hs.jgaga.xyz:12335 \
   --advertise-exit-node \
-  --accept-dns=true</code></pre><script class=code-source type=application/json>"docker exec tailscale-node tailscale up \\\n  --reset \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --advertise-exit-node \\\n  --accept-dns=true"</script></div><p>🔹 纯子网路由器（不出网）</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>docker exec tailscale-node tailscale up \
+  --accept-dns=true</code></pre><script class="code-source" type="application/json">"docker exec tailscale-node tailscale up \\\n  --reset \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --advertise-exit-node \\\n  --accept-dns=true"</script>
+</div>
+<p>🔹 纯子网路由器（不出网）</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>docker exec tailscale-node tailscale up \
   --reset \
   --login-server=https://hs.jgaga.xyz:12335 \
   --advertise-routes=10.20.20.0/24 \
-  --accept-dns=true</code></pre><script class=code-source type=application/json>"docker exec tailscale-node tailscale up \\\n  --reset \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --advertise-routes=10.20.20.0/24 \\\n  --accept-dns=true"</script></div><p>🔹 命令不同，千变万化</p><h2 id=完了没啥了不懂的就再问ai吧>完了，没啥了，不懂的就再问ai吧～</h2></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+  --accept-dns=true</code></pre><script class="code-source" type="application/json">"docker exec tailscale-node tailscale up \\\n  --reset \\\n  --login-server=https://hs.jgaga.xyz:12335 \\\n  --advertise-routes=10.20.20.0/24 \\\n  --accept-dns=true"</script>
+</div>
+<p>🔹 命令不同，千变万化</p>
+<h2 id="完了没啥了不懂的就再问ai吧">完了，没啥了，不懂的就再问ai吧～</h2>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

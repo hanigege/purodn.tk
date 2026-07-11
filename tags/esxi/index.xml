@@ -1,8 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>ESXi on 电脑自习室</title><link>https://purodn.tk/tags/esxi/</link><description>Recent content in ESXi on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/esxi/index.xml" rel="self" type="application/rss+xml"/><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。
-后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。
-准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：
-https://cloud-images.ubuntu.com/
-在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。
-创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：
-复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：
-复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>ESXi on 电脑自习室</title>
+    <link>https://purodn.tk/tags/esxi/</link>
+    <description>Recent content in ESXi on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 29 May 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/esxi/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title>
+      <link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link>
+      <pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid>
+      <description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。&#xA;后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。&#xA;准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：&#xA;https://cloud-images.ubuntu.com/&#xA;在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。&#xA;创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：&#xA;复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：&#xA;复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description>
+    </item>
+  </channel>
+</rss>

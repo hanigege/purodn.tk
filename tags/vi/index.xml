@@ -1,12 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Vi on 电脑自习室</title><link>https://purodn.tk/tags/vi/</link><description>Recent content in Vi on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 12 May 2025 12:52:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/vi/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 更改默认编辑器 vi</title><link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link><pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid><description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。
-前提是你想使用的新编辑器已经安装。
-临时更改 临时更改只对当前命令有效，适合偶尔使用一次。
-复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：
-复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。
-永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。
-sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：
-复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。
-如果写入的是 ~/.profile：
-复制. ~/.profile 如果写入的是 ~/.bashrc：
-复制. ~/.bashrc 如果写入的是 ~/.bash_profile：
-复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Vi on 电脑自习室</title>
+    <link>https://purodn.tk/tags/vi/</link>
+    <description>Recent content in Vi on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 12 May 2025 12:52:04 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/vi/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>FreeBSD 更改默认编辑器 vi</title>
+      <link>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</link>
+      <pubDate>Mon, 12 May 2025 12:52:04 +0800</pubDate>
+      <guid>https://purodn.tk/posts/freebsd/freebsd-change-default-editor-vi/</guid>
+      <description>FreeBSD 默认环境里，很多命令会调用 vi 作为编辑器，例如 crontab -e。如果更习惯 nano、micro、ee 或 vim，可以通过设置 EDITOR 环境变量来更改默认编辑器。&#xA;前提是你想使用的新编辑器已经安装。&#xA;临时更改 临时更改只对当前命令有效，适合偶尔使用一次。&#xA;复制EDITOR=nano crontab -e 也可以换成其他喜欢的编辑器：&#xA;复制EDITOR=micro crontab -e EDITOR=ee crontab -e EDITOR=vim crontab -e 这种写法不会修改系统配置，关闭当前终端后也不会保留。&#xA;永久更改 如果希望以后执行 crontab -e 时都使用指定编辑器，可以把 EDITOR 写入当前用户的 shell 启动文件。&#xA;sh 或 bash 如果使用的是 sh 或 bash，可以把下面这行加入 ~/.profile、~/.bashrc 或 ~/.bash_profile：&#xA;复制export EDITOR=nano 修改完成后，可以重新登录终端，也可以手动加载配置文件。&#xA;如果写入的是 ~/.profile：&#xA;复制. ~/.profile 如果写入的是 ~/.bashrc：&#xA;复制. ~/.bashrc 如果写入的是 ~/.bash_profile：&#xA;复制. ~/.bash_profile tcsh 或 csh 如果使用的是 tcsh 或 csh，可以把下面这行加入 ~/.cshrc：</description>
+    </item>
+  </channel>
+</rss>

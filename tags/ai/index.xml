@@ -1,22 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>AI on 电脑自习室</title><link>https://purodn.tk/tags/ai/</link><description>Recent content in AI on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 10 Jul 2026 20:49:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/ai/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent 多 Profile 实战指南</title><link>https://purodn.tk/posts/ai/hermes-agent-profile-guide/</link><pubDate>Fri, 10 Jul 2026 20:49:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-profile-guide/</guid><description>你有没有遇到过这种情况：想让一个 Hermes 实例做日常聊天、另一个专心写代码、再开一个跑业务 Bot——但它们的配置、模型甚至 Telegram Bot Token 都混在一起？
-Profile（配置文件） 就是 Hermes 解决这个问题的方案。每个 Profile 就像独立的&amp;quot;分身&amp;quot;，有自己的一套配置、技能、记忆、Gateway 甚至模型。
-什么是 Profile Profile 是 Hermes Agent 的多实例隔离方案。每个 Profile 有独立的：
-config.yaml — 模型、终端后端、工具集等配置 .env — API Key 等密钥 skills/ — 技能库 memory/ — 持久化记忆 sessions/ — 会话记录 Gateway 实例 — 独立的 Telegram/Discord Bot 它们在文件系统上按 Profile 名隔离存放：
-复制~/.hermes/ ├── config.yaml ← default profile（蜜）的配置 ├── .env ← default profile 的密钥 ├── skills/ ├── state.db │ └── profiles/ ├── code/ │ ├── config.</description></item><item><title>Hermes Agent 全自动模式：YOLO 与命令审批详解</title><link>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</link><pubDate>Fri, 10 Jul 2026 20:40:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</guid><description>Hermes Agent 默认情况下，执行危险命令（如 rm -rf、git reset --hard 等）前会弹出二次确认提示，要求用户手动批准。这在日常使用中是安全的设计，但如果你在自动化场景、沙盒环境或需要长时间自主运行的任务中，这个确认提示会打断工作流。
-YOLO 模式（全自动模式） 就是用来解决这个问题的——它跳过所有危险命令的人工审批，让 Agent 完全自主决策并执行。
-审批模式概述 Hermes 的命令审批有三种模式，覆盖从安全优先到高效优先的完整谱系：
-模式 值 行为 手动审批 manual 所有危险命令都弹出提示，等待用户确认（默认） 智能审批 smart 辅助 LLM 自动判断：低风险命令直接放行，高风险才提示 全自动 off 跳过所有审批，Agent 自主执行一切命令（YOLO） 启用 YOLO 模式的三种方式 1. 临时启动：--yolo 标志 单次会话生效，不修改配置文件。适合临时需要全自动的场景：
-复制hermes chat --yolo 也有环境变量方式：
-复制export HERMES_YOLO_MODE=1 hermes chat 启动后终端顶部会显示 YOLO 状态提示，提醒你当前处于免确认模式。
-2. 会话中动态切换：/yolo 命令 如果已经进入交互会话，不需要退出，直接输入斜杠命令即可实时切换：
-复制/yolo 这是一个开关命令：输入一次开启 YOLO，再输入一次关闭，恢复默认审批模式。
-注意：/config 斜杠命令只用于查看当前配置，不支持通过它修改配置项。修改配置请用下面的方式。
-3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description></item><item><title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</title><link>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</link><pubDate>Fri, 10 Jul 2026 20:04:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</guid><description>如果你在使用 Hermes Agent 开发项目，可能会对这几个文件感到困惑：SOUL.md、.hermes.md、AGENTS.md——它们分别干什么？该放哪里？能不能混用？
-本文将一次性理清它们的定位、用法和最佳实践。
-一、三份文件的核心定位 Hermes Agent 设计了三种不同粒度的上下文文件，各有用途，不建议混用。
-文件 用途 推荐位置 SOUL.md Agent 的人格、行为风格、长期身份 ~/.hermes/SOUL.md（全局） .hermes.md / HERMES.md 项目最高优先级规则 项目根目录 AGENTS.md 项目开发规范、架构说明、编码规则 项目目录，可递归 SOUL.md —— 全局人格文件 SOUL.md 定义的是 你希望 AI 助理如何与你沟通和工作 的全局偏好，而不是某个项目的技术规则。
-适合放的内容：
-你的工作习惯（如&amp;quot;使用简洁的中文回复&amp;quot;） 回复风格偏好（如&amp;quot;直接给命令，不要解释&amp;quot;） 代码偏好（如&amp;quot;优先用 TypeScript&amp;quot;） 跨项目的通用原则 ⚠️ 不要把项目规则写入 SOUL.md。SOUL 是人格，不是项目配置。混入项目规则后，切换项目时会让 agent 行为混乱。
-.hermes.md —— 项目宪法 .hermes.md 是项目的最高优先级规则文件，放在项目根目录。它类似一份&amp;quot;AI 项目宪法&amp;quot;，定义不可违反的事项。
-适合放的内容：
-项目总体目标和范围 不可违反的安全规则 必须遵守的架构决策 技术栈约束 复制# Matrix Manager 项目规则 这是一个 Matrix 运维管理平台。 目标： - 保持代码简洁 - 优先使用 TypeScript - 所有 API 必须有类型定义 - 修改数据库结构必须同步 migration 禁止： - 不允许直接修改生产配置 - 不允许删除测试 Hermes 会在加载项目上下文时优先加载 .</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>AI on 电脑自习室</title>
+    <link>https://purodn.tk/tags/ai/</link>
+    <description>Recent content in AI on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 10 Jul 2026 20:49:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/ai/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes Agent 多 Profile 实战指南</title>
+      <link>https://purodn.tk/posts/ai/hermes-agent-profile-guide/</link>
+      <pubDate>Fri, 10 Jul 2026 20:49:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/ai/hermes-agent-profile-guide/</guid>
+      <description>你有没有遇到过这种情况：想让一个 Hermes 实例做日常聊天、另一个专心写代码、再开一个跑业务 Bot——但它们的配置、模型甚至 Telegram Bot Token 都混在一起？&#xA;Profile（配置文件） 就是 Hermes 解决这个问题的方案。每个 Profile 就像独立的&amp;quot;分身&amp;quot;，有自己的一套配置、技能、记忆、Gateway 甚至模型。&#xA;什么是 Profile Profile 是 Hermes Agent 的多实例隔离方案。每个 Profile 有独立的：&#xA;config.yaml — 模型、终端后端、工具集等配置 .env — API Key 等密钥 skills/ — 技能库 memory/ — 持久化记忆 sessions/ — 会话记录 Gateway 实例 — 独立的 Telegram/Discord Bot 它们在文件系统上按 Profile 名隔离存放：&#xA;复制~/.hermes/ ├── config.yaml ← default profile（蜜）的配置 ├── .env ← default profile 的密钥 ├── skills/ ├── state.db │ └── profiles/ ├── code/ │ ├── config.</description>
+    </item>
+    <item>
+      <title>Hermes Agent 全自动模式：YOLO 与命令审批详解</title>
+      <link>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</link>
+      <pubDate>Fri, 10 Jul 2026 20:40:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</guid>
+      <description>Hermes Agent 默认情况下，执行危险命令（如 rm -rf、git reset --hard 等）前会弹出二次确认提示，要求用户手动批准。这在日常使用中是安全的设计，但如果你在自动化场景、沙盒环境或需要长时间自主运行的任务中，这个确认提示会打断工作流。&#xA;YOLO 模式（全自动模式） 就是用来解决这个问题的——它跳过所有危险命令的人工审批，让 Agent 完全自主决策并执行。&#xA;审批模式概述 Hermes 的命令审批有三种模式，覆盖从安全优先到高效优先的完整谱系：&#xA;模式 值 行为 手动审批 manual 所有危险命令都弹出提示，等待用户确认（默认） 智能审批 smart 辅助 LLM 自动判断：低风险命令直接放行，高风险才提示 全自动 off 跳过所有审批，Agent 自主执行一切命令（YOLO） 启用 YOLO 模式的三种方式 1. 临时启动：--yolo 标志 单次会话生效，不修改配置文件。适合临时需要全自动的场景：&#xA;复制hermes chat --yolo 也有环境变量方式：&#xA;复制export HERMES_YOLO_MODE=1 hermes chat 启动后终端顶部会显示 YOLO 状态提示，提醒你当前处于免确认模式。&#xA;2. 会话中动态切换：/yolo 命令 如果已经进入交互会话，不需要退出，直接输入斜杠命令即可实时切换：&#xA;复制/yolo 这是一个开关命令：输入一次开启 YOLO，再输入一次关闭，恢复默认审批模式。&#xA;注意：/config 斜杠命令只用于查看当前配置，不支持通过它修改配置项。修改配置请用下面的方式。&#xA;3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description>
+    </item>
+    <item>
+      <title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</title>
+      <link>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</link>
+      <pubDate>Fri, 10 Jul 2026 20:04:03 +0800</pubDate>
+      <guid>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</guid>
+      <description>如果你在使用 Hermes Agent 开发项目，可能会对这几个文件感到困惑：SOUL.md、.hermes.md、AGENTS.md——它们分别干什么？该放哪里？能不能混用？&#xA;本文将一次性理清它们的定位、用法和最佳实践。&#xA;一、三份文件的核心定位 Hermes Agent 设计了三种不同粒度的上下文文件，各有用途，不建议混用。&#xA;文件 用途 推荐位置 SOUL.md Agent 的人格、行为风格、长期身份 ~/.hermes/SOUL.md（全局） .hermes.md / HERMES.md 项目最高优先级规则 项目根目录 AGENTS.md 项目开发规范、架构说明、编码规则 项目目录，可递归 SOUL.md —— 全局人格文件 SOUL.md 定义的是 你希望 AI 助理如何与你沟通和工作 的全局偏好，而不是某个项目的技术规则。&#xA;适合放的内容：&#xA;你的工作习惯（如&amp;quot;使用简洁的中文回复&amp;quot;） 回复风格偏好（如&amp;quot;直接给命令，不要解释&amp;quot;） 代码偏好（如&amp;quot;优先用 TypeScript&amp;quot;） 跨项目的通用原则 ⚠️ 不要把项目规则写入 SOUL.md。SOUL 是人格，不是项目配置。混入项目规则后，切换项目时会让 agent 行为混乱。&#xA;.hermes.md —— 项目宪法 .hermes.md 是项目的最高优先级规则文件，放在项目根目录。它类似一份&amp;quot;AI 项目宪法&amp;quot;，定义不可违反的事项。&#xA;适合放的内容：&#xA;项目总体目标和范围 不可违反的安全规则 必须遵守的架构决策 技术栈约束 复制# Matrix Manager 项目规则 这是一个 Matrix 运维管理平台。 目标： - 保持代码简洁 - 优先使用 TypeScript - 所有 API 必须有类型定义 - 修改数据库结构必须同步 migration 禁止： - 不允许直接修改生产配置 - 不允许删除测试 Hermes 会在加载项目上下文时优先加载 .</description>
+    </item>
+  </channel>
+</rss>

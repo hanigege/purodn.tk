@@ -1,7 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>故障排查 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/</link><description>Recent content in 故障排查 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 18:02:36 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</title><link>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</link><pubDate>Tue, 02 Jun 2026 18:02:36 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</guid><description>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 --replace 互相顶掉。
-如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 --profile default。
-适用场景 这篇适合下面这种情况：
-项目 示例 系统用户 hermesuser Hermes 根目录 /home/hermesuser/.hermes 默认 profile /home/hermesuser/.hermes 具名 profile /home/hermesuser/.hermes/profiles/code default 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway.service code 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway-code.service 目标是两个服务都常驻运行：
-复制hermes-gateway.service hermes-gateway-code.service 并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。
-故障现象 查看 systemd user service：
-复制sudo -u hermesuser env \ XDG_RUNTIME_DIR=/run/user/1001 \ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \ systemctl --user list-units &amp;#39;*hermes-gateway*&amp;#39; --all --no-pager 可能会看到类似结果：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>故障排查 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/</link>
+    <description>Recent content in 故障排查 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 02 Jun 2026 18:02:36 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hermes 双 Profile 网关互相打架排障：systemd、active_profile 与 --replace</title>
+      <link>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</link>
+      <pubDate>Tue, 02 Jun 2026 18:02:36 +0800</pubDate>
+      <guid>https://purodn.tk/posts/ai/hermes-systemd-profile-gateway-conflict/</guid>
+      <description>这篇记录一个很隐蔽的 Hermes 多 profile 网关坑：明明配置了两个机器人网关，一个 default，一个 code，但它们不能稳定同时运行。现象看起来像“网关没启动起来”，实际是两个 systemd user service 都跑到了同一个 profile，然后通过 --replace 互相顶掉。&#xA;如果你是第一次遇到，最容易误判成 Telegram 网络问题、systemd 重启策略问题，或者 Hermes 自己崩了。真正的根因更小：default 网关服务没有显式写 --profile default。&#xA;适用场景 这篇适合下面这种情况：&#xA;项目 示例 系统用户 hermesuser Hermes 根目录 /home/hermesuser/.hermes 默认 profile /home/hermesuser/.hermes 具名 profile /home/hermesuser/.hermes/profiles/code default 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway.service code 网关服务 /home/hermesuser/.config/systemd/user/hermes-gateway-code.service 目标是两个服务都常驻运行：&#xA;复制hermes-gateway.service hermes-gateway-code.service 并且两个服务分别绑定自己的 profile，而不是都跑到同一个 profile。&#xA;故障现象 查看 systemd user service：&#xA;复制sudo -u hermesuser env \ XDG_RUNTIME_DIR=/run/user/1001 \ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus \ systemctl --user list-units &amp;#39;*hermes-gateway*&amp;#39; --all --no-pager 可能会看到类似结果：</description>
+    </item>
+  </channel>
+</rss>

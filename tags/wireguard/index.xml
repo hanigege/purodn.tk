@@ -1,6 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Wireguard on 电脑自习室</title><link>https://purodn.tk/tags/wireguard/</link><description>Recent content in Wireguard on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 01 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/wireguard/index.xml" rel="self" type="application/rss+xml"/><item><title>07.RouterOS 配置 WireGuard</title><link>https://purodn.tk/posts/routeros/routeros-07-wireguard/</link><pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-07-wireguard/</guid><description>本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网 1. 客户端接入家庭局域网 添加wireguard。名字（Name）及监听端口（Listen Port）可自定义 为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例 添加客户端（peer）配置 双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置 客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可 如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段 复制10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48 2. 两个 ROS 之间通过 WireGuard 异地组网 以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例 ROS1号 ROS2号
-LAN IP 10.0.0.1/24 192.168.31.1/24
-wireguard IP 10.20.30.1/24 10.20.40.1/24
-DDNS域名 无 ros2.66666.xyz
-wireguard监听端口 13231 13231
-前提：ros1号已按第一种方法配置好wireguard 为ros2号添加wireguard，操作与ros1号一致，Name及Listen Port随意，以13231为例 为ros2号的wireguard配置ip。网段不可与ros2号现有局域网网段相同，也与ros1使用的wireguard网段不同，例如ros1的wireguard ip为10.20.30.1/24，ros2的wireguard ip为10.20.40.1/24 在ros1中添加ros2号的peer。案例以ros2号有公网IP为例，在Endpoint、EndpointPort中填入DDNS域名及端口 如果ros1号和ros2号均有公网IP，则Endpoint、EndpointPort都填入对方的DDNS域名及端口 同理，在ros2号中添加ros1号的peer。ros1号无公网IP，则Endpoint、EndpointPort留空 在ros1号中通过ping ros2号的wireguard ip检测wireguard隧道是否联通 在ros1号和ros2号中分别添加route，将对方的局域网端通过wireguard联通。图示为ros2号添加route 参照上一步，在ros1号中ping ros2号的LAN IP （192.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Wireguard on 电脑自习室</title>
+    <link>https://purodn.tk/tags/wireguard/</link>
+    <description>Recent content in Wireguard on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 01 Sep 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/wireguard/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>07.RouterOS 配置 WireGuard</title>
+      <link>https://purodn.tk/posts/routeros/routeros-07-wireguard/</link>
+      <pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/routeros/routeros-07-wireguard/</guid>
+      <description>本文介绍如何在RouterOS中配置wireguard，包括两个ROS之间通过wireguard异地组网 1. 客户端接入家庭局域网 添加wireguard。名字（Name）及监听端口（Listen Port）可自定义 为wireguard接口配置ip。网段不可与现有局域网网段相同。以 10.20.30.1/24 为例 添加客户端（peer）配置 双击建好的peer1，拉到最下面，使用客户端（如ios的wireguard）扫描二维码导入配置 客户端点击 编辑，对端填入”ddns域名+wireguard监听的端口（即第一步创建时的Listen Port）”。如果想要手机所有流量均通过wireguard回家，则”路由的IP地址（段）”使用默认值”0.0.0.0/0, ::/0”，点击”存储“，开启wireguard即可 如果使用fakeip方案，可以选择仅出国及访问局域网流量通过wireguard到达家里的ros再出去。前提客户端的DNS使用mosdns，将”路由的IP地址（段）”改为wireguard的IP段，fakeip段、家里局域网段(v4+v6)、TG的IP段 复制10.20.30.0/24, 28.0.0.0/8, f2b0::/18, 10.0.0.0/24, dc00::/64, 91.108.56.0/22, 91.108.4.0/22, 91.108.8.0/22, 91.108.16.0/22, 91.108.12.0/22, 149.154.160.0/20, 91.105.192.0/23, 91.108.20.0/22, 185.76.151.0/24, 2001:67c:4e8::/48, 2001:b28:f23f::/48, 2a0a:f280::/32, 2001:b28:f23c::/48, 2001:b28:f23d::/48 2. 两个 ROS 之间通过 WireGuard 异地组网 以ros1号无公网IP，ros2号有公网IP且已做好域名ddns为例 ROS1号 ROS2号&#xA;LAN IP 10.0.0.1/24 192.168.31.1/24&#xA;wireguard IP 10.20.30.1/24 10.20.40.1/24&#xA;DDNS域名 无 ros2.66666.xyz&#xA;wireguard监听端口 13231 13231&#xA;前提：ros1号已按第一种方法配置好wireguard 为ros2号添加wireguard，操作与ros1号一致，Name及Listen Port随意，以13231为例 为ros2号的wireguard配置ip。网段不可与ros2号现有局域网网段相同，也与ros1使用的wireguard网段不同，例如ros1的wireguard ip为10.20.30.1/24，ros2的wireguard ip为10.20.40.1/24 在ros1中添加ros2号的peer。案例以ros2号有公网IP为例，在Endpoint、EndpointPort中填入DDNS域名及端口 如果ros1号和ros2号均有公网IP，则Endpoint、EndpointPort都填入对方的DDNS域名及端口 同理，在ros2号中添加ros1号的peer。ros1号无公网IP，则Endpoint、EndpointPort留空 在ros1号中通过ping ros2号的wireguard ip检测wireguard隧道是否联通 在ros1号和ros2号中分别添加route，将对方的局域网端通过wireguard联通。图示为ros2号添加route 参照上一步，在ros1号中ping ros2号的LAN IP （192.</description>
+    </item>
+  </channel>
+</rss>

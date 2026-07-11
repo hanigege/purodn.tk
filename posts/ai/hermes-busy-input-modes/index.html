@@ -1,46 +1,384 @@
-<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Hermes Agent Busy Input Modes 完全指南 | 电脑自习室</title>
-<meta name=description content="一篇讲清 Queue / Steer / Interrupt 三种模式的区别、适用场景和配置方法，覆盖 CLI 终端与 Telegram 网关"><link rel=stylesheet href=/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH+iWg="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
-<a href=/categories/ai/>AI</a>
-<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
-<a href=/categories/linux/>Linux</a>
-<a href=/categories/freebsd/>FreeBSD</a>
-<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>AI</span>
-<time datetime=2026-07-04>2026年7月4日</time></div><h1>Hermes Agent Busy Input Modes 完全指南</h1><p>一篇讲清 Queue / Steer / Interrupt 三种模式的区别、适用场景和配置方法，覆盖 CLI 终端与 Telegram 网关</p></header><img class=article-cover src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt><div class=article-content><h2 id=前言>前言</h2><p>用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。</p><p>这正是 <strong>Busy Input Modes</strong> 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。</p><hr><h2 id=问题背景>问题背景</h2><p>Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定<strong>如何处理这条消息</strong>——是排队等做完、插入到当前步骤之间、还是直接打断？</p><p>这个决策由两个配置共同控制：</p><table><thead><tr><th>配置</th><th>作用范围</th><th>可选值</th></tr></thead><tbody><tr><td><code>display.busy_input_mode</code></td><td>CLI 终端 + 网关全局</td><td><code>queue</code> / <code>steer</code> / <code>interrupt</code></td></tr><tr><td><code>display.busy_text_mode</code></td><td>仅网关（Telegram 等）文字消息</td><td><code>queue</code> / <code>interrupt</code></td></tr></tbody></table><p>默认值：CLI 终端为 <code>interrupt</code>，消息网关为 <code>queue</code>。</p><hr><h2 id=三种模式详解>三种模式详解</h2><h3 id=-queue--排队模式>📥 Queue — 排队模式</h3><p><strong>效果：</strong> 你在代理忙碌时发送的消息会排队，等到当前整轮任务完成后再处理。</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息</code></pre><script class=code-source type=application/json>"你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息"</script></div><p><strong>特点：</strong></p><ul><li>最安全，不会干扰正在执行的操作</li><li>延迟最高——可能等几分钟</li><li>消息不会丢失，依次处理</li></ul><p><strong>适用场景：</strong></p><ul><li>代理在执行批量任务，你不需要中途介入</li><li>你只想提交一个后续请求，不着急</li><li>代理正在驱动多个子任务（delegate_task），打断可能导致子任务被取消</li></ul><p><strong>配置方式：</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># config.yaml</span>
-</span></span><span style=display:flex><span>[<span style=color:#ae81ff>display]</span>
-</span></span><span style=display:flex><span>  <span style=color:#ae81ff>busy_input_mode = &#34;queue&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"# config.yaml\n[display]\n  busy_input_mode = \"queue\""</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># CLI 终端</span>
-</span></span><span style=display:flex><span>/busy queue</span></span></code></pre></div><script class=code-source type=application/json>"# CLI 终端\n/busy queue"</script></div><hr><h3 id=-steer--引导模式>🎯 Steer — 引导模式</h3><p><strong>效果：</strong> 你的消息会在当前工具调用完成后立即插入处理，处理完毕后<strong>继续当前任务</strong>，不会中断整个工作流。</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>你发消息 → 当前 Step 完成 → [插入处理你的输入] → 继续后续任务</code></pre><script class=code-source type=application/json>"你发消息 → 当前 Step 完成 → [插入处理你的输入] → 继续后续任务"</script></div><p><strong>特点：</strong></p><ul><li>响应快——当前 step 跑完就见你的消息</li><li>不打断整体流程——处理完你的输入后继续干活</li><li>CLI 和网关（Telegram 等）都支持</li><li>适用于"纠正方向"的场景：你发现代理走偏了，发一句话纠正，它调整后继续执行</li></ul><p><strong>适用场景：</strong></p><ul><li>你观察到代理方向不对，想及时纠正</li><li>你想在代理执行过程中补充信息</li><li>需要"边做边指导"的协作模式</li></ul><p><strong>配置方式：</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># config.yaml</span>
-</span></span><span style=display:flex><span>[<span style=color:#ae81ff>display]</span>
-</span></span><span style=display:flex><span>  <span style=color:#ae81ff>busy_input_mode = &#34;steer&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"# config.yaml\n[display]\n  busy_input_mode = \"steer\""</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># CLI 终端</span>
-</span></span><span style=display:flex><span>/busy steer</span></span></code></pre></div><script class=code-source type=application/json>"# CLI 终端\n/busy steer"</script></div><p><strong>也可以临时使用 <code>/steer</code> 命令</strong>（无需改变全局模式）：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>/steer 等等，这个方案不对，换一个方式</code></pre><script class=code-source type=application/json>"/steer 等等，这个方案不对，换一个方式"</script></div><hr><h3 id=-interrupt--打断模式>⚡ Interrupt — 打断模式</h3><p><strong>效果：</strong> 你的消息会打断当前任务，代理优先响应你的输入，当前轮任务可能提前结束。</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>你发消息 → 当前 Step 完成 → [打断] → 优先处理你 → 开始新轮次</code></pre><script class=code-source type=application/json>"你发消息 → 当前 Step 完成 → [打断] → 优先处理你 → 开始新轮次"</script></div><p><strong>特点：</strong></p><ul><li>响应最快</li><li>当前任务可能不完整——后续步骤被取消</li><li>CLI 终端默认模式</li><li>有子任务（delegate_task）时自动降级为 queue，避免子任务被意外取消</li></ul><p><strong>适用场景：</strong></p><ul><li>需要紧急停止当前操作</li><li>发现严重错误需要立即修正</li><li>临时改变需求，需要代理从头开始</li></ul><p><strong>配置方式：</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># config.yaml</span>
-</span></span><span style=display:flex><span>[<span style=color:#ae81ff>display]</span>
-</span></span><span style=display:flex><span>  <span style=color:#ae81ff>busy_input_mode = &#34;interrupt&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"# config.yaml\n[display]\n  busy_input_mode = \"interrupt\""</script></div><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># CLI 终端</span>
-</span></span><span style=display:flex><span>/busy interrupt</span></span></code></pre></div><script class=code-source type=application/json>"# CLI 终端\n/busy interrupt"</script></div><hr><h2 id=网关补充配置busy_text_mode>网关补充配置：busy_text_mode</h2><p>对于消息平台网关（Telegram、Discord 等），还有一个额外的精细控制——<code>display.busy_text_mode</code>。</p><table><thead><tr><th><code>busy_input_mode</code></th><th><code>busy_text_mode</code></th><th>文字消息行为</th></tr></thead><tbody><tr><td><code>interrupt</code>（默认）</td><td><code>queue</code>（默认）</td><td>文字消息依然排队</td></tr><tr><td><code>interrupt</code></td><td><code>interrupt</code></td><td>文字消息也打断</td></tr><tr><td><code>steer</code></td><td>任意值</td><td>无视 busy_text_mode，走 steer 逻辑</td></tr></tbody></table><p><strong>为什么要有两个配置？</strong> 因为网关需要区分不同类型的输入。<code>busy_input_mode</code> 控制全局行为，<code>busy_text_mode</code> 专门针对文字消息做微调——这样即使在 <code>interrupt</code> 模式下，常规文字消息也可以选择继续排队，而不至于过于敏感。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 设成 interrupt，让文字消息也能打断</span>
-</span></span><span style=display:flex><span>hermes config set display.busy_text_mode interrupt
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 重启网关生效</span>
-</span></span><span style=display:flex><span>systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class=code-source type=application/json>"# 设成 interrupt，让文字消息也能打断\nhermes config set display.busy_text_mode interrupt\n\n# 重启网关生效\nsystemctl --user restart hermes-gateway.service"</script></div><p>也可以在环境变量中覆盖：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>export HERMES_GATEWAY_BUSY_TEXT_MODE<span style=color:#f92672>=</span>interrupt
-</span></span><span style=display:flex><span>export HERMES_GATEWAY_BUSY_INPUT_MODE<span style=color:#f92672>=</span>steer</span></span></code></pre></div><script class=code-source type=application/json>"export HERMES_GATEWAY_BUSY_TEXT_MODE=interrupt\nexport HERMES_GATEWAY_BUSY_INPUT_MODE=steer"</script></div><hr><h2 id=对比总结>对比总结</h2><table><thead><tr><th>维度</th><th>Queue</th><th>Steer</th><th>Interrupt</th></tr></thead><tbody><tr><td>响应速度</td><td>慢（整轮后）</td><td>中（step 后）</td><td>快（step 后）</td></tr><tr><td>任务完整性</td><td>✅ 完整执行</td><td>✅ 继续执行</td><td>⚠️ 可能中断</td></tr><tr><td>子任务保护</td><td>✅ 安全</td><td>✅ 安全</td><td>⚠️ 自动降级</td></tr><tr><td>CLI 终端</td><td>✅ 支持</td><td>✅ 支持</td><td>✅ 默认</td></tr><tr><td>Telegram 网关</td><td>✅ 默认</td><td>✅ 支持</td><td>✅ 需配置</td></tr><tr><td>最佳用途</td><td>无需干预</td><td><strong>日常推荐</strong> 🇨🇳</td><td>紧急打断</td></tr></tbody></table><blockquote><p><strong>新手推荐使用 Steer 模式。</strong> 它平衡了响应速度和工作连续性——你随时可以纠正方向，代理也不会丢掉正在做的事。</p></blockquote><hr><h2 id=如何查看当前模式>如何查看当前模式</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># CLI 终端中</span>
-</span></span><span style=display:flex><span>/busy status
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 或在终端中查看</span>
-</span></span><span style=display:flex><span>grep busy_input_mode ~/.hermes/config.yaml
-</span></span><span style=display:flex><span>grep busy_text_mode ~/.hermes/config.yaml
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 当前有效状态（CLI）</span>
-</span></span><span style=display:flex><span><span style=color:#75715e># 会显示类似：Busy input mode: steer</span></span></span></code></pre></div><script class=code-source type=application/json>"# CLI 终端中\n/busy status\n\n# 或在终端中查看\ngrep busy_input_mode ~/.hermes/config.yaml\ngrep busy_text_mode ~/.hermes/config.yaml\n\n# 当前有效状态（CLI）\n# 会显示类似：Busy input mode: steer"</script></div><hr><h2 id=代码实现参考>代码实现参考</h2><p>如果你想了解底层实现，关键源码位置如下：</p><ul><li><strong>CLI 模式定义：</strong> <code>cli.py</code> 第 2955-2964 行</li><li><strong>Gateway 模式加载：</strong> <code>gateway/run.py</code> 第 2994-3015 行（<code>_load_busy_input_mode</code> / <code>_load_busy_text_mode</code>）</li><li><strong>Gateway 运行时调度：</strong> <code>gateway/run.py</code> 第 3200-3240 行</li><li><strong>Slash 命令注册：</strong> <code>hermes_cli/commands.py</code>（<code>/busy</code> CLI-only, <code>/steer</code> 两端可用）</li></ul><p>核心逻辑只有几十行，感兴趣的读者可以直接阅读源码。</p><hr><h2 id=写在最后>写在最后</h2><p>Busy Input Modes 是 Hermes Agent 提供的一个非常实用的特性，它让你从被动等待变为主动引导。选对模式，能大幅提升人机协作效率。</p><p>如果你还在犹豫选哪个：<strong>先试 Steer。</strong> 它既不会错过你的消息，也不会打断正在进行的工作，是最中庸也最实用的选择。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
-<span class=latest-rank>1</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
-<span class=latest-rank>2</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
-<span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
-<span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
-<span class=latest-rank>5</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
-<span class=latest-rank>6</span>
-<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li><li><a href=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/><img src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt>
-<span class=latest-rank>7</span>
-<span class=latest-title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
-专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes Agent Busy Input Modes 完全指南 | 电脑自习室</title>
+    <meta name="description" content="一篇讲清 Queue / Steer / Interrupt 三种模式的区别、适用场景和配置方法，覆盖 CLI 终端与 Telegram 网关">
+      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-07-04">2026年7月4日</time>
+        </div>
+        <h1>Hermes Agent Busy Input Modes 完全指南</h1>
+          <p>一篇讲清 Queue / Steer / Interrupt 三种模式的区别、适用场景和配置方法，覆盖 CLI 终端与 Telegram 网关</p>
+      </header>
+          <img class="article-cover" src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <h2 id="前言">前言</h2>
+<p>用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。</p>
+<p>这正是 <strong>Busy Input Modes</strong> 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。</p>
+<hr>
+<h2 id="问题背景">问题背景</h2>
+<p>Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定<strong>如何处理这条消息</strong>——是排队等做完、插入到当前步骤之间、还是直接打断？</p>
+<p>这个决策由两个配置共同控制：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>作用范围</th>
+<th>可选值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>display.busy_input_mode</code></td>
+<td>CLI 终端 + 网关全局</td>
+<td><code>queue</code> / <code>steer</code> / <code>interrupt</code></td>
+</tr>
+<tr>
+<td><code>display.busy_text_mode</code></td>
+<td>仅网关（Telegram 等）文字消息</td>
+<td><code>queue</code> / <code>interrupt</code></td>
+</tr>
+</tbody>
+</table>
+<p>默认值：CLI 终端为 <code>interrupt</code>，消息网关为 <code>queue</code>。</p>
+<hr>
+<h2 id="三种模式详解">三种模式详解</h2>
+<h3 id="-queue--排队模式">📥 Queue — 排队模式</h3>
+<p><strong>效果：</strong> 你在代理忙碌时发送的消息会排队，等到当前整轮任务完成后再处理。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息</code></pre><script class="code-source" type="application/json">"你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息"</script>
+</div>
+<p><strong>特点：</strong></p>
+<ul>
+<li>最安全，不会干扰正在执行的操作</li>
+<li>延迟最高——可能等几分钟</li>
+<li>消息不会丢失，依次处理</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>代理在执行批量任务，你不需要中途介入</li>
+<li>你只想提交一个后续请求，不着急</li>
+<li>代理正在驱动多个子任务（delegate_task），打断可能导致子任务被取消</li>
+</ul>
+<p><strong>配置方式：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># config.yaml</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#ae81ff">display]</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">busy_input_mode = &#34;queue&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# config.yaml\n[display]\n  busy_input_mode = \"queue\""</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># CLI 终端</span>
+</span></span><span style="display:flex;"><span>/busy queue</span></span></code></pre></div><script class="code-source" type="application/json">"# CLI 终端\n/busy queue"</script>
+</div>
+<hr>
+<h3 id="-steer--引导模式">🎯 Steer — 引导模式</h3>
+<p><strong>效果：</strong> 你的消息会在当前工具调用完成后立即插入处理，处理完毕后<strong>继续当前任务</strong>，不会中断整个工作流。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>你发消息 → 当前 Step 完成 → [插入处理你的输入] → 继续后续任务</code></pre><script class="code-source" type="application/json">"你发消息 → 当前 Step 完成 → [插入处理你的输入] → 继续后续任务"</script>
+</div>
+<p><strong>特点：</strong></p>
+<ul>
+<li>响应快——当前 step 跑完就见你的消息</li>
+<li>不打断整体流程——处理完你的输入后继续干活</li>
+<li>CLI 和网关（Telegram 等）都支持</li>
+<li>适用于&quot;纠正方向&quot;的场景：你发现代理走偏了，发一句话纠正，它调整后继续执行</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>你观察到代理方向不对，想及时纠正</li>
+<li>你想在代理执行过程中补充信息</li>
+<li>需要&quot;边做边指导&quot;的协作模式</li>
+</ul>
+<p><strong>配置方式：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># config.yaml</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#ae81ff">display]</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">busy_input_mode = &#34;steer&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# config.yaml\n[display]\n  busy_input_mode = \"steer\""</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># CLI 终端</span>
+</span></span><span style="display:flex;"><span>/busy steer</span></span></code></pre></div><script class="code-source" type="application/json">"# CLI 终端\n/busy steer"</script>
+</div>
+<p><strong>也可以临时使用 <code>/steer</code> 命令</strong>（无需改变全局模式）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>/steer 等等，这个方案不对，换一个方式</code></pre><script class="code-source" type="application/json">"/steer 等等，这个方案不对，换一个方式"</script>
+</div>
+<hr>
+<h3 id="-interrupt--打断模式">⚡ Interrupt — 打断模式</h3>
+<p><strong>效果：</strong> 你的消息会打断当前任务，代理优先响应你的输入，当前轮任务可能提前结束。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>你发消息 → 当前 Step 完成 → [打断] → 优先处理你 → 开始新轮次</code></pre><script class="code-source" type="application/json">"你发消息 → 当前 Step 完成 → [打断] → 优先处理你 → 开始新轮次"</script>
+</div>
+<p><strong>特点：</strong></p>
+<ul>
+<li>响应最快</li>
+<li>当前任务可能不完整——后续步骤被取消</li>
+<li>CLI 终端默认模式</li>
+<li>有子任务（delegate_task）时自动降级为 queue，避免子任务被意外取消</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>需要紧急停止当前操作</li>
+<li>发现严重错误需要立即修正</li>
+<li>临时改变需求，需要代理从头开始</li>
+</ul>
+<p><strong>配置方式：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># config.yaml</span>
+</span></span><span style="display:flex;"><span>[<span style="color:#ae81ff">display]</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">busy_input_mode = &#34;interrupt&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# config.yaml\n[display]\n  busy_input_mode = \"interrupt\""</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># CLI 终端</span>
+</span></span><span style="display:flex;"><span>/busy interrupt</span></span></code></pre></div><script class="code-source" type="application/json">"# CLI 终端\n/busy interrupt"</script>
+</div>
+<hr>
+<h2 id="网关补充配置busy_text_mode">网关补充配置：busy_text_mode</h2>
+<p>对于消息平台网关（Telegram、Discord 等），还有一个额外的精细控制——<code>display.busy_text_mode</code>。</p>
+<table>
+<thead>
+<tr>
+<th><code>busy_input_mode</code></th>
+<th><code>busy_text_mode</code></th>
+<th>文字消息行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>interrupt</code>（默认）</td>
+<td><code>queue</code>（默认）</td>
+<td>文字消息依然排队</td>
+</tr>
+<tr>
+<td><code>interrupt</code></td>
+<td><code>interrupt</code></td>
+<td>文字消息也打断</td>
+</tr>
+<tr>
+<td><code>steer</code></td>
+<td>任意值</td>
+<td>无视 busy_text_mode，走 steer 逻辑</td>
+</tr>
+</tbody>
+</table>
+<p><strong>为什么要有两个配置？</strong> 因为网关需要区分不同类型的输入。<code>busy_input_mode</code> 控制全局行为，<code>busy_text_mode</code> 专门针对文字消息做微调——这样即使在 <code>interrupt</code> 模式下，常规文字消息也可以选择继续排队，而不至于过于敏感。</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 设成 interrupt，让文字消息也能打断</span>
+</span></span><span style="display:flex;"><span>hermes config set display.busy_text_mode interrupt
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 重启网关生效</span>
+</span></span><span style="display:flex;"><span>systemctl --user restart hermes-gateway.service</span></span></code></pre></div><script class="code-source" type="application/json">"# 设成 interrupt，让文字消息也能打断\nhermes config set display.busy_text_mode interrupt\n\n# 重启网关生效\nsystemctl --user restart hermes-gateway.service"</script>
+</div>
+<p>也可以在环境变量中覆盖：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>export HERMES_GATEWAY_BUSY_TEXT_MODE<span style="color:#f92672">=</span>interrupt
+</span></span><span style="display:flex;"><span>export HERMES_GATEWAY_BUSY_INPUT_MODE<span style="color:#f92672">=</span>steer</span></span></code></pre></div><script class="code-source" type="application/json">"export HERMES_GATEWAY_BUSY_TEXT_MODE=interrupt\nexport HERMES_GATEWAY_BUSY_INPUT_MODE=steer"</script>
+</div>
+<hr>
+<h2 id="对比总结">对比总结</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Queue</th>
+<th>Steer</th>
+<th>Interrupt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>响应速度</td>
+<td>慢（整轮后）</td>
+<td>中（step 后）</td>
+<td>快（step 后）</td>
+</tr>
+<tr>
+<td>任务完整性</td>
+<td>✅ 完整执行</td>
+<td>✅ 继续执行</td>
+<td>⚠️ 可能中断</td>
+</tr>
+<tr>
+<td>子任务保护</td>
+<td>✅ 安全</td>
+<td>✅ 安全</td>
+<td>⚠️ 自动降级</td>
+</tr>
+<tr>
+<td>CLI 终端</td>
+<td>✅ 支持</td>
+<td>✅ 支持</td>
+<td>✅ 默认</td>
+</tr>
+<tr>
+<td>Telegram 网关</td>
+<td>✅ 默认</td>
+<td>✅ 支持</td>
+<td>✅ 需配置</td>
+</tr>
+<tr>
+<td>最佳用途</td>
+<td>无需干预</td>
+<td><strong>日常推荐</strong> 🇨🇳</td>
+<td>紧急打断</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>新手推荐使用 Steer 模式。</strong> 它平衡了响应速度和工作连续性——你随时可以纠正方向，代理也不会丢掉正在做的事。</p>
+</blockquote>
+<hr>
+<h2 id="如何查看当前模式">如何查看当前模式</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># CLI 终端中</span>
+</span></span><span style="display:flex;"><span>/busy status
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 或在终端中查看</span>
+</span></span><span style="display:flex;"><span>grep busy_input_mode ~/.hermes/config.yaml
+</span></span><span style="display:flex;"><span>grep busy_text_mode ~/.hermes/config.yaml
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 当前有效状态（CLI）</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 会显示类似：Busy input mode: steer</span></span></span></code></pre></div><script class="code-source" type="application/json">"# CLI 终端中\n/busy status\n\n# 或在终端中查看\ngrep busy_input_mode ~/.hermes/config.yaml\ngrep busy_text_mode ~/.hermes/config.yaml\n\n# 当前有效状态（CLI）\n# 会显示类似：Busy input mode: steer"</script>
+</div>
+<hr>
+<h2 id="代码实现参考">代码实现参考</h2>
+<p>如果你想了解底层实现，关键源码位置如下：</p>
+<ul>
+<li><strong>CLI 模式定义：</strong> <code>cli.py</code> 第 2955-2964 行</li>
+<li><strong>Gateway 模式加载：</strong> <code>gateway/run.py</code> 第 2994-3015 行（<code>_load_busy_input_mode</code> / <code>_load_busy_text_mode</code>）</li>
+<li><strong>Gateway 运行时调度：</strong> <code>gateway/run.py</code> 第 3200-3240 行</li>
+<li><strong>Slash 命令注册：</strong> <code>hermes_cli/commands.py</code>（<code>/busy</code> CLI-only, <code>/steer</code> 两端可用）</li>
+</ul>
+<p>核心逻辑只有几十行，感兴趣的读者可以直接阅读源码。</p>
+<hr>
+<h2 id="写在最后">写在最后</h2>
+<p>Busy Input Modes 是 Hermes Agent 提供的一个非常实用的特性，它让你从被动等待变为主动引导。选对模式，能大幅提升人机协作效率。</p>
+<p>如果你还在犹豫选哪个：<strong>先试 Steer。</strong> 它既不会错过你的消息，也不会打断正在进行的工作，是最中庸也最实用的选择。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-busy-input-modes/">
+            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/ai-agent-orchestration-guide/">
+            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">AI助手多轮分工协作完全指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-tui-cli-commands/">
+            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

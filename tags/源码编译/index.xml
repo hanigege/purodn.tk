@@ -1,7 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>源码编译 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%BA%90%E7%A0%81%E7%BC%96%E8%AF%91/</link><description>Recent content in 源码编译 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%BA%90%E7%A0%81%E7%BC%96%E8%AF%91/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title><link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid><description>本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。
-这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 conform.nvim 和 prettier 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。
-第一步：安装依赖并源码编译 Neovim 在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。
-复制sudo apt update sudo apt install ninja-build gettext cmake unzip curl build-essential git -y 拉取 Neovim 源码，并切换到稳定版分支。使用 stable 分支可以规避开发版中可能出现的临时问题。
-复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并全局安装：
-复制make CMAKE_BUILD_TYPE=Release -j$(nproc) sudo make install 清理 shell 路径缓存，并验证 Neovim 版本：
-复制hash -r nvim -v 如果系统里原本安装过旧版 Neovim，可以额外确认实际调用路径：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>源码编译 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E6%BA%90%E7%A0%81%E7%BC%96%E8%AF%91/</link>
+    <description>Recent content in 源码编译 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 13 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E6%BA%90%E7%A0%81%E7%BC%96%E8%AF%91/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title>
+      <link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link>
+      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid>
+      <description>本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&#xA;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 conform.nvim 和 prettier 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&#xA;第一步：安装依赖并源码编译 Neovim 在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&#xA;复制sudo apt update sudo apt install ninja-build gettext cmake unzip curl build-essential git -y 拉取 Neovim 源码，并切换到稳定版分支。使用 stable 分支可以规避开发版中可能出现的临时问题。&#xA;复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并全局安装：&#xA;复制make CMAKE_BUILD_TYPE=Release -j$(nproc) sudo make install 清理 shell 路径缓存，并验证 Neovim 版本：&#xA;复制hash -r nvim -v 如果系统里原本安装过旧版 Neovim，可以额外确认实际调用路径：</description>
+    </item>
+  </channel>
+</rss>

@@ -1,19 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SMS on 电脑自习室</title><link>https://purodn.tk/tags/sms/</link><description>Recent content in SMS on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/sms/index.xml" rel="self" type="application/rss+xml"/><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。
-为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。
-更稳的方式是：
-复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。
-创建 Bot 在 Telegram 搜索：
-复制@BotFather 创建流程：
-发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：
-复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。
-获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：
-先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：
-复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description></item><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
-准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
-复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
-复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
-复制python3 -m venv .venv 安装依赖：
-复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
-准备脚本 把测试通过的桥接脚本放到：
-复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
-复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>SMS on 电脑自习室</title>
+    <link>https://purodn.tk/tags/sms/</link>
+    <description>Recent content in SMS on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/sms/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title>
+      <link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link>
+      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid>
+      <description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&#xA;为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。&#xA;更稳的方式是：&#xA;复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。&#xA;创建 Bot 在 Telegram 搜索：&#xA;复制@BotFather 创建流程：&#xA;发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：&#xA;复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。&#xA;获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：&#xA;先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：&#xA;复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description>
+    </item>
+    <item>
+      <title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title>
+      <link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link>
+      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid>
+      <description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&#xA;准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&#xA;复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：&#xA;复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：&#xA;复制python3 -m venv .venv 安装依赖：&#xA;复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&#xA;准备脚本 把测试通过的桥接脚本放到：&#xA;复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：&#xA;复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description>
+    </item>
+  </channel>
+</rss>

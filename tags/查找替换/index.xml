@@ -1,14 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>查找替换 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%9F%A5%E6%89%BE%E6%9B%BF%E6%8D%A2/</link><description>Recent content in 查找替换 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 09:48:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%9F%A5%E6%89%BE%E6%9B%BF%E6%8D%A2/index.xml" rel="self" type="application/rss+xml"/><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。
-基本格式 Vim 替换命令的基本格式是：
-复制:[范围]s/查找内容/替换内容/[标志] 常见写法：
-复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。
-复制:s/foo/bar/g 表示只在当前行，把所有 foo 都替换成 bar。
-复制:%s/foo/bar/g 表示在整个文件里，把所有 foo 都替换成 bar。
-这里的 % 表示整个文件范围，等价于 1,$。
-替换整个文件里的 IP 地址 如果要把当前文件中的 8.8.8.8 全部替换成 10.20.20.29，不要直接写：
-复制:%s/8.8.8.8/10.20.20.29/g 这条命令看起来直观，但在 Vim 正则里，. 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：
-复制:%s/8\.8\.8\.8/10.20.20.29/g 这样才是精确匹配 8.8.8.8。
-每次替换前都确认 如果担心误替换，可以加 c 标志，让 Vim 每次替换前都询问：
-复制:%s/8\.8\.8\.8/10.20.20.29/gc 提示时常见按键含义：
-按键 作用 y 替换当前匹配项 n 跳过当前匹配项 a 替换剩余所有匹配项 q 退出替换 l 替换当前项后退出 只替换指定范围 只替换当前行：
-复制:s/foo/bar/g 替换第 10 到第 30 行：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>查找替换 on 电脑自习室</title>
+    <link>https://purodn.tk/tags/%E6%9F%A5%E6%89%BE%E6%9B%BF%E6%8D%A2/</link>
+    <description>Recent content in 查找替换 on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 29 May 2026 09:48:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/%E6%9F%A5%E6%89%BE%E6%9B%BF%E6%8D%A2/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Vim 查找替换命令速查</title>
+      <link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link>
+      <pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid>
+      <description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。&#xA;基本格式 Vim 替换命令的基本格式是：&#xA;复制:[范围]s/查找内容/替换内容/[标志] 常见写法：&#xA;复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。&#xA;复制:s/foo/bar/g 表示只在当前行，把所有 foo 都替换成 bar。&#xA;复制:%s/foo/bar/g 表示在整个文件里，把所有 foo 都替换成 bar。&#xA;这里的 % 表示整个文件范围，等价于 1,$。&#xA;替换整个文件里的 IP 地址 如果要把当前文件中的 8.8.8.8 全部替换成 10.20.20.29，不要直接写：&#xA;复制:%s/8.8.8.8/10.20.20.29/g 这条命令看起来直观，但在 Vim 正则里，. 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：&#xA;复制:%s/8\.8\.8\.8/10.20.20.29/g 这样才是精确匹配 8.8.8.8。&#xA;每次替换前都确认 如果担心误替换，可以加 c 标志，让 Vim 每次替换前都询问：&#xA;复制:%s/8\.8\.8\.8/10.20.20.29/gc 提示时常见按键含义：&#xA;按键 作用 y 替换当前匹配项 n 跳过当前匹配项 a 替换剩余所有匹配项 q 退出替换 l 替换当前项后退出 只替换指定范围 只替换当前行：&#xA;复制:s/foo/bar/g 替换第 10 到第 30 行：</description>
+    </item>
+  </channel>
+</rss>

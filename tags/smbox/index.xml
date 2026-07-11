@@ -1,31 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SMbox on 电脑自习室</title><link>https://purodn.tk/tags/smbox/</link><description>Recent content in SMbox on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/smbox/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox OPNsense 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid><description>开始前先确认两个地址：
-10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：
-打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。
-proxy_cidr 为需要代理的 IP 地址：
-复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。
-任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。
-打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：
-打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：
-将规则移动至最前面：
-复制刚才的规则：
-将方向改为 out，然后保存：
-再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description></item><item><title>SMbox RouterOS 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid><description>10.0.0.2 是 SMbox 的 IP。
-如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。
-配置思路：两步缺一不可
-SMbox 的分流需要 DNS 和 路由 两步配合才能生效。
-第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。
-第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。
-方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description></item><item><title>安装 Alpine 系统教程</title><link>https://purodn.tk/posts/linux/smbox-alpine-install/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/smbox-alpine-install/</guid><description>Alpine Linux 是一个轻量级 Linux 发行版，内存占用极低，非常适合作为 SMbox 的运行环境。
-本教程涵盖从 Alpine 系统安装到基础运行环境准备的流程。
-下载镜像 从中科大镜像站下载 Alpine 安装镜像：
-https://mirrors.ustc.edu.cn/
-选择对应架构的 alpine-virt 版本（虚拟机优化版）。
-创建虚拟机 以 PVE 为例：
-重要 关闭安全引导（Secure Boot）。
-安装系统 开机后输入 root 登录（无密码），然后运行：
-复制setup-alpine 安装过程说明 APK Mirror（镜像源）选择：输入 f 自动查找最快镜像源，或输入 s 手动选择，也可直接输入编号（如 14 对应 ustc 源，编号可能变动）。
-安装完成后重启，使用 root 和你设置的密码登录。
-安装前置依赖 SMbox 的安装脚本依赖 bash，必须先安装：
-复制apk add bash 安装虚拟机 Tools（可选） 先开启社区仓库：
-复制sed -i &amp;#39;/community/s/^#//&amp;#39; /etc/apk/repositories ESXI 用户：
-复制apk add open-vm-tools open-vm-tools-guestinfo open-vm-tools-deploypkg &amp;amp;&amp;amp; rc-service open-vm-tools start &amp;amp;&amp;amp; rc-update add open-vm-tools boot PVE 用户：</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>SMbox on 电脑自习室</title>
+    <link>https://purodn.tk/tags/smbox/</link>
+    <description>Recent content in SMbox on 电脑自习室</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate>
+    <atom:link href="https://purodn.tk/tags/smbox/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SMbox OPNsense 配置教程</title>
+      <link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link>
+      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid>
+      <description>开始前先确认两个地址：&#xA;10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：&#xA;打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。&#xA;proxy_cidr 为需要代理的 IP 地址：&#xA;复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。&#xA;任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。&#xA;打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：&#xA;打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：&#xA;将规则移动至最前面：&#xA;复制刚才的规则：&#xA;将方向改为 out，然后保存：&#xA;再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description>
+    </item>
+    <item>
+      <title>SMbox RouterOS 配置教程</title>
+      <link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link>
+      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid>
+      <description>10.0.0.2 是 SMbox 的 IP。&#xA;如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。&#xA;配置思路：两步缺一不可&#xA;SMbox 的分流需要 DNS 和 路由 两步配合才能生效。&#xA;第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。&#xA;第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。&#xA;方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description>
+    </item>
+    <item>
+      <title>安装 Alpine 系统教程</title>
+      <link>https://purodn.tk/posts/linux/smbox-alpine-install/</link>
+      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
+      <guid>https://purodn.tk/posts/linux/smbox-alpine-install/</guid>
+      <description>Alpine Linux 是一个轻量级 Linux 发行版，内存占用极低，非常适合作为 SMbox 的运行环境。&#xA;本教程涵盖从 Alpine 系统安装到基础运行环境准备的流程。&#xA;下载镜像 从中科大镜像站下载 Alpine 安装镜像：&#xA;https://mirrors.ustc.edu.cn/&#xA;选择对应架构的 alpine-virt 版本（虚拟机优化版）。&#xA;创建虚拟机 以 PVE 为例：&#xA;重要 关闭安全引导（Secure Boot）。&#xA;安装系统 开机后输入 root 登录（无密码），然后运行：&#xA;复制setup-alpine 安装过程说明 APK Mirror（镜像源）选择：输入 f 自动查找最快镜像源，或输入 s 手动选择，也可直接输入编号（如 14 对应 ustc 源，编号可能变动）。&#xA;安装完成后重启，使用 root 和你设置的密码登录。&#xA;安装前置依赖 SMbox 的安装脚本依赖 bash，必须先安装：&#xA;复制apk add bash 安装虚拟机 Tools（可选） 先开启社区仓库：&#xA;复制sed -i &amp;#39;/community/s/^#//&amp;#39; /etc/apk/repositories ESXI 用户：&#xA;复制apk add open-vm-tools open-vm-tools-guestinfo open-vm-tools-deploypkg &amp;amp;&amp;amp; rc-service open-vm-tools start &amp;amp;&amp;amp; rc-update add open-vm-tools boot PVE 用户：</description>
+    </item>
+  </channel>
+</rss>
