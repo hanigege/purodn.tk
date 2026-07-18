@@ -1,487 +1,146 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Synapse 非 443 端口下禁止用户创建加密房间 | 电脑自习室</title>
-    <meta name="description" content="记录 Matrix Synapse 在 public_baseurl 使用非 443 端口时，如何通过服务端模块禁止新建加密房间和手动开启加密，并说明兼容性风险与回滚方式。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Docker</span>
-          <time datetime="2026-05-25">2026年5月25日</time>
-        </div>
-        <h1>Synapse 非 443 端口下禁止用户创建加密房间</h1>
-          <p>记录 Matrix Synapse 在 public_baseurl 使用非 443 端口时，如何通过服务端模块禁止新建加密房间和手动开启加密，并说明兼容性风险与回滚方式。</p>
-      </header>
-          <img class="article-cover" src="/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇记录一个特殊整改方案：Matrix Synapse 的客户端访问地址不是标准 <code>443</code>，而是类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">public_baseurl</span>: <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"public_baseurl: \"https://matrix.example.com:12335\""</script>
-</div>
-<p>在这种部署里，不打算依赖 <code>.well-known</code> 或客户端侧配置来约束房间加密，而是直接在 Synapse 服务端禁止用户创建加密房间，也禁止用户在普通房间里手动开启端到端加密。</p>
-<p>这个方案能做到“服务端强制”，但它不是一个无副作用的通用推荐方案。Element、Element X、Element Classic 在添加好友或发起私聊时，可能会默认夹带 <code>m.room.encryption</code> 初始状态。服务端如果强制拒绝这类请求，部分客户端会出现建房失败、一直转圈、显示空房间等兼容性问题。</p>
-<p>所以这篇更适合做故障记录和方案备忘：知道怎么做，也知道什么时候不该做。</p>
-<h2 id="目标">目标</h2>
-<p>目标是让 Synapse 服务端满足以下规则：</p>
-<ul>
-<li>新房间默认不启用加密。</li>
-<li>客户端创建房间时如果携带 <code>m.room.encryption</code>，服务端拒绝。</li>
-<li>客户端在已有房间里发送 <code>m.room.encryption</code> 状态事件，服务端拒绝。</li>
-<li>已经加密的旧房间不尝试转换，因为 Matrix 加密房间不能原地变回非加密房间。</li>
-</ul>
-<p>最终表现是：只要请求试图把房间变成加密房间，Synapse 返回 <code>403 Forbidden</code>。</p>
-<h2 id="为什么不能只改客户端">为什么不能只改客户端</h2>
-<p>Element 客户端里可以设置默认是否创建加密房间，但这不是强制边界。用户换客户端、换版本，或者客户端在创建私聊时自动携带初始加密状态，都可能绕过“默认不加密”的 UI 设置。</p>
-<p>真正需要拦截的是 Matrix 事件本身：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>m.room.encryption</span></span></code></pre></div><script class="code-source" type="application/json">"m.room.encryption"</script>
-</div>
-<p>只要这个状态事件成功进入房间，房间就成为加密房间，后续无法原地关闭。</p>
-<p>因此服务端要拦两条路径：</p>
-<ul>
-<li><code>createRoom</code> 请求里的 <code>initial_state</code> 携带 <code>m.room.encryption</code>。</li>
-<li>已存在房间里后续发送 <code>m.room.encryption</code> 状态事件。</li>
-</ul>
-<h2 id="路径约定">路径约定</h2>
-<p>本文以 Docker 部署为例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/opt/synapse/</span></span></code></pre></div><script class="code-source" type="application/json">"/opt/synapse/"</script>
-</div>
-<p>相关文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/opt/synapse/docker-compose.yml
-</span></span><span style="display:flex;"><span>/opt/synapse/data/homeserver.yaml
-</span></span><span style="display:flex;"><span>/opt/synapse/data/modules/no_room_encryption.py</span></span></code></pre></div><script class="code-source" type="application/json">"/opt/synapse/docker-compose.yml\n/opt/synapse/data/homeserver.yaml\n/opt/synapse/data/modules/no_room_encryption.py"</script>
-</div>
-<p>Synapse 容器名：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>matrix-synapse</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-synapse"</script>
-</div>
-<p>如果你的路径或容器名不同，照着替换即可。</p>
-<h2 id="第一步备份配置">第一步：备份配置</h2>
-<p>先进入部署目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/synapse"</script>
-</div>
-<p>备份 Compose 和 Synapse 配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp docker-compose.yml docker-compose.yml.before-no-room-encryption-<span style="color:#66d9ef">$(</span>date +%Y%m%d%H%M%S<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>cp data/homeserver.yaml data/homeserver.yaml.before-no-room-encryption-<span style="color:#66d9ef">$(</span>date +%Y%m%d%H%M%S<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"cp docker-compose.yml docker-compose.yml.before-no-room-encryption-$(date +%Y%m%d%H%M%S)\ncp data/homeserver.yaml data/homeserver.yaml.before-no-room-encryption-$(date +%Y%m%d%H%M%S)"</script>
-</div>
-<h2 id="第二步关闭默认加密">第二步：关闭默认加密</h2>
-<p>编辑 <code>homeserver.yaml</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /opt/synapse/data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"vi /opt/synapse/data/homeserver.yaml"</script>
-</div>
-<p>加入顶层配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">encryption_enabled_by_default_for_room_type</span>: <span style="color:#66d9ef">off</span></span></span></code></pre></div><script class="code-source" type="application/json">"encryption_enabled_by_default_for_room_type: off"</script>
-</div>
-<p>这一步只控制默认行为，不是强制禁止。真正的强制禁止靠后面的模块。</p>
-<h2 id="第三步让容器加载自定义模块">第三步：让容器加载自定义模块</h2>
-<p>编辑 Compose：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /opt/synapse/docker-compose.yml</span></span></code></pre></div><script class="code-source" type="application/json">"vi /opt/synapse/docker-compose.yml"</script>
-</div>
-<p>在 Synapse 服务的 <code>environment</code> 下加入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">environment</span>:
-</span></span><span style="display:flex;"><span>  - <span style="color:#e6db74">&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"environment:\n  - \"PYTHONPATH=/data/modules\""</script>
-</div>
-<p>如果原来已经有 <code>environment</code>，只加这一行即可，例如：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">synapse</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">matrixdotorg/synapse:latest</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">matrix-synapse</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
-</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;TZ=Asia/Shanghai&#34;</span>
-</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  synapse:\n    image: matrixdotorg/synapse:latest\n    container_name: matrix-synapse\n    environment:\n      - \"TZ=Asia/Shanghai\"\n      - \"PYTHONPATH=/data/modules\""</script>
-</div>
-<p>这里 <code>/data/modules</code> 是容器内路径。宿主机对应目录一般是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/opt/synapse/data/modules/</span></span></code></pre></div><script class="code-source" type="application/json">"/opt/synapse/data/modules/"</script>
-</div>
-<p>创建模块目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /opt/synapse/data/modules</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /opt/synapse/data/modules"</script>
-</div>
-<h2 id="第四步创建禁止加密模块">第四步：创建禁止加密模块</h2>
-<p>创建模块文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /opt/synapse/data/modules/no_room_encryption.py</span></span></code></pre></div><script class="code-source" type="application/json">"vi /opt/synapse/data/modules/no_room_encryption.py"</script>
-</div>
-<p>写入下面完整内容：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> synapse.api.errors <span style="color:#f92672">import</span> Codes, SynapseError
-</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> synapse.module_api <span style="color:#f92672">import</span> NOT_SPAM
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>DENY_MESSAGE <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;Room encryption is disabled on this homeserver. Please create/use an unencrypted room.&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">NoRoomEncryption</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> __init__(self, config, api):
-</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>api <span style="color:#f92672">=</span> api
-</span></span><span style="display:flex;"><span>        api<span style="color:#f92672">.</span>register_spam_checker_callbacks(
-</span></span><span style="display:flex;"><span>            check_event_for_spam<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>check_event_for_spam,
-</span></span><span style="display:flex;"><span>        )
-</span></span><span style="display:flex;"><span>        api<span style="color:#f92672">.</span>register_third_party_rules_callbacks(
-</span></span><span style="display:flex;"><span>            check_event_allowed<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>check_event_allowed,
-</span></span><span style="display:flex;"><span>            on_create_room<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>on_create_room,
-</span></span><span style="display:flex;"><span>        )
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">@staticmethod</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">parse_config</span>(config):
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> config <span style="color:#f92672">or</span> {}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">check_event_for_spam</span>(self, event):
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>_is_encryption_event(event):
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> DENY_MESSAGE
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> NOT_SPAM
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">check_event_allowed</span>(self, event, state_events):
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>_is_encryption_event(event):
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">raise</span> SynapseError(<span style="color:#ae81ff">403</span>, DENY_MESSAGE, Codes<span style="color:#f92672">.</span>FORBIDDEN)
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>, <span style="color:#66d9ef">None</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">on_create_room</span>(self, requester, config, is_requester_admin):
-</span></span><span style="display:flex;"><span>        initial_state <span style="color:#f92672">=</span> config<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;initial_state&#34;</span>)
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> isinstance(initial_state, list):
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> state <span style="color:#f92672">in</span> initial_state:
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> state<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;type&#34;</span>) <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;m.room.encryption&#34;</span>:
-</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">raise</span> SynapseError(<span style="color:#ae81ff">403</span>, DENY_MESSAGE, Codes<span style="color:#f92672">.</span>FORBIDDEN)
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">@staticmethod</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_is_encryption_event</span>(event):
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> getattr(event, <span style="color:#e6db74">&#34;type&#34;</span>, <span style="color:#66d9ef">None</span>) <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;m.room.encryption&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"from synapse.api.errors import Codes, SynapseError\nfrom synapse.module_api import NOT_SPAM\n\nDENY_MESSAGE = \"Room encryption is disabled on this homeserver. Please create/use an unencrypted room.\"\n\n\nclass NoRoomEncryption:\n    def __init__(self, config, api):\n        self.api = api\n        api.register_spam_checker_callbacks(\n            check_event_for_spam=self.check_event_for_spam,\n        )\n        api.register_third_party_rules_callbacks(\n            check_event_allowed=self.check_event_allowed,\n            on_create_room=self.on_create_room,\n        )\n\n    @staticmethod\n    def parse_config(config):\n        return config or {}\n\n    async def check_event_for_spam(self, event):\n        if self._is_encryption_event(event):\n            return DENY_MESSAGE\n        return NOT_SPAM\n\n    async def check_event_allowed(self, event, state_events):\n        if self._is_encryption_event(event):\n            raise SynapseError(403, DENY_MESSAGE, Codes.FORBIDDEN)\n        return True, None\n\n    async def on_create_room(self, requester, config, is_requester_admin):\n        initial_state = config.get(\"initial_state\")\n        if not isinstance(initial_state, list):\n            return\n\n        for state in initial_state:\n            if state.get(\"type\") == \"m.room.encryption\":\n                raise SynapseError(403, DENY_MESSAGE, Codes.FORBIDDEN)\n\n    @staticmethod\n    def _is_encryption_event(event):\n        return getattr(event, \"type\", None) == \"m.room.encryption\""</script>
-</div>
-<p>这个模块做两层拦截：</p>
-<ul>
-<li><code>on_create_room</code>：拒绝创建房间时夹带 <code>m.room.encryption</code>。</li>
-<li><code>check_event_allowed</code>：拒绝房间创建后再发送 <code>m.room.encryption</code>。</li>
-</ul>
-<p><code>check_event_for_spam</code> 是额外保险，避免部分事件发送路径漏过去。</p>
-<h2 id="第五步在-homeserveryaml-加载模块">第五步：在 homeserver.yaml 加载模块</h2>
-<p>继续编辑：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /opt/synapse/data/homeserver.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"vi /opt/synapse/data/homeserver.yaml"</script>
-</div>
-<p>加入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">modules</span>:
-</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">module</span>: <span style="color:#ae81ff">no_room_encryption.NoRoomEncryption</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">config</span>: {}</span></span></code></pre></div><script class="code-source" type="application/json">"modules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script>
-</div>
-<p>如果文件里已经有 <code>modules:</code>，不要重复写第二个 <code>modules:</code>，把这一项合并到原列表里。</p>
-<p>最终相关配置类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">public_baseurl</span>: <span style="color:#e6db74">&#34;https://matrix.example.com:12335&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">encryption_enabled_by_default_for_room_type</span>: <span style="color:#66d9ef">off</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">modules</span>:
-</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">module</span>: <span style="color:#ae81ff">no_room_encryption.NoRoomEncryption</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">config</span>: {}</span></span></code></pre></div><script class="code-source" type="application/json">"public_baseurl: \"https://matrix.example.com:12335\"\n\nencryption_enabled_by_default_for_room_type: off\n\nmodules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script>
-</div>
-<h2 id="第六步编译检查">第六步：编译检查</h2>
-<p>先检查 Python 模块语法：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec -e PYTHONPATH<span style="color:#f92672">=</span>/data/modules matrix-synapse <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  python -m py_compile /data/modules/no_room_encryption.py</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec -e PYTHONPATH=/data/modules matrix-synapse \\\n  python -m py_compile /data/modules/no_room_encryption.py"</script>
-</div>
-<p>没有输出一般就是通过。</p>
-<p>再检查 Compose：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/synapse
-</span></span><span style="display:flex;"><span>docker compose config &gt;/tmp/synapse-compose-check.yml</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/synapse\ndocker compose config \u003e/tmp/synapse-compose-check.yml"</script>
-</div>
-<h2 id="第七步重启-synapse">第七步：重启 Synapse</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/synapse
-</span></span><span style="display:flex;"><span>docker compose restart synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/synapse\ndocker compose restart synapse"</script>
-</div>
-<p>等待接口恢复：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i in <span style="color:#ae81ff">1</span> <span style="color:#ae81ff">2</span> <span style="color:#ae81ff">3</span> <span style="color:#ae81ff">4</span> <span style="color:#ae81ff">5</span> <span style="color:#ae81ff">6</span> <span style="color:#ae81ff">7</span> <span style="color:#ae81ff">8</span> <span style="color:#ae81ff">9</span> 10; <span style="color:#66d9ef">do</span>
-</span></span><span style="display:flex;"><span>  code<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>curl -sS -o /tmp/synapse_versions.json -w <span style="color:#e6db74">&#39;%{http_code}&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>    http://127.0.0.1:8008/_matrix/client/versions <span style="color:#f92672">||</span> true<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>  echo <span style="color:#e6db74">&#34;</span>$code<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">[</span> <span style="color:#e6db74">&#34;</span>$code<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">200</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> break
-</span></span><span style="display:flex;"><span>  sleep <span style="color:#ae81ff">2</span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">done</span></span></span></code></pre></div><script class="code-source" type="application/json">"for i in 1 2 3 4 5 6 7 8 9 10; do\n  code=$(curl -sS -o /tmp/synapse_versions.json -w '%{http_code}' \\\n    http://127.0.0.1:8008/_matrix/client/versions || true)\n  echo \"$code\"\n  [ \"$code\" = 200 ] \u0026\u0026 break\n  sleep 2\ndone"</script>
-</div>
-<p>确认容器健康：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose ps</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose ps"</script>
-</div>
-<p>检查模块是否加载：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs --since 3m matrix-synapse 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  | grep -E <span style="color:#e6db74">&#39;Loaded module|ERROR|CRITICAL|ModuleFailed|no_room_encryption|Traceback&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  | tail -80</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs --since 3m matrix-synapse 2\u003e\u00261 \\\n  | grep -E 'Loaded module|ERROR|CRITICAL|ModuleFailed|no_room_encryption|Traceback' \\\n  | tail -80"</script>
-</div>
-<p>正常应看到类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Loaded module &lt;no_room_encryption.NoRoomEncryption object ...&gt;</span></span></code></pre></div><script class="code-source" type="application/json">"Loaded module \u003cno_room_encryption.NoRoomEncryption object ...\u003e"</script>
-</div>
-<h2 id="第八步准备测试-token">第八步：准备测试 Token</h2>
-<p>测试需要一个本服用户 access token。可以使用管理员 token：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>TOKEN<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>cat /path/to/admin-access-token<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"TOKEN=$(cat /path/to/admin-access-token)"</script>
-</div>
-<p>如果没有这个文件，就换成任意本服用户的 access token。</p>
-<h2 id="第九步验证普通建房仍可用">第九步：验证普通建房仍可用</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ROOM_JSON<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>curl -sS -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#39;Content-Type: application/json&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -d <span style="color:#e6db74">&#39;{&#34;name&#34;:&#34;no-encryption-test&#34;,&#34;preset&#34;:&#34;private_chat&#34;}&#39;</span><span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$ROOM_JSON<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>ROOM_ID<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>printf <span style="color:#e6db74">&#39;%s&#39;</span> <span style="color:#e6db74">&#34;</span>$ROOM_JSON<span style="color:#e6db74">&#34;</span> | sed -n <span style="color:#e6db74">&#39;s/.*&#34;room_id&#34;:&#34;\([^&#34;]*\)&#34;.*/\1/p&#39;</span><span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$ROOM_ID<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ROOM_JSON=$(curl -sS -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"name\":\"no-encryption-test\",\"preset\":\"private_chat\"}')\n\necho \"$ROOM_JSON\"\nROOM_ID=$(printf '%s' \"$ROOM_JSON\" | sed -n 's/.*\"room_id\":\"\\([^\"]*\\)\".*/\\1/p')\necho \"$ROOM_ID\""</script>
-</div>
-<p>返回 <code>room_id</code> 就说明普通非加密房间可以创建。</p>
-<h2 id="第十步验证创建时夹带加密会被拒绝">第十步：验证创建时夹带加密会被拒绝</h2>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -i -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#39;Content-Type: application/json&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -d <span style="color:#e6db74">&#39;{
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;name&#34;: &#34;encrypted-create-should-fail&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;preset&#34;: &#34;private_chat&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;initial_state&#34;: [
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;type&#34;: &#34;m.room.encryption&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;state_key&#34;: &#34;&#34;,
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;content&#34;: {
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">          &#34;algorithm&#34;: &#34;m.megolm.v1.aes-sha2&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        }
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      }
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    ]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  }&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -i -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"encrypted-create-should-fail\",\n    \"preset\": \"private_chat\",\n    \"initial_state\": [\n      {\n        \"type\": \"m.room.encryption\",\n        \"state_key\": \"\",\n        \"content\": {\n          \"algorithm\": \"m.megolm.v1.aes-sha2\"\n        }\n      }\n    ]\n  }'"</script>
-</div>
-<p>预期：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>HTTP/1.1 403 Forbidden</span></span></code></pre></div><script class="code-source" type="application/json">"HTTP/1.1 403 Forbidden"</script>
-</div>
-<p>响应类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;errcode&#34;</span>: <span style="color:#e6db74">&#34;M_FORBIDDEN&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;error&#34;</span>: <span style="color:#e6db74">&#34;Room encryption is disabled on this homeserver. Please create/use an unencrypted room.&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"errcode\": \"M_FORBIDDEN\",\n  \"error\": \"Room encryption is disabled on this homeserver. Please create/use an unencrypted room.\"\n}"</script>
-</div>
-<h2 id="第十一步验证创建后开启加密会被拒绝">第十一步：验证创建后开启加密会被拒绝</h2>
-<p>对前面成功创建的普通房间发送加密状态事件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -i -X PUT <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  <span style="color:#e6db74">&#34;http://127.0.0.1:8008/_matrix/client/v3/rooms/</span>$ROOM_ID<span style="color:#e6db74">/state/m.room.encryption&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#39;Content-Type: application/json&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -d <span style="color:#e6db74">&#39;{&#34;algorithm&#34;:&#34;m.megolm.v1.aes-sha2&#34;}&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -i -X PUT \\\n  \"http://127.0.0.1:8008/_matrix/client/v3/rooms/$ROOM_ID/state/m.room.encryption\" \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"algorithm\":\"m.megolm.v1.aes-sha2\"}'"</script>
-</div>
-<p>预期同样是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>HTTP/1.1 403 Forbidden</span></span></code></pre></div><script class="code-source" type="application/json">"HTTP/1.1 403 Forbidden"</script>
-</div>
-<h2 id="element-客户端兼容性">Element 客户端兼容性</h2>
-<p>这个方案服务端约束很强，但客户端兼容性不一定好。</p>
-<p>实际测试里，部分 Element/Element Classic/Element X 在添加好友或发起私聊时，会自动把 <code>m.room.encryption</code> 放进 <code>createRoom.initial_state</code>。如果服务端直接返回 <code>403</code>，客户端可能出现：</p>
-<ul>
-<li>添加好友后私聊房间创建失败。</li>
-<li>界面一直停在创建房间或转圈。</li>
-<li>房间列表出现无名空房间。</li>
-<li>老客户端和新客户端表现不一致。</li>
-</ul>
-<p>所以如果你的目标是“用户体验优先”，不建议直接启用这个强拒绝版本。更温和的变体是：创建房间时剔除 <code>initial_state</code> 里的 <code>m.room.encryption</code>，让房间正常创建为非加密房间；创建后再手动开启加密时仍然返回 <code>403</code>。</p>
-<p>温和版的 <code>on_create_room</code> 可以改成：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">on_create_room</span>(self, requester, config, is_requester_admin):
-</span></span><span style="display:flex;"><span>        initial_state <span style="color:#f92672">=</span> config<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;initial_state&#34;</span>)
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> isinstance(initial_state, list):
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        config[<span style="color:#e6db74">&#34;initial_state&#34;</span>] <span style="color:#f92672">=</span> [
-</span></span><span style="display:flex;"><span>            state
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">for</span> state <span style="color:#f92672">in</span> initial_state
-</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> state<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;type&#34;</span>) <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#34;m.room.encryption&#34;</span>
-</span></span><span style="display:flex;"><span>        ]</span></span></code></pre></div><script class="code-source" type="application/json">"    async def on_create_room(self, requester, config, is_requester_admin):\n        initial_state = config.get(\"initial_state\")\n        if not isinstance(initial_state, list):\n            return\n\n        config[\"initial_state\"] = [\n            state\n            for state in initial_state\n            if state.get(\"type\") != \"m.room.encryption\"\n        ]"</script>
-</div>
-<p>但即便是温和版，也可能和某些客户端的私聊/验证流程有兼容性问题。启用前最好先用测试账号验证添加好友、私聊、退出房间、重新登录这些流程。</p>
-<h2 id="回滚方式">回滚方式</h2>
-<p>如果客户端出现兼容性问题，可以按下面方式回滚。</p>
-<p>编辑 Compose，删除：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#e6db74">&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"- \"PYTHONPATH=/data/modules\""</script>
-</div>
-<p>编辑 <code>homeserver.yaml</code>，删除：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">encryption_enabled_by_default_for_room_type</span>: <span style="color:#66d9ef">off</span></span></span></code></pre></div><script class="code-source" type="application/json">"encryption_enabled_by_default_for_room_type: off"</script>
-</div>
-<p>再删除或注释模块配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">modules</span>:
-</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">module</span>: <span style="color:#ae81ff">no_room_encryption.NoRoomEncryption</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">config</span>: {}</span></span></code></pre></div><script class="code-source" type="application/json">"modules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script>
-</div>
-<p>停用模块文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mv /opt/synapse/data/modules/no_room_encryption.py <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /opt/synapse/data/modules/no_room_encryption.py.disabled-<span style="color:#66d9ef">$(</span>date +%Y%m%d%H%M%S<span style="color:#66d9ef">)</span></span></span></code></pre></div><script class="code-source" type="application/json">"mv /opt/synapse/data/modules/no_room_encryption.py \\\n  /opt/synapse/data/modules/no_room_encryption.py.disabled-$(date +%Y%m%d%H%M%S)"</script>
-</div>
-<p>如果模块目录只放了这个文件，也可以清理：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>find /opt/synapse/data/modules/__pycache__ <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -maxdepth <span style="color:#ae81ff">1</span> -type f -name <span style="color:#e6db74">&#39;no_room_encryption*&#39;</span> -delete 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>rmdir /opt/synapse/data/modules/__pycache__ 2&gt;/dev/null <span style="color:#f92672">||</span> true
-</span></span><span style="display:flex;"><span>rmdir /opt/synapse/data/modules 2&gt;/dev/null <span style="color:#f92672">||</span> true</span></span></code></pre></div><script class="code-source" type="application/json">"find /opt/synapse/data/modules/__pycache__ \\\n  -maxdepth 1 -type f -name 'no_room_encryption*' -delete 2\u003e/dev/null || true\nrmdir /opt/synapse/data/modules/__pycache__ 2\u003e/dev/null || true\nrmdir /opt/synapse/data/modules 2\u003e/dev/null || true"</script>
-</div>
-<p>重启：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /opt/synapse
-</span></span><span style="display:flex;"><span>docker compose config &gt;/tmp/synapse-compose-rollback-check.yml
-</span></span><span style="display:flex;"><span>docker compose restart synapse</span></span></code></pre></div><script class="code-source" type="application/json">"cd /opt/synapse\ndocker compose config \u003e/tmp/synapse-compose-rollback-check.yml\ndocker compose restart synapse"</script>
-</div>
-<p>确认恢复：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -sS -o /tmp/synapse_versions.json -w <span style="color:#e6db74">&#39;%{http_code}\n&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  http://127.0.0.1:8008/_matrix/client/versions
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>docker logs --since 90s matrix-synapse 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  | grep -E <span style="color:#e6db74">&#39;Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback&#39;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  | tail -80</span></span></code></pre></div><script class="code-source" type="application/json">"curl -sS -o /tmp/synapse_versions.json -w '%{http_code}\\n' \\\n  http://127.0.0.1:8008/_matrix/client/versions\n\ndocker logs --since 90s matrix-synapse 2\u003e\u00261 \\\n  | grep -E 'Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback' \\\n  | tail -80"</script>
-</div>
-<p>回滚后日志里不应再出现 <code>no_room_encryption</code> 模块加载。</p>
-<h2 id="结论">结论</h2>
-<p>服务端禁止加密房间这件事可以做，而且拦截点也很明确：拦住 <code>m.room.encryption</code> 状态事件即可。</p>
-<p>但在真实 Element 客户端里，私聊和添加好友流程经常默认带加密初始状态。强行拒绝会带来兼容性问题，所以这个方案适合有明确运维目标、能接受客户端限制的场景。</p>
-<p>如果只是为了控制服务端媒体存储增长，更稳妥的长期方案通常是：保留客户端默认加密能力，同时用清晰的媒体保留规则控制服务端硬盘，并通过服务器通知告知用户大文件会定期清理。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Synapse 非 443 端口下禁止用户创建加密房间 | 电脑自习室</title>
+<meta name=description content="记录 Matrix Synapse 在 public_baseurl 使用非 443 端口时，如何通过服务端模块禁止新建加密房间和手动开启加密，并说明兼容性风险与回滚方式。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Docker</span>
+<time datetime=2026-05-25>2026年5月25日</time></div><h1>Synapse 非 443 端口下禁止用户创建加密房间</h1><p>记录 Matrix Synapse 在 public_baseurl 使用非 443 端口时，如何通过服务端模块禁止新建加密房间和手动开启加密，并说明兼容性风险与回滚方式。</p></header><img class=article-cover src=/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/assets/cover.svg alt><div class=article-content><p>这篇记录一个特殊整改方案：Matrix Synapse 的客户端访问地址不是标准 <code>443</code>，而是类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>public_baseurl</span>: <span style=color:#e6db74>&#34;https://matrix.example.com:12335&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"public_baseurl: \"https://matrix.example.com:12335\""</script></div><p>在这种部署里，不打算依赖 <code>.well-known</code> 或客户端侧配置来约束房间加密，而是直接在 Synapse 服务端禁止用户创建加密房间，也禁止用户在普通房间里手动开启端到端加密。</p><p>这个方案能做到“服务端强制”，但它不是一个无副作用的通用推荐方案。Element、Element X、Element Classic 在添加好友或发起私聊时，可能会默认夹带 <code>m.room.encryption</code> 初始状态。服务端如果强制拒绝这类请求，部分客户端会出现建房失败、一直转圈、显示空房间等兼容性问题。</p><p>所以这篇更适合做故障记录和方案备忘：知道怎么做，也知道什么时候不该做。</p><h2 id=目标>目标</h2><p>目标是让 Synapse 服务端满足以下规则：</p><ul><li>新房间默认不启用加密。</li><li>客户端创建房间时如果携带 <code>m.room.encryption</code>，服务端拒绝。</li><li>客户端在已有房间里发送 <code>m.room.encryption</code> 状态事件，服务端拒绝。</li><li>已经加密的旧房间不尝试转换，因为 Matrix 加密房间不能原地变回非加密房间。</li></ul><p>最终表现是：只要请求试图把房间变成加密房间，Synapse 返回 <code>403 Forbidden</code>。</p><h2 id=为什么不能只改客户端>为什么不能只改客户端</h2><p>Element 客户端里可以设置默认是否创建加密房间，但这不是强制边界。用户换客户端、换版本，或者客户端在创建私聊时自动携带初始加密状态，都可能绕过“默认不加密”的 UI 设置。</p><p>真正需要拦截的是 Matrix 事件本身：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>m.room.encryption</span></span></code></pre></div><script class=code-source type=application/json>"m.room.encryption"</script></div><p>只要这个状态事件成功进入房间，房间就成为加密房间，后续无法原地关闭。</p><p>因此服务端要拦两条路径：</p><ul><li><code>createRoom</code> 请求里的 <code>initial_state</code> 携带 <code>m.room.encryption</code>。</li><li>已存在房间里后续发送 <code>m.room.encryption</code> 状态事件。</li></ul><h2 id=路径约定>路径约定</h2><p>本文以 Docker 部署为例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/opt/synapse/</span></span></code></pre></div><script class=code-source type=application/json>"/opt/synapse/"</script></div><p>相关文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/opt/synapse/docker-compose.yml
+</span></span><span style=display:flex><span>/opt/synapse/data/homeserver.yaml
+</span></span><span style=display:flex><span>/opt/synapse/data/modules/no_room_encryption.py</span></span></code></pre></div><script class=code-source type=application/json>"/opt/synapse/docker-compose.yml\n/opt/synapse/data/homeserver.yaml\n/opt/synapse/data/modules/no_room_encryption.py"</script></div><p>Synapse 容器名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>matrix-synapse</span></span></code></pre></div><script class=code-source type=application/json>"matrix-synapse"</script></div><p>如果你的路径或容器名不同，照着替换即可。</p><h2 id=第一步备份配置>第一步：备份配置</h2><p>先进入部署目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cd /opt/synapse</span></span></code></pre></div><script class=code-source type=application/json>"cd /opt/synapse"</script></div><p>备份 Compose 和 Synapse 配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cp docker-compose.yml docker-compose.yml.before-no-room-encryption-<span style=color:#66d9ef>$(</span>date +%Y%m%d%H%M%S<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>cp data/homeserver.yaml data/homeserver.yaml.before-no-room-encryption-<span style=color:#66d9ef>$(</span>date +%Y%m%d%H%M%S<span style=color:#66d9ef>)</span></span></span></code></pre></div><script class=code-source type=application/json>"cp docker-compose.yml docker-compose.yml.before-no-room-encryption-$(date +%Y%m%d%H%M%S)\ncp data/homeserver.yaml data/homeserver.yaml.before-no-room-encryption-$(date +%Y%m%d%H%M%S)"</script></div><h2 id=第二步关闭默认加密>第二步：关闭默认加密</h2><p>编辑 <code>homeserver.yaml</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /opt/synapse/data/homeserver.yaml</span></span></code></pre></div><script class=code-source type=application/json>"vi /opt/synapse/data/homeserver.yaml"</script></div><p>加入顶层配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>encryption_enabled_by_default_for_room_type</span>: <span style=color:#66d9ef>off</span></span></span></code></pre></div><script class=code-source type=application/json>"encryption_enabled_by_default_for_room_type: off"</script></div><p>这一步只控制默认行为，不是强制禁止。真正的强制禁止靠后面的模块。</p><h2 id=第三步让容器加载自定义模块>第三步：让容器加载自定义模块</h2><p>编辑 Compose：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /opt/synapse/docker-compose.yml</span></span></code></pre></div><script class=code-source type=application/json>"vi /opt/synapse/docker-compose.yml"</script></div><p>在 Synapse 服务的 <code>environment</code> 下加入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#e6db74>&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"environment:\n  - \"PYTHONPATH=/data/modules\""</script></div><p>如果原来已经有 <code>environment</code>，只加这一行即可，例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>synapse</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>matrixdotorg/synapse:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>matrix-synapse</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;TZ=Asia/Shanghai&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"services:\n  synapse:\n    image: matrixdotorg/synapse:latest\n    container_name: matrix-synapse\n    environment:\n      - \"TZ=Asia/Shanghai\"\n      - \"PYTHONPATH=/data/modules\""</script></div><p>这里 <code>/data/modules</code> 是容器内路径。宿主机对应目录一般是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/opt/synapse/data/modules/</span></span></code></pre></div><script class=code-source type=application/json>"/opt/synapse/data/modules/"</script></div><p>创建模块目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /opt/synapse/data/modules</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /opt/synapse/data/modules"</script></div><h2 id=第四步创建禁止加密模块>第四步：创建禁止加密模块</h2><p>创建模块文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /opt/synapse/data/modules/no_room_encryption.py</span></span></code></pre></div><script class=code-source type=application/json>"vi /opt/synapse/data/modules/no_room_encryption.py"</script></div><p>写入下面完整内容：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>from</span> synapse.api.errors <span style=color:#f92672>import</span> Codes, SynapseError
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> synapse.module_api <span style=color:#f92672>import</span> NOT_SPAM
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>DENY_MESSAGE <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;Room encryption is disabled on this homeserver. Please create/use an unencrypted room.&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>NoRoomEncryption</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> __init__(self, config, api):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>api <span style=color:#f92672>=</span> api
+</span></span><span style=display:flex><span>        api<span style=color:#f92672>.</span>register_spam_checker_callbacks(
+</span></span><span style=display:flex><span>            check_event_for_spam<span style=color:#f92672>=</span>self<span style=color:#f92672>.</span>check_event_for_spam,
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        api<span style=color:#f92672>.</span>register_third_party_rules_callbacks(
+</span></span><span style=display:flex><span>            check_event_allowed<span style=color:#f92672>=</span>self<span style=color:#f92672>.</span>check_event_allowed,
+</span></span><span style=display:flex><span>            on_create_room<span style=color:#f92672>=</span>self<span style=color:#f92672>.</span>on_create_room,
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@staticmethod</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>parse_config</span>(config):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> config <span style=color:#f92672>or</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_event_for_spam</span>(self, event):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>_is_encryption_event(event):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> DENY_MESSAGE
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> NOT_SPAM
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_event_allowed</span>(self, event, state_events):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>_is_encryption_event(event):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>raise</span> SynapseError(<span style=color:#ae81ff>403</span>, DENY_MESSAGE, Codes<span style=color:#f92672>.</span>FORBIDDEN)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>True</span>, <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>on_create_room</span>(self, requester, config, is_requester_admin):
+</span></span><span style=display:flex><span>        initial_state <span style=color:#f92672>=</span> config<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;initial_state&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> isinstance(initial_state, list):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> state <span style=color:#f92672>in</span> initial_state:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> state<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;type&#34;</span>) <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;m.room.encryption&#34;</span>:
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>raise</span> SynapseError(<span style=color:#ae81ff>403</span>, DENY_MESSAGE, Codes<span style=color:#f92672>.</span>FORBIDDEN)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@staticmethod</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_is_encryption_event</span>(event):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> getattr(event, <span style=color:#e6db74>&#34;type&#34;</span>, <span style=color:#66d9ef>None</span>) <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;m.room.encryption&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"from synapse.api.errors import Codes, SynapseError\nfrom synapse.module_api import NOT_SPAM\n\nDENY_MESSAGE = \"Room encryption is disabled on this homeserver. Please create/use an unencrypted room.\"\n\n\nclass NoRoomEncryption:\n    def __init__(self, config, api):\n        self.api = api\n        api.register_spam_checker_callbacks(\n            check_event_for_spam=self.check_event_for_spam,\n        )\n        api.register_third_party_rules_callbacks(\n            check_event_allowed=self.check_event_allowed,\n            on_create_room=self.on_create_room,\n        )\n\n    @staticmethod\n    def parse_config(config):\n        return config or {}\n\n    async def check_event_for_spam(self, event):\n        if self._is_encryption_event(event):\n            return DENY_MESSAGE\n        return NOT_SPAM\n\n    async def check_event_allowed(self, event, state_events):\n        if self._is_encryption_event(event):\n            raise SynapseError(403, DENY_MESSAGE, Codes.FORBIDDEN)\n        return True, None\n\n    async def on_create_room(self, requester, config, is_requester_admin):\n        initial_state = config.get(\"initial_state\")\n        if not isinstance(initial_state, list):\n            return\n\n        for state in initial_state:\n            if state.get(\"type\") == \"m.room.encryption\":\n                raise SynapseError(403, DENY_MESSAGE, Codes.FORBIDDEN)\n\n    @staticmethod\n    def _is_encryption_event(event):\n        return getattr(event, \"type\", None) == \"m.room.encryption\""</script></div><p>这个模块做两层拦截：</p><ul><li><code>on_create_room</code>：拒绝创建房间时夹带 <code>m.room.encryption</code>。</li><li><code>check_event_allowed</code>：拒绝房间创建后再发送 <code>m.room.encryption</code>。</li></ul><p><code>check_event_for_spam</code> 是额外保险，避免部分事件发送路径漏过去。</p><h2 id=第五步在-homeserveryaml-加载模块>第五步：在 homeserver.yaml 加载模块</h2><p>继续编辑：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /opt/synapse/data/homeserver.yaml</span></span></code></pre></div><script class=code-source type=application/json>"vi /opt/synapse/data/homeserver.yaml"</script></div><p>加入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>modules</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>module</span>: <span style=color:#ae81ff>no_room_encryption.NoRoomEncryption</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>config</span>: {}</span></span></code></pre></div><script class=code-source type=application/json>"modules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script></div><p>如果文件里已经有 <code>modules:</code>，不要重复写第二个 <code>modules:</code>，把这一项合并到原列表里。</p><p>最终相关配置类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>public_baseurl</span>: <span style=color:#e6db74>&#34;https://matrix.example.com:12335&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>encryption_enabled_by_default_for_room_type</span>: <span style=color:#66d9ef>off</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>modules</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>module</span>: <span style=color:#ae81ff>no_room_encryption.NoRoomEncryption</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>config</span>: {}</span></span></code></pre></div><script class=code-source type=application/json>"public_baseurl: \"https://matrix.example.com:12335\"\n\nencryption_enabled_by_default_for_room_type: off\n\nmodules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script></div><h2 id=第六步编译检查>第六步：编译检查</h2><p>先检查 Python 模块语法：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker exec -e PYTHONPATH<span style=color:#f92672>=</span>/data/modules matrix-synapse <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  python -m py_compile /data/modules/no_room_encryption.py</span></span></code></pre></div><script class=code-source type=application/json>"docker exec -e PYTHONPATH=/data/modules matrix-synapse \\\n  python -m py_compile /data/modules/no_room_encryption.py"</script></div><p>没有输出一般就是通过。</p><p>再检查 Compose：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cd /opt/synapse
+</span></span><span style=display:flex><span>docker compose config &gt;/tmp/synapse-compose-check.yml</span></span></code></pre></div><script class=code-source type=application/json>"cd /opt/synapse\ndocker compose config \u003e/tmp/synapse-compose-check.yml"</script></div><h2 id=第七步重启-synapse>第七步：重启 Synapse</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cd /opt/synapse
+</span></span><span style=display:flex><span>docker compose restart synapse</span></span></code></pre></div><script class=code-source type=application/json>"cd /opt/synapse\ndocker compose restart synapse"</script></div><p>等待接口恢复：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#66d9ef>for</span> i in <span style=color:#ae81ff>1</span> <span style=color:#ae81ff>2</span> <span style=color:#ae81ff>3</span> <span style=color:#ae81ff>4</span> <span style=color:#ae81ff>5</span> <span style=color:#ae81ff>6</span> <span style=color:#ae81ff>7</span> <span style=color:#ae81ff>8</span> <span style=color:#ae81ff>9</span> 10; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  code<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>curl -sS -o /tmp/synapse_versions.json -w <span style=color:#e6db74>&#39;%{http_code}&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>    http://127.0.0.1:8008/_matrix/client/versions <span style=color:#f92672>||</span> true<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;</span>$code<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>[</span> <span style=color:#e6db74>&#34;</span>$code<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>=</span> <span style=color:#ae81ff>200</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> break
+</span></span><span style=display:flex><span>  sleep <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span></span></span></code></pre></div><script class=code-source type=application/json>"for i in 1 2 3 4 5 6 7 8 9 10; do\n  code=$(curl -sS -o /tmp/synapse_versions.json -w '%{http_code}' \\\n    http://127.0.0.1:8008/_matrix/client/versions || true)\n  echo \"$code\"\n  [ \"$code\" = 200 ] \u0026\u0026 break\n  sleep 2\ndone"</script></div><p>确认容器健康：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker compose ps</span></span></code></pre></div><script class=code-source type=application/json>"docker compose ps"</script></div><p>检查模块是否加载：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker logs --since 3m matrix-synapse 2&gt;&amp;<span style=color:#ae81ff>1</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | grep -E <span style=color:#e6db74>&#39;Loaded module|ERROR|CRITICAL|ModuleFailed|no_room_encryption|Traceback&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | tail -80</span></span></code></pre></div><script class=code-source type=application/json>"docker logs --since 3m matrix-synapse 2\u003e\u00261 \\\n  | grep -E 'Loaded module|ERROR|CRITICAL|ModuleFailed|no_room_encryption|Traceback' \\\n  | tail -80"</script></div><p>正常应看到类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Loaded module &lt;no_room_encryption.NoRoomEncryption object ...&gt;</span></span></code></pre></div><script class=code-source type=application/json>"Loaded module \u003cno_room_encryption.NoRoomEncryption object ...\u003e"</script></div><h2 id=第八步准备测试-token>第八步：准备测试 Token</h2><p>测试需要一个本服用户 access token。可以使用管理员 token：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>TOKEN<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>cat /path/to/admin-access-token<span style=color:#66d9ef>)</span></span></span></code></pre></div><script class=code-source type=application/json>"TOKEN=$(cat /path/to/admin-access-token)"</script></div><p>如果没有这个文件，就换成任意本服用户的 access token。</p><h2 id=第九步验证普通建房仍可用>第九步：验证普通建房仍可用</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ROOM_JSON<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>curl -sS -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#39;Content-Type: application/json&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -d <span style=color:#e6db74>&#39;{&#34;name&#34;:&#34;no-encryption-test&#34;,&#34;preset&#34;:&#34;private_chat&#34;}&#39;</span><span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$ROOM_JSON<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>ROOM_ID<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>printf <span style=color:#e6db74>&#39;%s&#39;</span> <span style=color:#e6db74>&#34;</span>$ROOM_JSON<span style=color:#e6db74>&#34;</span> | sed -n <span style=color:#e6db74>&#39;s/.*&#34;room_id&#34;:&#34;\([^&#34;]*\)&#34;.*/\1/p&#39;</span><span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$ROOM_ID<span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"ROOM_JSON=$(curl -sS -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"name\":\"no-encryption-test\",\"preset\":\"private_chat\"}')\n\necho \"$ROOM_JSON\"\nROOM_ID=$(printf '%s' \"$ROOM_JSON\" | sed -n 's/.*\"room_id\":\"\\([^\"]*\\)\".*/\\1/p')\necho \"$ROOM_ID\""</script></div><p>返回 <code>room_id</code> 就说明普通非加密房间可以创建。</p><h2 id=第十步验证创建时夹带加密会被拒绝>第十步：验证创建时夹带加密会被拒绝</h2><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -i -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#39;Content-Type: application/json&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -d <span style=color:#e6db74>&#39;{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;name&#34;: &#34;encrypted-create-should-fail&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;preset&#34;: &#34;private_chat&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;initial_state&#34;: [
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;type&#34;: &#34;m.room.encryption&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;state_key&#34;: &#34;&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;content&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;algorithm&#34;: &#34;m.megolm.v1.aes-sha2&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    ]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl -i -X POST http://127.0.0.1:8008/_matrix/client/v3/createRoom \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"encrypted-create-should-fail\",\n    \"preset\": \"private_chat\",\n    \"initial_state\": [\n      {\n        \"type\": \"m.room.encryption\",\n        \"state_key\": \"\",\n        \"content\": {\n          \"algorithm\": \"m.megolm.v1.aes-sha2\"\n        }\n      }\n    ]\n  }'"</script></div><p>预期：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>HTTP/1.1 403 Forbidden</span></span></code></pre></div><script class=code-source type=application/json>"HTTP/1.1 403 Forbidden"</script></div><p>响应类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;errcode&#34;</span>: <span style=color:#e6db74>&#34;M_FORBIDDEN&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;Room encryption is disabled on this homeserver. Please create/use an unencrypted room.&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"errcode\": \"M_FORBIDDEN\",\n  \"error\": \"Room encryption is disabled on this homeserver. Please create/use an unencrypted room.\"\n}"</script></div><h2 id=第十一步验证创建后开启加密会被拒绝>第十一步：验证创建后开启加密会被拒绝</h2><p>对前面成功创建的普通房间发送加密状态事件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -i -X PUT <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  <span style=color:#e6db74>&#34;http://127.0.0.1:8008/_matrix/client/v3/rooms/</span>$ROOM_ID<span style=color:#e6db74>/state/m.room.encryption&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -H <span style=color:#e6db74>&#39;Content-Type: application/json&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -d <span style=color:#e6db74>&#39;{&#34;algorithm&#34;:&#34;m.megolm.v1.aes-sha2&#34;}&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl -i -X PUT \\\n  \"http://127.0.0.1:8008/_matrix/client/v3/rooms/$ROOM_ID/state/m.room.encryption\" \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"algorithm\":\"m.megolm.v1.aes-sha2\"}'"</script></div><p>预期同样是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>HTTP/1.1 403 Forbidden</span></span></code></pre></div><script class=code-source type=application/json>"HTTP/1.1 403 Forbidden"</script></div><h2 id=element-客户端兼容性>Element 客户端兼容性</h2><p>这个方案服务端约束很强，但客户端兼容性不一定好。</p><p>实际测试里，部分 Element/Element Classic/Element X 在添加好友或发起私聊时，会自动把 <code>m.room.encryption</code> 放进 <code>createRoom.initial_state</code>。如果服务端直接返回 <code>403</code>，客户端可能出现：</p><ul><li>添加好友后私聊房间创建失败。</li><li>界面一直停在创建房间或转圈。</li><li>房间列表出现无名空房间。</li><li>老客户端和新客户端表现不一致。</li></ul><p>所以如果你的目标是“用户体验优先”，不建议直接启用这个强拒绝版本。更温和的变体是：创建房间时剔除 <code>initial_state</code> 里的 <code>m.room.encryption</code>，让房间正常创建为非加密房间；创建后再手动开启加密时仍然返回 <code>403</code>。</p><p>温和版的 <code>on_create_room</code> 可以改成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>on_create_room</span>(self, requester, config, is_requester_admin):
+</span></span><span style=display:flex><span>        initial_state <span style=color:#f92672>=</span> config<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;initial_state&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> isinstance(initial_state, list):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        config[<span style=color:#e6db74>&#34;initial_state&#34;</span>] <span style=color:#f92672>=</span> [
+</span></span><span style=display:flex><span>            state
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>for</span> state <span style=color:#f92672>in</span> initial_state
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> state<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;type&#34;</span>) <span style=color:#f92672>!=</span> <span style=color:#e6db74>&#34;m.room.encryption&#34;</span>
+</span></span><span style=display:flex><span>        ]</span></span></code></pre></div><script class=code-source type=application/json>"    async def on_create_room(self, requester, config, is_requester_admin):\n        initial_state = config.get(\"initial_state\")\n        if not isinstance(initial_state, list):\n            return\n\n        config[\"initial_state\"] = [\n            state\n            for state in initial_state\n            if state.get(\"type\") != \"m.room.encryption\"\n        ]"</script></div><p>但即便是温和版，也可能和某些客户端的私聊/验证流程有兼容性问题。启用前最好先用测试账号验证添加好友、私聊、退出房间、重新登录这些流程。</p><h2 id=回滚方式>回滚方式</h2><p>如果客户端出现兼容性问题，可以按下面方式回滚。</p><p>编辑 Compose，删除：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span>- <span style=color:#e6db74>&#34;PYTHONPATH=/data/modules&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"- \"PYTHONPATH=/data/modules\""</script></div><p>编辑 <code>homeserver.yaml</code>，删除：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>encryption_enabled_by_default_for_room_type</span>: <span style=color:#66d9ef>off</span></span></span></code></pre></div><script class=code-source type=application/json>"encryption_enabled_by_default_for_room_type: off"</script></div><p>再删除或注释模块配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>modules</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>module</span>: <span style=color:#ae81ff>no_room_encryption.NoRoomEncryption</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>config</span>: {}</span></span></code></pre></div><script class=code-source type=application/json>"modules:\n  - module: no_room_encryption.NoRoomEncryption\n    config: {}"</script></div><p>停用模块文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mv /opt/synapse/data/modules/no_room_encryption.py <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  /opt/synapse/data/modules/no_room_encryption.py.disabled-<span style=color:#66d9ef>$(</span>date +%Y%m%d%H%M%S<span style=color:#66d9ef>)</span></span></span></code></pre></div><script class=code-source type=application/json>"mv /opt/synapse/data/modules/no_room_encryption.py \\\n  /opt/synapse/data/modules/no_room_encryption.py.disabled-$(date +%Y%m%d%H%M%S)"</script></div><p>如果模块目录只放了这个文件，也可以清理：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>find /opt/synapse/data/modules/__pycache__ <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -maxdepth <span style=color:#ae81ff>1</span> -type f -name <span style=color:#e6db74>&#39;no_room_encryption*&#39;</span> -delete 2&gt;/dev/null <span style=color:#f92672>||</span> true
+</span></span><span style=display:flex><span>rmdir /opt/synapse/data/modules/__pycache__ 2&gt;/dev/null <span style=color:#f92672>||</span> true
+</span></span><span style=display:flex><span>rmdir /opt/synapse/data/modules 2&gt;/dev/null <span style=color:#f92672>||</span> true</span></span></code></pre></div><script class=code-source type=application/json>"find /opt/synapse/data/modules/__pycache__ \\\n  -maxdepth 1 -type f -name 'no_room_encryption*' -delete 2\u003e/dev/null || true\nrmdir /opt/synapse/data/modules/__pycache__ 2\u003e/dev/null || true\nrmdir /opt/synapse/data/modules 2\u003e/dev/null || true"</script></div><p>重启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cd /opt/synapse
+</span></span><span style=display:flex><span>docker compose config &gt;/tmp/synapse-compose-rollback-check.yml
+</span></span><span style=display:flex><span>docker compose restart synapse</span></span></code></pre></div><script class=code-source type=application/json>"cd /opt/synapse\ndocker compose config \u003e/tmp/synapse-compose-rollback-check.yml\ndocker compose restart synapse"</script></div><p>确认恢复：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -sS -o /tmp/synapse_versions.json -w <span style=color:#e6db74>&#39;%{http_code}\n&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  http://127.0.0.1:8008/_matrix/client/versions
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>docker logs --since 90s matrix-synapse 2&gt;&amp;<span style=color:#ae81ff>1</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | grep -E <span style=color:#e6db74>&#39;Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  | tail -80</span></span></code></pre></div><script class=code-source type=application/json>"curl -sS -o /tmp/synapse_versions.json -w '%{http_code}\\n' \\\n  http://127.0.0.1:8008/_matrix/client/versions\n\ndocker logs --since 90s matrix-synapse 2\u003e\u00261 \\\n  | grep -E 'Loaded module|no_room_encryption|ERROR|CRITICAL|ModuleFailed|Traceback' \\\n  | tail -80"</script></div><p>回滚后日志里不应再出现 <code>no_room_encryption</code> 模块加载。</p><h2 id=结论>结论</h2><p>服务端禁止加密房间这件事可以做，而且拦截点也很明确：拦住 <code>m.room.encryption</code> 状态事件即可。</p><p>但在真实 Element 客户端里，私聊和添加好友流程经常默认带加密初始状态。强行拒绝会带来兼容性问题，所以这个方案适合有明确运维目标、能接受客户端限制的场景。</p><p>如果只是为了控制服务端媒体存储增长，更稳妥的长期方案通常是：保留客户端默认加密能力，同时用清晰的媒体保留规则控制服务端硬盘，并通过服务器通知告知用户大文件会定期清理。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

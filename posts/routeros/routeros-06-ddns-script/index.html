@@ -1,432 +1,255 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>06.RouterOS 配置 DDNS 脚本 | 电脑自习室</title>
-    <meta name="description" content="RouterOS DDNS 脚本。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2025-08-22">2025年8月22日</time>
-        </div>
-        <h1>06.RouterOS 配置 DDNS 脚本</h1>
-          <p>RouterOS DDNS 脚本。</p>
-      </header>
-          <img class="article-cover" src="/posts/routeros/routeros-06-ddns-script/assets/routeros-06.svg" alt="">
-
-      <div class="article-content">
-        <h2 id="本文介绍如何在routeros中使用脚本完成动态域名解析ddns">本文介绍如何在RouterOS中使用脚本完成动态域名解析DDNS</h2>
-<h3 id="1-cloudflare-ddns-脚本">1. Cloudflare DDNS 脚本</h3>
-<blockquote>
-<p>先祭出ddns脚本，仅提供解析至cf的脚本。自行准备好“你的DDNS token”“你的ZONEID””你的RECORD6ID“或”RECORD4ID“以及域名（支持ddns泛解析）。文末提供”ZONEID“、”RECORD4ID”等所需参数获取教程。</p>
-</blockquote>
-<h4 id="11-完整脚本模板">1.1 完整脚本模板</h4>
-<ul>
-<li>此模板为先更新IPV6记录，等待300s后更新IPV4记录</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># token $ zoneid</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local TOKEN <span style="color:#e6db74">&#34;你的DDNS token&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local ZONEID <span style="color:#e6db74">&#34;你的ZONEID&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># IPv6</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD6ID <span style="color:#e6db74">&#34;你的RECORD6ID&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD6NAME <span style="color:#e6db74">&#34;*.你的v6域名.com&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local WANIF6 <span style="color:#e6db74">&#34;pppoe-out1或bridge1&#34;</span>    <span style="color:#75715e">#自行更改，NAT6选PPPOE接口，SLAAC选bridge</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local url6 <span style="color:#e6db74">&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style="color:#e6db74">/dns_records/</span>$RECORD6ID<span style="color:#e6db74">/&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># IPv4</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD4ID <span style="color:#e6db74">&#34;你的RECORD4ID&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD4NAME <span style="color:#e6db74">&#34;*.你的v4域名.com&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local WANIF4 <span style="color:#e6db74">&#34;pppoe-out1&#34;</span>   <span style="color:#75715e">#自行更改</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local url4 <span style="color:#e6db74">&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style="color:#e6db74">/dns_records/</span>$RECORD4ID<span style="color:#e6db74">/&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更新 IPv6 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:if <span style="color:#f92672">([</span>/interface get $WANIF6 value-name<span style="color:#f92672">=</span>running<span style="color:#f92672">])</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取本地 IPv6 地址</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local currentIP6 <span style="color:#f92672">[</span>/ipv6/address/get <span style="color:#f92672">[</span>:pick <span style="color:#f92672">[</span>find global interface<span style="color:#f92672">=</span>$WANIF6<span style="color:#f92672">]</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span> address<span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local IP6NEW <span style="color:#f92672">[</span>:pick $currentIP6 <span style="color:#ae81ff">0</span> <span style="color:#f92672">[</span>:find $currentIP6 <span style="color:#e6db74">&#34;/&#34;</span><span style="color:#f92672">]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;当前IPv6地址: </span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取 Cloudflare 当前的 DNS 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfRecord <span style="color:#f92672">[</span>/tool fetch mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url6 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 解析 Cloudflare 返回的 JSON 数据</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfContent <span style="color:#f92672">(</span>$cfRecord-&gt;<span style="color:#e6db74">&#34;data&#34;</span><span style="color:#f92672">)</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local startIndex <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfIP6 <span style="color:#f92672">[</span>:pick $cfContent <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)</span> <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;&#34;</span> <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;CF IPv6地址: </span>$cfIP6<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 对比本机 IP 和 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :if <span style="color:#f92672">(</span>$IP6NEW !<span style="color:#f92672">=</span> $cfIP6<span style="color:#f92672">)</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;检测到 IP 变化：Cloudflare=</span>$cfIP6<span style="color:#e6db74">, 本地=</span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 更新 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>          :local cfUpdate6 <span style="color:#f92672">[</span>/tool fetch http-method<span style="color:#f92672">=</span>put mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url6 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-data<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;{\&#34;type\&#34;:\&#34;AAAA\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD6NAME<span style="color:#e6db74">\&#34;,\&#34;content\&#34;:\&#34;</span>$IP6NEW<span style="color:#e6db74">\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;已更新 Cloudflare IPv6 为 </span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;当前 Cloudflare 记录 (</span>$cfIP6<span style="color:#e6db74">) 与本机 IP 相同，无需更新。&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log error <span style="color:#e6db74">&#34;</span>$WANIF6<span style="color:#e6db74"> 接口未运行，无法获取本地 IPv6 地址&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e">#等待300s，若仅更新V4或V6需删除</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:delay 300s
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更新 IPv4 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:if <span style="color:#f92672">([</span>/interface get $WANIF4 value-name<span style="color:#f92672">=</span>running<span style="color:#f92672">])</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取本地 IPv4 地址</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local currentIP4 <span style="color:#f92672">[</span>/ip/address get <span style="color:#f92672">[</span>/ip/address find interface<span style="color:#f92672">=</span>$WANIF4<span style="color:#f92672">]</span> address<span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local IP4NEW <span style="color:#f92672">[</span>:pick $currentIP4 <span style="color:#ae81ff">0</span> <span style="color:#f92672">[</span>:find $currentIP4 <span style="color:#e6db74">&#34;/&#34;</span><span style="color:#f92672">]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;当前IPv4地址: </span>$IP4NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取 Cloudflare 当前的 DNS 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfRecord <span style="color:#f92672">[</span>/tool fetch mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url4 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 解析 Cloudflare 返回的 JSON 数据</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfContent <span style="color:#f92672">(</span>$cfRecord-&gt;<span style="color:#e6db74">&#34;data&#34;</span><span style="color:#f92672">)</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local startIndex <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfIP4 <span style="color:#f92672">[</span>:pick $cfContent <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)</span> <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;&#34;</span> <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;CF IPv4地址: </span>$cfIP4<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 对比本机 IP 和 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :if <span style="color:#f92672">(</span>$IP4NEW !<span style="color:#f92672">=</span> $cfIP4<span style="color:#f92672">)</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;检测到 IP 变化：Cloudflare=</span>$cfIP4<span style="color:#e6db74">, 本地=</span>$IP4NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 更新 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>          :local cfUpdate4 <span style="color:#f92672">[</span>/tool fetch http-method<span style="color:#f92672">=</span>put mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url4 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-data<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;{\&#34;type\&#34;:\&#34;A\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD4NAME<span style="color:#e6db74">\&#34;,\&#34;content\&#34;:\&#34;</span>$IP4NEW<span style="color:#e6db74">\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;已更新 Cloudflare IPv4 为 </span>$IP4NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;当前 Cloudflare 记录 (</span>$cfIP4<span style="color:#e6db74">) 与本机 IP 相同，无需更新。&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log error <span style="color:#e6db74">&#34;</span>$WANIF4<span style="color:#e6db74"> 接口未运行，无法获取本地 IPv4 地址&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或bridge1\"    #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# IPv4\n\n:local RECORD4ID \"你的RECORD4ID\"\n\n:local RECORD4NAME \"*.你的v4域名.com\"\n\n:local WANIF4 \"pppoe-out1\"   #自行更改\n\n:local url4 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD4ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n    # 获取本地 IPv6 地址\n\n    :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n    :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n    :log info \"当前IPv6地址: $IP6NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv6地址: $cfIP6\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP6NEW != $cfIP6) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}\n\n#等待300s，若仅更新V4或V6需删除\n\n:delay 300s\n\n# 更新 IPv4 记录\n\n:if ([/interface get $WANIF4 value-name=running]) do={\n\n    # 获取本地 IPv4 地址\n\n    :local currentIP4 [/ip/address get [/ip/address find interface=$WANIF4] address]\n\n    :local IP4NEW [:pick $currentIP4 0 [:find $currentIP4 \"/\"]]\n\n    :log info \"当前IPv4地址: $IP4NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url4 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP4 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv4地址: $cfIP4\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP4NEW != $cfIP4) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP4, 本地=$IP4NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate4 [/tool fetch http-method=put mode=https url=$url4 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"A\\\",\\\"name\\\":\\\"$RECORD4NAME\\\",\\\"content\\\":\\\"$IP4NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv4 为 $IP4NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP4) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF4 接口未运行，无法获取本地 IPv4 地址\"\n\n}"</script>
-</div>
-<h4 id="12-单独-ipv4ipv6-版本">1.2 单独 IPv4/IPv6 版本</h4>
-<ul>
-<li>若仅需更新IPV4或IPV6，删除多余板块和”:delay 300s”即可</li>
-<li>以仅更新IPV6为例</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># token $ zoneid</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local TOKEN <span style="color:#e6db74">&#34;你的DDNS token&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local ZONEID <span style="color:#e6db74">&#34;你的ZONEID&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># IPv6</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD6ID <span style="color:#e6db74">&#34;你的RECORD6ID&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local RECORD6NAME <span style="color:#e6db74">&#34;*.你的v6域名.com&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local WANIF6 <span style="color:#e6db74">&#34;pppoe-out1或是bridge1&#34;</span>    <span style="color:#75715e">#自行更改，NAT6选PPPOE接口，SLAAC选bridge</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:local url6 <span style="color:#e6db74">&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style="color:#e6db74">/dns_records/</span>$RECORD6ID<span style="color:#e6db74">/&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更新 IPv6 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>:if <span style="color:#f92672">([</span>/interface get $WANIF6 value-name<span style="color:#f92672">=</span>running<span style="color:#f92672">])</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取本地 IPv6 地址</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local currentIP6 <span style="color:#f92672">[</span>/ipv6/address/get <span style="color:#f92672">[</span>:pick <span style="color:#f92672">[</span>find global interface<span style="color:#f92672">=</span>$WANIF6<span style="color:#f92672">]</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span> address<span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local IP6NEW <span style="color:#f92672">[</span>:pick $currentIP6 <span style="color:#ae81ff">0</span> <span style="color:#f92672">[</span>:find $currentIP6 <span style="color:#e6db74">&#34;/&#34;</span><span style="color:#f92672">]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;当前IPv6地址: </span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 获取 Cloudflare 当前的 DNS 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfRecord <span style="color:#f92672">[</span>/tool fetch mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url6 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 解析 Cloudflare 返回的 JSON 数据</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfContent <span style="color:#f92672">(</span>$cfRecord-&gt;<span style="color:#e6db74">&#34;data&#34;</span><span style="color:#f92672">)</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local startIndex <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :local cfIP6 <span style="color:#f92672">[</span>:pick $cfContent <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)</span> <span style="color:#f92672">[</span>:find $cfContent <span style="color:#e6db74">&#34;\&#34;&#34;</span> <span style="color:#f92672">(</span>$startIndex + 11<span style="color:#f92672">)]]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;CF IPv6地址: </span>$cfIP6<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 对比本机 IP 和 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :if <span style="color:#f92672">(</span>$IP6NEW !<span style="color:#f92672">=</span> $cfIP6<span style="color:#f92672">)</span> <span style="color:#66d9ef">do</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;检测到 IP 变化：Cloudflare=</span>$cfIP6<span style="color:#e6db74">, 本地=</span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># 更新 Cloudflare 记录</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>          :local cfUpdate6 <span style="color:#f92672">[</span>/tool fetch http-method<span style="color:#f92672">=</span>put mode<span style="color:#f92672">=</span>https url<span style="color:#f92672">=</span>$url6 check-certificate<span style="color:#f92672">=</span>no output<span style="color:#f92672">=</span>user as-value <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-header-field<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">,Content-Type: application/json&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>
-</span></span><span style="display:flex;"><span>        http-data<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;{\&#34;type\&#34;:\&#34;AAAA\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD6NAME<span style="color:#e6db74">\&#34;,\&#34;content\&#34;:\&#34;</span>$IP6NEW<span style="color:#e6db74">\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style="color:#f92672">]</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log info <span style="color:#e6db74">&#34;已更新 Cloudflare IPv6 为 </span>$IP6NEW<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        :log info <span style="color:#e6db74">&#34;当前 Cloudflare 记录 (</span>$cfIP6<span style="color:#e6db74">) 与本机 IP 相同，无需更新。&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span> <span style="color:#66d9ef">else</span><span style="color:#f92672">={</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    :log error <span style="color:#e6db74">&#34;</span>$WANIF6<span style="color:#e6db74"> 接口未运行，无法获取本地 IPv6 地址&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span></span></span></code></pre></div><script class="code-source" type="application/json">"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或是bridge1\"    #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n    # 获取本地 IPv6 地址\n\n    :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n    :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n    :log info \"当前IPv6地址: $IP6NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv6地址: $cfIP6\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP6NEW != $cfIP6) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}"</script>
-</div>
-<h3 id="2-在-routeros-中配置-ddns">2. 在 RouterOS 中配置 DDNS</h3>
-<ul>
-<li>配置DNS static （可选项，博主所在地区无法直连cf的api，所以设置后通过代理访问cf的api）</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ip dns static add address<span style="color:#f92672">=</span>104.19.192.175 name<span style="color:#f92672">=</span>api.cloudflare.com type<span style="color:#f92672">=</span>A</span></span></code></pre></div><script class="code-source" type="application/json">"/ip dns static add address=104.19.192.175 name=api.cloudflare.com type=A"</script>
-</div>
-<ul>
-<li>添加脚本，名字随意
-<img src="assets/routeros-06-ddns-script-01.png" alt=""></li>
-<li>点击运行脚本，查看log是否报错
-<img src="assets/routeros-06-ddns-script-02.png" alt=""></li>
-<li>若报错，将104.19.192.175路由至sing-box走代理
-<img src="assets/routeros-06-ddns-script-03.png" alt=""></li>
-<li>添加计划任务，3分钟执行一次
-<img src="assets/routeros-06-ddns-script-04.png" alt=""></li>
-</ul>
-<h3 id="3-获取-ddns-脚本所需参数">3. 获取 DDNS 脚本所需参数</h3>
-<h4 id="31-获取-global-api-key">3.1 获取 Global API Key</h4>
-<ul>
-<li>登录CF主页，点击我的个人资料
-<img src="assets/routeros-06-ddns-script-05.png" alt=""></li>
-<li>输入密码查看Global API KEY
-<img src="assets/routeros-06-ddns-script-06.png" alt="">
-<img src="assets/routeros-06-ddns-script-07.png" alt=""></li>
-<li>创建DDNS token
-<img src="assets/routeros-06-ddns-script-08.png" alt="">
-<img src="assets/routeros-06-ddns-script-09.png" alt="">
-<img src="assets/routeros-06-ddns-script-10.png" alt="">
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>06.RouterOS 配置 DDNS 脚本 | 电脑自习室</title>
+<meta name=description content="RouterOS DDNS 脚本。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2025-08-22>2025年8月22日</time></div><h1>06.RouterOS 配置 DDNS 脚本</h1><p>RouterOS DDNS 脚本。</p></header><img class=article-cover src=/posts/routeros/routeros-06-ddns-script/assets/routeros-06.svg alt><div class=article-content><h2 id=本文介绍如何在routeros中使用脚本完成动态域名解析ddns>本文介绍如何在RouterOS中使用脚本完成动态域名解析DDNS</h2><h3 id=1-cloudflare-ddns-脚本>1. Cloudflare DDNS 脚本</h3><blockquote><p>先祭出ddns脚本，仅提供解析至cf的脚本。自行准备好“你的DDNS token”“你的ZONEID””你的RECORD6ID“或”RECORD4ID“以及域名（支持ddns泛解析）。文末提供”ZONEID“、”RECORD4ID”等所需参数获取教程。</p></blockquote><h4 id=11-完整脚本模板>1.1 完整脚本模板</h4><ul><li>此模板为先更新IPV6记录，等待300s后更新IPV4记录</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># token $ zoneid</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local TOKEN <span style=color:#e6db74>&#34;你的DDNS token&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local ZONEID <span style=color:#e6db74>&#34;你的ZONEID&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># IPv6</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD6ID <span style=color:#e6db74>&#34;你的RECORD6ID&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD6NAME <span style=color:#e6db74>&#34;*.你的v6域名.com&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local WANIF6 <span style=color:#e6db74>&#34;pppoe-out1或bridge1&#34;</span>    <span style=color:#75715e>#自行更改，NAT6选PPPOE接口，SLAAC选bridge</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local url6 <span style=color:#e6db74>&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style=color:#e6db74>/dns_records/</span>$RECORD6ID<span style=color:#e6db74>/&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># IPv4</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD4ID <span style=color:#e6db74>&#34;你的RECORD4ID&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD4NAME <span style=color:#e6db74>&#34;*.你的v4域名.com&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local WANIF4 <span style=color:#e6db74>&#34;pppoe-out1&#34;</span>   <span style=color:#75715e>#自行更改</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local url4 <span style=color:#e6db74>&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style=color:#e6db74>/dns_records/</span>$RECORD4ID<span style=color:#e6db74>/&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 更新 IPv6 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:if <span style=color:#f92672>([</span>/interface get $WANIF6 value-name<span style=color:#f92672>=</span>running<span style=color:#f92672>])</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取本地 IPv6 地址</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local currentIP6 <span style=color:#f92672>[</span>/ipv6/address/get <span style=color:#f92672>[</span>:pick <span style=color:#f92672>[</span>find global interface<span style=color:#f92672>=</span>$WANIF6<span style=color:#f92672>]</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>]</span> address<span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local IP6NEW <span style=color:#f92672>[</span>:pick $currentIP6 <span style=color:#ae81ff>0</span> <span style=color:#f92672>[</span>:find $currentIP6 <span style=color:#e6db74>&#34;/&#34;</span><span style=color:#f92672>]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;当前IPv6地址: </span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取 Cloudflare 当前的 DNS 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfRecord <span style=color:#f92672>[</span>/tool fetch mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url6 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 解析 Cloudflare 返回的 JSON 数据</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfContent <span style=color:#f92672>(</span>$cfRecord-&gt;<span style=color:#e6db74>&#34;data&#34;</span><span style=color:#f92672>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local startIndex <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfIP6 <span style=color:#f92672>[</span>:pick $cfContent <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)</span> <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;&#34;</span> <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;CF IPv6地址: </span>$cfIP6<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 对比本机 IP 和 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :if <span style=color:#f92672>(</span>$IP6NEW !<span style=color:#f92672>=</span> $cfIP6<span style=color:#f92672>)</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;检测到 IP 变化：Cloudflare=</span>$cfIP6<span style=color:#e6db74>, 本地=</span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 更新 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>          :local cfUpdate6 <span style=color:#f92672>[</span>/tool fetch http-method<span style=color:#f92672>=</span>put mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url6 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-data<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;{\&#34;type\&#34;:\&#34;AAAA\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD6NAME<span style=color:#e6db74>\&#34;,\&#34;content\&#34;:\&#34;</span>$IP6NEW<span style=color:#e6db74>\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;已更新 Cloudflare IPv6 为 </span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;当前 Cloudflare 记录 (</span>$cfIP6<span style=color:#e6db74>) 与本机 IP 相同，无需更新。&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log error <span style=color:#e6db74>&#34;</span>$WANIF6<span style=color:#e6db74> 接口未运行，无法获取本地 IPv6 地址&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#等待300s，若仅更新V4或V6需删除</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:delay 300s
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 更新 IPv4 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:if <span style=color:#f92672>([</span>/interface get $WANIF4 value-name<span style=color:#f92672>=</span>running<span style=color:#f92672>])</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取本地 IPv4 地址</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local currentIP4 <span style=color:#f92672>[</span>/ip/address get <span style=color:#f92672>[</span>/ip/address find interface<span style=color:#f92672>=</span>$WANIF4<span style=color:#f92672>]</span> address<span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local IP4NEW <span style=color:#f92672>[</span>:pick $currentIP4 <span style=color:#ae81ff>0</span> <span style=color:#f92672>[</span>:find $currentIP4 <span style=color:#e6db74>&#34;/&#34;</span><span style=color:#f92672>]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;当前IPv4地址: </span>$IP4NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取 Cloudflare 当前的 DNS 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfRecord <span style=color:#f92672>[</span>/tool fetch mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url4 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 解析 Cloudflare 返回的 JSON 数据</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfContent <span style=color:#f92672>(</span>$cfRecord-&gt;<span style=color:#e6db74>&#34;data&#34;</span><span style=color:#f92672>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local startIndex <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfIP4 <span style=color:#f92672>[</span>:pick $cfContent <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)</span> <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;&#34;</span> <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;CF IPv4地址: </span>$cfIP4<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 对比本机 IP 和 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :if <span style=color:#f92672>(</span>$IP4NEW !<span style=color:#f92672>=</span> $cfIP4<span style=color:#f92672>)</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;检测到 IP 变化：Cloudflare=</span>$cfIP4<span style=color:#e6db74>, 本地=</span>$IP4NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 更新 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>          :local cfUpdate4 <span style=color:#f92672>[</span>/tool fetch http-method<span style=color:#f92672>=</span>put mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url4 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-data<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;{\&#34;type\&#34;:\&#34;A\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD4NAME<span style=color:#e6db74>\&#34;,\&#34;content\&#34;:\&#34;</span>$IP4NEW<span style=color:#e6db74>\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;已更新 Cloudflare IPv4 为 </span>$IP4NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;当前 Cloudflare 记录 (</span>$cfIP4<span style=color:#e6db74>) 与本机 IP 相同，无需更新。&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log error <span style=color:#e6db74>&#34;</span>$WANIF4<span style=color:#e6db74> 接口未运行，无法获取本地 IPv4 地址&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或bridge1\"    #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# IPv4\n\n:local RECORD4ID \"你的RECORD4ID\"\n\n:local RECORD4NAME \"*.你的v4域名.com\"\n\n:local WANIF4 \"pppoe-out1\"   #自行更改\n\n:local url4 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD4ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n    # 获取本地 IPv6 地址\n\n    :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n    :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n    :log info \"当前IPv6地址: $IP6NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv6地址: $cfIP6\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP6NEW != $cfIP6) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}\n\n#等待300s，若仅更新V4或V6需删除\n\n:delay 300s\n\n# 更新 IPv4 记录\n\n:if ([/interface get $WANIF4 value-name=running]) do={\n\n    # 获取本地 IPv4 地址\n\n    :local currentIP4 [/ip/address get [/ip/address find interface=$WANIF4] address]\n\n    :local IP4NEW [:pick $currentIP4 0 [:find $currentIP4 \"/\"]]\n\n    :log info \"当前IPv4地址: $IP4NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url4 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP4 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv4地址: $cfIP4\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP4NEW != $cfIP4) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP4, 本地=$IP4NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate4 [/tool fetch http-method=put mode=https url=$url4 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"A\\\",\\\"name\\\":\\\"$RECORD4NAME\\\",\\\"content\\\":\\\"$IP4NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv4 为 $IP4NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP4) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF4 接口未运行，无法获取本地 IPv4 地址\"\n\n}"</script></div><h4 id=12-单独-ipv4ipv6-版本>1.2 单独 IPv4/IPv6 版本</h4><ul><li>若仅需更新IPV4或IPV6，删除多余板块和”:delay 300s”即可</li><li>以仅更新IPV6为例</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># token $ zoneid</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local TOKEN <span style=color:#e6db74>&#34;你的DDNS token&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local ZONEID <span style=color:#e6db74>&#34;你的ZONEID&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># IPv6</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD6ID <span style=color:#e6db74>&#34;你的RECORD6ID&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local RECORD6NAME <span style=color:#e6db74>&#34;*.你的v6域名.com&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local WANIF6 <span style=color:#e6db74>&#34;pppoe-out1或是bridge1&#34;</span>    <span style=color:#75715e>#自行更改，NAT6选PPPOE接口，SLAAC选bridge</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:local url6 <span style=color:#e6db74>&#34;https://api.cloudflare.com/client/v4/zones/</span>$ZONEID<span style=color:#e6db74>/dns_records/</span>$RECORD6ID<span style=color:#e6db74>/&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 更新 IPv6 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>:if <span style=color:#f92672>([</span>/interface get $WANIF6 value-name<span style=color:#f92672>=</span>running<span style=color:#f92672>])</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取本地 IPv6 地址</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local currentIP6 <span style=color:#f92672>[</span>/ipv6/address/get <span style=color:#f92672>[</span>:pick <span style=color:#f92672>[</span>find global interface<span style=color:#f92672>=</span>$WANIF6<span style=color:#f92672>]</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>]</span> address<span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local IP6NEW <span style=color:#f92672>[</span>:pick $currentIP6 <span style=color:#ae81ff>0</span> <span style=color:#f92672>[</span>:find $currentIP6 <span style=color:#e6db74>&#34;/&#34;</span><span style=color:#f92672>]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;当前IPv6地址: </span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 获取 Cloudflare 当前的 DNS 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfRecord <span style=color:#f92672>[</span>/tool fetch mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url6 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 解析 Cloudflare 返回的 JSON 数据</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfContent <span style=color:#f92672>(</span>$cfRecord-&gt;<span style=color:#e6db74>&#34;data&#34;</span><span style=color:#f92672>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local startIndex <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;content\&#34;:\&#34;&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :local cfIP6 <span style=color:#f92672>[</span>:pick $cfContent <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)</span> <span style=color:#f92672>[</span>:find $cfContent <span style=color:#e6db74>&#34;\&#34;&#34;</span> <span style=color:#f92672>(</span>$startIndex + 11<span style=color:#f92672>)]]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;CF IPv6地址: </span>$cfIP6<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 对比本机 IP 和 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :if <span style=color:#f92672>(</span>$IP6NEW !<span style=color:#f92672>=</span> $cfIP6<span style=color:#f92672>)</span> <span style=color:#66d9ef>do</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;检测到 IP 变化：Cloudflare=</span>$cfIP6<span style=color:#e6db74>, 本地=</span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 更新 Cloudflare 记录</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>          :local cfUpdate6 <span style=color:#f92672>[</span>/tool fetch http-method<span style=color:#f92672>=</span>put mode<span style=color:#f92672>=</span>https url<span style=color:#f92672>=</span>$url6 check-certificate<span style=color:#f92672>=</span>no output<span style=color:#f92672>=</span>user as-value <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-header-field<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Authorization: Bearer </span>$TOKEN<span style=color:#e6db74>,Content-Type: application/json&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>
+</span></span><span style=display:flex><span>        http-data<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;{\&#34;type\&#34;:\&#34;AAAA\&#34;,\&#34;name\&#34;:\&#34;</span>$RECORD6NAME<span style=color:#e6db74>\&#34;,\&#34;content\&#34;:\&#34;</span>$IP6NEW<span style=color:#e6db74>\&#34;,\&#34;ttl\&#34;:120,\&#34;proxied\&#34;:false}&#34;</span><span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log info <span style=color:#e6db74>&#34;已更新 Cloudflare IPv6 为 </span>$IP6NEW<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        :log info <span style=color:#e6db74>&#34;当前 Cloudflare 记录 (</span>$cfIP6<span style=color:#e6db74>) 与本机 IP 相同，无需更新。&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span> <span style=color:#66d9ef>else</span><span style=color:#f92672>={</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    :log error <span style=color:#e6db74>&#34;</span>$WANIF6<span style=color:#e6db74> 接口未运行，无法获取本地 IPv6 地址&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span></span></span></code></pre></div><script class=code-source type=application/json>"# token $ zoneid\n\n:local TOKEN \"你的DDNS token\"\n\n:local ZONEID \"你的ZONEID\"\n\n# IPv6\n\n:local RECORD6ID \"你的RECORD6ID\"\n\n:local RECORD6NAME \"*.你的v6域名.com\"\n\n:local WANIF6 \"pppoe-out1或是bridge1\"    #自行更改，NAT6选PPPOE接口，SLAAC选bridge\n\n:local url6 \"https://api.cloudflare.com/client/v4/zones/$ZONEID/dns_records/$RECORD6ID/\"\n\n# 更新 IPv6 记录\n\n:if ([/interface get $WANIF6 value-name=running]) do={\n\n    # 获取本地 IPv6 地址\n\n    :local currentIP6 [/ipv6/address/get [:pick [find global interface=$WANIF6] 0 ] address]\n\n    :local IP6NEW [:pick $currentIP6 0 [:find $currentIP6 \"/\"]]\n\n    :log info \"当前IPv6地址: $IP6NEW\"\n\n    # 获取 Cloudflare 当前的 DNS 记录\n\n    :local cfRecord [/tool fetch mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\"]\n\n    # 解析 Cloudflare 返回的 JSON 数据\n\n    :local cfContent ($cfRecord-\u003e\"data\")\n\n    :local startIndex [:find $cfContent \"\\\"content\\\":\\\"\"]\n\n    :local cfIP6 [:pick $cfContent ($startIndex + 11) [:find $cfContent \"\\\"\" ($startIndex + 11)]]\n\n    :log info \"CF IPv6地址: $cfIP6\"\n\n    # 对比本机 IP 和 Cloudflare 记录\n\n    :if ($IP6NEW != $cfIP6) do={\n\n        :log info \"检测到 IP 变化：Cloudflare=$cfIP6, 本地=$IP6NEW\"\n\n    # 更新 Cloudflare 记录\n\n          :local cfUpdate6 [/tool fetch http-method=put mode=https url=$url6 check-certificate=no output=user as-value \\\n\n        http-header-field=\"Authorization: Bearer $TOKEN,Content-Type: application/json\" \\\n\n        http-data=\"{\\\"type\\\":\\\"AAAA\\\",\\\"name\\\":\\\"$RECORD6NAME\\\",\\\"content\\\":\\\"$IP6NEW\\\",\\\"ttl\\\":120,\\\"proxied\\\":false}\"]\n\n    :log info \"已更新 Cloudflare IPv6 为 $IP6NEW\"\n\n} else={\n\n        :log info \"当前 Cloudflare 记录 ($cfIP6) 与本机 IP 相同，无需更新。\"\n\n    }\n\n} else={\n\n    :log error \"$WANIF6 接口未运行，无法获取本地 IPv6 地址\"\n\n}"</script></div><h3 id=2-在-routeros-中配置-ddns>2. 在 RouterOS 中配置 DDNS</h3><ul><li>配置DNS static （可选项，博主所在地区无法直连cf的api，所以设置后通过代理访问cf的api）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ip dns static add address<span style=color:#f92672>=</span>104.19.192.175 name<span style=color:#f92672>=</span>api.cloudflare.com type<span style=color:#f92672>=</span>A</span></span></code></pre></div><script class=code-source type=application/json>"/ip dns static add address=104.19.192.175 name=api.cloudflare.com type=A"</script></div><ul><li>添加脚本，名字随意
+<img src=assets/routeros-06-ddns-script-01.png alt></li><li>点击运行脚本，查看log是否报错
+<img src=assets/routeros-06-ddns-script-02.png alt></li><li>若报错，将104.19.192.175路由至sing-box走代理
+<img src=assets/routeros-06-ddns-script-03.png alt></li><li>添加计划任务，3分钟执行一次
+<img src=assets/routeros-06-ddns-script-04.png alt></li></ul><h3 id=3-获取-ddns-脚本所需参数>3. 获取 DDNS 脚本所需参数</h3><h4 id=31-获取-global-api-key>3.1 获取 Global API Key</h4><ul><li>登录CF主页，点击我的个人资料
+<img src=assets/routeros-06-ddns-script-05.png alt></li><li>输入密码查看Global API KEY
+<img src=assets/routeros-06-ddns-script-06.png alt>
+<img src=assets/routeros-06-ddns-script-07.png alt></li><li>创建DDNS token
+<img src=assets/routeros-06-ddns-script-08.png alt>
+<img src=assets/routeros-06-ddns-script-09.png alt>
+<img src=assets/routeros-06-ddns-script-10.png alt>
 注：API令牌仅出现1次，务必保存好
-<img src="assets/routeros-06-ddns-script-11.png" alt=""></li>
-</ul>
-<h4 id="32-获取-zoneid">3.2 获取 ZONEID</h4>
-<ul>
-<li>账户主页-进入需DDNS的域名界面
-<img src="assets/routeros-06-ddns-script-12.png" alt=""></li>
-<li>往下滑找到区域ID即为ZONEID
-<img src="assets/routeros-06-ddns-script-13.png" alt=""></li>
-</ul>
-<h4 id="33-获取-recordid">3.3 获取 RECORDID</h4>
-<p>若域名无DNS记录，需先创建1条DNS记录
-在任意linux系统中通过下述命令获取你的RECORDID，A代表V4，AAAA代表V6，如果同域名需要解析V4和V6，在CF上使用同一个二个域名，分别选择A和AAAA</p>
-<ul>
-<li>获取RECORD4ID（IPV4）</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X GET <span style="color:#e6db74">&#34;https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=A&amp;name=你的域名&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;X-Auth-Email: 这里输入你的CF帐号邮箱&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;X-Auth-Key: 这里输入你的global_TOKEN&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;Content-Type: application/json&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -X GET \"https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=A\u0026name=你的域名\" \\\n     -H \"X-Auth-Email: 这里输入你的CF帐号邮箱\" \\\n     -H \"X-Auth-Key: 这里输入你的global_TOKEN\" \\\n     -H \"Content-Type: application/json\""</script>
-</div>
-<ul>
-<li>获取RECORD6ID（IPV6）</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X GET <span style="color:#e6db74">&#34;https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=AAAA&amp;name=你的域名&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;X-Auth-Email: 这里输入你的CF帐号邮箱&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;X-Auth-Key: 这里输入你的global_TOKEN&#34;</span> <span style="color:#ae81ff">\
-</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>     -H <span style="color:#e6db74">&#34;Content-Type: application/json&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -X GET \"https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=AAAA\u0026name=你的域名\" \\\n     -H \"X-Auth-Email: 这里输入你的CF帐号邮箱\" \\\n     -H \"X-Auth-Key: 这里输入你的global_TOKEN\" \\\n     -H \"Content-Type: application/json\""</script>
-</div>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<img src=assets/routeros-06-ddns-script-11.png alt></li></ul><h4 id=32-获取-zoneid>3.2 获取 ZONEID</h4><ul><li>账户主页-进入需DDNS的域名界面
+<img src=assets/routeros-06-ddns-script-12.png alt></li><li>往下滑找到区域ID即为ZONEID
+<img src=assets/routeros-06-ddns-script-13.png alt></li></ul><h4 id=33-获取-recordid>3.3 获取 RECORDID</h4><p>若域名无DNS记录，需先创建1条DNS记录
+在任意linux系统中通过下述命令获取你的RECORDID，A代表V4，AAAA代表V6，如果同域名需要解析V4和V6，在CF上使用同一个二个域名，分别选择A和AAAA</p><ul><li>获取RECORD4ID（IPV4）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -X GET <span style=color:#e6db74>&#34;https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=A&amp;name=你的域名&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;X-Auth-Email: 这里输入你的CF帐号邮箱&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;X-Auth-Key: 这里输入你的global_TOKEN&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;Content-Type: application/json&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl -X GET \"https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=A\u0026name=你的域名\" \\\n     -H \"X-Auth-Email: 这里输入你的CF帐号邮箱\" \\\n     -H \"X-Auth-Key: 这里输入你的global_TOKEN\" \\\n     -H \"Content-Type: application/json\""</script></div><ul><li>获取RECORD6ID（IPV6）</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -X GET <span style=color:#e6db74>&#34;https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=AAAA&amp;name=你的域名&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;X-Auth-Email: 这里输入你的CF帐号邮箱&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;X-Auth-Key: 这里输入你的global_TOKEN&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>     -H <span style=color:#e6db74>&#34;Content-Type: application/json&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl -X GET \"https://api.cloudflare.com/client/v4/zones/这里输入你的ZONEID/dns_records?type=AAAA\u0026name=你的域名\" \\\n     -H \"X-Auth-Email: 这里输入你的CF帐号邮箱\" \\\n     -H \"X-Auth-Key: 这里输入你的global_TOKEN\" \\\n     -H \"Content-Type: application/json\""</script></div></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

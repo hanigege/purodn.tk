@@ -1,262 +1,50 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ubuntu / Debian 设置北京时间与修复 NTP 同步 | 电脑自习室</title>
-    <meta name="description" content="记录把 Ubuntu / Debian 服务器时区改为 Asia/Shanghai，并在 DNS 分流、FakeIP 或透明代理环境下修复 systemd-timesyncd NTP 同步失败的方法。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-06-02">2026年6月2日</time>
-        </div>
-        <h1>Ubuntu / Debian 设置北京时间与修复 NTP 同步</h1>
-          <p>记录把 Ubuntu / Debian 服务器时区改为 Asia/Shanghai，并在 DNS 分流、FakeIP 或透明代理环境下修复 systemd-timesyncd NTP 同步失败的方法。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/ubuntu-timesync-asia-shanghai/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 <code>systemd-timesyncd</code> 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。</p>
-<p>目标有两个：</p>
-<ol>
-<li>系统本地时间显示为北京时间。</li>
-<li>NTP 服务真正同步成功，而不是只把时区改成 <code>Asia/Shanghai</code>。</li>
-</ol>
-<h2 id="检查当前时间状态">检查当前时间状态</h2>
-<p>先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate"</script>
-</div>
-<p>如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Local time: Tue 2026-06-02 14:16:50 UTC
-</span></span><span style="display:flex;"><span>Universal time: Tue 2026-06-02 14:16:50 UTC
-</span></span><span style="display:flex;"><span>Time zone: Etc/UTC (UTC, +0000)
-</span></span><span style="display:flex;"><span>System clock synchronized: no
-</span></span><span style="display:flex;"><span>NTP service: active</span></span></code></pre></div><script class="code-source" type="application/json">"Local time: Tue 2026-06-02 14:16:50 UTC\nUniversal time: Tue 2026-06-02 14:16:50 UTC\nTime zone: Etc/UTC (UTC, +0000)\nSystem clock synchronized: no\nNTP service: active"</script>
-</div>
-<p>这里容易误判：<code>NTP service: active</code> 只表示服务开着，不代表已经校时成功。真正要看的是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>System clock synchronized: yes</span></span></code></pre></div><script class="code-source" type="application/json">"System clock synchronized: yes"</script>
-</div>
-<h2 id="设置北京时间时区">设置北京时间时区</h2>
-<p>设置为中国大陆常用的 <code>Asia/Shanghai</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl set-timezone Asia/Shanghai
-</span></span><span style="display:flex;"><span>timedatectl set-ntp true
-</span></span><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl set-timezone Asia/Shanghai\ntimedatectl set-ntp true\ntimedatectl\ndate"</script>
-</div>
-<p>设置完成后应看到：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Time zone: Asia/Shanghai (CST, +0800)</span></span></code></pre></div><script class="code-source" type="application/json">"Time zone: Asia/Shanghai (CST, +0800)"</script>
-</div>
-<p>如果只是时区问题，到这里就够了。但如果 <code>System clock synchronized</code> 仍然是 <code>no</code>，需要继续排查 NTP。</p>
-<h2 id="排查-ntp-同步失败">排查 NTP 同步失败</h2>
-<p>查看 <code>systemd-timesyncd</code> 日志：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl status systemd-timesyncd --no-pager -l
-</span></span><span style="display:flex;"><span>timedatectl timesync-status --no-pager</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl status systemd-timesyncd --no-pager -l\ntimedatectl timesync-status --no-pager"</script>
-</div>
-<p>在 DNS 分流或 FakeIP 环境中，可能会看到类似日志：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Timed out waiting for reply from 28.0.0.60:123 (ntp.ubuntu.com).</span></span></code></pre></div><script class="code-source" type="application/json">"Timed out waiting for reply from 28.0.0.60:123 (ntp.ubuntu.com)."</script>
-</div>
-<p>这里的 <code>28.0.0.60</code> 是 sing-box FakeIP 地址，不是真实 NTP 服务器地址。对浏览器、GitHub、AI 服务这类流量，FakeIP 很有用；但对系统本机的 NTP 服务，尤其是 UDP/123，可能导致 timesyncd 长期收不到响应。</p>
-<p>再看本机 DNS：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>resolvectl status</span></span></code></pre></div><script class="code-source" type="application/json">"resolvectl status"</script>
-</div>
-<p>如果服务器自己的 DNS 指向旁路网关或本机 sing-box，例如：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>DNS Servers: 10.20.20.12</span></span></code></pre></div><script class="code-source" type="application/json">"DNS Servers: 10.20.20.12"</script>
-</div>
-<p>而 NTP 域名又被解析到 FakeIP，就可以考虑给 timesyncd 单独指定更适合直连的国内 NTP 源。</p>
-<h2 id="配置国内-ntp-源">配置国内 NTP 源</h2>
-<p>创建一个独立 drop-in 配置，不直接改主配置文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /etc/systemd/timesyncd.conf.d
-</span></span><span style="display:flex;"><span>nvim /etc/systemd/timesyncd.conf.d/local-cn.conf</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /etc/systemd/timesyncd.conf.d\nnvim /etc/systemd/timesyncd.conf.d/local-cn.conf"</script>
-</div>
-<p>写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#66d9ef">[Time]</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">NTP</span><span style="color:#f92672">=</span><span style="color:#e6db74">ntp.aliyun.com ntp.tencent.com cn.pool.ntp.org</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">FallbackNTP</span><span style="color:#f92672">=</span><span style="color:#e6db74">ntp.ubuntu.com time.cloudflare.com</span></span></span></code></pre></div><script class="code-source" type="application/json">"[Time]\nNTP=ntp.aliyun.com ntp.tencent.com cn.pool.ntp.org\nFallbackNTP=ntp.ubuntu.com time.cloudflare.com"</script>
-</div>
-<p>重启 timesyncd：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl restart systemd-timesyncd</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl restart systemd-timesyncd"</script>
-</div>
-<p>等待几秒后检查：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>timedatectl timesync-status --no-pager
-</span></span><span style="display:flex;"><span>systemctl status systemd-timesyncd --no-pager -l</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ntimedatectl timesync-status --no-pager\nsystemctl status systemd-timesyncd --no-pager -l"</script>
-</div>
-<p>正常结果类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>System clock synchronized: yes
-</span></span><span style="display:flex;"><span>NTP service: active
-</span></span><span style="display:flex;"><span>Server: 203.107.6.88 (ntp.aliyun.com)</span></span></code></pre></div><script class="code-source" type="application/json">"System clock synchronized: yes\nNTP service: active\nServer: 203.107.6.88 (ntp.aliyun.com)"</script>
-</div>
-<p><code>systemd-timesyncd</code> 日志里也会出现：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Contacted time server 203.107.6.88:123 (ntp.aliyun.com).</span></span></code></pre></div><script class="code-source" type="application/json">"Contacted time server 203.107.6.88:123 (ntp.aliyun.com)."</script>
-</div>
-<h2 id="最终确认">最终确认</h2>
-<p>最终确认命令：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date
-</span></span><span style="display:flex;"><span>cat /etc/systemd/timesyncd.conf.d/local-cn.conf</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate\ncat /etc/systemd/timesyncd.conf.d/local-cn.conf"</script>
-</div>
-<p>期望看到：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Local time: Tue 2026-06-02 14:17:29 CST
-</span></span><span style="display:flex;"><span>Universal time: Tue 2026-06-02 06:17:29 UTC
-</span></span><span style="display:flex;"><span>Time zone: Asia/Shanghai (CST, +0800)
-</span></span><span style="display:flex;"><span>System clock synchronized: yes
-</span></span><span style="display:flex;"><span>NTP service: active</span></span></code></pre></div><script class="code-source" type="application/json">"Local time: Tue 2026-06-02 14:17:29 CST\nUniversal time: Tue 2026-06-02 06:17:29 UTC\nTime zone: Asia/Shanghai (CST, +0800)\nSystem clock synchronized: yes\nNTP service: active"</script>
-</div>
-<h2 id="关于-rtc">关于 RTC</h2>
-<p>Linux 服务器通常建议 RTC 保持 UTC：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>RTC in local TZ: no</span></span></code></pre></div><script class="code-source" type="application/json">"RTC in local TZ: no"</script>
-</div>
-<p>不要为了显示北京时间而把硬件时钟改成本地时区。服务器、容器、日志和跨时区同步都更适合 RTC 使用 UTC，本地显示交给 <code>Time zone</code> 处理。</p>
-<h2 id="小结">小结</h2>
-<p>这次修复不是简单地执行 <code>timedatectl set-timezone Asia/Shanghai</code>。真正的问题链路是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>系统时区是 UTC
-</span></span><span style="display:flex;"><span>NTP 服务 active 但未同步
-</span></span><span style="display:flex;"><span>ntp.ubuntu.com 被解析到 FakeIP
-</span></span><span style="display:flex;"><span>UDP/123 没有收到 NTP 响应
-</span></span><span style="display:flex;"><span>改用国内 NTP 源后同步成功</span></span></code></pre></div><script class="code-source" type="application/json">"系统时区是 UTC\nNTP 服务 active 但未同步\nntp.ubuntu.com 被解析到 FakeIP\nUDP/123 没有收到 NTP 响应\n改用国内 NTP 源后同步成功"</script>
-</div>
-<p>在透明代理、FakeIP、旁路网关环境中，时间同步最好单独验证一次。<code>NTP service: active</code> 不是终点，<code>System clock synchronized: yes</code> 才是。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Ubuntu / Debian 设置北京时间与修复 NTP 同步 | 电脑自习室</title>
+<meta name=description content="记录把 Ubuntu / Debian 服务器时区改为 Asia/Shanghai，并在 DNS 分流、FakeIP 或透明代理环境下修复 systemd-timesyncd NTP 同步失败的方法。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-06-02>2026年6月2日</time></div><h1>Ubuntu / Debian 设置北京时间与修复 NTP 同步</h1><p>记录把 Ubuntu / Debian 服务器时区改为 Asia/Shanghai，并在 DNS 分流、FakeIP 或透明代理环境下修复 systemd-timesyncd NTP 同步失败的方法。</p></header><img class=article-cover src=/posts/linux/ubuntu-timesync-asia-shanghai/assets/cover.svg alt><div class=article-content><p>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 <code>systemd-timesyncd</code> 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。</p><p>目标有两个：</p><ol><li>系统本地时间显示为北京时间。</li><li>NTP 服务真正同步成功，而不是只把时区改成 <code>Asia/Shanghai</code>。</li></ol><h2 id=检查当前时间状态>检查当前时间状态</h2><p>先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate"</script></div><p>如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Local time: Tue 2026-06-02 14:16:50 UTC
+</span></span><span style=display:flex><span>Universal time: Tue 2026-06-02 14:16:50 UTC
+</span></span><span style=display:flex><span>Time zone: Etc/UTC (UTC, +0000)
+</span></span><span style=display:flex><span>System clock synchronized: no
+</span></span><span style=display:flex><span>NTP service: active</span></span></code></pre></div><script class=code-source type=application/json>"Local time: Tue 2026-06-02 14:16:50 UTC\nUniversal time: Tue 2026-06-02 14:16:50 UTC\nTime zone: Etc/UTC (UTC, +0000)\nSystem clock synchronized: no\nNTP service: active"</script></div><p>这里容易误判：<code>NTP service: active</code> 只表示服务开着，不代表已经校时成功。真正要看的是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>System clock synchronized: yes</span></span></code></pre></div><script class=code-source type=application/json>"System clock synchronized: yes"</script></div><h2 id=设置北京时间时区>设置北京时间时区</h2><p>设置为中国大陆常用的 <code>Asia/Shanghai</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl set-timezone Asia/Shanghai
+</span></span><span style=display:flex><span>timedatectl set-ntp true
+</span></span><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl set-timezone Asia/Shanghai\ntimedatectl set-ntp true\ntimedatectl\ndate"</script></div><p>设置完成后应看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Time zone: Asia/Shanghai (CST, +0800)</span></span></code></pre></div><script class=code-source type=application/json>"Time zone: Asia/Shanghai (CST, +0800)"</script></div><p>如果只是时区问题，到这里就够了。但如果 <code>System clock synchronized</code> 仍然是 <code>no</code>，需要继续排查 NTP。</p><h2 id=排查-ntp-同步失败>排查 NTP 同步失败</h2><p>查看 <code>systemd-timesyncd</code> 日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl status systemd-timesyncd --no-pager -l
+</span></span><span style=display:flex><span>timedatectl timesync-status --no-pager</span></span></code></pre></div><script class=code-source type=application/json>"systemctl status systemd-timesyncd --no-pager -l\ntimedatectl timesync-status --no-pager"</script></div><p>在 DNS 分流或 FakeIP 环境中，可能会看到类似日志：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Timed out waiting for reply from 28.0.0.60:123 (ntp.ubuntu.com).</span></span></code></pre></div><script class=code-source type=application/json>"Timed out waiting for reply from 28.0.0.60:123 (ntp.ubuntu.com)."</script></div><p>这里的 <code>28.0.0.60</code> 是 sing-box FakeIP 地址，不是真实 NTP 服务器地址。对浏览器、GitHub、AI 服务这类流量，FakeIP 很有用；但对系统本机的 NTP 服务，尤其是 UDP/123，可能导致 timesyncd 长期收不到响应。</p><p>再看本机 DNS：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>resolvectl status</span></span></code></pre></div><script class=code-source type=application/json>"resolvectl status"</script></div><p>如果服务器自己的 DNS 指向旁路网关或本机 sing-box，例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>DNS Servers: 10.20.20.12</span></span></code></pre></div><script class=code-source type=application/json>"DNS Servers: 10.20.20.12"</script></div><p>而 NTP 域名又被解析到 FakeIP，就可以考虑给 timesyncd 单独指定更适合直连的国内 NTP 源。</p><h2 id=配置国内-ntp-源>配置国内 NTP 源</h2><p>创建一个独立 drop-in 配置，不直接改主配置文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p /etc/systemd/timesyncd.conf.d
+</span></span><span style=display:flex><span>nvim /etc/systemd/timesyncd.conf.d/local-cn.conf</span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p /etc/systemd/timesyncd.conf.d\nnvim /etc/systemd/timesyncd.conf.d/local-cn.conf"</script></div><p>写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[Time]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>NTP</span><span style=color:#f92672>=</span><span style=color:#e6db74>ntp.aliyun.com ntp.tencent.com cn.pool.ntp.org</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>FallbackNTP</span><span style=color:#f92672>=</span><span style=color:#e6db74>ntp.ubuntu.com time.cloudflare.com</span></span></span></code></pre></div><script class=code-source type=application/json>"[Time]\nNTP=ntp.aliyun.com ntp.tencent.com cn.pool.ntp.org\nFallbackNTP=ntp.ubuntu.com time.cloudflare.com"</script></div><p>重启 timesyncd：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart systemd-timesyncd</span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart systemd-timesyncd"</script></div><p>等待几秒后检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>timedatectl timesync-status --no-pager
+</span></span><span style=display:flex><span>systemctl status systemd-timesyncd --no-pager -l</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ntimedatectl timesync-status --no-pager\nsystemctl status systemd-timesyncd --no-pager -l"</script></div><p>正常结果类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>System clock synchronized: yes
+</span></span><span style=display:flex><span>NTP service: active
+</span></span><span style=display:flex><span>Server: 203.107.6.88 (ntp.aliyun.com)</span></span></code></pre></div><script class=code-source type=application/json>"System clock synchronized: yes\nNTP service: active\nServer: 203.107.6.88 (ntp.aliyun.com)"</script></div><p><code>systemd-timesyncd</code> 日志里也会出现：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Contacted time server 203.107.6.88:123 (ntp.aliyun.com).</span></span></code></pre></div><script class=code-source type=application/json>"Contacted time server 203.107.6.88:123 (ntp.aliyun.com)."</script></div><h2 id=最终确认>最终确认</h2><p>最终确认命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date
+</span></span><span style=display:flex><span>cat /etc/systemd/timesyncd.conf.d/local-cn.conf</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate\ncat /etc/systemd/timesyncd.conf.d/local-cn.conf"</script></div><p>期望看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Local time: Tue 2026-06-02 14:17:29 CST
+</span></span><span style=display:flex><span>Universal time: Tue 2026-06-02 06:17:29 UTC
+</span></span><span style=display:flex><span>Time zone: Asia/Shanghai (CST, +0800)
+</span></span><span style=display:flex><span>System clock synchronized: yes
+</span></span><span style=display:flex><span>NTP service: active</span></span></code></pre></div><script class=code-source type=application/json>"Local time: Tue 2026-06-02 14:17:29 CST\nUniversal time: Tue 2026-06-02 06:17:29 UTC\nTime zone: Asia/Shanghai (CST, +0800)\nSystem clock synchronized: yes\nNTP service: active"</script></div><h2 id=关于-rtc>关于 RTC</h2><p>Linux 服务器通常建议 RTC 保持 UTC：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>RTC in local TZ: no</span></span></code></pre></div><script class=code-source type=application/json>"RTC in local TZ: no"</script></div><p>不要为了显示北京时间而把硬件时钟改成本地时区。服务器、容器、日志和跨时区同步都更适合 RTC 使用 UTC，本地显示交给 <code>Time zone</code> 处理。</p><h2 id=小结>小结</h2><p>这次修复不是简单地执行 <code>timedatectl set-timezone Asia/Shanghai</code>。真正的问题链路是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>系统时区是 UTC
+</span></span><span style=display:flex><span>NTP 服务 active 但未同步
+</span></span><span style=display:flex><span>ntp.ubuntu.com 被解析到 FakeIP
+</span></span><span style=display:flex><span>UDP/123 没有收到 NTP 响应
+</span></span><span style=display:flex><span>改用国内 NTP 源后同步成功</span></span></code></pre></div><script class=code-source type=application/json>"系统时区是 UTC\nNTP 服务 active 但未同步\nntp.ubuntu.com 被解析到 FakeIP\nUDP/123 没有收到 NTP 响应\n改用国内 NTP 源后同步成功"</script></div><p>在透明代理、FakeIP、旁路网关环境中，时间同步最好单独验证一次。<code>NTP service: active</code> 不是终点，<code>System clock synchronized: yes</code> 才是。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

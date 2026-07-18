@@ -1,912 +1,217 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比 | 电脑自习室</title>
-    <meta name="description" content="详细对比 HAProxy、Nginx Stream 模块和 iptables 三种中转机转发方案，提供完整配置教程、横向对比表和场景推荐">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-06-25">2026年6月25日</time>
-        </div>
-        <h1>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</h1>
-          <p>详细对比 HAProxy、Nginx Stream 模块和 iptables 三种中转机转发方案，提供完整配置教程、横向对比表和场景推荐</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <h1 id="中转机搭建配置全面指南haproxynginxiptables-方案对比">中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</h1>
-<h2 id="前言为什么需要中转机和负载均衡">前言：为什么需要中转机和负载均衡</h2>
-<p>中转机（Relay / Transit）在代理场景中扮演着流量枢纽的角色。将一台带宽大、线路好的机器作为入口，把接收到的流量按特定规则分发给背后的多台落地机，核心目的是解决<strong>单点故障</strong>和<strong>资源利用率</strong>问题。</p>
-<p><strong>为什么要做负载均衡？</strong></p>
-<ul>
-<li><strong>流量与带宽聚合</strong>：当落地机流量配额有限（比如每台 500G），通过多台聚合可以跑满中转机的大流量（比如 3T），避免浪费。</li>
-<li><strong>高可用（防失联）</strong>：当某台落地机 IP 被封、宕机或流量耗尽时，中转机自动将其剔除，流量无缝切换到其他存活的落地机上，客户端无感知。</li>
-</ul>
-<p>本文聚焦三种主流的中转转发方案——<strong>HAProxy</strong>、<strong>Nginx Stream 模块</strong>、<strong>iptables</strong>，逐一给出完整的配置教程，并在最后做横向对比和场景推荐。</p>
-<hr>
-<h2 id="重要概念理解中转机端口与落地机端口">重要概念：理解中转机端口与落地机端口</h2>
-<p>开始阅读前，先理清中转架构中两个关键端口的区别：</p>
-<ul>
-<li><strong>中转机端口</strong>：中转机上监听的端口，客户端直接连接这个端口。比如下文中的 <code>8080</code>、<code>10521</code>（TCP）、<code>10522</code>（UDP）。</li>
-<li><strong>落地机端口</strong>：落地机上代理服务真实运行的端口。比如下文例子中的 <code>8388</code>、<code>443</code>。<strong>这个数字取决于你的落地机上跑的是什么服务</strong>：
-<ul>
-<li>如果落地机跑的是 Hysteria2，默认端口是 <code>443</code></li>
-<li>如果落地机跑的是 VLESS-Reality，默认端口是 <code>443</code></li>
-<li>如果落地机跑的是 Shadowsocks，常见端口是 <code>8388</code></li>
-<li>如果落地机跑的是 Trojan，常见端口是 <code>443</code></li>
-</ul>
-</li>
-</ul>
-<p><strong>中转机的工作就是：客户端连接中转机的端口 → 中转机原封不动转给落地机的端口。</strong> 下文配置中出现的 <code>8388</code>、<code>443</code>、<code>19527</code> 都只是示例，实际使用时必须替换成你落地机上代理服务的真实端口。</p>
-<hr>
-<h2 id="方案一haproxy专业四层负载均衡器">方案一：HAProxy（专业四层负载均衡器）</h2>
-<p>HAProxy 是业界标准的 TCP/HTTP 负载均衡器，原生健康检查、自动剔除故障节点、Web 流量面板一应俱全，适合对高可用要求严格的场景。</p>
-<h3 id="安装">安装</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
-</span></span><span style="display:flex;"><span>apt install haproxy -y</span></span></code></pre></div><script class="code-source" type="application/json">"apt update\napt install haproxy -y"</script>
-</div>
-<h3 id="完整配置">完整配置</h3>
-<p>将以下内容写入 <code>/etc/haproxy/haproxy.cfg</code>（注意替换为你真实的落地机 IP 和端口）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#75715e"># /etc/haproxy/haproxy.cfg
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">global</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">maxconn</span> <span style="color:#ae81ff">51200</span>      <span style="color:#75715e"># 全局最大连接数，确保高并发不瓶颈
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">daemon</span>             <span style="color:#75715e"># 后台守护进程运行
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span><span style="color:#e6db74">defaults</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">mode</span>    <span style="color:#e6db74">tcp</span>        <span style="color:#75715e"># 默认模式设为纯 TCP 四层转发
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">option</span>  <span style="color:#e6db74">tcplog</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">timeout</span> <span style="color:#e6db74">connect</span> <span style="color:#e6db74">5s</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">timeout</span> <span style="color:#e6db74">client</span>  <span style="color:#ae81ff">10m</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">timeout</span> <span style="color:#e6db74">server</span>  <span style="color:#ae81ff">10m</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 核心：中转机代理端口与落地机负载均衡池
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#e6db74">listen</span> <span style="color:#e6db74">proxy_relay</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">bind</span> <span style="color:#e6db74">*:8080</span>          <span style="color:#75715e"># 中转机对外暴露的监听端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">mode</span> <span style="color:#e6db74">tcp</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">balance</span> <span style="color:#e6db74">roundrobin</span>   <span style="color:#75715e"># 负载均衡策略：轮询
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 落地机节点列表（替换为你真实的落地机 IP 和端口）
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#75715e"># check：开启主动健康检查
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#75715e"># inter 5s：每 5 秒检查一次
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#75715e"># rise 2：成功 2 次认为节点恢复正常
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#75715e"># fall 3：失败 3 次认为节点宕机并自动剔除
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">server</span> <span style="color:#e6db74">node1</span> 1.1.1.1:<span style="color:#ae81ff">8388</span> <span style="color:#e6db74">check</span> <span style="color:#e6db74">inter</span> <span style="color:#e6db74">5s</span> <span style="color:#e6db74">rise</span> <span style="color:#ae81ff">2</span> <span style="color:#e6db74">fall</span> <span style="color:#ae81ff">3</span> <span style="color:#e6db74">weight</span> <span style="color:#ae81ff">1</span>  <span style="color:#75715e"># 落地机1：IP 和代理服务端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">server</span> <span style="color:#e6db74">node2</span> 2.2.2.2:<span style="color:#ae81ff">8388</span> <span style="color:#e6db74">check</span> <span style="color:#e6db74">inter</span> <span style="color:#e6db74">5s</span> <span style="color:#e6db74">rise</span> <span style="color:#ae81ff">2</span> <span style="color:#e6db74">fall</span> <span style="color:#ae81ff">3</span> <span style="color:#e6db74">weight</span> <span style="color:#ae81ff">1</span>  <span style="color:#75715e"># 落地机2：IP 和代理服务端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 可视化 Web 监控面板（强烈推荐）
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#e6db74">listen</span> <span style="color:#e6db74">stats</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">bind</span> <span style="color:#e6db74">*:8888</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">mode</span> <span style="color:#e6db74">http</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">stats</span> <span style="color:#e6db74">enable</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">stats</span> <span style="color:#e6db74">hide-version</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">stats</span> <span style="color:#e6db74">uri</span> <span style="color:#e6db74">/stats</span>              <span style="color:#75715e"># 访问路径：http://中转机IP:8888/stats
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#e6db74">stats</span> <span style="color:#e6db74">auth</span> <span style="color:#e6db74">admin:admin123</span>     <span style="color:#960050;background-color:#1e0010">#</span> <span style="color:#e6db74">面板登录账号密码（请修改）</span></span></span></code></pre></div><script class="code-source" type="application/json">"# /etc/haproxy/haproxy.cfg\n\nglobal\n  maxconn 51200      # 全局最大连接数，确保高并发不瓶颈\n  daemon             # 后台守护进程运行\n\ndefaults\n  mode    tcp        # 默认模式设为纯 TCP 四层转发\n  option  tcplog\n  timeout connect 5s\n  timeout client  10m\n  timeout server  10m\n\n# 核心：中转机代理端口与落地机负载均衡池\nlisten proxy_relay\n  bind *:8080          # 中转机对外暴露的监听端口\n  mode tcp\n  balance roundrobin   # 负载均衡策略：轮询\n\n  # 落地机节点列表（替换为你真实的落地机 IP 和端口）\n  # check：开启主动健康检查\n  # inter 5s：每 5 秒检查一次\n  # rise 2：成功 2 次认为节点恢复正常\n  # fall 3：失败 3 次认为节点宕机并自动剔除\n  server node1 1.1.1.1:8388 check inter 5s rise 2 fall 3 weight 1  # 落地机1：IP 和代理服务端口\n  server node2 2.2.2.2:8388 check inter 5s rise 2 fall 3 weight 1  # 落地机2：IP 和代理服务端口\n\n# 可视化 Web 监控面板（强烈推荐）\nlisten stats\n  bind *:8888\n  mode http\n  stats enable\n  stats hide-version\n  stats uri /stats              # 访问路径：http://中转机IP:8888/stats\n  stats auth admin:admin123     # 面板登录账号密码（请修改）"</script>
-</div>
-<h3 id="落地机协议兼容性">落地机协议兼容性</h3>
-<p>HAProxy 在 <code>mode tcp</code> 模式下对后端协议<strong>完全透明</strong>——它只做 TCP 字节流的搬运，不关心上层跑的是什么协议。所以：</p>
-<table>
-<thead>
-<tr>
-<th>落地机协议</th>
-<th>能否通过 HAProxy 中转</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Shadowsocks (TCP)</td>
-<td>✔ 完全支持</td>
-<td>SS 的 TCP 加密通道原样透传</td>
-</tr>
-<tr>
-<td>VLESS (TCP)</td>
-<td>✔ 完全支持</td>
-<td>VLESS 基于 TCP，正常转发</td>
-</tr>
-<tr>
-<td>Trojan</td>
-<td>✔ 完全支持</td>
-<td>Trojan 就是 TLS 包裹的 HTTP，正常转发</td>
-</tr>
-<tr>
-<td>VMess (TCP)</td>
-<td>✔ 完全支持</td>
-<td>VMess 基于 TCP，正常转发</td>
-</tr>
-<tr>
-<td>Hysteria / Hysteria2</td>
-<td>✗ <strong>不支持</strong></td>
-<td>Hysteria 基于 QUIC/UDP，HAProxy 的 <code>mode tcp</code> 不处理 UDP</td>
-</tr>
-<tr>
-<td>WireGuard</td>
-<td>✗ <strong>不支持</strong></td>
-<td>纯 UDP 协议</td>
-</tr>
-<tr>
-<td><strong>TCP-Brutal</strong></td>
-<td>⚠️ <strong>能转发，但失去了意义</strong></td>
-<td>见下方详细解释</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p><strong>关于 TCP-Brutal 为什么不建议用 HAProxy 转发：</strong></p>
-<p>TCP-Brutal 不是一种独立的协议，而是运行在客户端和落地机之间的一种<strong>拥塞控制算法</strong>。它的核心机制是让客户端直接测量到落地机的网络延迟和丢包率，然后&quot;野蛮&quot;地发包来榨干带宽。</p>
-<p>HAProxy 在 <code>mode tcp</code> 下会<strong>终结来自客户端的 TCP 连接，再新建一个 TCP 连接去连落地机</strong>。这就导致：</p>
-<ol>
-<li>客户端以为自己在和落地机通信，但实际上 TCP 握手在 HAProxy 就断了</li>
-<li>TCP-Brutal 算法的端到端测量被 HAProxy 截断，算法退化</li>
-<li>HAProxy → 落地机这一段走的是系统默认的 TCP 栈（CUBIC/BBR），不是 Brutal</li>
-</ol>
-<p>这就是前面方案三（iptables）里强调的&quot;端到端状态保留&quot;。<strong>如果你的落地机跑了 TCP-Brutal，需要用 iptables 做内核级直通转发，不能用 HAProxy 或 Nginx。</strong> 这正是文章方案对比表里&quot;端到端状态保留&quot;那行对比的含义。</p>
-<p>如果落地机上跑的只是普通的 Shadowsocks / VLESS / Trojan，不加 Brutal 算法，那用 HAProxy 完全没有问题。</p>
-</blockquote>
-<h3 id="启动与验证">启动与验证</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl restart haproxy
-</span></span><span style="display:flex;"><span>systemctl enable haproxy
-</span></span><span style="display:flex;"><span>ss -tulnp | grep haproxy       <span style="color:#75715e"># 确认 8080 和 8888 端口在监听</span></span></span></code></pre></div><script class="code-source" type="application/json">"systemctl restart haproxy\nsystemctl enable haproxy\nss -tulnp | grep haproxy       # 确认 8080 和 8888 端口在监听"</script>
-</div>
-<p>打开浏览器访问 <code>http://中转机IP:8888/stats</code>，输入账号密码即可看到节点状态面板。</p>
-<blockquote>
-<p><strong>关于 Web 面板的常见疑问</strong>：这个 <code>stats</code> 面板是<strong>监控仪表盘</strong>——绿条表示节点在线，红条表示节点挂了，可以看流量曲线和连接数统计。它<strong>不是像宝塔面板那样的管理后台</strong>，不支持在网页上新增或修改落地机的 IP 和端口。</p>
-<p>落地机的信息必须在 <code>/etc/haproxy/haproxy.cfg</code> 里提前写死，改完后执行 <code>systemctl reload haproxy</code> 生效。</p>
-<p>这也是为什么前面方案对比表中，iptables 的缺点写着&quot;无健康检查&quot;——HAProxy 需要你把落地机列表写在配置文件里，它才能逐一发送探测包做健康检查。而 iptables 的 NAT 规则里根本没有&quot;节点列表&quot;和&quot;探活&quot;的概念，落地机挂了它仍然盲目转发。两种工具解决问题的层级不同，理解这一点就明白为什么&quot;越简单的方案越需要在其他方面做取舍&quot;。</p>
-<p>如果你确实需要动态增删节点又不想改配置重启，HAProxy 提供了 Runtime API（通过 Unix socket），可以用 <code>haproxy-runtime-api</code> 工具在运行时启用/禁用节点。但对于中转机这种配置基本不变的场景，改配置 + reload 是最简单稳定的做法。</p>
-</blockquote>
-<h3 id="优缺点">优缺点</h3>
-<table>
-<thead>
-<tr>
-<th>优势</th>
-<th>不足</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>健康检查与自动剔除，高可用能力强</td>
-<td>原生不支持 UDP 转发（如需 UDP 需额外配置层）</td>
-</tr>
-<tr>
-<td>自带 Web 面板，排障方便</td>
-<td>多一个系统进程，资源略有占用</td>
-</tr>
-<tr>
-<td>支持多种均衡策略（轮询、加权、IP Hash）</td>
-<td>配置相对重量，功能对纯转发场景有冗余</td>
-</tr>
-<tr>
-<td>社区成熟，文档丰富</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="方案二nginx-stream-模块web-服务器复用方案">方案二：Nginx Stream 模块（Web 服务器复用方案）</h2>
-<p>如果你的中转机上本来就跑着 Nginx 做其他 Web 服务，直接用 Stream 模块做四层转发是最省事的方案——无需额外进程。</p>
-<p>Nginx 的 <code>stream</code> 模块需要在 <code>nginx.conf</code> 的最外层（<code>http {}</code> 块之外）配置。</p>
-<h3 id="第一步安装-nginx">第一步：安装 Nginx</h3>
-<p>Nginx 默认不包含 stream 模块，需要用完整版 nginx 包：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
-</span></span><span style="display:flex;"><span>apt install nginx -y
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 验证安装是否成功</span>
-</span></span><span style="display:flex;"><span>nginx -v</span></span></code></pre></div><script class="code-source" type="application/json">"apt update\napt install nginx -y\n\n# 验证安装是否成功\nnginx -v"</script>
-</div>
-<blockquote>
-<p>Nginx 的 stream 模块已内置在官方 nginx 包中，无需单独安装。如果系统提示找不到 stream 模块，说明你装的是精简版，需要换成完整版：<code>apt install nginx-full -y</code>。</p>
-</blockquote>
-<h3 id="第二步确认内核开启-ip-转发tcpudp-都需要">第二步：确认内核开启 IP 转发（TCP/UDP 都需要）</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 查看当前是否已开启</span>
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.ip_forward
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果输出是 net.ipv4.ip_forward = 0，则需要开启</span>
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;net.ipv4.ip_forward = 1&#34;</span> &gt;&gt; /etc/sysctl.conf
-</span></span><span style="display:flex;"><span>sysctl -p</span></span></code></pre></div><script class="code-source" type="application/json">"# 查看当前是否已开启\nsysctl net.ipv4.ip_forward\n\n# 如果输出是 net.ipv4.ip_forward = 0，则需要开启\necho \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p"</script>
-</div>
-<h3 id="第三步编辑配置文件">第三步：编辑配置文件</h3>
-<p>Nginx 的主配置文件是 <code>/etc/nginx/nginx.conf</code>。stream 配置必须写在 <code>http {}</code> 块之外（即 <code>events {}</code> 块之后、文件末尾）。</p>
-<p><strong>场景 A：单节点 TCP + UDP 独立转发</strong></p>
-<p>如果只转发给一台落地机，不需要负载均衡：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#75715e"># /etc/nginx/nginx.conf —— 在文件末尾添加以下内容
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span><span style="color:#66d9ef">stream</span> {
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 转发 TCP 到落地机（如 VLESS、Trojan、Shadowsocks）
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">listen</span> <span style="color:#ae81ff">10521</span>;                    <span style="color:#75715e"># 中转机暴露的 TCP 端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> 1.1.1.1:<span style="color:#ae81ff">8388</span>;        <span style="color:#75715e"># 替换为你的落地机 IP 和代理端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 转发 UDP 到落地机（如 Hysteria2）
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">listen</span> <span style="color:#ae81ff">10522</span> <span style="color:#e6db74">udp</span>;                <span style="color:#75715e"># 必须加 udp 关键字
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> 1.1.1.1:<span style="color:#ae81ff">443</span>;         <span style="color:#75715e"># 替换为你的落地机 IP 和 Hysteria 端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"# /etc/nginx/nginx.conf —— 在文件末尾添加以下内容\n\nstream {\n  # 转发 TCP 到落地机（如 VLESS、Trojan、Shadowsocks）\n  server {\n    listen 10521;                    # 中转机暴露的 TCP 端口\n    proxy_pass 1.1.1.1:8388;        # 替换为你的落地机 IP 和代理端口\n  }\n\n  # 转发 UDP 到落地机（如 Hysteria2）\n  server {\n    listen 10522 udp;                # 必须加 udp 关键字\n    proxy_pass 1.1.1.1:443;         # 替换为你的落地机 IP 和 Hysteria 端口\n  }\n}"</script>
-</div>
-<p><strong>场景 B：TCP 负载均衡（多台落地机）</strong></p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">stream</span> {
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 定义上游节点池
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#f92672">upstream</span> <span style="color:#e6db74">proxy_nodes</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">server</span> 1.1.1.1:<span style="color:#ae81ff">8388</span> <span style="color:#e6db74">weight=1</span> <span style="color:#e6db74">max_fails=3</span> <span style="color:#e6db74">fail_timeout=30s</span>;  <span style="color:#75715e"># 落地机1
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">server</span> 2.2.2.2:<span style="color:#ae81ff">8388</span> <span style="color:#e6db74">weight=1</span> <span style="color:#e6db74">max_fails=3</span> <span style="color:#e6db74">fail_timeout=30s</span>;  <span style="color:#75715e"># 落地机2
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># 中转机监听端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">listen</span> <span style="color:#ae81ff">8080</span>;                     <span style="color:#75715e"># 客户端连接这个端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> <span style="color:#e6db74">proxy_nodes</span>;          <span style="color:#75715e"># 转发到上面定义的节点池
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_timeout</span> <span style="color:#ae81ff">10m</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_connect_timeout</span> <span style="color:#e6db74">5s</span>;
-</span></span><span style="display:flex;"><span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"stream {\n  # 定义上游节点池\n  upstream proxy_nodes {\n    server 1.1.1.1:8388 weight=1 max_fails=3 fail_timeout=30s;  # 落地机1\n    server 2.2.2.2:8388 weight=1 max_fails=3 fail_timeout=30s;  # 落地机2\n  }\n\n  # 中转机监听端口\n  server {\n    listen 8080;                     # 客户端连接这个端口\n    proxy_pass proxy_nodes;          # 转发到上面定义的节点池\n    proxy_timeout 10m;\n    proxy_connect_timeout 5s;\n  }\n}"</script>
-</div>
-<p><strong>场景 C：UDP 负载均衡（多台 Hysteria 落地机）</strong></p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nginx" data-lang="nginx"><span style="display:flex;"><span><span style="color:#66d9ef">stream</span> {
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">upstream</span> <span style="color:#e6db74">hysteria_nodes</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">server</span> 1.1.1.1:<span style="color:#ae81ff">443</span> <span style="color:#e6db74">weight=1</span>;     <span style="color:#75715e"># 落地机1
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">server</span> 2.2.2.2:<span style="color:#ae81ff">443</span> <span style="color:#e6db74">weight=1</span>;     <span style="color:#75715e"># 落地机2
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">server</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">listen</span> <span style="color:#ae81ff">10521</span> <span style="color:#e6db74">udp</span>;                <span style="color:#75715e"># 对外暴露 UDP 端口
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#f92672">proxy_pass</span> <span style="color:#e6db74">hysteria_nodes</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxy_timeout</span> <span style="color:#ae81ff">5m</span>;                <span style="color:#75715e"># UDP 会话保持时间
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"stream {\n  upstream hysteria_nodes {\n    server 1.1.1.1:443 weight=1;     # 落地机1\n    server 2.2.2.2:443 weight=1;     # 落地机2\n  }\n\n  server {\n    listen 10521 udp;                # 对外暴露 UDP 端口\n    proxy_pass hysteria_nodes;\n    proxy_timeout 5m;                # UDP 会话保持时间\n  }\n}"</script>
-</div>
-<blockquote>
-<p>初次配置的建议：先按场景 A 做最简单的单节点转发，测试通了再扩展为负载均衡。</p>
-</blockquote>
-<h3 id="第四步验证配置语法">第四步：验证配置语法</h3>
-<p>修改配置文件后，一定要先检查语法，避免重启失败导致服务中断：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nginx -t</span></span></code></pre></div><script class="code-source" type="application/json">"nginx -t"</script>
-</div>
-<p>如果输出 <code>syntax is ok</code> 和 <code>test is successful</code>，说明配置没问题。</p>
-<h3 id="第五步启动-nginx-并设置开机自启">第五步：启动 Nginx 并设置开机自启</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 首次启动</span>
-</span></span><span style="display:flex;"><span>systemctl start nginx
-</span></span><span style="display:flex;"><span>systemctl enable nginx
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 后续修改配置后重新加载（比 restart 更优雅，不中断已有连接）</span>
-</span></span><span style="display:flex;"><span>systemctl reload nginx</span></span></code></pre></div><script class="code-source" type="application/json">"# 首次启动\nsystemctl start nginx\nsystemctl enable nginx\n\n# 后续修改配置后重新加载（比 restart 更优雅，不中断已有连接）\nsystemctl reload nginx"</script>
-</div>
-<h3 id="第六步验证转发是否生效">第六步：验证转发是否生效</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 查看端口是否在监听</span>
-</span></span><span style="display:flex;"><span>ss -tulnp | grep nginx
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看 Nginx 运行状态</span>
-</span></span><span style="display:flex;"><span>systemctl status nginx
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看实时日志（转发异常的排查入口）</span>
-</span></span><span style="display:flex;"><span>tail -f /var/log/nginx/error.log</span></span></code></pre></div><script class="code-source" type="application/json">"# 查看端口是否在监听\nss -tulnp | grep nginx\n\n# 查看 Nginx 运行状态\nsystemctl status nginx\n\n# 查看实时日志（转发异常的排查入口）\ntail -f /var/log/nginx/error.log"</script>
-</div>
-<h3 id="如何切换方案卸载-nginx">如何切换方案（卸载 Nginx）</h3>
-<p>如果后续想改用 iptables，可以安全卸载：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl stop nginx
-</span></span><span style="display:flex;"><span>systemctl disable nginx
-</span></span><span style="display:flex;"><span>apt remove --purge nginx nginx-common -y</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl stop nginx\nsystemctl disable nginx\napt remove --purge nginx nginx-common -y"</script>
-</div>
-<h3 id="落地机协议兼容性-1">落地机协议兼容性</h3>
-<p>HAProxy 在 <code>mode tcp</code> 模式下对后端协议<strong>完全透明</strong>——它只做 TCP 字节流的搬运，不关心上层跑的是什么协议。所以：</p>
-<table>
-<thead>
-<tr>
-<th>落地机协议</th>
-<th>能否通过 HAProxy 中转</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Shadowsocks (TCP)</td>
-<td>✔ 完全支持</td>
-<td>SS 的 TCP 加密通道原样透传</td>
-</tr>
-<tr>
-<td>VLESS (TCP)</td>
-<td>✔ 完全支持</td>
-<td>VLESS 基于 TCP，正常转发</td>
-</tr>
-<tr>
-<td>Trojan</td>
-<td>✔ 完全支持</td>
-<td>Trojan 就是 TLS 包裹的 HTTP，正常转发</td>
-</tr>
-<tr>
-<td>VMess (TCP)</td>
-<td>✔ 完全支持</td>
-<td>VMess 基于 TCP，正常转发</td>
-</tr>
-<tr>
-<td>Hysteria / Hysteria2</td>
-<td>✗ <strong>不支持</strong></td>
-<td>Hysteria 基于 QUIC/UDP，HAProxy 的 <code>mode tcp</code> 不处理 UDP</td>
-</tr>
-<tr>
-<td>WireGuard</td>
-<td>✗ <strong>不支持</strong></td>
-<td>纯 UDP 协议</td>
-</tr>
-<tr>
-<td><strong>TCP-Brutal</strong></td>
-<td>⚠️ <strong>能转发，但失去了意义</strong></td>
-<td>见下方详细解释</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p><strong>关于 TCP-Brutal 为什么不建议用 HAProxy 转发：</strong></p>
-<p>TCP-Brutal 不是一种独立的协议，而是运行在客户端和落地机之间的一种<strong>拥塞控制算法</strong>。它的核心机制是让客户端直接测量到落地机的网络延迟和丢包率，然后&quot;野蛮&quot;地发包来榨干带宽。</p>
-<p>HAProxy 在 <code>mode tcp</code> 下会<strong>终结来自客户端的 TCP 连接，再新建一个 TCP 连接去连落地机</strong>。这就导致：</p>
-<ol>
-<li>客户端以为自己在和落地机通信，但实际上 TCP 握手在 HAProxy 就断了</li>
-<li>TCP-Brutal 算法的端到端测量被 HAProxy 截断，算法退化</li>
-<li>HAProxy → 落地机这一段走的是系统默认的 TCP 栈（CUBIC/BBR），不是 Brutal</li>
-</ol>
-<p>这就是前面方案三（iptables）里强调的&quot;端到端状态保留&quot;。<strong>如果你的落地机跑了 TCP-Brutal，需要用 iptables 做内核级直通转发，不能用 HAProxy 或 Nginx。</strong> 这正是文章方案对比表里&quot;端到端状态保留&quot;那行对比的含义。</p>
-<p>如果落地机上跑的只是普通的 Shadowsocks / VLESS / Trojan，不加 Brutal 算法，那用 HAProxy 完全没有问题。</p>
-</blockquote>
-<h3 id="启动与验证-1">启动与验证</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl restart nginx
-</span></span><span style="display:flex;"><span>systemctl enable nginx
-</span></span><span style="display:flex;"><span>ss -tulnp | grep nginx</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl restart nginx\nsystemctl enable nginx\nss -tulnp | grep nginx"</script>
-</div>
-<h3 id="优缺点-1">优缺点</h3>
-<table>
-<thead>
-<tr>
-<th>优势</th>
-<th>不足</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>TCP/UDP 双栈原生支持</td>
-<td>无内置健康检查面板（需依赖第三方监控）</td>
-</tr>
-<tr>
-<td>可复用已有 Nginx 进程，资源零增加</td>
-<td>故障剔除能力弱于 HAProxy（依赖 <code>max_fails</code> 被动检测）</td>
-</tr>
-<tr>
-<td>支持 SNI 分流（七层域名路由）</td>
-<td>配置语法对新手有一定门槛</td>
-</tr>
-<tr>
-<td>生态广泛，插件丰富</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="方案三iptables内核级直通转发">方案三：iptables（内核级直通转发）</h2>
-<p>iptables 工作在 Linux 内核网络层，不拆包、不代理，只做纯粹的地址重写（DNAT）。流量直接从内核态转发到落地机，<strong>零应用层开销</strong>。</p>
-<p><strong>最适合的场景</strong>：使用 TCP-Brutal 等依赖端到端拥塞控制算法时，iptables 不干预 TCP 状态，算法能直接感知客户端真实网络状况。</p>
-<h3 id="第一步确认-iptables-是否已安装">第一步：确认 iptables 是否已安装</h3>
-<p>大多数 Linux 发行版默认已安装 iptables。检查方法：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>iptables --version</span></span></code></pre></div><script class="code-source" type="application/json">"iptables --version"</script>
-</div>
-<p>如果没有安装，用包管理器安装：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Debian / Ubuntu</span>
-</span></span><span style="display:flex;"><span>apt update
-</span></span><span style="display:flex;"><span>apt install iptables -y
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># Alpine</span>
-</span></span><span style="display:flex;"><span>apk add iptables</span></span></code></pre></div><script class="code-source" type="application/json">"# Debian / Ubuntu\napt update\napt install iptables -y\n\n# Alpine\napk add iptables"</script>
-</div>
-<h3 id="第二步开启内核-ip-转发必须新手最容易漏的一步">第二步：开启内核 IP 转发（必须！新手最容易漏的一步）</h3>
-<p>iptables 做 NAT 转发需要内核允许 IP 转发，否则规则加上了也不会生效：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 先查看当前状态</span>
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.ip_forward
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果输出 net.ipv4.ip_forward = 0，执行以下命令开启</span>
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;net.ipv4.ip_forward = 1&#34;</span> &gt;&gt; /etc/sysctl.conf
-</span></span><span style="display:flex;"><span>sysctl -p
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 再次验证，应该输出 net.ipv4.ip_forward = 1</span>
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.ip_forward</span></span></code></pre></div><script class="code-source" type="application/json">"# 先查看当前状态\nsysctl net.ipv4.ip_forward\n\n# 如果输出 net.ipv4.ip_forward = 0，执行以下命令开启\necho \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p\n\n# 再次验证，应该输出 net.ipv4.ip_forward = 1\nsysctl net.ipv4.ip_forward"</script>
-</div>
-<h3 id="第三步添加转发规则">第三步：添加转发规则</h3>
-<p>以下命令都是<strong>即时生效</strong>的，执行完毕转发就开始工作。</p>
-<p><strong>TCP 转发</strong>（适用于 VLESS、Trojan、Shadowsocks 等 TCP 协议）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 将中转机 10521 端口的 TCP 流量转到落地机 1.1.1.1 的 8388 端口</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 按你的实际情况替换 IP 和端口</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -A PREROUTING -p tcp --dport <span style="color:#ae81ff">10521</span> -j DNAT --to-destination 1.1.1.1:8388
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 源地址伪装：确保落地机的回包能回到客户端</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j MASQUERADE
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 防火墙放行转发流量</span>
-</span></span><span style="display:flex;"><span>iptables -A FORWARD -p tcp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j ACCEPT</span></span></code></pre></div><script class="code-source" type="application/json">"# 将中转机 10521 端口的 TCP 流量转到落地机 1.1.1.1 的 8388 端口\n# 按你的实际情况替换 IP 和端口\niptables -t nat -A PREROUTING -p tcp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\n\n# 源地址伪装：确保落地机的回包能回到客户端\niptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport 8388 -j MASQUERADE\n\n# 防火墙放行转发流量\niptables -A FORWARD -p tcp -d 1.1.1.1 --dport 8388 -j ACCEPT"</script>
-</div>
-<p><strong>UDP 转发</strong>（适用于 Hysteria2 等 UDP 协议）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 将中转机 10522 端口的 UDP 流量转到落地机 1.1.1.1 的 443 端口</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -A PREROUTING -p udp --dport <span style="color:#ae81ff">10522</span> -j DNAT --to-destination 1.1.1.1:443
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">443</span> -j MASQUERADE
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">443</span> -j ACCEPT</span></span></code></pre></div><script class="code-source" type="application/json">"# 将中转机 10522 端口的 UDP 流量转到落地机 1.1.1.1 的 443 端口\niptables -t nat -A PREROUTING -p udp --dport 10522 -j DNAT --to-destination 1.1.1.1:443\n\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 443 -j MASQUERADE\n\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 443 -j ACCEPT"</script>
-</div>
-<p><strong>同时转发 TCP 和 UDP</strong>（不常用，如果你搞不清要不要加就跳过）：</p>
-<p>如果想用一个端口同时转发 TCP 和 UDP 到同一台落地机：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>iptables -t nat -A PREROUTING -p tcp --dport <span style="color:#ae81ff">10521</span> -j DNAT --to-destination 1.1.1.1:8388
-</span></span><span style="display:flex;"><span>iptables -t nat -A PREROUTING -p udp --dport <span style="color:#ae81ff">10521</span> -j DNAT --to-destination 1.1.1.1:8388
-</span></span><span style="display:flex;"><span>iptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j MASQUERADE
-</span></span><span style="display:flex;"><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j MASQUERADE
-</span></span><span style="display:flex;"><span>iptables -A FORWARD -p tcp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j ACCEPT
-</span></span><span style="display:flex;"><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">8388</span> -j ACCEPT</span></span></code></pre></div><script class="code-source" type="application/json">"iptables -t nat -A PREROUTING -p tcp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\niptables -t nat -A PREROUTING -p udp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\niptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport 8388 -j MASQUERADE\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 8388 -j MASQUERADE\niptables -A FORWARD -p tcp -d 1.1.1.1 --dport 8388 -j ACCEPT\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 8388 -j ACCEPT"</script>
-</div>
-<h3 id="第四步查看规则是否已添加">第四步：查看规则是否已添加</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 查看 NAT 转发规则（DNAT 和 SNAT）</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -L -n -v
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看过滤规则（FORWARD 放行）</span>
-</span></span><span style="display:flex;"><span>iptables -L -n
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果只想看特定端口的规则，用 grep 过滤</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -L -n -v | grep <span style="color:#ae81ff">10521</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 查看 NAT 转发规则（DNAT 和 SNAT）\niptables -t nat -L -n -v\n\n# 查看过滤规则（FORWARD 放行）\niptables -L -n\n\n# 如果只想看特定端口的规则，用 grep 过滤\niptables -t nat -L -n -v | grep 10521"</script>
-</div>
-<blockquote>
-<p>第一次执行时，你可能看到 nat 表只有 PREROUTING 和 POSTROUTING 链，后面跟着你刚添加的规则，这是正常的。</p>
-</blockquote>
-<h3 id="第五步持久化规则防重启丢失">第五步：持久化规则（防重启丢失）</h3>
-<p>iptables 规则默认<strong>重启后清空</strong>，必须持久化保存：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 安装持久化工具</span>
-</span></span><span style="display:flex;"><span>apt install iptables-persistent -y</span></span></code></pre></div><script class="code-source" type="application/json">"# 安装持久化工具\napt install iptables-persistent -y"</script>
-</div>
-<blockquote>
-<p>安装过程中会弹出一个粉色界面询问&quot;保存当前规则&quot;，选择 <strong>Yes</strong>（是）。</p>
-</blockquote>
-<p>以后每次修改规则后，手动保存：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>netfilter-persistent save</span></span></code></pre></div><script class="code-source" type="application/json">"netfilter-persistent save"</script>
-</div>
-<h3 id="端口跳跃抗-udp-qos">端口跳跃（抗 UDP QoS）</h3>
-<p>如果不希望 Hysteria 的 UDP 流量长期固定在单个端口上引发运营商 QoS 限速，可以把流量分散到大量端口上：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 将中转机 20000~30000 端口的 UDP 流量全部汇聚到落地机 443 端口</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -A PREROUTING -p udp --dport 20000:30000 -j DNAT --to-destination 1.1.1.1:443
-</span></span><span style="display:flex;"><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">443</span> -j MASQUERADE
-</span></span><span style="display:flex;"><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style="color:#ae81ff">443</span> -j ACCEPT
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 保存规则</span>
-</span></span><span style="display:flex;"><span>netfilter-persistent save</span></span></code></pre></div><script class="code-source" type="application/json">"# 将中转机 20000~30000 端口的 UDP 流量全部汇聚到落地机 443 端口\niptables -t nat -A PREROUTING -p udp --dport 20000:30000 -j DNAT --to-destination 1.1.1.1:443\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 443 -j MASQUERADE\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 443 -j ACCEPT\n\n# 保存规则\nnetfilter-persistent save"</script>
-</div>
-<p>客户端（以 sing-box Hysteria2 为例）相应配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;hysteria2&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;server&#34;</span>: <span style="color:#e6db74">&#34;中转机IP&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;server_ports&#34;</span>: [<span style="color:#e6db74">&#34;20000-30000&#34;</span>],
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;hop_interval&#34;</span>: <span style="color:#e6db74">&#34;30s&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;password&#34;</span>: <span style="color:#e6db74">&#34;your_password&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;tls&#34;</span>: {
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;server_name&#34;</span>: <span style="color:#e6db74">&#34;your-domain.com&#34;</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;insecure&#34;</span>: <span style="color:#66d9ef">true</span>,
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;alpn&#34;</span>: [<span style="color:#e6db74">&#34;h3&#34;</span>]
-</span></span><span style="display:flex;"><span>  }
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"type\": \"hysteria2\",\n  \"server\": \"中转机IP\",\n  \"server_ports\": [\"20000-30000\"],\n  \"hop_interval\": \"30s\",\n  \"password\": \"your_password\",\n  \"tls\": {\n    \"enabled\": true,\n    \"server_name\": \"your-domain.com\",\n    \"insecure\": true,\n    \"alpn\": [\"h3\"]\n  }\n}"</script>
-</div>
-<blockquote>
-<p><strong>重要提示</strong>：端口跳跃只适合 UDP，<strong>绝对不要对 TCP 做端口跳跃</strong>。TCP 是&quot;有状态&quot;的，每次跳跃都要重新三次握手和 TLS 协商，网速会断崖式下跌。TCP 保持固定端口，伪装成正常的 HTTPS 访问才是最安全的。</p>
-</blockquote>
-<h3 id="修改或删除规则的方法">修改或删除规则的方法</h3>
-<p>如果填错了 IP 或端口，需要先删除错误的规则再添加新的。</p>
-<p><strong>方法一：按行号删除（推荐新手用）</strong></p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 先查看规则编号（每行前面会有 num 列）</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -L PREROUTING -n --line-numbers
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 输出示例：</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># num  target     prot opt source         destination</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 1    DNAT       tcp  --  0.0.0.0/0      0.0.0.0/0    tcp dpt:10521 to:1.1.1.1:8388</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 删除第 1 条规则</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -D PREROUTING <span style="color:#ae81ff">1</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 先查看规则编号（每行前面会有 num 列）\niptables -t nat -L PREROUTING -n --line-numbers\n\n# 输出示例：\n# num  target     prot opt source         destination\n# 1    DNAT       tcp  --  0.0.0.0/0      0.0.0.0/0    tcp dpt:10521 to:1.1.1.1:8388\n\n# 删除第 1 条规则\niptables -t nat -D PREROUTING 1"</script>
-</div>
-<p><strong>方法二：完全清空所有规则（重头来过）</strong></p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 清空 nat 表规则</span>
-</span></span><span style="display:flex;"><span>iptables -t nat -F
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 清空 filter 表规则（注意：这也会删除你手动添加的其他防火墙规则）</span>
-</span></span><span style="display:flex;"><span>iptables -F
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 清空后重新持久化</span>
-</span></span><span style="display:flex;"><span>netfilter-persistent save</span></span></code></pre></div><script class="code-source" type="application/json">"# 清空 nat 表规则\niptables -t nat -F\n\n# 清空 filter 表规则（注意：这也会删除你手动添加的其他防火墙规则）\niptables -F\n\n# 清空后重新持久化\nnetfilter-persistent save"</script>
-</div>
-<blockquote>
-<p><strong>特别提醒</strong>：<code>iptables -F</code> 会清空所有 filter 表规则。如果中转机上有其他重要业务，请不要直接清空，而是按行号逐个删除你添加的转发规则。</p>
-</blockquote>
-<h3 id="常见问题排查">常见问题排查</h3>
-<table>
-<thead>
-<tr>
-<th>症状</th>
-<th>原因</th>
-<th>解决方法</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>添加规则后客户端仍然连不上</td>
-<td>忘记开启 IP 转发</td>
-<td>执行 <code>sysctl net.ipv4.ip_forward</code> 确认是 1</td>
-</tr>
-<tr>
-<td>客户端能连接但很慢或断断续续</td>
-<td>中转机防火墙（iptables filter 表）默认 DROP FORWARD</td>
-<td>执行 <code>iptables -A FORWARD -j ACCEPT</code>，或确认你的 FORWARD 放行规则已添加</td>
-</tr>
-<tr>
-<td>重启后规则丢失</td>
-<td>没有持久化</td>
-<td>执行 <code>netfilter-persistent save</code></td>
-</tr>
-<tr>
-<td>落地机能收到请求但客户端收不到回包</td>
-<td>缺少 SNAT（MASQUERADE）规则</td>
-<td>检查 <code>iptables -t nat -L POSTROUTING -n</code> 是否有对应的 MASQUERADE 规则</td>
-</tr>
-<tr>
-<td>添加规则时报错 &ldquo;No chain/target/match by that name&rdquo;</td>
-<td>内核模块未加载</td>
-<td>执行 <code>modprobe iptable_nat</code> 后再试</td>
-</tr>
-</tbody>
-</table>
-<h3 id="优缺点-2">优缺点</h3>
-<table>
-<thead>
-<tr>
-<th>优势</th>
-<th>不足</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>内核级直通，延迟最低、吞吐最高</td>
-<td>无健康检查——落地机宕机后仍然盲发，客户端直接断网</td>
-</tr>
-<tr>
-<td>零应用层进程，不占用 CPU/内存</td>
-<td>无法做基于域名（SNI）的分流</td>
-</tr>
-<tr>
-<td>TCP-Brutal 端到端拥塞控制完美保留</td>
-<td>没有可视化面板，排障需靠终端工具</td>
-</tr>
-<tr>
-<td>端口跳跃抗 UDP QoS，配置极简</td>
-<td>不适合多节点负载均衡场景（需配合其他工具）</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="方案横向对比">方案横向对比</h2>
-<table>
-<thead>
-<tr>
-<th>特性</th>
-<th>HAProxy</th>
-<th>Nginx Stream</th>
-<th>iptables</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>工作层级</strong></td>
-<td>四层（应用层）</td>
-<td>四层（应用层）</td>
-<td>三层/四层（内核层）</td>
-</tr>
-<tr>
-<td><strong>TCP 转发</strong></td>
-<td>✔</td>
-<td>✔</td>
-<td>✔</td>
-</tr>
-<tr>
-<td><strong>UDP 转发</strong></td>
-<td>✗（需额外层）</td>
-<td>✔</td>
-<td>✔</td>
-</tr>
-<tr>
-<td><strong>健康检查</strong></td>
-<td>✔ 主动检测</td>
-<td>✔ 被动（max_fails）</td>
-<td>✗</td>
-</tr>
-<tr>
-<td><strong>自动故障剔除</strong></td>
-<td>✔</td>
-<td>✔（有限）</td>
-<td>✗</td>
-</tr>
-<tr>
-<td><strong>负载均衡策略</strong></td>
-<td>轮询/加权/IP Hash</td>
-<td>轮询/加权/IP Hash</td>
-<td>✗</td>
-</tr>
-<tr>
-<td><strong>端口跳跃</strong></td>
-<td>✗</td>
-<td>✗</td>
-<td>✔</td>
-</tr>
-<tr>
-<td><strong>Web 面板</strong></td>
-<td>✔ 内置</td>
-<td>✗（需第三方）</td>
-<td>✗</td>
-</tr>
-<tr>
-<td><strong>SNI 分流</strong></td>
-<td>✔（七层模式）</td>
-<td>✔（需 ngx_stream_ssl_preread）</td>
-<td>✗</td>
-</tr>
-<tr>
-<td><strong>端到端状态保留</strong></td>
-<td>✗（会终结 TCP）</td>
-<td>✗（会终结 TCP）</td>
-<td>✔（完全保留）</td>
-</tr>
-<tr>
-<td><strong>额外进程开销</strong></td>
-<td>有</td>
-<td>可复用</td>
-<td>无</td>
-</tr>
-<tr>
-<td><strong>配置复杂度</strong></td>
-<td>中等</td>
-<td>中等</td>
-<td>低</td>
-</tr>
-<tr>
-<td><strong>延迟损耗</strong></td>
-<td>微</td>
-<td>微</td>
-<td>接近零</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="场景推荐">场景推荐</h2>
-<h3 id="场景一追求高可用有多台落地机需要负载均衡">场景一：追求高可用，有多台落地机需要负载均衡</h3>
-<p><strong>推荐：HAProxy</strong></p>
-<p>健康检查 + 自动剔除 + Web 面板，运维体验最好。业务关键链路首选。如果涉及 UDP（如 Hysteria），需要在 HAProxy 前面再加一层 UDP 转发层，或混用其他方案。</p>
-<h3 id="场景二中转机已有-nginx-服务只想简单加几个转发端口">场景二：中转机已有 Nginx 服务，只想简单加几个转发端口</h3>
-<p><strong>推荐：Nginx Stream</strong></p>
-<p>不增加任何系统进程，复用现有 Nginx 即可。TCP/UDP 双支持，配置灵活。适合中小规模场景。</p>
-<h3 id="场景三单落地机追求极致性能和低延迟">场景三：单落地机，追求极致性能和低延迟</h3>
-<p><strong>推荐：iptables</strong></p>
-<p>如果你只有一台或两台落地机，不需要负载均衡，iptables 是最轻量的选择。特别是使用 TCP-Brutal 这类协议时，iptables 的端到端保留无可替代。</p>
-<h3 id="场景四tcp--udp-混合协议多落地机需要健康管理">场景四：TCP + UDP 混合协议，多落地机需要健康管理</h3>
-<p><strong>推荐：Nginx Stream + iptables 组合</strong></p>
-<p>用 Nginx 做 TCP 负载均衡和健康管理，用 iptables 做 UDP 端口跳跃转发。各取所长。</p>
-<h3 id="场景五海量端口跳跃抗-qos">场景五：海量端口跳跃抗 QoS</h3>
-<p><strong>推荐：iptables</strong></p>
-<p>这是 iptables 的独家能力，HAProxy 和 Nginx 做不到。</p>
-<hr>
-<h2 id="附中转机优化与监控">附：中转机优化与监控</h2>
-<h3 id="bbr-拥塞控制tcp-性能优化">BBR 拥塞控制（TCP 性能优化）</h3>
-<p>无论使用哪种方案，BBR 都应作为标配开启：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>modprobe tcp_bbr
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;tcp_bbr&#34;</span> &gt; /etc/modules-load.d/modules.conf 2&gt;/dev/null <span style="color:#f92672">||</span> echo <span style="color:#e6db74">&#34;tcp_bbr&#34;</span> &gt;&gt; /etc/modules
-</span></span><span style="display:flex;"><span>cat &gt;&gt; /etc/sysctl.conf <span style="color:#e6db74">&lt;&lt; &#39;EOF&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.core.default_qdisc = fq
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">net.ipv4.tcp_congestion_control = bbr
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
-</span></span><span style="display:flex;"><span>sysctl -p</span></span></code></pre></div><script class="code-source" type="application/json">"modprobe tcp_bbr\necho \"tcp_bbr\" \u003e /etc/modules-load.d/modules.conf 2\u003e/dev/null || echo \"tcp_bbr\" \u003e\u003e /etc/modules\ncat \u003e\u003e /etc/sysctl.conf \u003c\u003c 'EOF'\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\nEOF\nsysctl -p"</script>
-</div>
-<p>验证：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.tcp_congestion_control    <span style="color:#75715e"># 应输出 bbr</span>
-</span></span><span style="display:flex;"><span>lsmod | grep bbr                           <span style="color:#75715e"># 应看到 tcp_bbr</span></span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.tcp_congestion_control    # 应输出 bbr\nlsmod | grep bbr                           # 应看到 tcp_bbr"</script>
-</div>
-<blockquote>
-<p>BBR 仅针对 TCP 生效。UDP 流量不受 BBR 影响。</p>
-</blockquote>
-<h3 id="网络监控工具">网络监控工具</h3>
-<p><strong>nload</strong>——查看整体带宽吞吐：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt install nload -y
-</span></span><span style="display:flex;"><span>nload
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 界面上下部分分别显示接收/发送流量，重点看 Curr（当前速度）和 Max（历史峰值）</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 按 q 退出</span></span></span></code></pre></div><script class="code-source" type="application/json">"apt install nload -y\nnload\n# 界面上下部分分别显示接收/发送流量，重点看 Curr（当前速度）和 Max（历史峰值）\n# 按 q 退出"</script>
-</div>
-<p><strong>iftop</strong>——查看特定端口和 IP 的连接详情：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt install iftop -y
-</span></span><span style="display:flex;"><span>iftop -n -N -P
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># -n 禁止反向解析，-N 禁止端口名解析，-P 显示端口号</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 右侧三列分别为过去 2 秒/10 秒/40 秒平均速度</span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 按 q 退出</span></span></span></code></pre></div><script class="code-source" type="application/json">"apt install iftop -y\niftop -n -N -P\n# -n 禁止反向解析，-N 禁止端口名解析，-P 显示端口号\n# 右侧三列分别为过去 2 秒/10 秒/40 秒平均速度\n# 按 q 退出"</script>
-</div>
-<p><strong>vnstat</strong>——轻量级流量统计（对齐账单周期）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt install vnstat -y
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 等待 5 分钟收集初始数据后：</span>
-</span></span><span style="display:flex;"><span>vnstat      <span style="color:#75715e"># 基础汇总</span>
-</span></span><span style="display:flex;"><span>vnstat -d   <span style="color:#75715e"># 每日统计</span>
-</span></span><span style="display:flex;"><span>vnstat -m   <span style="color:#75715e"># 每月统计（对齐 3T 等限额）</span>
-</span></span><span style="display:flex;"><span>vnstat -l   <span style="color:#75715e"># 实时动态（类似 nload 轻量平替）</span></span></span></code></pre></div><script class="code-source" type="application/json">"apt install vnstat -y\n# 等待 5 分钟收集初始数据后：\nvnstat      # 基础汇总\nvnstat -d   # 每日统计\nvnstat -m   # 每月统计（对齐 3T 等限额）\nvnstat -l   # 实时动态（类似 nload 轻量平替）"</script>
-</div>
-<p>修改账单日（如每月 15 号）：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nano /etc/vnstat.conf   <span style="color:#75715e"># 修改 MonthRotate 15</span>
-</span></span><span style="display:flex;"><span>systemctl restart vnstat</span></span></code></pre></div><script class="code-source" type="application/json">"nano /etc/vnstat.conf   # 修改 MonthRotate 15\nsystemctl restart vnstat"</script>
-</div>
-<hr>
-<h2 id="安全说明四层中转不影响加密">安全说明：四层中转不影响加密</h2>
-<p>一个常见的疑虑：中转机会不会降低安全性或增加被封风险？</p>
-<ul>
-<li><strong>不会影响加密</strong>：无论是 HAProxy 的 <code>mode tcp</code>、Nginx 的 <code>stream</code> 还是 iptables 的 NAT，它们都只做数据包级别的搬运，不解密、不拆包。TLS 握手、证书验证、密钥交换始终在客户端和落地机之间直接完成。</li>
-<li><strong>不会增加被墙风险</strong>：GFW 看到的是和中转机之间的加密流量，流量特征与直连落地机完全一致。中转机越&quot;透明&quot;越安全。</li>
-<li><strong>特殊提醒——国内中转机</strong>：如果中转机在中国大陆境内，风险不在于 GFW 识别协议，而在于国内运营商的风控。长期大带宽向单个海外 IP 发送加密流量，可能触发机房审计导致停机。</li>
-</ul>
-<hr>
-<h2 id="总结">总结</h2>
-<p>没有绝对的&quot;最优&quot;方案，只有最适合你场景的选择：</p>
-<ul>
-<li>需要<strong>高可用和负载均衡</strong> → <strong>HAProxy</strong></li>
-<li>需要<strong>TCP/UDP 双支持且复用 Web 服务</strong> → <strong>Nginx Stream</strong></li>
-<li>追求<strong>极致性能和端到端保留</strong> → <strong>iptables</strong></li>
-<li><strong>混合场景</strong> → 组合使用，各取所长</li>
-</ul>
-<p>理解每种工具的原理和边界，就能做出最合理的技术选型。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比 | 电脑自习室</title>
+<meta name=description content="详细对比 HAProxy、Nginx Stream 模块和 iptables 三种中转机转发方案，提供完整配置教程、横向对比表和场景推荐"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-06-25>2026年6月25日</time></div><h1>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</h1><p>详细对比 HAProxy、Nginx Stream 模块和 iptables 三种中转机转发方案，提供完整配置教程、横向对比表和场景推荐</p></header><img class=article-cover src=/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/assets/cover.svg alt><div class=article-content><h1 id=中转机搭建配置全面指南haproxynginxiptables-方案对比>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</h1><h2 id=前言为什么需要中转机和负载均衡>前言：为什么需要中转机和负载均衡</h2><p>中转机（Relay / Transit）在代理场景中扮演着流量枢纽的角色。将一台带宽大、线路好的机器作为入口，把接收到的流量按特定规则分发给背后的多台落地机，核心目的是解决<strong>单点故障</strong>和<strong>资源利用率</strong>问题。</p><p><strong>为什么要做负载均衡？</strong></p><ul><li><strong>流量与带宽聚合</strong>：当落地机流量配额有限（比如每台 500G），通过多台聚合可以跑满中转机的大流量（比如 3T），避免浪费。</li><li><strong>高可用（防失联）</strong>：当某台落地机 IP 被封、宕机或流量耗尽时，中转机自动将其剔除，流量无缝切换到其他存活的落地机上，客户端无感知。</li></ul><p>本文聚焦三种主流的中转转发方案——<strong>HAProxy</strong>、<strong>Nginx Stream 模块</strong>、<strong>iptables</strong>，逐一给出完整的配置教程，并在最后做横向对比和场景推荐。</p><hr><h2 id=重要概念理解中转机端口与落地机端口>重要概念：理解中转机端口与落地机端口</h2><p>开始阅读前，先理清中转架构中两个关键端口的区别：</p><ul><li><strong>中转机端口</strong>：中转机上监听的端口，客户端直接连接这个端口。比如下文中的 <code>8080</code>、<code>10521</code>（TCP）、<code>10522</code>（UDP）。</li><li><strong>落地机端口</strong>：落地机上代理服务真实运行的端口。比如下文例子中的 <code>8388</code>、<code>443</code>。<strong>这个数字取决于你的落地机上跑的是什么服务</strong>：<ul><li>如果落地机跑的是 Hysteria2，默认端口是 <code>443</code></li><li>如果落地机跑的是 VLESS-Reality，默认端口是 <code>443</code></li><li>如果落地机跑的是 Shadowsocks，常见端口是 <code>8388</code></li><li>如果落地机跑的是 Trojan，常见端口是 <code>443</code></li></ul></li></ul><p><strong>中转机的工作就是：客户端连接中转机的端口 → 中转机原封不动转给落地机的端口。</strong> 下文配置中出现的 <code>8388</code>、<code>443</code>、<code>19527</code> 都只是示例，实际使用时必须替换成你落地机上代理服务的真实端口。</p><hr><h2 id=方案一haproxy专业四层负载均衡器>方案一：HAProxy（专业四层负载均衡器）</h2><p>HAProxy 是业界标准的 TCP/HTTP 负载均衡器，原生健康检查、自动剔除故障节点、Web 流量面板一应俱全，适合对高可用要求严格的场景。</p><h3 id=安装>安装</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt update
+</span></span><span style=display:flex><span>apt install haproxy -y</span></span></code></pre></div><script class=code-source type=application/json>"apt update\napt install haproxy -y"</script></div><h3 id=完整配置>完整配置</h3><p>将以下内容写入 <code>/etc/haproxy/haproxy.cfg</code>（注意替换为你真实的落地机 IP 和端口）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#75715e># /etc/haproxy/haproxy.cfg
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>global</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>maxconn</span> <span style=color:#ae81ff>51200</span>      <span style=color:#75715e># 全局最大连接数，确保高并发不瓶颈
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>daemon</span>             <span style=color:#75715e># 后台守护进程运行
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#e6db74>defaults</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>mode</span>    <span style=color:#e6db74>tcp</span>        <span style=color:#75715e># 默认模式设为纯 TCP 四层转发
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>option</span>  <span style=color:#e6db74>tcplog</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>timeout</span> <span style=color:#e6db74>connect</span> <span style=color:#e6db74>5s</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>timeout</span> <span style=color:#e6db74>client</span>  <span style=color:#ae81ff>10m</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>timeout</span> <span style=color:#e6db74>server</span>  <span style=color:#ae81ff>10m</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 核心：中转机代理端口与落地机负载均衡池
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#e6db74>listen</span> <span style=color:#e6db74>proxy_relay</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>bind</span> <span style=color:#e6db74>*:8080</span>          <span style=color:#75715e># 中转机对外暴露的监听端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>mode</span> <span style=color:#e6db74>tcp</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>balance</span> <span style=color:#e6db74>roundrobin</span>   <span style=color:#75715e># 负载均衡策略：轮询
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># 落地机节点列表（替换为你真实的落地机 IP 和端口）
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e># check：开启主动健康检查
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e># inter 5s：每 5 秒检查一次
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e># rise 2：成功 2 次认为节点恢复正常
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e># fall 3：失败 3 次认为节点宕机并自动剔除
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>server</span> <span style=color:#e6db74>node1</span> 1.1.1.1:<span style=color:#ae81ff>8388</span> <span style=color:#e6db74>check</span> <span style=color:#e6db74>inter</span> <span style=color:#e6db74>5s</span> <span style=color:#e6db74>rise</span> <span style=color:#ae81ff>2</span> <span style=color:#e6db74>fall</span> <span style=color:#ae81ff>3</span> <span style=color:#e6db74>weight</span> <span style=color:#ae81ff>1</span>  <span style=color:#75715e># 落地机1：IP 和代理服务端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>server</span> <span style=color:#e6db74>node2</span> 2.2.2.2:<span style=color:#ae81ff>8388</span> <span style=color:#e6db74>check</span> <span style=color:#e6db74>inter</span> <span style=color:#e6db74>5s</span> <span style=color:#e6db74>rise</span> <span style=color:#ae81ff>2</span> <span style=color:#e6db74>fall</span> <span style=color:#ae81ff>3</span> <span style=color:#e6db74>weight</span> <span style=color:#ae81ff>1</span>  <span style=color:#75715e># 落地机2：IP 和代理服务端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 可视化 Web 监控面板（强烈推荐）
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#e6db74>listen</span> <span style=color:#e6db74>stats</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>bind</span> <span style=color:#e6db74>*:8888</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>mode</span> <span style=color:#e6db74>http</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>stats</span> <span style=color:#e6db74>enable</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>stats</span> <span style=color:#e6db74>hide-version</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>stats</span> <span style=color:#e6db74>uri</span> <span style=color:#e6db74>/stats</span>              <span style=color:#75715e># 访问路径：http://中转机IP:8888/stats
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#e6db74>stats</span> <span style=color:#e6db74>auth</span> <span style=color:#e6db74>admin:admin123</span>     <span style=color:#960050;background-color:#1e0010>#</span> <span style=color:#e6db74>面板登录账号密码（请修改）</span></span></span></code></pre></div><script class=code-source type=application/json>"# /etc/haproxy/haproxy.cfg\n\nglobal\n  maxconn 51200      # 全局最大连接数，确保高并发不瓶颈\n  daemon             # 后台守护进程运行\n\ndefaults\n  mode    tcp        # 默认模式设为纯 TCP 四层转发\n  option  tcplog\n  timeout connect 5s\n  timeout client  10m\n  timeout server  10m\n\n# 核心：中转机代理端口与落地机负载均衡池\nlisten proxy_relay\n  bind *:8080          # 中转机对外暴露的监听端口\n  mode tcp\n  balance roundrobin   # 负载均衡策略：轮询\n\n  # 落地机节点列表（替换为你真实的落地机 IP 和端口）\n  # check：开启主动健康检查\n  # inter 5s：每 5 秒检查一次\n  # rise 2：成功 2 次认为节点恢复正常\n  # fall 3：失败 3 次认为节点宕机并自动剔除\n  server node1 1.1.1.1:8388 check inter 5s rise 2 fall 3 weight 1  # 落地机1：IP 和代理服务端口\n  server node2 2.2.2.2:8388 check inter 5s rise 2 fall 3 weight 1  # 落地机2：IP 和代理服务端口\n\n# 可视化 Web 监控面板（强烈推荐）\nlisten stats\n  bind *:8888\n  mode http\n  stats enable\n  stats hide-version\n  stats uri /stats              # 访问路径：http://中转机IP:8888/stats\n  stats auth admin:admin123     # 面板登录账号密码（请修改）"</script></div><h3 id=落地机协议兼容性>落地机协议兼容性</h3><p>HAProxy 在 <code>mode tcp</code> 模式下对后端协议<strong>完全透明</strong>——它只做 TCP 字节流的搬运，不关心上层跑的是什么协议。所以：</p><table><thead><tr><th>落地机协议</th><th>能否通过 HAProxy 中转</th><th>说明</th></tr></thead><tbody><tr><td>Shadowsocks (TCP)</td><td>✔ 完全支持</td><td>SS 的 TCP 加密通道原样透传</td></tr><tr><td>VLESS (TCP)</td><td>✔ 完全支持</td><td>VLESS 基于 TCP，正常转发</td></tr><tr><td>Trojan</td><td>✔ 完全支持</td><td>Trojan 就是 TLS 包裹的 HTTP，正常转发</td></tr><tr><td>VMess (TCP)</td><td>✔ 完全支持</td><td>VMess 基于 TCP，正常转发</td></tr><tr><td>Hysteria / Hysteria2</td><td>✗ <strong>不支持</strong></td><td>Hysteria 基于 QUIC/UDP，HAProxy 的 <code>mode tcp</code> 不处理 UDP</td></tr><tr><td>WireGuard</td><td>✗ <strong>不支持</strong></td><td>纯 UDP 协议</td></tr><tr><td><strong>TCP-Brutal</strong></td><td>⚠️ <strong>能转发，但失去了意义</strong></td><td>见下方详细解释</td></tr></tbody></table><blockquote><p><strong>关于 TCP-Brutal 为什么不建议用 HAProxy 转发：</strong></p><p>TCP-Brutal 不是一种独立的协议，而是运行在客户端和落地机之间的一种<strong>拥塞控制算法</strong>。它的核心机制是让客户端直接测量到落地机的网络延迟和丢包率，然后"野蛮"地发包来榨干带宽。</p><p>HAProxy 在 <code>mode tcp</code> 下会<strong>终结来自客户端的 TCP 连接，再新建一个 TCP 连接去连落地机</strong>。这就导致：</p><ol><li>客户端以为自己在和落地机通信，但实际上 TCP 握手在 HAProxy 就断了</li><li>TCP-Brutal 算法的端到端测量被 HAProxy 截断，算法退化</li><li>HAProxy → 落地机这一段走的是系统默认的 TCP 栈（CUBIC/BBR），不是 Brutal</li></ol><p>这就是前面方案三（iptables）里强调的"端到端状态保留"。<strong>如果你的落地机跑了 TCP-Brutal，需要用 iptables 做内核级直通转发，不能用 HAProxy 或 Nginx。</strong> 这正是文章方案对比表里"端到端状态保留"那行对比的含义。</p><p>如果落地机上跑的只是普通的 Shadowsocks / VLESS / Trojan，不加 Brutal 算法，那用 HAProxy 完全没有问题。</p></blockquote><h3 id=启动与验证>启动与验证</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart haproxy
+</span></span><span style=display:flex><span>systemctl enable haproxy
+</span></span><span style=display:flex><span>ss -tulnp | grep haproxy       <span style=color:#75715e># 确认 8080 和 8888 端口在监听</span></span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart haproxy\nsystemctl enable haproxy\nss -tulnp | grep haproxy       # 确认 8080 和 8888 端口在监听"</script></div><p>打开浏览器访问 <code>http://中转机IP:8888/stats</code>，输入账号密码即可看到节点状态面板。</p><blockquote><p><strong>关于 Web 面板的常见疑问</strong>：这个 <code>stats</code> 面板是<strong>监控仪表盘</strong>——绿条表示节点在线，红条表示节点挂了，可以看流量曲线和连接数统计。它<strong>不是像宝塔面板那样的管理后台</strong>，不支持在网页上新增或修改落地机的 IP 和端口。</p><p>落地机的信息必须在 <code>/etc/haproxy/haproxy.cfg</code> 里提前写死，改完后执行 <code>systemctl reload haproxy</code> 生效。</p><p>这也是为什么前面方案对比表中，iptables 的缺点写着"无健康检查"——HAProxy 需要你把落地机列表写在配置文件里，它才能逐一发送探测包做健康检查。而 iptables 的 NAT 规则里根本没有"节点列表"和"探活"的概念，落地机挂了它仍然盲目转发。两种工具解决问题的层级不同，理解这一点就明白为什么"越简单的方案越需要在其他方面做取舍"。</p><p>如果你确实需要动态增删节点又不想改配置重启，HAProxy 提供了 Runtime API（通过 Unix socket），可以用 <code>haproxy-runtime-api</code> 工具在运行时启用/禁用节点。但对于中转机这种配置基本不变的场景，改配置 + reload 是最简单稳定的做法。</p></blockquote><h3 id=优缺点>优缺点</h3><table><thead><tr><th>优势</th><th>不足</th></tr></thead><tbody><tr><td>健康检查与自动剔除，高可用能力强</td><td>原生不支持 UDP 转发（如需 UDP 需额外配置层）</td></tr><tr><td>自带 Web 面板，排障方便</td><td>多一个系统进程，资源略有占用</td></tr><tr><td>支持多种均衡策略（轮询、加权、IP Hash）</td><td>配置相对重量，功能对纯转发场景有冗余</td></tr><tr><td>社区成熟，文档丰富</td><td></td></tr></tbody></table><hr><h2 id=方案二nginx-stream-模块web-服务器复用方案>方案二：Nginx Stream 模块（Web 服务器复用方案）</h2><p>如果你的中转机上本来就跑着 Nginx 做其他 Web 服务，直接用 Stream 模块做四层转发是最省事的方案——无需额外进程。</p><p>Nginx 的 <code>stream</code> 模块需要在 <code>nginx.conf</code> 的最外层（<code>http {}</code> 块之外）配置。</p><h3 id=第一步安装-nginx>第一步：安装 Nginx</h3><p>Nginx 默认不包含 stream 模块，需要用完整版 nginx 包：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt update
+</span></span><span style=display:flex><span>apt install nginx -y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 验证安装是否成功</span>
+</span></span><span style=display:flex><span>nginx -v</span></span></code></pre></div><script class=code-source type=application/json>"apt update\napt install nginx -y\n\n# 验证安装是否成功\nnginx -v"</script></div><blockquote><p>Nginx 的 stream 模块已内置在官方 nginx 包中，无需单独安装。如果系统提示找不到 stream 模块，说明你装的是精简版，需要换成完整版：<code>apt install nginx-full -y</code>。</p></blockquote><h3 id=第二步确认内核开启-ip-转发tcpudp-都需要>第二步：确认内核开启 IP 转发（TCP/UDP 都需要）</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 查看当前是否已开启</span>
+</span></span><span style=display:flex><span>sysctl net.ipv4.ip_forward
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 如果输出是 net.ipv4.ip_forward = 0，则需要开启</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;net.ipv4.ip_forward = 1&#34;</span> &gt;&gt; /etc/sysctl.conf
+</span></span><span style=display:flex><span>sysctl -p</span></span></code></pre></div><script class=code-source type=application/json>"# 查看当前是否已开启\nsysctl net.ipv4.ip_forward\n\n# 如果输出是 net.ipv4.ip_forward = 0，则需要开启\necho \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p"</script></div><h3 id=第三步编辑配置文件>第三步：编辑配置文件</h3><p>Nginx 的主配置文件是 <code>/etc/nginx/nginx.conf</code>。stream 配置必须写在 <code>http {}</code> 块之外（即 <code>events {}</code> 块之后、文件末尾）。</p><p><strong>场景 A：单节点 TCP + UDP 独立转发</strong></p><p>如果只转发给一台落地机，不需要负载均衡：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#75715e># /etc/nginx/nginx.conf —— 在文件末尾添加以下内容
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>stream</span> {
+</span></span><span style=display:flex><span>  <span style=color:#75715e># 转发 TCP 到落地机（如 VLESS、Trojan、Shadowsocks）
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>listen</span> <span style=color:#ae81ff>10521</span>;                    <span style=color:#75715e># 中转机暴露的 TCP 端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>proxy_pass</span> 1.1.1.1:<span style=color:#ae81ff>8388</span>;        <span style=color:#75715e># 替换为你的落地机 IP 和代理端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># 转发 UDP 到落地机（如 Hysteria2）
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>listen</span> <span style=color:#ae81ff>10522</span> <span style=color:#e6db74>udp</span>;                <span style=color:#75715e># 必须加 udp 关键字
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>proxy_pass</span> 1.1.1.1:<span style=color:#ae81ff>443</span>;         <span style=color:#75715e># 替换为你的落地机 IP 和 Hysteria 端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"# /etc/nginx/nginx.conf —— 在文件末尾添加以下内容\n\nstream {\n  # 转发 TCP 到落地机（如 VLESS、Trojan、Shadowsocks）\n  server {\n    listen 10521;                    # 中转机暴露的 TCP 端口\n    proxy_pass 1.1.1.1:8388;        # 替换为你的落地机 IP 和代理端口\n  }\n\n  # 转发 UDP 到落地机（如 Hysteria2）\n  server {\n    listen 10522 udp;                # 必须加 udp 关键字\n    proxy_pass 1.1.1.1:443;         # 替换为你的落地机 IP 和 Hysteria 端口\n  }\n}"</script></div><p><strong>场景 B：TCP 负载均衡（多台落地机）</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#66d9ef>stream</span> {
+</span></span><span style=display:flex><span>  <span style=color:#75715e># 定义上游节点池
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>upstream</span> <span style=color:#e6db74>proxy_nodes</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> 1.1.1.1:<span style=color:#ae81ff>8388</span> <span style=color:#e6db74>weight=1</span> <span style=color:#e6db74>max_fails=3</span> <span style=color:#e6db74>fail_timeout=30s</span>;  <span style=color:#75715e># 落地机1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>server</span> 2.2.2.2:<span style=color:#ae81ff>8388</span> <span style=color:#e6db74>weight=1</span> <span style=color:#e6db74>max_fails=3</span> <span style=color:#e6db74>fail_timeout=30s</span>;  <span style=color:#75715e># 落地机2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># 中转机监听端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>listen</span> <span style=color:#ae81ff>8080</span>;                     <span style=color:#75715e># 客户端连接这个端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>proxy_pass</span> <span style=color:#e6db74>proxy_nodes</span>;          <span style=color:#75715e># 转发到上面定义的节点池
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>proxy_timeout</span> <span style=color:#ae81ff>10m</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>proxy_connect_timeout</span> <span style=color:#e6db74>5s</span>;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"stream {\n  # 定义上游节点池\n  upstream proxy_nodes {\n    server 1.1.1.1:8388 weight=1 max_fails=3 fail_timeout=30s;  # 落地机1\n    server 2.2.2.2:8388 weight=1 max_fails=3 fail_timeout=30s;  # 落地机2\n  }\n\n  # 中转机监听端口\n  server {\n    listen 8080;                     # 客户端连接这个端口\n    proxy_pass proxy_nodes;          # 转发到上面定义的节点池\n    proxy_timeout 10m;\n    proxy_connect_timeout 5s;\n  }\n}"</script></div><p><strong>场景 C：UDP 负载均衡（多台 Hysteria 落地机）</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#66d9ef>stream</span> {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>upstream</span> <span style=color:#e6db74>hysteria_nodes</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> 1.1.1.1:<span style=color:#ae81ff>443</span> <span style=color:#e6db74>weight=1</span>;     <span style=color:#75715e># 落地机1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>server</span> 2.2.2.2:<span style=color:#ae81ff>443</span> <span style=color:#e6db74>weight=1</span>;     <span style=color:#75715e># 落地机2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>listen</span> <span style=color:#ae81ff>10521</span> <span style=color:#e6db74>udp</span>;                <span style=color:#75715e># 对外暴露 UDP 端口
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#f92672>proxy_pass</span> <span style=color:#e6db74>hysteria_nodes</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>proxy_timeout</span> <span style=color:#ae81ff>5m</span>;                <span style=color:#75715e># UDP 会话保持时间
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"stream {\n  upstream hysteria_nodes {\n    server 1.1.1.1:443 weight=1;     # 落地机1\n    server 2.2.2.2:443 weight=1;     # 落地机2\n  }\n\n  server {\n    listen 10521 udp;                # 对外暴露 UDP 端口\n    proxy_pass hysteria_nodes;\n    proxy_timeout 5m;                # UDP 会话保持时间\n  }\n}"</script></div><blockquote><p>初次配置的建议：先按场景 A 做最简单的单节点转发，测试通了再扩展为负载均衡。</p></blockquote><h3 id=第四步验证配置语法>第四步：验证配置语法</h3><p>修改配置文件后，一定要先检查语法，避免重启失败导致服务中断：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nginx -t</span></span></code></pre></div><script class=code-source type=application/json>"nginx -t"</script></div><p>如果输出 <code>syntax is ok</code> 和 <code>test is successful</code>，说明配置没问题。</p><h3 id=第五步启动-nginx-并设置开机自启>第五步：启动 Nginx 并设置开机自启</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 首次启动</span>
+</span></span><span style=display:flex><span>systemctl start nginx
+</span></span><span style=display:flex><span>systemctl enable nginx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 后续修改配置后重新加载（比 restart 更优雅，不中断已有连接）</span>
+</span></span><span style=display:flex><span>systemctl reload nginx</span></span></code></pre></div><script class=code-source type=application/json>"# 首次启动\nsystemctl start nginx\nsystemctl enable nginx\n\n# 后续修改配置后重新加载（比 restart 更优雅，不中断已有连接）\nsystemctl reload nginx"</script></div><h3 id=第六步验证转发是否生效>第六步：验证转发是否生效</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 查看端口是否在监听</span>
+</span></span><span style=display:flex><span>ss -tulnp | grep nginx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 查看 Nginx 运行状态</span>
+</span></span><span style=display:flex><span>systemctl status nginx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 查看实时日志（转发异常的排查入口）</span>
+</span></span><span style=display:flex><span>tail -f /var/log/nginx/error.log</span></span></code></pre></div><script class=code-source type=application/json>"# 查看端口是否在监听\nss -tulnp | grep nginx\n\n# 查看 Nginx 运行状态\nsystemctl status nginx\n\n# 查看实时日志（转发异常的排查入口）\ntail -f /var/log/nginx/error.log"</script></div><h3 id=如何切换方案卸载-nginx>如何切换方案（卸载 Nginx）</h3><p>如果后续想改用 iptables，可以安全卸载：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl stop nginx
+</span></span><span style=display:flex><span>systemctl disable nginx
+</span></span><span style=display:flex><span>apt remove --purge nginx nginx-common -y</span></span></code></pre></div><script class=code-source type=application/json>"systemctl stop nginx\nsystemctl disable nginx\napt remove --purge nginx nginx-common -y"</script></div><h3 id=落地机协议兼容性-1>落地机协议兼容性</h3><p>HAProxy 在 <code>mode tcp</code> 模式下对后端协议<strong>完全透明</strong>——它只做 TCP 字节流的搬运，不关心上层跑的是什么协议。所以：</p><table><thead><tr><th>落地机协议</th><th>能否通过 HAProxy 中转</th><th>说明</th></tr></thead><tbody><tr><td>Shadowsocks (TCP)</td><td>✔ 完全支持</td><td>SS 的 TCP 加密通道原样透传</td></tr><tr><td>VLESS (TCP)</td><td>✔ 完全支持</td><td>VLESS 基于 TCP，正常转发</td></tr><tr><td>Trojan</td><td>✔ 完全支持</td><td>Trojan 就是 TLS 包裹的 HTTP，正常转发</td></tr><tr><td>VMess (TCP)</td><td>✔ 完全支持</td><td>VMess 基于 TCP，正常转发</td></tr><tr><td>Hysteria / Hysteria2</td><td>✗ <strong>不支持</strong></td><td>Hysteria 基于 QUIC/UDP，HAProxy 的 <code>mode tcp</code> 不处理 UDP</td></tr><tr><td>WireGuard</td><td>✗ <strong>不支持</strong></td><td>纯 UDP 协议</td></tr><tr><td><strong>TCP-Brutal</strong></td><td>⚠️ <strong>能转发，但失去了意义</strong></td><td>见下方详细解释</td></tr></tbody></table><blockquote><p><strong>关于 TCP-Brutal 为什么不建议用 HAProxy 转发：</strong></p><p>TCP-Brutal 不是一种独立的协议，而是运行在客户端和落地机之间的一种<strong>拥塞控制算法</strong>。它的核心机制是让客户端直接测量到落地机的网络延迟和丢包率，然后"野蛮"地发包来榨干带宽。</p><p>HAProxy 在 <code>mode tcp</code> 下会<strong>终结来自客户端的 TCP 连接，再新建一个 TCP 连接去连落地机</strong>。这就导致：</p><ol><li>客户端以为自己在和落地机通信，但实际上 TCP 握手在 HAProxy 就断了</li><li>TCP-Brutal 算法的端到端测量被 HAProxy 截断，算法退化</li><li>HAProxy → 落地机这一段走的是系统默认的 TCP 栈（CUBIC/BBR），不是 Brutal</li></ol><p>这就是前面方案三（iptables）里强调的"端到端状态保留"。<strong>如果你的落地机跑了 TCP-Brutal，需要用 iptables 做内核级直通转发，不能用 HAProxy 或 Nginx。</strong> 这正是文章方案对比表里"端到端状态保留"那行对比的含义。</p><p>如果落地机上跑的只是普通的 Shadowsocks / VLESS / Trojan，不加 Brutal 算法，那用 HAProxy 完全没有问题。</p></blockquote><h3 id=启动与验证-1>启动与验证</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl restart nginx
+</span></span><span style=display:flex><span>systemctl enable nginx
+</span></span><span style=display:flex><span>ss -tulnp | grep nginx</span></span></code></pre></div><script class=code-source type=application/json>"systemctl restart nginx\nsystemctl enable nginx\nss -tulnp | grep nginx"</script></div><h3 id=优缺点-1>优缺点</h3><table><thead><tr><th>优势</th><th>不足</th></tr></thead><tbody><tr><td>TCP/UDP 双栈原生支持</td><td>无内置健康检查面板（需依赖第三方监控）</td></tr><tr><td>可复用已有 Nginx 进程，资源零增加</td><td>故障剔除能力弱于 HAProxy（依赖 <code>max_fails</code> 被动检测）</td></tr><tr><td>支持 SNI 分流（七层域名路由）</td><td>配置语法对新手有一定门槛</td></tr><tr><td>生态广泛，插件丰富</td><td></td></tr></tbody></table><hr><h2 id=方案三iptables内核级直通转发>方案三：iptables（内核级直通转发）</h2><p>iptables 工作在 Linux 内核网络层，不拆包、不代理，只做纯粹的地址重写（DNAT）。流量直接从内核态转发到落地机，<strong>零应用层开销</strong>。</p><p><strong>最适合的场景</strong>：使用 TCP-Brutal 等依赖端到端拥塞控制算法时，iptables 不干预 TCP 状态，算法能直接感知客户端真实网络状况。</p><h3 id=第一步确认-iptables-是否已安装>第一步：确认 iptables 是否已安装</h3><p>大多数 Linux 发行版默认已安装 iptables。检查方法：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>iptables --version</span></span></code></pre></div><script class=code-source type=application/json>"iptables --version"</script></div><p>如果没有安装，用包管理器安装：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Debian / Ubuntu</span>
+</span></span><span style=display:flex><span>apt update
+</span></span><span style=display:flex><span>apt install iptables -y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Alpine</span>
+</span></span><span style=display:flex><span>apk add iptables</span></span></code></pre></div><script class=code-source type=application/json>"# Debian / Ubuntu\napt update\napt install iptables -y\n\n# Alpine\napk add iptables"</script></div><h3 id=第二步开启内核-ip-转发必须新手最容易漏的一步>第二步：开启内核 IP 转发（必须！新手最容易漏的一步）</h3><p>iptables 做 NAT 转发需要内核允许 IP 转发，否则规则加上了也不会生效：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 先查看当前状态</span>
+</span></span><span style=display:flex><span>sysctl net.ipv4.ip_forward
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 如果输出 net.ipv4.ip_forward = 0，执行以下命令开启</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;net.ipv4.ip_forward = 1&#34;</span> &gt;&gt; /etc/sysctl.conf
+</span></span><span style=display:flex><span>sysctl -p
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 再次验证，应该输出 net.ipv4.ip_forward = 1</span>
+</span></span><span style=display:flex><span>sysctl net.ipv4.ip_forward</span></span></code></pre></div><script class=code-source type=application/json>"# 先查看当前状态\nsysctl net.ipv4.ip_forward\n\n# 如果输出 net.ipv4.ip_forward = 0，执行以下命令开启\necho \"net.ipv4.ip_forward = 1\" \u003e\u003e /etc/sysctl.conf\nsysctl -p\n\n# 再次验证，应该输出 net.ipv4.ip_forward = 1\nsysctl net.ipv4.ip_forward"</script></div><h3 id=第三步添加转发规则>第三步：添加转发规则</h3><p>以下命令都是<strong>即时生效</strong>的，执行完毕转发就开始工作。</p><p><strong>TCP 转发</strong>（适用于 VLESS、Trojan、Shadowsocks 等 TCP 协议）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 将中转机 10521 端口的 TCP 流量转到落地机 1.1.1.1 的 8388 端口</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 按你的实际情况替换 IP 和端口</span>
+</span></span><span style=display:flex><span>iptables -t nat -A PREROUTING -p tcp --dport <span style=color:#ae81ff>10521</span> -j DNAT --to-destination 1.1.1.1:8388
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 源地址伪装：确保落地机的回包能回到客户端</span>
+</span></span><span style=display:flex><span>iptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j MASQUERADE
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 防火墙放行转发流量</span>
+</span></span><span style=display:flex><span>iptables -A FORWARD -p tcp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j ACCEPT</span></span></code></pre></div><script class=code-source type=application/json>"# 将中转机 10521 端口的 TCP 流量转到落地机 1.1.1.1 的 8388 端口\n# 按你的实际情况替换 IP 和端口\niptables -t nat -A PREROUTING -p tcp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\n\n# 源地址伪装：确保落地机的回包能回到客户端\niptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport 8388 -j MASQUERADE\n\n# 防火墙放行转发流量\niptables -A FORWARD -p tcp -d 1.1.1.1 --dport 8388 -j ACCEPT"</script></div><p><strong>UDP 转发</strong>（适用于 Hysteria2 等 UDP 协议）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 将中转机 10522 端口的 UDP 流量转到落地机 1.1.1.1 的 443 端口</span>
+</span></span><span style=display:flex><span>iptables -t nat -A PREROUTING -p udp --dport <span style=color:#ae81ff>10522</span> -j DNAT --to-destination 1.1.1.1:443
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>443</span> -j MASQUERADE
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>443</span> -j ACCEPT</span></span></code></pre></div><script class=code-source type=application/json>"# 将中转机 10522 端口的 UDP 流量转到落地机 1.1.1.1 的 443 端口\niptables -t nat -A PREROUTING -p udp --dport 10522 -j DNAT --to-destination 1.1.1.1:443\n\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 443 -j MASQUERADE\n\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 443 -j ACCEPT"</script></div><p><strong>同时转发 TCP 和 UDP</strong>（不常用，如果你搞不清要不要加就跳过）：</p><p>如果想用一个端口同时转发 TCP 和 UDP 到同一台落地机：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>iptables -t nat -A PREROUTING -p tcp --dport <span style=color:#ae81ff>10521</span> -j DNAT --to-destination 1.1.1.1:8388
+</span></span><span style=display:flex><span>iptables -t nat -A PREROUTING -p udp --dport <span style=color:#ae81ff>10521</span> -j DNAT --to-destination 1.1.1.1:8388
+</span></span><span style=display:flex><span>iptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j MASQUERADE
+</span></span><span style=display:flex><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j MASQUERADE
+</span></span><span style=display:flex><span>iptables -A FORWARD -p tcp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j ACCEPT
+</span></span><span style=display:flex><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>8388</span> -j ACCEPT</span></span></code></pre></div><script class=code-source type=application/json>"iptables -t nat -A PREROUTING -p tcp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\niptables -t nat -A PREROUTING -p udp --dport 10521 -j DNAT --to-destination 1.1.1.1:8388\niptables -t nat -A POSTROUTING -p tcp -d 1.1.1.1 --dport 8388 -j MASQUERADE\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 8388 -j MASQUERADE\niptables -A FORWARD -p tcp -d 1.1.1.1 --dport 8388 -j ACCEPT\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 8388 -j ACCEPT"</script></div><h3 id=第四步查看规则是否已添加>第四步：查看规则是否已添加</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 查看 NAT 转发规则（DNAT 和 SNAT）</span>
+</span></span><span style=display:flex><span>iptables -t nat -L -n -v
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 查看过滤规则（FORWARD 放行）</span>
+</span></span><span style=display:flex><span>iptables -L -n
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 如果只想看特定端口的规则，用 grep 过滤</span>
+</span></span><span style=display:flex><span>iptables -t nat -L -n -v | grep <span style=color:#ae81ff>10521</span></span></span></code></pre></div><script class=code-source type=application/json>"# 查看 NAT 转发规则（DNAT 和 SNAT）\niptables -t nat -L -n -v\n\n# 查看过滤规则（FORWARD 放行）\niptables -L -n\n\n# 如果只想看特定端口的规则，用 grep 过滤\niptables -t nat -L -n -v | grep 10521"</script></div><blockquote><p>第一次执行时，你可能看到 nat 表只有 PREROUTING 和 POSTROUTING 链，后面跟着你刚添加的规则，这是正常的。</p></blockquote><h3 id=第五步持久化规则防重启丢失>第五步：持久化规则（防重启丢失）</h3><p>iptables 规则默认<strong>重启后清空</strong>，必须持久化保存：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 安装持久化工具</span>
+</span></span><span style=display:flex><span>apt install iptables-persistent -y</span></span></code></pre></div><script class=code-source type=application/json>"# 安装持久化工具\napt install iptables-persistent -y"</script></div><blockquote><p>安装过程中会弹出一个粉色界面询问"保存当前规则"，选择 <strong>Yes</strong>（是）。</p></blockquote><p>以后每次修改规则后，手动保存：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>netfilter-persistent save</span></span></code></pre></div><script class=code-source type=application/json>"netfilter-persistent save"</script></div><h3 id=端口跳跃抗-udp-qos>端口跳跃（抗 UDP QoS）</h3><p>如果不希望 Hysteria 的 UDP 流量长期固定在单个端口上引发运营商 QoS 限速，可以把流量分散到大量端口上：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 将中转机 20000~30000 端口的 UDP 流量全部汇聚到落地机 443 端口</span>
+</span></span><span style=display:flex><span>iptables -t nat -A PREROUTING -p udp --dport 20000:30000 -j DNAT --to-destination 1.1.1.1:443
+</span></span><span style=display:flex><span>iptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>443</span> -j MASQUERADE
+</span></span><span style=display:flex><span>iptables -A FORWARD -p udp -d 1.1.1.1 --dport <span style=color:#ae81ff>443</span> -j ACCEPT
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 保存规则</span>
+</span></span><span style=display:flex><span>netfilter-persistent save</span></span></code></pre></div><script class=code-source type=application/json>"# 将中转机 20000~30000 端口的 UDP 流量全部汇聚到落地机 443 端口\niptables -t nat -A PREROUTING -p udp --dport 20000:30000 -j DNAT --to-destination 1.1.1.1:443\niptables -t nat -A POSTROUTING -p udp -d 1.1.1.1 --dport 443 -j MASQUERADE\niptables -A FORWARD -p udp -d 1.1.1.1 --dport 443 -j ACCEPT\n\n# 保存规则\nnetfilter-persistent save"</script></div><p>客户端（以 sing-box Hysteria2 为例）相应配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;hysteria2&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;server&#34;</span>: <span style=color:#e6db74>&#34;中转机IP&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;server_ports&#34;</span>: [<span style=color:#e6db74>&#34;20000-30000&#34;</span>],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;hop_interval&#34;</span>: <span style=color:#e6db74>&#34;30s&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;password&#34;</span>: <span style=color:#e6db74>&#34;your_password&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;tls&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;enabled&#34;</span>: <span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;server_name&#34;</span>: <span style=color:#e6db74>&#34;your-domain.com&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;insecure&#34;</span>: <span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;alpn&#34;</span>: [<span style=color:#e6db74>&#34;h3&#34;</span>]
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"type\": \"hysteria2\",\n  \"server\": \"中转机IP\",\n  \"server_ports\": [\"20000-30000\"],\n  \"hop_interval\": \"30s\",\n  \"password\": \"your_password\",\n  \"tls\": {\n    \"enabled\": true,\n    \"server_name\": \"your-domain.com\",\n    \"insecure\": true,\n    \"alpn\": [\"h3\"]\n  }\n}"</script></div><blockquote><p><strong>重要提示</strong>：端口跳跃只适合 UDP，<strong>绝对不要对 TCP 做端口跳跃</strong>。TCP 是"有状态"的，每次跳跃都要重新三次握手和 TLS 协商，网速会断崖式下跌。TCP 保持固定端口，伪装成正常的 HTTPS 访问才是最安全的。</p></blockquote><h3 id=修改或删除规则的方法>修改或删除规则的方法</h3><p>如果填错了 IP 或端口，需要先删除错误的规则再添加新的。</p><p><strong>方法一：按行号删除（推荐新手用）</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 先查看规则编号（每行前面会有 num 列）</span>
+</span></span><span style=display:flex><span>iptables -t nat -L PREROUTING -n --line-numbers
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 输出示例：</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># num  target     prot opt source         destination</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 1    DNAT       tcp  --  0.0.0.0/0      0.0.0.0/0    tcp dpt:10521 to:1.1.1.1:8388</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 删除第 1 条规则</span>
+</span></span><span style=display:flex><span>iptables -t nat -D PREROUTING <span style=color:#ae81ff>1</span></span></span></code></pre></div><script class=code-source type=application/json>"# 先查看规则编号（每行前面会有 num 列）\niptables -t nat -L PREROUTING -n --line-numbers\n\n# 输出示例：\n# num  target     prot opt source         destination\n# 1    DNAT       tcp  --  0.0.0.0/0      0.0.0.0/0    tcp dpt:10521 to:1.1.1.1:8388\n\n# 删除第 1 条规则\niptables -t nat -D PREROUTING 1"</script></div><p><strong>方法二：完全清空所有规则（重头来过）</strong></p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># 清空 nat 表规则</span>
+</span></span><span style=display:flex><span>iptables -t nat -F
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 清空 filter 表规则（注意：这也会删除你手动添加的其他防火墙规则）</span>
+</span></span><span style=display:flex><span>iptables -F
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 清空后重新持久化</span>
+</span></span><span style=display:flex><span>netfilter-persistent save</span></span></code></pre></div><script class=code-source type=application/json>"# 清空 nat 表规则\niptables -t nat -F\n\n# 清空 filter 表规则（注意：这也会删除你手动添加的其他防火墙规则）\niptables -F\n\n# 清空后重新持久化\nnetfilter-persistent save"</script></div><blockquote><p><strong>特别提醒</strong>：<code>iptables -F</code> 会清空所有 filter 表规则。如果中转机上有其他重要业务，请不要直接清空，而是按行号逐个删除你添加的转发规则。</p></blockquote><h3 id=常见问题排查>常见问题排查</h3><table><thead><tr><th>症状</th><th>原因</th><th>解决方法</th></tr></thead><tbody><tr><td>添加规则后客户端仍然连不上</td><td>忘记开启 IP 转发</td><td>执行 <code>sysctl net.ipv4.ip_forward</code> 确认是 1</td></tr><tr><td>客户端能连接但很慢或断断续续</td><td>中转机防火墙（iptables filter 表）默认 DROP FORWARD</td><td>执行 <code>iptables -A FORWARD -j ACCEPT</code>，或确认你的 FORWARD 放行规则已添加</td></tr><tr><td>重启后规则丢失</td><td>没有持久化</td><td>执行 <code>netfilter-persistent save</code></td></tr><tr><td>落地机能收到请求但客户端收不到回包</td><td>缺少 SNAT（MASQUERADE）规则</td><td>检查 <code>iptables -t nat -L POSTROUTING -n</code> 是否有对应的 MASQUERADE 规则</td></tr><tr><td>添加规则时报错 &ldquo;No chain/target/match by that name&rdquo;</td><td>内核模块未加载</td><td>执行 <code>modprobe iptable_nat</code> 后再试</td></tr></tbody></table><h3 id=优缺点-2>优缺点</h3><table><thead><tr><th>优势</th><th>不足</th></tr></thead><tbody><tr><td>内核级直通，延迟最低、吞吐最高</td><td>无健康检查——落地机宕机后仍然盲发，客户端直接断网</td></tr><tr><td>零应用层进程，不占用 CPU/内存</td><td>无法做基于域名（SNI）的分流</td></tr><tr><td>TCP-Brutal 端到端拥塞控制完美保留</td><td>没有可视化面板，排障需靠终端工具</td></tr><tr><td>端口跳跃抗 UDP QoS，配置极简</td><td>不适合多节点负载均衡场景（需配合其他工具）</td></tr></tbody></table><hr><h2 id=方案横向对比>方案横向对比</h2><table><thead><tr><th>特性</th><th>HAProxy</th><th>Nginx Stream</th><th>iptables</th></tr></thead><tbody><tr><td><strong>工作层级</strong></td><td>四层（应用层）</td><td>四层（应用层）</td><td>三层/四层（内核层）</td></tr><tr><td><strong>TCP 转发</strong></td><td>✔</td><td>✔</td><td>✔</td></tr><tr><td><strong>UDP 转发</strong></td><td>✗（需额外层）</td><td>✔</td><td>✔</td></tr><tr><td><strong>健康检查</strong></td><td>✔ 主动检测</td><td>✔ 被动（max_fails）</td><td>✗</td></tr><tr><td><strong>自动故障剔除</strong></td><td>✔</td><td>✔（有限）</td><td>✗</td></tr><tr><td><strong>负载均衡策略</strong></td><td>轮询/加权/IP Hash</td><td>轮询/加权/IP Hash</td><td>✗</td></tr><tr><td><strong>端口跳跃</strong></td><td>✗</td><td>✗</td><td>✔</td></tr><tr><td><strong>Web 面板</strong></td><td>✔ 内置</td><td>✗（需第三方）</td><td>✗</td></tr><tr><td><strong>SNI 分流</strong></td><td>✔（七层模式）</td><td>✔（需 ngx_stream_ssl_preread）</td><td>✗</td></tr><tr><td><strong>端到端状态保留</strong></td><td>✗（会终结 TCP）</td><td>✗（会终结 TCP）</td><td>✔（完全保留）</td></tr><tr><td><strong>额外进程开销</strong></td><td>有</td><td>可复用</td><td>无</td></tr><tr><td><strong>配置复杂度</strong></td><td>中等</td><td>中等</td><td>低</td></tr><tr><td><strong>延迟损耗</strong></td><td>微</td><td>微</td><td>接近零</td></tr></tbody></table><hr><h2 id=场景推荐>场景推荐</h2><h3 id=场景一追求高可用有多台落地机需要负载均衡>场景一：追求高可用，有多台落地机需要负载均衡</h3><p><strong>推荐：HAProxy</strong></p><p>健康检查 + 自动剔除 + Web 面板，运维体验最好。业务关键链路首选。如果涉及 UDP（如 Hysteria），需要在 HAProxy 前面再加一层 UDP 转发层，或混用其他方案。</p><h3 id=场景二中转机已有-nginx-服务只想简单加几个转发端口>场景二：中转机已有 Nginx 服务，只想简单加几个转发端口</h3><p><strong>推荐：Nginx Stream</strong></p><p>不增加任何系统进程，复用现有 Nginx 即可。TCP/UDP 双支持，配置灵活。适合中小规模场景。</p><h3 id=场景三单落地机追求极致性能和低延迟>场景三：单落地机，追求极致性能和低延迟</h3><p><strong>推荐：iptables</strong></p><p>如果你只有一台或两台落地机，不需要负载均衡，iptables 是最轻量的选择。特别是使用 TCP-Brutal 这类协议时，iptables 的端到端保留无可替代。</p><h3 id=场景四tcp--udp-混合协议多落地机需要健康管理>场景四：TCP + UDP 混合协议，多落地机需要健康管理</h3><p><strong>推荐：Nginx Stream + iptables 组合</strong></p><p>用 Nginx 做 TCP 负载均衡和健康管理，用 iptables 做 UDP 端口跳跃转发。各取所长。</p><h3 id=场景五海量端口跳跃抗-qos>场景五：海量端口跳跃抗 QoS</h3><p><strong>推荐：iptables</strong></p><p>这是 iptables 的独家能力，HAProxy 和 Nginx 做不到。</p><hr><h2 id=附中转机优化与监控>附：中转机优化与监控</h2><h3 id=bbr-拥塞控制tcp-性能优化>BBR 拥塞控制（TCP 性能优化）</h3><p>无论使用哪种方案，BBR 都应作为标配开启：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>modprobe tcp_bbr
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;tcp_bbr&#34;</span> &gt; /etc/modules-load.d/modules.conf 2&gt;/dev/null <span style=color:#f92672>||</span> echo <span style=color:#e6db74>&#34;tcp_bbr&#34;</span> &gt;&gt; /etc/modules
+</span></span><span style=display:flex><span>cat &gt;&gt; /etc/sysctl.conf <span style=color:#e6db74>&lt;&lt; &#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.core.default_qdisc = fq
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>net.ipv4.tcp_congestion_control = bbr
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>sysctl -p</span></span></code></pre></div><script class=code-source type=application/json>"modprobe tcp_bbr\necho \"tcp_bbr\" \u003e /etc/modules-load.d/modules.conf 2\u003e/dev/null || echo \"tcp_bbr\" \u003e\u003e /etc/modules\ncat \u003e\u003e /etc/sysctl.conf \u003c\u003c 'EOF'\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\nEOF\nsysctl -p"</script></div><p>验证：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.tcp_congestion_control    <span style=color:#75715e># 应输出 bbr</span>
+</span></span><span style=display:flex><span>lsmod | grep bbr                           <span style=color:#75715e># 应看到 tcp_bbr</span></span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.tcp_congestion_control    # 应输出 bbr\nlsmod | grep bbr                           # 应看到 tcp_bbr"</script></div><blockquote><p>BBR 仅针对 TCP 生效。UDP 流量不受 BBR 影响。</p></blockquote><h3 id=网络监控工具>网络监控工具</h3><p><strong>nload</strong>——查看整体带宽吞吐：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt install nload -y
+</span></span><span style=display:flex><span>nload
+</span></span><span style=display:flex><span><span style=color:#75715e># 界面上下部分分别显示接收/发送流量，重点看 Curr（当前速度）和 Max（历史峰值）</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 按 q 退出</span></span></span></code></pre></div><script class=code-source type=application/json>"apt install nload -y\nnload\n# 界面上下部分分别显示接收/发送流量，重点看 Curr（当前速度）和 Max（历史峰值）\n# 按 q 退出"</script></div><p><strong>iftop</strong>——查看特定端口和 IP 的连接详情：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt install iftop -y
+</span></span><span style=display:flex><span>iftop -n -N -P
+</span></span><span style=display:flex><span><span style=color:#75715e># -n 禁止反向解析，-N 禁止端口名解析，-P 显示端口号</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 右侧三列分别为过去 2 秒/10 秒/40 秒平均速度</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 按 q 退出</span></span></span></code></pre></div><script class=code-source type=application/json>"apt install iftop -y\niftop -n -N -P\n# -n 禁止反向解析，-N 禁止端口名解析，-P 显示端口号\n# 右侧三列分别为过去 2 秒/10 秒/40 秒平均速度\n# 按 q 退出"</script></div><p><strong>vnstat</strong>——轻量级流量统计（对齐账单周期）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt install vnstat -y
+</span></span><span style=display:flex><span><span style=color:#75715e># 等待 5 分钟收集初始数据后：</span>
+</span></span><span style=display:flex><span>vnstat      <span style=color:#75715e># 基础汇总</span>
+</span></span><span style=display:flex><span>vnstat -d   <span style=color:#75715e># 每日统计</span>
+</span></span><span style=display:flex><span>vnstat -m   <span style=color:#75715e># 每月统计（对齐 3T 等限额）</span>
+</span></span><span style=display:flex><span>vnstat -l   <span style=color:#75715e># 实时动态（类似 nload 轻量平替）</span></span></span></code></pre></div><script class=code-source type=application/json>"apt install vnstat -y\n# 等待 5 分钟收集初始数据后：\nvnstat      # 基础汇总\nvnstat -d   # 每日统计\nvnstat -m   # 每月统计（对齐 3T 等限额）\nvnstat -l   # 实时动态（类似 nload 轻量平替）"</script></div><p>修改账单日（如每月 15 号）：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nano /etc/vnstat.conf   <span style=color:#75715e># 修改 MonthRotate 15</span>
+</span></span><span style=display:flex><span>systemctl restart vnstat</span></span></code></pre></div><script class=code-source type=application/json>"nano /etc/vnstat.conf   # 修改 MonthRotate 15\nsystemctl restart vnstat"</script></div><hr><h2 id=安全说明四层中转不影响加密>安全说明：四层中转不影响加密</h2><p>一个常见的疑虑：中转机会不会降低安全性或增加被封风险？</p><ul><li><strong>不会影响加密</strong>：无论是 HAProxy 的 <code>mode tcp</code>、Nginx 的 <code>stream</code> 还是 iptables 的 NAT，它们都只做数据包级别的搬运，不解密、不拆包。TLS 握手、证书验证、密钥交换始终在客户端和落地机之间直接完成。</li><li><strong>不会增加被墙风险</strong>：GFW 看到的是和中转机之间的加密流量，流量特征与直连落地机完全一致。中转机越"透明"越安全。</li><li><strong>特殊提醒——国内中转机</strong>：如果中转机在中国大陆境内，风险不在于 GFW 识别协议，而在于国内运营商的风控。长期大带宽向单个海外 IP 发送加密流量，可能触发机房审计导致停机。</li></ul><hr><h2 id=总结>总结</h2><p>没有绝对的"最优"方案，只有最适合你场景的选择：</p><ul><li>需要<strong>高可用和负载均衡</strong> → <strong>HAProxy</strong></li><li>需要<strong>TCP/UDP 双支持且复用 Web 服务</strong> → <strong>Nginx Stream</strong></li><li>追求<strong>极致性能和端到端保留</strong> → <strong>iptables</strong></li><li><strong>混合场景</strong> → 组合使用，各取所长</li></ul><p>理解每种工具的原理和边界，就能做出最合理的技术选型。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

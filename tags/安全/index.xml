@@ -1,33 +1,25 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>安全 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E5%AE%89%E5%85%A8/</link>
-    <description>Recent content in 安全 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 10 Jul 2026 20:40:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E5%AE%89%E5%85%A8/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Agent 全自动模式：YOLO 与命令审批详解</title>
-      <link>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</link>
-      <pubDate>Fri, 10 Jul 2026 20:40:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</guid>
-      <description>Hermes Agent 默认情况下，执行危险命令（如 rm -rf、git reset --hard 等）前会弹出二次确认提示，要求用户手动批准。这在日常使用中是安全的设计，但如果你在自动化场景、沙盒环境或需要长时间自主运行的任务中，这个确认提示会打断工作流。&#xA;YOLO 模式（全自动模式） 就是用来解决这个问题的——它跳过所有危险命令的人工审批，让 Agent 完全自主决策并执行。&#xA;审批模式概述 Hermes 的命令审批有三种模式，覆盖从安全优先到高效优先的完整谱系：&#xA;模式 值 行为 手动审批 manual 所有危险命令都弹出提示，等待用户确认（默认） 智能审批 smart 辅助 LLM 自动判断：低风险命令直接放行，高风险才提示 全自动 off 跳过所有审批，Agent 自主执行一切命令（YOLO） 启用 YOLO 模式的三种方式 1. 临时启动：--yolo 标志 单次会话生效，不修改配置文件。适合临时需要全自动的场景：&#xA;复制hermes chat --yolo 也有环境变量方式：&#xA;复制export HERMES_YOLO_MODE=1 hermes chat 启动后终端顶部会显示 YOLO 状态提示，提醒你当前处于免确认模式。&#xA;2. 会话中动态切换：/yolo 命令 如果已经进入交互会话，不需要退出，直接输入斜杠命令即可实时切换：&#xA;复制/yolo 这是一个开关命令：输入一次开启 YOLO，再输入一次关闭，恢复默认审批模式。&#xA;注意：/config 斜杠命令只用于查看当前配置，不支持通过它修改配置项。修改配置请用下面的方式。&#xA;3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description>
-    </item>
-    <item>
-      <title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link>
-      <pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid>
-      <description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。&#xA;这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：&#xA;默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：&#xA;复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：&#xA;复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。&#xA;如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：&#xA;复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description>
-    </item>
-    <item>
-      <title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link>
-      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid>
-      <description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。&#xA;它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。&#xA;使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。&#xA;更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。&#xA;GitHub 公钥地址格式是：&#xA;复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。&#xA;root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：&#xA;复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。&#xA;root 用户配置项核对 root 用户版本推荐状态如下：&#xA;复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>安全 on 电脑自习室</title><link>https://purodn.tk/tags/%E5%AE%89%E5%85%A8/</link><description>Recent content in 安全 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 10 Jul 2026 20:40:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E5%AE%89%E5%85%A8/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent 全自动模式：YOLO 与命令审批详解</title><link>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</link><pubDate>Fri, 10 Jul 2026 20:40:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-yolo-mode/</guid><description>Hermes Agent 默认情况下，执行危险命令（如 rm -rf、git reset --hard 等）前会弹出二次确认提示，要求用户手动批准。这在日常使用中是安全的设计，但如果你在自动化场景、沙盒环境或需要长时间自主运行的任务中，这个确认提示会打断工作流。
+YOLO 模式（全自动模式） 就是用来解决这个问题的——它跳过所有危险命令的人工审批，让 Agent 完全自主决策并执行。
+审批模式概述 Hermes 的命令审批有三种模式，覆盖从安全优先到高效优先的完整谱系：
+模式 值 行为 手动审批 manual 所有危险命令都弹出提示，等待用户确认（默认） 智能审批 smart 辅助 LLM 自动判断：低风险命令直接放行，高风险才提示 全自动 off 跳过所有审批，Agent 自主执行一切命令（YOLO） 启用 YOLO 模式的三种方式 1. 临时启动：--yolo 标志 单次会话生效，不修改配置文件。适合临时需要全自动的场景：
+复制hermes chat --yolo 也有环境变量方式：
+复制export HERMES_YOLO_MODE=1 hermes chat 启动后终端顶部会显示 YOLO 状态提示，提醒你当前处于免确认模式。
+2. 会话中动态切换：/yolo 命令 如果已经进入交互会话，不需要退出，直接输入斜杠命令即可实时切换：
+复制/yolo 这是一个开关命令：输入一次开启 YOLO，再输入一次关闭，恢复默认审批模式。
+注意：/config 斜杠命令只用于查看当前配置，不支持通过它修改配置项。修改配置请用下面的方式。
+3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description></item><item><title>FreeBSD PF 防火墙端口管理与自动黑名单脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</link><pubDate>Sun, 24 May 2026 21:40:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-pf-firewall-manager/</guid><description>FreeBSD 自带的 PF 防火墙已经足够强大。对个人服务器来说，一个比较稳的思路是：默认拒绝所有入站连接，只开放自己明确需要的端口，并让 PF 对高频连接来源自动加入黑名单。
+这篇文章整理一套可落地的 PF 管理方式。核心目标有四个：
+默认拒绝入站，允许出站。 自动保留当前正在监听的 SSH 端口，避免远程配置时把自己锁在门外。 按 TCP/UDP 分别开放端口，适合 SSH、Web、Hysteria2、sing-box 等不同服务。 对 TCP 高频连接启用 overload &amp;lt;blacklist&amp;gt; 自动拉黑，并定期释放过期黑名单。 先启用 PF 用 root 用户执行：
+复制sysrc pf_enable=&amp;#34;YES&amp;#34; sysrc pflog_enable=&amp;#34;YES&amp;#34; 如果是首次启用，先不要急着 service pf start。PF 服务启动时会读取 /etc/pf.conf，如果这个文件不存在或不可读，就会看到：
+复制/etc/rc.d/pf: WARNING: /etc/pf.conf is not readable. 所以首次启动前，先写入一个最小可用配置。下面这份配置只放行当前 SSH 端口和出站连接，避免远程操作时把自己锁在外面。
+如果你的 SSH 不是 22 端口，把最后一行里的 22 换成你实际的 SSH 端口：
+复制cat &amp;gt; /etc/pf.conf &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; set skip on lo0 set block-policy drop scrub in all fragment reassemble block in all pass out all keep state pass in quick inet proto icmp all icmp-type echoreq keep state pass in quick inet proto tcp from any to any port 22 keep state EOF 先检查语法：</description></item><item><title>FreeBSD专用版拉取GitHub公钥作为服务器SSH公钥的脚本</title><link>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-github-ssh-keys-authorized-script/</guid><description>这篇记录 FreeBSD 专用的 SSH 公钥导入脚本。脚本可以从 GitHub 用户主页拉取公开 SSH key，写入服务器的 authorized_keys，并自动调整 sshd_config 里的关键认证参数。
+它的用途很直接：新服务器装好以后，不用手动复制公钥、不用逐项改 SSH 配置，运行脚本后选择导入 GitHub 公钥，再检查一次配置即可。
+使用前提醒 这类脚本会修改 SSH 登录策略。执行前请先确认当前 SSH 连接稳定，并且不要立刻关闭当前终端窗口。
+更稳妥的做法是：脚本执行完成后，保持当前窗口不断开，再新开一个终端窗口测试登录。确认新窗口能正常用密钥登录以后，再退出旧连接。
+GitHub 公钥地址格式是：
+复制https://github.com/&amp;lt;你的GitHub用户名&amp;gt;.keys 如果还没有把自己的 SSH 公钥上传到 GitHub，需要先在 GitHub 账号设置里添加公钥。
+root 用户版本 如果你希望直接配置 root 用户的 SSH 密钥登录，可以在 FreeBSD root 环境下执行：
+复制fetch -o freebsd_ssh_key_manage.sh https://raw.githubusercontent.com/hanigege/scripts/main/freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x freebsd_ssh_key_manage.sh &amp;amp;&amp;amp; ./freebsd_ssh_key_manage.sh 这个版本配置的是 root 用户的 authorized_keys。脚本执行完成后，应重点核对 /etc/ssh/sshd_config 里的配置项。
+root 用户配置项核对 root 用户版本推荐状态如下：
+复制UsePAM no PermitRootLogin prohibit-password PasswordAuthentication no PubkeyAuthentication yes ChallengeResponseAuthentication no KbdInteractiveAuthentication no 这些配置的含义是：</description></item></channel></rss>

@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Troubleshooting on 电脑自习室</title>
-    <link>https://purodn.tk/tags/troubleshooting/</link>
-    <description>Recent content in Troubleshooting on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 02 Jun 2026 09:32:21 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/troubleshooting/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</title>
-      <link>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</link>
-      <pubDate>Tue, 02 Jun 2026 09:32:21 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</guid>
-      <description>这篇记录一个很容易踩的 Docker DNS 坑：宿主机 DNS 已经从旧地址切到新地址，但已经存在的 Docker 容器里仍然保留旧的 nameserver，或者 Docker internal DNS 仍然使用旧的上游 DNS，导致容器内域名解析失败。&#xA;这类问题经常表现为：宿主机上 curl、nslookup 都正常，但容器内服务突然访问不了域名、WebHook 失败、推送通知失效、服务健康检查异常，或者 docker pull 走旧代理失败。&#xA;现象 一次 DNS / 网关迁移后，宿主机 /etc/resolv.conf 已经改为新的 DNS：&#xA;复制nameserver 192.0.2.12 宿主机解析和访问业务域名都正常：&#xA;复制nslookup notify.example.com curl -kfsS --connect-timeout 5 -m 10 https://notify.example.com/v1/health 健康接口返回正常：&#xA;复制{&amp;#34;healthy&amp;#34;:true} 但某些 Docker 容器里的业务仍然异常。进一步检查发现，容器内 DNS 还是旧地址。&#xA;普通容器或 network_mode: host 容器里可能直接看到旧 DNS：&#xA;复制nameserver 192.0.2.6 容器内解析失败：&#xA;复制;; connection timed out; no servers could be reached bridge 网络容器里通常看到的是 Docker 内置 DNS：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Troubleshooting on 电脑自习室</title><link>https://purodn.tk/tags/troubleshooting/</link><description>Recent content in Troubleshooting on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 09:32:21 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/troubleshooting/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 容器 DNS 变更后仍保留旧 nameserver 的排障记录</title><link>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</link><pubDate>Tue, 02 Jun 2026 09:32:21 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-container-dns-stale-after-host-dns-change/</guid><description>这篇记录一个很容易踩的 Docker DNS 坑：宿主机 DNS 已经从旧地址切到新地址，但已经存在的 Docker 容器里仍然保留旧的 nameserver，或者 Docker internal DNS 仍然使用旧的上游 DNS，导致容器内域名解析失败。
+这类问题经常表现为：宿主机上 curl、nslookup 都正常，但容器内服务突然访问不了域名、WebHook 失败、推送通知失效、服务健康检查异常，或者 docker pull 走旧代理失败。
+现象 一次 DNS / 网关迁移后，宿主机 /etc/resolv.conf 已经改为新的 DNS：
+复制nameserver 192.0.2.12 宿主机解析和访问业务域名都正常：
+复制nslookup notify.example.com curl -kfsS --connect-timeout 5 -m 10 https://notify.example.com/v1/health 健康接口返回正常：
+复制{&amp;#34;healthy&amp;#34;:true} 但某些 Docker 容器里的业务仍然异常。进一步检查发现，容器内 DNS 还是旧地址。
+普通容器或 network_mode: host 容器里可能直接看到旧 DNS：
+复制nameserver 192.0.2.6 容器内解析失败：
+复制;; connection timed out; no servers could be reached bridge 网络容器里通常看到的是 Docker 内置 DNS：</description></item></channel></rss>

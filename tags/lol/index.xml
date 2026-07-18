@@ -1,19 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>LoL on 电脑自习室</title>
-    <link>https://purodn.tk/tags/lol/</link>
-    <description>Recent content in LoL on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 26 May 2026 17:50:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/lol/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</title>
-      <link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link>
-      <pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid>
-      <description>这篇是给美服 LoL 单独整理的部署记录。&#xA;背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。&#xA;本文的目标不是重写整套代理架构，而是只做两件事：&#xA;让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。&#xA;1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：&#xA;复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。&#xA;但 LoL 不一样，它的连接链路里会出现：&#xA;登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>LoL on 电脑自习室</title><link>https://purodn.tk/tags/lol/</link><description>Recent content in LoL on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 26 May 2026 17:50:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/lol/index.xml" rel="self" type="application/rss+xml"/><item><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</title><link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link><pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid><description>这篇是给美服 LoL 单独整理的部署记录。
+背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。
+本文的目标不是重写整套代理架构，而是只做两件事：
+让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。
+1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：
+复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。
+但 LoL 不一样，它的连接链路里会出现：
+登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description></item></channel></rss>

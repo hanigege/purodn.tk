@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>权限管理 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86/</link>
-    <description>Recent content in 权限管理 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 11 May 2025 17:44:04 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link>
-      <pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid>
-      <description>我个人不太建议在所有环境里都直接开启 sudo。如果只是自己的服务器，很多时候使用 su - 切换到 root 管理系统，权限边界会更清楚。&#xA;不过 sudo 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 sudo 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 sudo 时验证 root 密码，而不是验证普通用户自己的密码。&#xA;报错含义 如果普通用户执行 sudo 时看到：&#xA;复制gary is not in the sudoers file. This incident has been reported to the administrator. 意思是当前用户 gary 没有被 sudoers 授权，所以不能通过 sudo 执行需要管理员权限的命令。&#xA;后续操作需要先用 root 用户完成。可以直接登录 root，也可以从普通用户切换：&#xA;复制su - 这里输入的是 root 密码，不是普通用户密码。&#xA;安装 sudo 如果系统还没有安装 sudo，先安装：&#xA;复制pkg install sudo FreeBSD 通过 pkg 安装的 sudo，配置文件通常是：&#xA;复制/usr/local/etc/sudoers 不要直接用普通编辑器修改这个文件，应该使用 visudo，它会在保存前检查语法，避免 sudoers 写错后导致 sudo 无法使用。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>权限管理 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86/</link><description>Recent content in 权限管理 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 11 May 2025 17:44:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86/index.xml" rel="self" type="application/rss+xml"/><item><title>FreeBSD 普通用户如何使用 sudo 并验证 root 密码</title><link>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</link><pubDate>Sun, 11 May 2025 17:44:04 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-sudo-root-password/</guid><description>我个人不太建议在所有环境里都直接开启 sudo。如果只是自己的服务器，很多时候使用 su - 切换到 root 管理系统，权限边界会更清楚。
+不过 sudo 也有它的价值：可以保留命令审计记录，也可以只授权指定用户或指定命令。本文记录 FreeBSD 上普通用户使用 sudo 的配置方法，并重点说明一种更符合隔离思路的做法：普通用户执行 sudo 时验证 root 密码，而不是验证普通用户自己的密码。
+报错含义 如果普通用户执行 sudo 时看到：
+复制gary is not in the sudoers file. This incident has been reported to the administrator. 意思是当前用户 gary 没有被 sudoers 授权，所以不能通过 sudo 执行需要管理员权限的命令。
+后续操作需要先用 root 用户完成。可以直接登录 root，也可以从普通用户切换：
+复制su - 这里输入的是 root 密码，不是普通用户密码。
+安装 sudo 如果系统还没有安装 sudo，先安装：
+复制pkg install sudo FreeBSD 通过 pkg 安装的 sudo，配置文件通常是：
+复制/usr/local/etc/sudoers 不要直接用普通编辑器修改这个文件，应该使用 visudo，它会在保存前检查语法，避免 sudoers 写错后导致 sudo 无法使用。</description></item></channel></rss>

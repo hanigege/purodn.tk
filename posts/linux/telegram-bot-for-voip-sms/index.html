@@ -1,309 +1,44 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接 | 电脑自习室</title>
-    <meta name="description" content="为语音网关短信通知创建 Telegram Bot，并梳理短信接收、发送、权限和消息格式。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-19">2026年5月19日</time>
-        </div>
-        <h1>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</h1>
-          <p>为语音网关短信通知创建 Telegram Bot，并梳理短信接收、发送、权限和消息格式。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <blockquote>
-<p>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。</p>
-</blockquote>
-<h2 id="为什么短信单独处理">为什么短信单独处理</h2>
-<p>FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。</p>
-<p>更稳的方式是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>语音网关短信接口
-</span></span><span style="display:flex;"><span>  ↓
-</span></span><span style="display:flex;"><span>Python 桥接程序
-</span></span><span style="display:flex;"><span>  ↓
-</span></span><span style="display:flex;"><span>Telegram Bot</span></span></code></pre></div><script class="code-source" type="application/json">"语音网关短信接口\n  ↓\nPython 桥接程序\n  ↓\nTelegram Bot"</script>
-</div>
-<p>这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。</p>
-<h2 id="创建-bot">创建 Bot</h2>
-<p>在 Telegram 搜索：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>@BotFather</span></span></code></pre></div><script class="code-source" type="application/json">"@BotFather"</script>
-</div>
-<p>创建流程：</p>
-<ol>
-<li>发送 <code>/newbot</code>。</li>
-<li>输入机器人显示名称，例如 <code>Home VoIP SMS</code>。</li>
-<li>输入唯一用户名，必须以 <code>bot</code> 结尾，例如 <code>home_voip_sms_bot</code>。</li>
-<li>BotFather 返回 API Token。</li>
-</ol>
-<p>Token 形态类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>1234567890:AAExampleTokenDoNotExpose</span></span></code></pre></div><script class="code-source" type="application/json">"1234567890:AAExampleTokenDoNotExpose"</script>
-</div>
-<p>保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。</p>
-<h2 id="获取-chat_id">获取 chat_id</h2>
-<p>Bot 需要知道把短信发给谁。最简单的办法：</p>
-<ol>
-<li>先给你的 Bot 发一条消息，例如 <code>hello</code>。</li>
-<li>在服务器上请求 Telegram API：</li>
-</ol>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl <span style="color:#e6db74">&#34;https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl \"https://api.telegram.org/bot\u003cTOKEN\u003e/getUpdates\""</script>
-</div>
-<p>返回 JSON 里找到：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#e6db74">&#34;chat&#34;</span><span style="color:#960050;background-color:#1e0010">:</span> {
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#ae81ff">123456789</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;private&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"\"chat\": {\n  \"id\": 123456789,\n  \"type\": \"private\"\n}"</script>
-</div>
-<p>这个 <code>id</code> 就是私聊 <code>chat_id</code>。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 <code>getUpdates</code> 找群组 ID。</p>
-<h2 id="权限设计">权限设计</h2>
-<p>短信 Bot 至少要做两层限制：</p>
-<ol>
-<li>只允许固定 <code>chat_id</code> 收短信。</li>
-<li>只允许固定 <code>chat_id</code> 发送短信指令。</li>
-</ol>
-<p>不要让 Bot 响应任何陌生人的命令。Python 程序里可以把允许列表写成：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>ALLOWED_CHAT_IDS <span style="color:#f92672">=</span> {<span style="color:#ae81ff">123456789</span>}</span></span></code></pre></div><script class="code-source" type="application/json">"ALLOWED_CHAT_IDS = {123456789}"</script>
-</div>
-<p>收到消息时先判断：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> update<span style="color:#f92672">.</span>effective_chat<span style="color:#f92672">.</span>id <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> ALLOWED_CHAT_IDS:
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span></span></span></code></pre></div><script class="code-source" type="application/json">"if update.effective_chat.id not in ALLOWED_CHAT_IDS:\n    return"</script>
-</div>
-<p>下一篇采用的测试通过脚本为了保持简单，没有内置这段白名单判断；如果 Bot 只在自己的私聊里使用问题不大。若要拉进群组或长期公开运行，建议把上面的判断补进 <code>handle_message()</code>。</p>
-<h2 id="短信接收格式">短信接收格式</h2>
-<p>建议把收到的短信整理成固定格式：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>新短信
-</span></span><span style="display:flex;"><span>卡槽：1
-</span></span><span style="display:flex;"><span>来源：+8613800000000
-</span></span><span style="display:flex;"><span>时间：2026-05-19 11:30:00
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>验证码 123456，请勿告诉他人。</span></span></code></pre></div><script class="code-source" type="application/json">"新短信\n卡槽：1\n来源：+8613800000000\n时间：2026-05-19 11:30:00\n\n验证码 123456，请勿告诉他人。"</script>
-</div>
-<p>固定格式的好处是后面搜索、转发、自动归档都方便。</p>
-<h2 id="短信发送指令">短信发送指令</h2>
-<p>本文后续使用的测试脚本采用最简单的文本格式：直接发送“目标号码 空格 短信内容”。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>13800000000 你好，这是一条测试短信</span></span></code></pre></div><script class="code-source" type="application/json">"13800000000 你好，这是一条测试短信"</script>
-</div>
-<p>含义：</p>
-<table>
-<thead>
-<tr>
-<th>字段</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>13800000000</code></td>
-<td>接收短信的目标号码，改成真实收信号码</td>
-</tr>
-<tr>
-<td>空格</td>
-<td>号码和正文之间必须有一个空格</td>
-</tr>
-<tr>
-<td><code>你好，这是一条测试短信</code></td>
-<td>要发送的短信正文</td>
-</tr>
-</tbody>
-</table>
-<p>Python 程序收到 Telegram 文本后，会按第一个空格拆分号码和正文，再通过 SMPP 接口发出短信。</p>
-<h2 id="网关侧短信出口">网关侧短信出口</h2>
-<p>不同网关支持能力不同，常见路径有三种：</p>
-<table>
-<thead>
-<tr>
-<th>方式</th>
-<th>适用情况</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>HTTP API</td>
-<td>易排错</td>
-<td>Python 直接请求网关接口，链路短</td>
-</tr>
-<tr>
-<td>SMTP/Email</td>
-<td>适合只收短信</td>
-<td>网关把短信发到邮箱，再由程序读取</td>
-</tr>
-<tr>
-<td>SMPP</td>
-<td>本文采用</td>
-<td>适合网关已提供 SMPP 服务的场景</td>
-</tr>
-</tbody>
-</table>
-<p>后续实测脚本走的是 SMPP：Python 与网关建立 SMPP transceiver 连接，既收短信，也发短信。</p>
-<h2 id="配置文件建议">配置文件建议</h2>
-<p>如果要长期维护，建议把 Token、chat_id、SMPP 账号密码单独放：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/etc/voip-sms-bot.env</span></span></code></pre></div><script class="code-source" type="application/json">"/etc/voip-sms-bot.env"</script>
-</div>
-<p>示例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">TELEGRAM_BOT_TOKEN</span><span style="color:#f92672">=</span><span style="color:#e6db74">1234567890:AAExampleTokenDoNotExpose</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">TELEGRAM_CHAT_ID</span><span style="color:#f92672">=</span><span style="color:#e6db74">123456789</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SMPP_SERVER</span><span style="color:#f92672">=</span><span style="color:#e6db74">10.20.20.74</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SMPP_PORT</span><span style="color:#f92672">=</span><span style="color:#e6db74">2775</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SMPP_USERNAME</span><span style="color:#f92672">=</span><span style="color:#e6db74">sms</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SMPP_PASSWORD</span><span style="color:#f92672">=</span><span style="color:#e6db74">change_me</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SMPP_PHONE_NUMBER</span><span style="color:#f92672">=</span><span style="color:#e6db74">13800000000</span></span></span></code></pre></div><script class="code-source" type="application/json">"TELEGRAM_BOT_TOKEN=1234567890:AAExampleTokenDoNotExpose\nTELEGRAM_CHAT_ID=123456789\nSMPP_SERVER=10.20.20.74\nSMPP_PORT=2775\nSMPP_USERNAME=sms\nSMPP_PASSWORD=change_me\nSMPP_PHONE_NUMBER=13800000000"</script>
-</div>
-<p>权限收紧：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown root:root /etc/voip-sms-bot.env
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /etc/voip-sms-bot.env</span></span></code></pre></div><script class="code-source" type="application/json">"chown root:root /etc/voip-sms-bot.env\nchmod 600 /etc/voip-sms-bot.env"</script>
-</div>
-<h2 id="测试顺序">测试顺序</h2>
-<p>不要一上来就写完整服务。建议按顺序测试：</p>
-<ol>
-<li>Bot 能否给自己发消息。</li>
-<li>Python 脚本顶部配置是否都已改成自己的值。</li>
-<li>Python 能否调用 Telegram <code>sendMessage</code>。</li>
-<li>Python 能否连接并绑定 SMPP 服务。</li>
-<li>网关收到短信时，Python 能否拿到短信内容。</li>
-<li>Telegram 收到格式化短信通知。</li>
-<li><code>目标号码 短信内容</code> 能否触发网关发短信。</li>
-</ol>
-<p>每一步都留日志，后面放进 systemd 才好排错。</p>
-<h2 id="下一步">下一步</h2>
-<p>下一篇把 Python 虚拟环境、依赖安装、脚本运行方式和 systemd 自启动整理成一个长期可维护的服务。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接 | 电脑自习室</title>
+<meta name=description content="为语音网关短信通知创建 Telegram Bot，并梳理短信接收、发送、权限和消息格式。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-19>2026年5月19日</time></div><h1>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</h1><p>为语音网关短信通知创建 Telegram Bot，并梳理短信接收、发送、权限和消息格式。</p></header><img class=article-cover src=/posts/linux/telegram-bot-for-voip-sms/assets/cover.svg alt><div class=article-content><blockquote><p>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。</p></blockquote><h2 id=为什么短信单独处理>为什么短信单独处理</h2><p>FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。</p><p>更稳的方式是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>语音网关短信接口
+</span></span><span style=display:flex><span>  ↓
+</span></span><span style=display:flex><span>Python 桥接程序
+</span></span><span style=display:flex><span>  ↓
+</span></span><span style=display:flex><span>Telegram Bot</span></span></code></pre></div><script class=code-source type=application/json>"语音网关短信接口\n  ↓\nPython 桥接程序\n  ↓\nTelegram Bot"</script></div><p>这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。</p><h2 id=创建-bot>创建 Bot</h2><p>在 Telegram 搜索：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>@BotFather</span></span></code></pre></div><script class=code-source type=application/json>"@BotFather"</script></div><p>创建流程：</p><ol><li>发送 <code>/newbot</code>。</li><li>输入机器人显示名称，例如 <code>Home VoIP SMS</code>。</li><li>输入唯一用户名，必须以 <code>bot</code> 结尾，例如 <code>home_voip_sms_bot</code>。</li><li>BotFather 返回 API Token。</li></ol><p>Token 形态类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>1234567890:AAExampleTokenDoNotExpose</span></span></code></pre></div><script class=code-source type=application/json>"1234567890:AAExampleTokenDoNotExpose"</script></div><p>保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。</p><h2 id=获取-chat_id>获取 chat_id</h2><p>Bot 需要知道把短信发给谁。最简单的办法：</p><ol><li>先给你的 Bot 发一条消息，例如 <code>hello</code>。</li><li>在服务器上请求 Telegram API：</li></ol><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl <span style=color:#e6db74>&#34;https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"curl \"https://api.telegram.org/bot\u003cTOKEN\u003e/getUpdates\""</script></div><p>返回 JSON 里找到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span><span style=color:#e6db74>&#34;chat&#34;</span><span style=color:#960050;background-color:#1e0010>:</span> {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;id&#34;</span>: <span style=color:#ae81ff>123456789</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;private&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"\"chat\": {\n  \"id\": 123456789,\n  \"type\": \"private\"\n}"</script></div><p>这个 <code>id</code> 就是私聊 <code>chat_id</code>。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 <code>getUpdates</code> 找群组 ID。</p><h2 id=权限设计>权限设计</h2><p>短信 Bot 至少要做两层限制：</p><ol><li>只允许固定 <code>chat_id</code> 收短信。</li><li>只允许固定 <code>chat_id</code> 发送短信指令。</li></ol><p>不要让 Bot 响应任何陌生人的命令。Python 程序里可以把允许列表写成：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>ALLOWED_CHAT_IDS <span style=color:#f92672>=</span> {<span style=color:#ae81ff>123456789</span>}</span></span></code></pre></div><script class=code-source type=application/json>"ALLOWED_CHAT_IDS = {123456789}"</script></div><p>收到消息时先判断：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>if</span> update<span style=color:#f92672>.</span>effective_chat<span style=color:#f92672>.</span>id <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> ALLOWED_CHAT_IDS:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span></span></span></code></pre></div><script class=code-source type=application/json>"if update.effective_chat.id not in ALLOWED_CHAT_IDS:\n    return"</script></div><p>下一篇采用的测试通过脚本为了保持简单，没有内置这段白名单判断；如果 Bot 只在自己的私聊里使用问题不大。若要拉进群组或长期公开运行，建议把上面的判断补进 <code>handle_message()</code>。</p><h2 id=短信接收格式>短信接收格式</h2><p>建议把收到的短信整理成固定格式：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>新短信
+</span></span><span style=display:flex><span>卡槽：1
+</span></span><span style=display:flex><span>来源：+8613800000000
+</span></span><span style=display:flex><span>时间：2026-05-19 11:30:00
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>验证码 123456，请勿告诉他人。</span></span></code></pre></div><script class=code-source type=application/json>"新短信\n卡槽：1\n来源：+8613800000000\n时间：2026-05-19 11:30:00\n\n验证码 123456，请勿告诉他人。"</script></div><p>固定格式的好处是后面搜索、转发、自动归档都方便。</p><h2 id=短信发送指令>短信发送指令</h2><p>本文后续使用的测试脚本采用最简单的文本格式：直接发送“目标号码 空格 短信内容”。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>13800000000 你好，这是一条测试短信</span></span></code></pre></div><script class=code-source type=application/json>"13800000000 你好，这是一条测试短信"</script></div><p>含义：</p><table><thead><tr><th>字段</th><th>说明</th></tr></thead><tbody><tr><td><code>13800000000</code></td><td>接收短信的目标号码，改成真实收信号码</td></tr><tr><td>空格</td><td>号码和正文之间必须有一个空格</td></tr><tr><td><code>你好，这是一条测试短信</code></td><td>要发送的短信正文</td></tr></tbody></table><p>Python 程序收到 Telegram 文本后，会按第一个空格拆分号码和正文，再通过 SMPP 接口发出短信。</p><h2 id=网关侧短信出口>网关侧短信出口</h2><p>不同网关支持能力不同，常见路径有三种：</p><table><thead><tr><th>方式</th><th>适用情况</th><th>说明</th></tr></thead><tbody><tr><td>HTTP API</td><td>易排错</td><td>Python 直接请求网关接口，链路短</td></tr><tr><td>SMTP/Email</td><td>适合只收短信</td><td>网关把短信发到邮箱，再由程序读取</td></tr><tr><td>SMPP</td><td>本文采用</td><td>适合网关已提供 SMPP 服务的场景</td></tr></tbody></table><p>后续实测脚本走的是 SMPP：Python 与网关建立 SMPP transceiver 连接，既收短信，也发短信。</p><h2 id=配置文件建议>配置文件建议</h2><p>如果要长期维护，建议把 Token、chat_id、SMPP 账号密码单独放：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/etc/voip-sms-bot.env</span></span></code></pre></div><script class=code-source type=application/json>"/etc/voip-sms-bot.env"</script></div><p>示例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>TELEGRAM_BOT_TOKEN</span><span style=color:#f92672>=</span><span style=color:#e6db74>1234567890:AAExampleTokenDoNotExpose</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>TELEGRAM_CHAT_ID</span><span style=color:#f92672>=</span><span style=color:#e6db74>123456789</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SMPP_SERVER</span><span style=color:#f92672>=</span><span style=color:#e6db74>10.20.20.74</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SMPP_PORT</span><span style=color:#f92672>=</span><span style=color:#e6db74>2775</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SMPP_USERNAME</span><span style=color:#f92672>=</span><span style=color:#e6db74>sms</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SMPP_PASSWORD</span><span style=color:#f92672>=</span><span style=color:#e6db74>change_me</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SMPP_PHONE_NUMBER</span><span style=color:#f92672>=</span><span style=color:#e6db74>13800000000</span></span></span></code></pre></div><script class=code-source type=application/json>"TELEGRAM_BOT_TOKEN=1234567890:AAExampleTokenDoNotExpose\nTELEGRAM_CHAT_ID=123456789\nSMPP_SERVER=10.20.20.74\nSMPP_PORT=2775\nSMPP_USERNAME=sms\nSMPP_PASSWORD=change_me\nSMPP_PHONE_NUMBER=13800000000"</script></div><p>权限收紧：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>chown root:root /etc/voip-sms-bot.env
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>600</span> /etc/voip-sms-bot.env</span></span></code></pre></div><script class=code-source type=application/json>"chown root:root /etc/voip-sms-bot.env\nchmod 600 /etc/voip-sms-bot.env"</script></div><h2 id=测试顺序>测试顺序</h2><p>不要一上来就写完整服务。建议按顺序测试：</p><ol><li>Bot 能否给自己发消息。</li><li>Python 脚本顶部配置是否都已改成自己的值。</li><li>Python 能否调用 Telegram <code>sendMessage</code>。</li><li>Python 能否连接并绑定 SMPP 服务。</li><li>网关收到短信时，Python 能否拿到短信内容。</li><li>Telegram 收到格式化短信通知。</li><li><code>目标号码 短信内容</code> 能否触发网关发短信。</li></ol><p>每一步都留日志，后面放进 systemd 才好排错。</p><h2 id=下一步>下一步</h2><p>下一篇把 Python 虚拟环境、依赖安装、脚本运行方式和 systemd 自启动整理成一个长期可维护的服务。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

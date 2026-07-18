@@ -1,19 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Sysctl on 电脑自习室</title>
-    <link>https://purodn.tk/tags/sysctl/</link>
-    <description>Recent content in Sysctl on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/sysctl/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title>
-      <link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link>
-      <pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate>
-      <guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid>
-      <description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&#xA;在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：&#xA;LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。&#xA;1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。&#xA;先列出容器，确认 sing-box 所在的 LXC ID：&#xA;复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sysctl on 电脑自习室</title><link>https://purodn.tk/tags/sysctl/</link><description>Recent content in Sysctl on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 12:09:28 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/sysctl/index.xml" rel="self" type="application/rss+xml"/><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：
+在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：
+LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。
+1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。
+先列出容器，确认 sing-box 所在的 LXC ID：
+复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description></item></channel></rss>

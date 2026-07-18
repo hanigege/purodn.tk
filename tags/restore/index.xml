@@ -1,19 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Restore on 电脑自习室</title>
-    <link>https://purodn.tk/tags/restore/</link>
-    <description>Recent content in Restore on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 15 Jun 2026 10:30:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/restore/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>sing-box 生产机一键备份与恢复</title>
-      <link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link>
-      <pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid>
-      <description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。&#xA;我把流程整理成两个脚本：&#xA;backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。&#xA;能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：&#xA;复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Restore on 电脑自习室</title><link>https://purodn.tk/tags/restore/</link><description>Recent content in Restore on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 15 Jun 2026 10:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/restore/index.xml" rel="self" type="application/rss+xml"/><item><title>sing-box 生产机一键备份与恢复</title><link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link><pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid><description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。
+我把流程整理成两个脚本：
+backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。
+能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：
+复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description></item></channel></rss>

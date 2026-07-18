@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Git Worktree on 电脑自习室</title>
-    <link>https://purodn.tk/tags/git-worktree/</link>
-    <description>Recent content in Git Worktree on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sat, 30 May 2026 20:38:49 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/git-worktree/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔</title>
-      <link>https://purodn.tk/posts/ai/hermes-yolo-smart-approvals/</link>
-      <pubDate>Sat, 30 May 2026 20:38:49 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-yolo-smart-approvals/</guid>
-      <description>Hermes 里的 YOLO 很诱人：少点确认，任务能连续跑，Agent 不会每隔几步就停下来问一句“可以吗”。但它真正适合的用法不是“永远全开”，而是按任务风险分层：日常用 smart，一次性可信任务临时 --yolo，改代码时配合 git worktree 和 checkpoints，生产机器和真实数据目录里不要裸奔。&#xA;一句话版本：&#xA;复制smart 日常用，--yolo 临时用，配合 git/worktree/checkpoints/容器兜底，不建议全局 off。 先分清三个概念 Hermes 的审批策略大致可以按风险从低到高理解：&#xA;模式 常见命令 适合场景 风险 手动审批 approvals.mode manual 新环境、生产机器、你还不信任任务时 最安全，但打断多 智能审批 approvals.mode smart 日常默认模式 低风险自动放行，高风险仍确认 YOLO / 跳过审批 --yolo 或 approvals.mode off 临时任务、隔离目录、测试环境 最顺手，也最容易误伤 这里最重要的一点是：--yolo 是临时启动参数，退出当前任务就结束；approvals.mode off 是配置级别的长期跳过审批。后者不要随手开在主力机器上。&#xA;日常推荐：approvals.mode smart 日常使用最推荐 smart：&#xA;复制hermes config set approvals.mode smart 它的效果是：&#xA;低风险命令自动放行。 高风险命令仍然提示确认。 比纯手动少打断。 比 YOLO 或 off 更安全。 比如读取文件、列目录、跑普通检查这类动作，通常不需要你一直点确认；但涉及删除、覆盖、系统服务、敏感路径或其他高风险行为时，仍会停下来让你确认。&#xA;设置完可以查看配置：&#xA;复制hermes config show | sed -n &amp;#39;/^approvals:/,/^[^ ]/p&amp;#39; 期望看到类似：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Git Worktree on 电脑自习室</title><link>https://purodn.tk/tags/git-worktree/</link><description>Recent content in Git Worktree on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 30 May 2026 20:38:49 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/git-worktree/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes YOLO 与 smart 审批：让 Agent 大胆干活但别裸奔</title><link>https://purodn.tk/posts/ai/hermes-yolo-smart-approvals/</link><pubDate>Sat, 30 May 2026 20:38:49 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-yolo-smart-approvals/</guid><description>Hermes 里的 YOLO 很诱人：少点确认，任务能连续跑，Agent 不会每隔几步就停下来问一句“可以吗”。但它真正适合的用法不是“永远全开”，而是按任务风险分层：日常用 smart，一次性可信任务临时 --yolo，改代码时配合 git worktree 和 checkpoints，生产机器和真实数据目录里不要裸奔。
+一句话版本：
+复制smart 日常用，--yolo 临时用，配合 git/worktree/checkpoints/容器兜底，不建议全局 off。 先分清三个概念 Hermes 的审批策略大致可以按风险从低到高理解：
+模式 常见命令 适合场景 风险 手动审批 approvals.mode manual 新环境、生产机器、你还不信任任务时 最安全，但打断多 智能审批 approvals.mode smart 日常默认模式 低风险自动放行，高风险仍确认 YOLO / 跳过审批 --yolo 或 approvals.mode off 临时任务、隔离目录、测试环境 最顺手，也最容易误伤 这里最重要的一点是：--yolo 是临时启动参数，退出当前任务就结束；approvals.mode off 是配置级别的长期跳过审批。后者不要随手开在主力机器上。
+日常推荐：approvals.mode smart 日常使用最推荐 smart：
+复制hermes config set approvals.mode smart 它的效果是：
+低风险命令自动放行。 高风险命令仍然提示确认。 比纯手动少打断。 比 YOLO 或 off 更安全。 比如读取文件、列目录、跑普通检查这类动作，通常不需要你一直点确认；但涉及删除、覆盖、系统服务、敏感路径或其他高风险行为时，仍会停下来让你确认。
+设置完可以查看配置：
+复制hermes config show | sed -n &amp;#39;/^approvals:/,/^[^ ]/p&amp;#39; 期望看到类似：</description></item></channel></rss>

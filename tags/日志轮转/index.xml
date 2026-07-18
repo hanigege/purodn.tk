@@ -1,19 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>日志轮转 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC/</link>
-    <description>Recent content in 日志轮转 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Docker 安装、日志轮转与 IPv6 支持配置</title>
-      <link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link>
-      <pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid>
-      <description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。&#xA;核心建议很简单：&#xA;新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：&#xA;复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：&#xA;复制docker version 查看 Docker 服务是否能正常列出容器：&#xA;复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：&#xA;复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：&#xA;复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>日志轮转 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC/</link><description>Recent content in 日志轮转 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 29 May 2026 11:50:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC/index.xml" rel="self" type="application/rss+xml"/><item><title>Docker 安装、日志轮转与 IPv6 支持配置</title><link>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</link><pubDate>Fri, 29 May 2026 11:50:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-install-log-rotation-ipv6/</guid><description>这篇整理一套新服务器上安装 Docker 的基础流程，并把刚装好 Docker 后最容易忽略的日志轮转问题一起处理掉。
+核心建议很简单：
+新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：
+复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：
+复制docker version 查看 Docker 服务是否能正常列出容器：
+复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：
+复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：
+复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description></item></channel></rss>

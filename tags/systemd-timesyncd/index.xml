@@ -1,19 +1,7 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Systemd-Timesyncd on 电脑自习室</title>
-    <link>https://purodn.tk/tags/systemd-timesyncd/</link>
-    <description>Recent content in Systemd-Timesyncd on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Tue, 02 Jun 2026 14:20:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/systemd-timesyncd/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title>
-      <link>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</link>
-      <pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</guid>
-      <description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。&#xA;目标有两个：&#xA;系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：&#xA;复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：&#xA;复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：&#xA;复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：&#xA;复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Systemd-Timesyncd on 电脑自习室</title><link>https://purodn.tk/tags/systemd-timesyncd/</link><description>Recent content in Systemd-Timesyncd on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Tue, 02 Jun 2026 14:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/systemd-timesyncd/index.xml" rel="self" type="application/rss+xml"/><item><title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title><link>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</link><pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</guid><description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。
+目标有两个：
+系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：
+复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：
+复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：
+复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：
+复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description></item></channel></rss>

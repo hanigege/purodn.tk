@@ -1,19 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Runbook on 电脑自习室</title>
-    <link>https://purodn.tk/tags/runbook/</link>
-    <description>Recent content in Runbook on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 27 May 2026 23:09:58 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/runbook/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title>
-      <link>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</link>
-      <pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</guid>
-      <description>这篇是给下次的自己看的。&#xA;第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 codebot profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。&#xA;这次踩到的点很典型：&#xA;服务看起来 restart 失败，但其实新进程已经启动。 Telegram 明明写了允许用户，仍然报 Unauthorized user。 .env 里同名变量出现两次，后面的覆盖前面的。 授权修好后，又报 OPENAI_API_KEY 没读到。 bot 能回复以后，还会提醒没有设置 home channel。 所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。&#xA;安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。&#xA;目标结构 推荐把默认助手和开发助手分开。&#xA;角色 profile systemd user service 用途 默认助手 默认 profile hermes-gateway.service 或类似名称 日常聊天、提醒、低风险任务 代码助手 codebot hermes-codebot-gateway.service 代码修改、调试、测试、重构 拆 profile 的好处是边界清楚：&#xA;每个 profile 有自己的 .env、config.yaml、session、memory 和 gateway state。 每个 Telegram bot 可以只服务一个用途。 codebot 可以用更适合写代码的模型和权限策略。 默认助手不会被开发任务的上下文污染。 第一个默认 Gateway 第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 hermesuser：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Runbook on 电脑自习室</title><link>https://purodn.tk/tags/runbook/</link><description>Recent content in Runbook on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 27 May 2026 23:09:58 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/runbook/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Codebot 第二个 Telegram Gateway 复盘手册</title><link>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</link><pubDate>Wed, 27 May 2026 23:09:58 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-codebot-second-gateway-runbook/</guid><description>这篇是给下次的自己看的。
+第一次搭 Hermes Gateway 时，很多动作像“顺手做完了”：默认 profile、默认服务、默认 Telegram bot、默认模型 key，跑起来以后就忘了当时为什么能跑。等第二个 Gateway，也就是单独的 codebot profile 出问题时，才发现真正要记住的不是某一条命令，而是一整套判断顺序。
+这次踩到的点很典型：
+服务看起来 restart 失败，但其实新进程已经启动。 Telegram 明明写了允许用户，仍然报 Unauthorized user。 .env 里同名变量出现两次，后面的覆盖前面的。 授权修好后，又报 OPENAI_API_KEY 没读到。 bot 能回复以后，还会提醒没有设置 home channel。 所以这篇把“第一个默认 Gateway 怎么建”和“第二个 Gateway 怎么复制出来”放在一起写。以后再建第三个、第四个 profile，不要靠记忆，照这个顺序走。
+安全原则：文档里只写变量名、路径和占位符，不记录真实 Telegram bot token、OpenAI API key、SSH 密码或用户私密 ID。真实密钥如果截图或日志里露出过，应立即轮换。
+目标结构 推荐把默认助手和开发助手分开。
+角色 profile systemd user service 用途 默认助手 默认 profile hermes-gateway.service 或类似名称 日常聊天、提醒、低风险任务 代码助手 codebot hermes-codebot-gateway.service 代码修改、调试、测试、重构 拆 profile 的好处是边界清楚：
+每个 profile 有自己的 .env、config.yaml、session、memory 和 gateway state。 每个 Telegram bot 可以只服务一个用途。 codebot 可以用更适合写代码的模型和权限策略。 默认助手不会被开发任务的上下文污染。 第一个默认 Gateway 第一次搭默认 Gateway 时，先确认 Hermes 在哪个 Linux 用户下面运行。假设用户是 hermesuser：</description></item></channel></rss>

@@ -1,427 +1,167 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录 | 电脑自习室</title>
-    <meta name="description" content="记录使用 bin456789/reinstall 一键 DD Alpine 3.23 后，普通用户 jay 缺失或无法写入 /home/jay，导致 Neovim 无法创建 XDG 目录的诊断与修复流程。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-06-08">2026年6月8日</time>
-        </div>
-        <h1>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</h1>
-          <p>记录使用 bin456789/reinstall 一键 DD Alpine 3.23 后，普通用户 jay 缺失或无法写入 /home/jay，导致 Neovim 无法创建 XDG 目录的诊断与修复流程。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这次是在 VPS 上通过 <a href="https://github.com/bin456789/reinstall">bin456789/reinstall</a> 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 <code>jay</code>，也配置了登录密码。系统起来以后，确实可以用 <code>jay</code> 这个普通用户 SSH 登录。</p>
-<p>问题出在登录后才发现：<code>/home/</code> 下面没有正常的 <code>jay</code> 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>apk update
-</span></span><span style="display:flex;"><span>apk upgrade
-</span></span><span style="display:flex;"><span>apk add curl nano nvim</span></span></code></pre></div><script class="code-source" type="application/json">"apk update\napk upgrade\napk add curl nano nvim"</script>
-</div>
-<p>然后再回到普通用户使用 <code>nvim</code> 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。</p>
-<h2 id="现象">现象</h2>
-<p>普通用户 <code>jay</code> 执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class="code-source" type="application/json">"nvim alpine_user_ssh.sh"</script>
-</div>
-<p>Neovim 报错大意是无法创建 <code>/home/jay/.local</code> 下面的目录，或者提示权限被拒。</p>
-<p>这类报错说明重点不在 Neovim 本身，而在用户主目录：</p>
-<ul>
-<li><code>/home/jay</code> 根本不存在；</li>
-<li><code>/home/jay</code> 存在，但所有者是 <code>root</code>；</li>
-<li><code>$HOME</code> 指向 <code>/home/jay</code>，但普通用户无法在里面创建 <code>.local</code>、<code>.cache</code>、<code>.config</code>；</li>
-<li>后续 <code>.ssh/authorized_keys</code>、Neovim 缓存和配置目录都会一起受影响。</li>
-</ul>
-<h2 id="先确认问题">先确认问题</h2>
-<p>先用普通用户登录后检查当前身份和主目录变量：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>whoami
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>pwd
-</span></span><span style="display:flex;"><span>id</span></span></code></pre></div><script class="code-source" type="application/json">"whoami\necho \"$HOME\"\npwd\nid"</script>
-</div>
-<p>正常情况下，<code>whoami</code> 应该输出：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>jay</span></span></code></pre></div><script class="code-source" type="application/json">"jay"</script>
-</div>
-<p><code>$HOME</code> 应该是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"/home/jay"</script>
-</div>
-<p>再检查 <code>/etc/passwd</code> 里记录的主目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>grep <span style="color:#e6db74">&#39;^jay:&#39;</span> /etc/passwd</span></span></code></pre></div><script class="code-source" type="application/json">"grep '^jay:' /etc/passwd"</script>
-</div>
-<p>正常应该类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>jay:x:1000:1000:Linux User,,,:/home/jay:/bin/ash</span></span></code></pre></div><script class="code-source" type="application/json">"jay:x:1000:1000:Linux User,,,:/home/jay:/bin/ash"</script>
-</div>
-<p>然后检查主目录是否存在、归属是谁：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls -ld /home /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"ls -ld /home /home/jay"</script>
-</div>
-<p>如果 <code>/home/jay</code> 不存在，会看到类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ls: /home/jay: No such file or directory</span></span></code></pre></div><script class="code-source" type="application/json">"ls: /home/jay: No such file or directory"</script>
-</div>
-<p>如果目录被 root 占用，可能看到类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>drwxr-xr-x    2 root     root          4096 Jun  8 09:00 /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"drwxr-xr-x    2 root     root          4096 Jun  8 09:00 /home/jay"</script>
-</div>
-<p>这两种情况都会导致普通用户无法正常写入自己的配置、缓存和 SSH 目录。</p>
-<h2 id="用-root-修复主目录">用 root 修复主目录</h2>
-<p>因为 root 没有配置密码，也没有必要开放 root SSH 登录，所以这里的管理入口是先用普通用户 SSH 登录，再执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sudo -i</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -i"</script>
-</div>
-<p>进入 root 后，先确认用户存在：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>id jay
-</span></span><span style="display:flex;"><span>grep <span style="color:#e6db74">&#39;^jay:&#39;</span> /etc/passwd</span></span></code></pre></div><script class="code-source" type="application/json">"id jay\ngrep '^jay:' /etc/passwd"</script>
-</div>
-<p>如果用户不存在，先不要继续套用下面的命令，应先回到用户创建流程排查。这里的前提是 <code>jay</code> 已经存在，只是主目录缺失或权限异常。</p>
-<h3 id="情况一homejay-根本不存在">情况一：/home/jay 根本不存在</h3>
-<p>在 root 下执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>install -d -o jay -g jay -m <span style="color:#ae81ff">755</span> /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -o jay -g jay -m 755 /home/jay"</script>
-</div>
-<p>这条命令会创建 <code>/home/jay</code>，同时直接设置所有者、所属组和权限。相比先 <code>mkdir</code> 再 <code>chown</code>，它更不容易漏步骤。</p>
-<h3 id="情况二homejay-存在但归属错误">情况二：/home/jay 存在但归属错误</h3>
-<p>如果目录存在，但所有者不是 <code>jay</code>，执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>chown -R jay:jay /home/jay
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R jay:jay /home/jay\nchmod 755 /home/jay"</script>
-</div>
-<p><code>chown -R</code> 的目的，是把主目录和里面已经生成的文件全部交还给 <code>jay</code>。如果之前用 root 在 <code>/home/jay</code> 下建过 <code>.ssh</code>、<code>.local</code> 或其它文件，不递归修复，普通用户后面还是会在某个子目录继续报权限错误。</p>
-<p>修复后检查：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls -ld /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"ls -ld /home/jay"</script>
-</div>
-<p>应看到类似：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>drwxr-xr-x    2 jay      jay           4096 Jun  8 09:10 /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"drwxr-xr-x    2 jay      jay           4096 Jun  8 09:10 /home/jay"</script>
-</div>
-<h2 id="回到普通用户初始化基础目录">回到普通用户初始化基础目录</h2>
-<p>退出 root：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>exit</span></span></code></pre></div><script class="code-source" type="application/json">"exit"</script>
-</div>
-<p>确认已经回到普通用户：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>whoami
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"whoami\necho \"$HOME\""</script>
-</div>
-<p>然后用普通用户身份创建 Neovim 需要的 XDG 目录：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.local/share/nvim&#34;</span>
-</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.cache/nvim&#34;</span>
-</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.config/nvim&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p \"$HOME/.local/share/nvim\"\nmkdir -p \"$HOME/.cache/nvim\"\nmkdir -p \"$HOME/.config/nvim\""</script>
-</div>
-<p>这里不要加 <code>sudo</code>。这些目录是普通用户自己的运行目录、缓存目录和配置目录，如果用 root 创建，后面又会变成同一个权限坑。</p>
-<p>验证 Neovim：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class="code-source" type="application/json">"nvim alpine_user_ssh.sh"</script>
-</div>
-<p>能正常打开编辑器，就说明 <code>/home/jay</code> 的基础写入能力已经恢复。</p>
-<h2 id="同步修复-ssh-目录权限">同步修复 SSH 目录权限</h2>
-<p>这个问题也会影响普通用户的 SSH 密钥管理。建议一起把 <code>.ssh</code> 目录初始化好：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>touch <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">700</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p \"$HOME/.ssh\"\ntouch \"$HOME/.ssh/authorized_keys\"\nchmod 700 \"$HOME/.ssh\"\nchmod 600 \"$HOME/.ssh/authorized_keys\""</script>
-</div>
-<p>再确认归属：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>ls -ld <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>ls -l <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ls -ld \"$HOME\" \"$HOME/.ssh\"\nls -l \"$HOME/.ssh/authorized_keys\""</script>
-</div>
-<p>正常应该都属于当前用户 <code>jay</code>。如果这里出现 <code>root root</code>，说明之前又用 root 写过普通用户目录，需要回到 root 下重新执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>chown -R jay:jay /home/jay</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R jay:jay /home/jay"</script>
-</div>
-<h2 id="普通用户-ssh-密钥管理脚本">普通用户 SSH 密钥管理脚本</h2>
-<p>下面这个脚本适合在普通用户下运行，只管理当前用户自己的 <code>~/.ssh/authorized_keys</code>，不修改系统级 SSH 配置，也不负责安装系统依赖。</p>
-<p>脚本也保存到了本文同级 assets 目录：</p>
-<ul>
-<li><a href="assets/alpine_user_ssh.sh">alpine_user_ssh.sh</a></li>
-</ul>
-<p>使用方式：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>nvim alpine_user_ssh.sh
-</span></span><span style="display:flex;"><span>chmod +x alpine_user_ssh.sh
-</span></span><span style="display:flex;"><span>./alpine_user_ssh.sh</span></span></code></pre></div><script class="code-source" type="application/json">"nvim alpine_user_ssh.sh\nchmod +x alpine_user_ssh.sh\n./alpine_user_ssh.sh"</script>
-</div>
-<p>脚本内容如下：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/ash
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 动态获取当前用户家目录</span>
-</span></span><span style="display:flex;"><span>USER_HOME<span style="color:#f92672">=</span>$HOME
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 颜色定义</span>
-</span></span><span style="display:flex;"><span>gl_lv<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;\033[32m&#39;</span>
-</span></span><span style="display:flex;"><span>gl_huang<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;\033[33m&#39;</span>
-</span></span><span style="display:flex;"><span>gl_hong<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;\033[31m&#39;</span>
-</span></span><span style="display:flex;"><span>gl_bai<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;\033[0m&#39;</span>
-</span></span><span style="display:flex;"><span>gl_hui<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;\e[37m&#39;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 检查依赖：普通用户无法使用 apk 安装，仅做缺失提示</span>
-</span></span><span style="display:flex;"><span>init_check<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ! command -v curl &gt;/dev/null 2&gt;&amp;<span style="color:#ae81ff">1</span> <span style="color:#f92672">||</span> ! command -v nano &gt;/dev/null 2&gt;&amp;1; <span style="color:#66d9ef">then</span>
-</span></span><span style="display:flex;"><span>        echo -e <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_huang<span style="color:#e6db74">}</span><span style="color:#e6db74">警告: 系统缺失 curl 或 nano，部分功能受限，请联系管理员安装。</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>        sleep <span style="color:#ae81ff">2</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">fi</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 获取 IP 地址</span>
-</span></span><span style="display:flex;"><span>ip_address<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    ipv4_address<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>curl -s --connect-timeout <span style="color:#ae81ff">5</span> https://ipinfo.io/ip<span style="color:#66d9ef">)</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">[</span> -z <span style="color:#e6db74">&#34;</span>$ipv4_address<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> ipv4_address<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;VPS_IP&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 确保目录权限正确</span>
-</span></span><span style="display:flex;"><span>ensure_ssh_dir<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">[</span> ! -d <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> mkdir -p <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>    chmod <span style="color:#ae81ff">700</span> <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">[</span> ! -f <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> touch <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>    chmod <span style="color:#ae81ff">600</span> <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 1. 生成新密钥对</span>
-</span></span><span style="display:flex;"><span>add_sshkey<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    ensure_ssh_dir
-</span></span><span style="display:flex;"><span>    local key_path<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/sshkey&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ssh-keygen -t ed25519 -C <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>USER<span style="color:#e6db74">}</span><span style="color:#e6db74">@vps&#34;</span> -f <span style="color:#e6db74">&#34;</span>$key_path<span style="color:#e6db74">&#34;</span> -N <span style="color:#e6db74">&#34;&#34;</span>
-</span></span><span style="display:flex;"><span>    cat <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>key_path<span style="color:#e6db74">}</span><span style="color:#e6db74">.pub&#34;</span> &gt;&gt; <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ip_address
-</span></span><span style="display:flex;"><span>    echo -e <span style="color:#e6db74">&#34;\n</span><span style="color:#e6db74">${</span>gl_lv<span style="color:#e6db74">}</span><span style="color:#e6db74">密钥对生成成功！</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    echo -e <span style="color:#e6db74">&#34;请保存私钥，建议文件名: </span><span style="color:#e6db74">${</span>gl_huang<span style="color:#e6db74">}${</span>ipv4_address<span style="color:#e6db74">}</span><span style="color:#e6db74">_</span><span style="color:#e6db74">${</span>USER<span style="color:#e6db74">}</span><span style="color:#e6db74">_ssh.key</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;------------------------------------------------&#34;</span>
-</span></span><span style="display:flex;"><span>    cat <span style="color:#e6db74">&#34;</span>$key_path<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;------------------------------------------------&#34;</span>
-</span></span><span style="display:flex;"><span>    printf <span style="color:#e6db74">&#34;\n按回车继续...&#34;</span>
-</span></span><span style="display:flex;"><span>    read dummy
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. 手动导入公钥</span>
-</span></span><span style="display:flex;"><span>import_sshkey<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    ensure_ssh_dir
-</span></span><span style="display:flex;"><span>    printf <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_hui<span style="color:#e6db74">}</span><span style="color:#e6db74">请粘贴公钥内容: </span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    read pub_content
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> -z <span style="color:#e6db74">&#34;</span>$pub_content<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
-</span></span><span style="display:flex;"><span>        echo -e <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_hong<span style="color:#e6db74">}</span><span style="color:#e6db74">错误：输入内容为空</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>        sleep <span style="color:#ae81ff">1</span>
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">fi</span>
-</span></span><span style="display:flex;"><span>    echo <span style="color:#e6db74">&#34;</span>$pub_content<span style="color:#e6db74">&#34;</span> &gt;&gt; <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>    echo -e <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_lv<span style="color:#e6db74">}</span><span style="color:#e6db74">公钥导入完成</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    sleep <span style="color:#ae81ff">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 3. 从 GitHub 导入</span>
-</span></span><span style="display:flex;"><span>import_github<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    ensure_ssh_dir
-</span></span><span style="display:flex;"><span>    printf <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_hui<span style="color:#e6db74">}</span><span style="color:#e6db74">请输入 GitHub 用户名: </span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>    read username
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> -n <span style="color:#e6db74">&#34;</span>$username<span style="color:#e6db74">&#34;</span> <span style="color:#f92672">]</span>; <span style="color:#66d9ef">then</span>
-</span></span><span style="display:flex;"><span>        curl -fsSL <span style="color:#e6db74">&#34;https://github.com/</span><span style="color:#e6db74">${</span>username<span style="color:#e6db74">}</span><span style="color:#e6db74">.keys&#34;</span> &gt;&gt; <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>        echo -e <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>gl_lv<span style="color:#e6db74">}</span><span style="color:#e6db74">GitHub 公钥导入尝试完成</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>        sleep <span style="color:#ae81ff">1</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">fi</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 主菜单</span>
-</span></span><span style="display:flex;"><span>sshkey_panel<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
-</span></span><span style="display:flex;"><span>    init_check
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> true; <span style="color:#66d9ef">do</span>
-</span></span><span style="display:flex;"><span>        clear
-</span></span><span style="display:flex;"><span>        echo -e <span style="color:#e6db74">&#34;Alpine SSH 密钥管理面板 (当前用户: </span><span style="color:#e6db74">${</span>gl_lv<span style="color:#e6db74">}${</span>USER<span style="color:#e6db74">}${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;------------------------------------------------&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;1. 生成新密钥对 (ED25519)&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;2. 手动输入已有公钥&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;3. 从 GitHub 导入公钥&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;4. 编辑公钥文件 (authorized_keys)&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;5. 查看当前密钥信息&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;0. 退出&#34;</span>
-</span></span><span style="display:flex;"><span>        echo <span style="color:#e6db74">&#34;------------------------------------------------&#34;</span>
-</span></span><span style="display:flex;"><span>        printf <span style="color:#e6db74">&#34;请输入选择: &#34;</span>
-</span></span><span style="display:flex;"><span>        read choice
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> $choice in
-</span></span><span style="display:flex;"><span>            1<span style="color:#f92672">)</span> add_sshkey ;;
-</span></span><span style="display:flex;"><span>            2<span style="color:#f92672">)</span> import_sshkey ;;
-</span></span><span style="display:flex;"><span>            3<span style="color:#f92672">)</span> import_github ;;
-</span></span><span style="display:flex;"><span>            4<span style="color:#f92672">)</span> nano <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span> ;;
-</span></span><span style="display:flex;"><span>            5<span style="color:#f92672">)</span>
-</span></span><span style="display:flex;"><span>                echo -e <span style="color:#e6db74">&#34;\n</span><span style="color:#e6db74">${</span>gl_huang<span style="color:#e6db74">}</span><span style="color:#e6db74">--- 已授权公钥 ---</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>                <span style="color:#f92672">[</span> -s <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cat <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span> <span style="color:#f92672">||</span> echo <span style="color:#e6db74">&#34;为空&#34;</span>
-</span></span><span style="display:flex;"><span>                echo -e <span style="color:#e6db74">&#34;\n</span><span style="color:#e6db74">${</span>gl_huang<span style="color:#e6db74">}</span><span style="color:#e6db74">--- 本地私钥 (如有) ---</span><span style="color:#e6db74">${</span>gl_bai<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>                <span style="color:#f92672">[</span> -f <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/sshkey&#34;</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> cat <span style="color:#e6db74">&#34;</span>$USER_HOME<span style="color:#e6db74">/.ssh/sshkey&#34;</span> <span style="color:#f92672">||</span> echo <span style="color:#e6db74">&#34;未找到&#34;</span>
-</span></span><span style="display:flex;"><span>                printf <span style="color:#e6db74">&#34;\n按回车继续...&#34;</span>
-</span></span><span style="display:flex;"><span>                read dummy
-</span></span><span style="display:flex;"><span>                ;;
-</span></span><span style="display:flex;"><span>            0<span style="color:#f92672">)</span> exit <span style="color:#ae81ff">0</span> ;;
-</span></span><span style="display:flex;"><span>            *<span style="color:#f92672">)</span> echo <span style="color:#e6db74">&#34;无效选择&#34;</span>; sleep <span style="color:#ae81ff">1</span> ;;
-</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">esac</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">done</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>sshkey_panel</span></span></code></pre></div><script class="code-source" type="application/json">"#!/bin/ash\n\n# 动态获取当前用户家目录\nUSER_HOME=$HOME\n\n# 颜色定义\ngl_lv='\\033[32m'\ngl_huang='\\033[33m'\ngl_hong='\\033[31m'\ngl_bai='\\033[0m'\ngl_hui='\\e[37m'\n\n# 检查依赖：普通用户无法使用 apk 安装，仅做缺失提示\ninit_check() {\n    if ! command -v curl \u003e/dev/null 2\u003e\u00261 || ! command -v nano \u003e/dev/null 2\u003e\u00261; then\n        echo -e \"${gl_huang}警告: 系统缺失 curl 或 nano，部分功能受限，请联系管理员安装。${gl_bai}\"\n        sleep 2\n    fi\n}\n\n# 获取 IP 地址\nip_address() {\n    ipv4_address=$(curl -s --connect-timeout 5 https://ipinfo.io/ip)\n    [ -z \"$ipv4_address\" ] \u0026\u0026 ipv4_address=\"VPS_IP\"\n}\n\n# 确保目录权限正确\nensure_ssh_dir() {\n    [ ! -d \"$USER_HOME/.ssh\" ] \u0026\u0026 mkdir -p \"$USER_HOME/.ssh\"\n    chmod 700 \"$USER_HOME/.ssh\"\n    [ ! -f \"$USER_HOME/.ssh/authorized_keys\" ] \u0026\u0026 touch \"$USER_HOME/.ssh/authorized_keys\"\n    chmod 600 \"$USER_HOME/.ssh/authorized_keys\"\n}\n\n# 1. 生成新密钥对\nadd_sshkey() {\n    ensure_ssh_dir\n    local key_path=\"$USER_HOME/.ssh/sshkey\"\n\n    ssh-keygen -t ed25519 -C \"${USER}@vps\" -f \"$key_path\" -N \"\"\n    cat \"${key_path}.pub\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n\n    ip_address\n    echo -e \"\\n${gl_lv}密钥对生成成功！${gl_bai}\"\n    echo -e \"请保存私钥，建议文件名: ${gl_huang}${ipv4_address}_${USER}_ssh.key${gl_bai}\"\n    echo \"------------------------------------------------\"\n    cat \"$key_path\"\n    echo \"------------------------------------------------\"\n    printf \"\\n按回车继续...\"\n    read dummy\n}\n\n# 2. 手动导入公钥\nimport_sshkey() {\n    ensure_ssh_dir\n    printf \"${gl_hui}请粘贴公钥内容: ${gl_bai}\"\n    read pub_content\n    if [ -z \"$pub_content\" ]; then\n        echo -e \"${gl_hong}错误：输入内容为空${gl_bai}\"\n        sleep 1\n        return 1\n    fi\n    echo \"$pub_content\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n    echo -e \"${gl_lv}公钥导入完成${gl_bai}\"\n    sleep 1\n}\n\n# 3. 从 GitHub 导入\nimport_github() {\n    ensure_ssh_dir\n    printf \"${gl_hui}请输入 GitHub 用户名: ${gl_bai}\"\n    read username\n    if [ -n \"$username\" ]; then\n        curl -fsSL \"https://github.com/${username}.keys\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n        echo -e \"${gl_lv}GitHub 公钥导入尝试完成${gl_bai}\"\n        sleep 1\n    fi\n}\n\n# 主菜单\nsshkey_panel() {\n    init_check\n    while true; do\n        clear\n        echo -e \"Alpine SSH 密钥管理面板 (当前用户: ${gl_lv}${USER}${gl_bai})\"\n        echo \"------------------------------------------------\"\n        echo \"1. 生成新密钥对 (ED25519)\"\n        echo \"2. 手动输入已有公钥\"\n        echo \"3. 从 GitHub 导入公钥\"\n        echo \"4. 编辑公钥文件 (authorized_keys)\"\n        echo \"5. 查看当前密钥信息\"\n        echo \"0. 退出\"\n        echo \"------------------------------------------------\"\n        printf \"请输入选择: \"\n        read choice\n        case $choice in\n            1) add_sshkey ;;\n            2) import_sshkey ;;\n            3) import_github ;;\n            4) nano \"$USER_HOME/.ssh/authorized_keys\" ;;\n            5)\n                echo -e \"\\n${gl_huang}--- 已授权公钥 ---${gl_bai}\"\n                [ -s \"$USER_HOME/.ssh/authorized_keys\" ] \u0026\u0026 cat \"$USER_HOME/.ssh/authorized_keys\" || echo \"为空\"\n                echo -e \"\\n${gl_huang}--- 本地私钥 (如有) ---${gl_bai}\"\n                [ -f \"$USER_HOME/.ssh/sshkey\" ] \u0026\u0026 cat \"$USER_HOME/.ssh/sshkey\" || echo \"未找到\"\n                printf \"\\n按回车继续...\"\n                read dummy\n                ;;\n            0) exit 0 ;;\n            *) echo \"无效选择\"; sleep 1 ;;\n        esac\n    done\n}\n\nsshkey_panel"</script>
-</div>
-<h2 id="以后重装后先做这组检查">以后重装后先做这组检查</h2>
-<p>以后只要是用一键 DD、reinstall、极简 Alpine 镜像、或者安装过程中创建普通用户，都建议在第一次登录后先跑这组命令：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>whoami
-</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>grep <span style="color:#e6db74">&#34;^</span>$USER<span style="color:#e6db74">:&#34;</span> /etc/passwd
-</span></span><span style="display:flex;"><span>ls -ld <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">&#34;</span>
-</span></span><span style="display:flex;"><span>touch <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.home-write-test&#34;</span> <span style="color:#f92672">&amp;&amp;</span> rm <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.home-write-test&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"whoami\necho \"$HOME\"\ngrep \"^$USER:\" /etc/passwd\nls -ld \"$HOME\"\ntouch \"$HOME/.home-write-test\" \u0026\u0026 rm \"$HOME/.home-write-test\""</script>
-</div>
-<p>如果 <code>touch</code> 都失败，就先不要急着配置 Neovim、SSH key、Git、Docker 或其它用户级工具。先修主目录，否则后面每一步都会变成权限问题。</p>
-<h2 id="总结">总结</h2>
-<p>这次的根因不是 <code>nvim</code> 配置坏了，也不是 SSH 密钥脚本有问题，而是普通用户 <code>jay</code> 的主目录没有被正确创建或没有正确归属给 <code>jay</code>。</p>
-<p>稳定修复顺序是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>sudo -i
-</span></span><span style="display:flex;"><span>install -d -o jay -g jay -m <span style="color:#ae81ff">755</span> /home/jay
-</span></span><span style="display:flex;"><span>chown -R jay:jay /home/jay
-</span></span><span style="display:flex;"><span>exit
-</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.local/share/nvim&#34;</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.cache/nvim&#34;</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.config/nvim&#34;</span>
-</span></span><span style="display:flex;"><span>mkdir -p <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>touch <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">700</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh&#34;</span>
-</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> <span style="color:#e6db74">&#34;</span>$HOME<span style="color:#e6db74">/.ssh/authorized_keys&#34;</span>
-</span></span><span style="display:flex;"><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class="code-source" type="application/json">"sudo -i\ninstall -d -o jay -g jay -m 755 /home/jay\nchown -R jay:jay /home/jay\nexit\nmkdir -p \"$HOME/.local/share/nvim\" \"$HOME/.cache/nvim\" \"$HOME/.config/nvim\"\nmkdir -p \"$HOME/.ssh\"\ntouch \"$HOME/.ssh/authorized_keys\"\nchmod 700 \"$HOME/.ssh\"\nchmod 600 \"$HOME/.ssh/authorized_keys\"\nnvim alpine_user_ssh.sh"</script>
-</div>
-<p>以后遇到类似问题，先看 <code>/etc/passwd</code>、<code>$HOME</code>、<code>ls -ld /home/jay</code>，不要只盯着 Neovim 报错本身。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录 | 电脑自习室</title>
+<meta name=description content="记录使用 bin456789/reinstall 一键 DD Alpine 3.23 后，普通用户 jay 缺失或无法写入 /home/jay，导致 Neovim 无法创建 XDG 目录的诊断与修复流程。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-06-08>2026年6月8日</time></div><h1>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</h1><p>记录使用 bin456789/reinstall 一键 DD Alpine 3.23 后，普通用户 jay 缺失或无法写入 /home/jay，导致 Neovim 无法创建 XDG 目录的诊断与修复流程。</p></header><img class=article-cover src=/posts/linux/alpine-reinstall-user-home-nvim-ssh/assets/cover.svg alt><div class=article-content><p>这次是在 VPS 上通过 <a href=https://github.com/bin456789/reinstall>bin456789/reinstall</a> 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 <code>jay</code>，也配置了登录密码。系统起来以后，确实可以用 <code>jay</code> 这个普通用户 SSH 登录。</p><p>问题出在登录后才发现：<code>/home/</code> 下面没有正常的 <code>jay</code> 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>apk update
+</span></span><span style=display:flex><span>apk upgrade
+</span></span><span style=display:flex><span>apk add curl nano nvim</span></span></code></pre></div><script class=code-source type=application/json>"apk update\napk upgrade\napk add curl nano nvim"</script></div><p>然后再回到普通用户使用 <code>nvim</code> 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。</p><h2 id=现象>现象</h2><p>普通用户 <code>jay</code> 执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class=code-source type=application/json>"nvim alpine_user_ssh.sh"</script></div><p>Neovim 报错大意是无法创建 <code>/home/jay/.local</code> 下面的目录，或者提示权限被拒。</p><p>这类报错说明重点不在 Neovim 本身，而在用户主目录：</p><ul><li><code>/home/jay</code> 根本不存在；</li><li><code>/home/jay</code> 存在，但所有者是 <code>root</code>；</li><li><code>$HOME</code> 指向 <code>/home/jay</code>，但普通用户无法在里面创建 <code>.local</code>、<code>.cache</code>、<code>.config</code>；</li><li>后续 <code>.ssh/authorized_keys</code>、Neovim 缓存和配置目录都会一起受影响。</li></ul><h2 id=先确认问题>先确认问题</h2><p>先用普通用户登录后检查当前身份和主目录变量：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>whoami
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>pwd
+</span></span><span style=display:flex><span>id</span></span></code></pre></div><script class=code-source type=application/json>"whoami\necho \"$HOME\"\npwd\nid"</script></div><p>正常情况下，<code>whoami</code> 应该输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>jay</span></span></code></pre></div><script class=code-source type=application/json>"jay"</script></div><p><code>$HOME</code> 应该是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/home/jay</span></span></code></pre></div><script class=code-source type=application/json>"/home/jay"</script></div><p>再检查 <code>/etc/passwd</code> 里记录的主目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>grep <span style=color:#e6db74>&#39;^jay:&#39;</span> /etc/passwd</span></span></code></pre></div><script class=code-source type=application/json>"grep '^jay:' /etc/passwd"</script></div><p>正常应该类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>jay:x:1000:1000:Linux User,,,:/home/jay:/bin/ash</span></span></code></pre></div><script class=code-source type=application/json>"jay:x:1000:1000:Linux User,,,:/home/jay:/bin/ash"</script></div><p>然后检查主目录是否存在、归属是谁：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>ls -ld /home /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"ls -ld /home /home/jay"</script></div><p>如果 <code>/home/jay</code> 不存在，会看到类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>ls: /home/jay: No such file or directory</span></span></code></pre></div><script class=code-source type=application/json>"ls: /home/jay: No such file or directory"</script></div><p>如果目录被 root 占用，可能看到类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>drwxr-xr-x    2 root     root          4096 Jun  8 09:00 /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"drwxr-xr-x    2 root     root          4096 Jun  8 09:00 /home/jay"</script></div><p>这两种情况都会导致普通用户无法正常写入自己的配置、缓存和 SSH 目录。</p><h2 id=用-root-修复主目录>用 root 修复主目录</h2><p>因为 root 没有配置密码，也没有必要开放 root SSH 登录，所以这里的管理入口是先用普通用户 SSH 登录，再执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>sudo -i</span></span></code></pre></div><script class=code-source type=application/json>"sudo -i"</script></div><p>进入 root 后，先确认用户存在：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>id jay
+</span></span><span style=display:flex><span>grep <span style=color:#e6db74>&#39;^jay:&#39;</span> /etc/passwd</span></span></code></pre></div><script class=code-source type=application/json>"id jay\ngrep '^jay:' /etc/passwd"</script></div><p>如果用户不存在，先不要继续套用下面的命令，应先回到用户创建流程排查。这里的前提是 <code>jay</code> 已经存在，只是主目录缺失或权限异常。</p><h3 id=情况一homejay-根本不存在>情况一：/home/jay 根本不存在</h3><p>在 root 下执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>install -d -o jay -g jay -m <span style=color:#ae81ff>755</span> /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"install -d -o jay -g jay -m 755 /home/jay"</script></div><p>这条命令会创建 <code>/home/jay</code>，同时直接设置所有者、所属组和权限。相比先 <code>mkdir</code> 再 <code>chown</code>，它更不容易漏步骤。</p><h3 id=情况二homejay-存在但归属错误>情况二：/home/jay 存在但归属错误</h3><p>如果目录存在，但所有者不是 <code>jay</code>，执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>chown -R jay:jay /home/jay
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>755</span> /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"chown -R jay:jay /home/jay\nchmod 755 /home/jay"</script></div><p><code>chown -R</code> 的目的，是把主目录和里面已经生成的文件全部交还给 <code>jay</code>。如果之前用 root 在 <code>/home/jay</code> 下建过 <code>.ssh</code>、<code>.local</code> 或其它文件，不递归修复，普通用户后面还是会在某个子目录继续报权限错误。</p><p>修复后检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>ls -ld /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"ls -ld /home/jay"</script></div><p>应看到类似：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>drwxr-xr-x    2 jay      jay           4096 Jun  8 09:10 /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"drwxr-xr-x    2 jay      jay           4096 Jun  8 09:10 /home/jay"</script></div><h2 id=回到普通用户初始化基础目录>回到普通用户初始化基础目录</h2><p>退出 root：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>exit</span></span></code></pre></div><script class=code-source type=application/json>"exit"</script></div><p>确认已经回到普通用户：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>whoami
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"whoami\necho \"$HOME\""</script></div><p>然后用普通用户身份创建 Neovim 需要的 XDG 目录：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.local/share/nvim&#34;</span>
+</span></span><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.cache/nvim&#34;</span>
+</span></span><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.config/nvim&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p \"$HOME/.local/share/nvim\"\nmkdir -p \"$HOME/.cache/nvim\"\nmkdir -p \"$HOME/.config/nvim\""</script></div><p>这里不要加 <code>sudo</code>。这些目录是普通用户自己的运行目录、缓存目录和配置目录，如果用 root 创建，后面又会变成同一个权限坑。</p><p>验证 Neovim：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class=code-source type=application/json>"nvim alpine_user_ssh.sh"</script></div><p>能正常打开编辑器，就说明 <code>/home/jay</code> 的基础写入能力已经恢复。</p><h2 id=同步修复-ssh-目录权限>同步修复 SSH 目录权限</h2><p>这个问题也会影响普通用户的 SSH 密钥管理。建议一起把 <code>.ssh</code> 目录初始化好：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>touch <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>700</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>600</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"mkdir -p \"$HOME/.ssh\"\ntouch \"$HOME/.ssh/authorized_keys\"\nchmod 700 \"$HOME/.ssh\"\nchmod 600 \"$HOME/.ssh/authorized_keys\""</script></div><p>再确认归属：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>ls -ld <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>ls -l <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"ls -ld \"$HOME\" \"$HOME/.ssh\"\nls -l \"$HOME/.ssh/authorized_keys\""</script></div><p>正常应该都属于当前用户 <code>jay</code>。如果这里出现 <code>root root</code>，说明之前又用 root 写过普通用户目录，需要回到 root 下重新执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>chown -R jay:jay /home/jay</span></span></code></pre></div><script class=code-source type=application/json>"chown -R jay:jay /home/jay"</script></div><h2 id=普通用户-ssh-密钥管理脚本>普通用户 SSH 密钥管理脚本</h2><p>下面这个脚本适合在普通用户下运行，只管理当前用户自己的 <code>~/.ssh/authorized_keys</code>，不修改系统级 SSH 配置，也不负责安装系统依赖。</p><p>脚本也保存到了本文同级 assets 目录：</p><ul><li><a href=assets/alpine_user_ssh.sh>alpine_user_ssh.sh</a></li></ul><p>使用方式：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>nvim alpine_user_ssh.sh
+</span></span><span style=display:flex><span>chmod +x alpine_user_ssh.sh
+</span></span><span style=display:flex><span>./alpine_user_ssh.sh</span></span></code></pre></div><script class=code-source type=application/json>"nvim alpine_user_ssh.sh\nchmod +x alpine_user_ssh.sh\n./alpine_user_ssh.sh"</script></div><p>脚本内容如下：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span><span style=color:#75715e>#!/bin/ash
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 动态获取当前用户家目录</span>
+</span></span><span style=display:flex><span>USER_HOME<span style=color:#f92672>=</span>$HOME
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 颜色定义</span>
+</span></span><span style=display:flex><span>gl_lv<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;\033[32m&#39;</span>
+</span></span><span style=display:flex><span>gl_huang<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;\033[33m&#39;</span>
+</span></span><span style=display:flex><span>gl_hong<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;\033[31m&#39;</span>
+</span></span><span style=display:flex><span>gl_bai<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;\033[0m&#39;</span>
+</span></span><span style=display:flex><span>gl_hui<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;\e[37m&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 检查依赖：普通用户无法使用 apk 安装，仅做缺失提示</span>
+</span></span><span style=display:flex><span>init_check<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> ! command -v curl &gt;/dev/null 2&gt;&amp;<span style=color:#ae81ff>1</span> <span style=color:#f92672>||</span> ! command -v nano &gt;/dev/null 2&gt;&amp;1; <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>        echo -e <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_huang<span style=color:#e6db74>}</span><span style=color:#e6db74>警告: 系统缺失 curl 或 nano，部分功能受限，请联系管理员安装。</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        sleep <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>fi</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 获取 IP 地址</span>
+</span></span><span style=display:flex><span>ip_address<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    ipv4_address<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>curl -s --connect-timeout <span style=color:#ae81ff>5</span> https://ipinfo.io/ip<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>[</span> -z <span style=color:#e6db74>&#34;</span>$ipv4_address<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> ipv4_address<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;VPS_IP&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 确保目录权限正确</span>
+</span></span><span style=display:flex><span>ensure_ssh_dir<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>[</span> ! -d <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh&#34;</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> mkdir -p <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>    chmod <span style=color:#ae81ff>700</span> <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>[</span> ! -f <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> touch <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>    chmod <span style=color:#ae81ff>600</span> <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 1. 生成新密钥对</span>
+</span></span><span style=display:flex><span>add_sshkey<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    ensure_ssh_dir
+</span></span><span style=display:flex><span>    local key_path<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/sshkey&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ssh-keygen -t ed25519 -C <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>USER<span style=color:#e6db74>}</span><span style=color:#e6db74>@vps&#34;</span> -f <span style=color:#e6db74>&#34;</span>$key_path<span style=color:#e6db74>&#34;</span> -N <span style=color:#e6db74>&#34;&#34;</span>
+</span></span><span style=display:flex><span>    cat <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>key_path<span style=color:#e6db74>}</span><span style=color:#e6db74>.pub&#34;</span> &gt;&gt; <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ip_address
+</span></span><span style=display:flex><span>    echo -e <span style=color:#e6db74>&#34;\n</span><span style=color:#e6db74>${</span>gl_lv<span style=color:#e6db74>}</span><span style=color:#e6db74>密钥对生成成功！</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    echo -e <span style=color:#e6db74>&#34;请保存私钥，建议文件名: </span><span style=color:#e6db74>${</span>gl_huang<span style=color:#e6db74>}${</span>ipv4_address<span style=color:#e6db74>}</span><span style=color:#e6db74>_</span><span style=color:#e6db74>${</span>USER<span style=color:#e6db74>}</span><span style=color:#e6db74>_ssh.key</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    echo <span style=color:#e6db74>&#34;------------------------------------------------&#34;</span>
+</span></span><span style=display:flex><span>    cat <span style=color:#e6db74>&#34;</span>$key_path<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    echo <span style=color:#e6db74>&#34;------------------------------------------------&#34;</span>
+</span></span><span style=display:flex><span>    printf <span style=color:#e6db74>&#34;\n按回车继续...&#34;</span>
+</span></span><span style=display:flex><span>    read dummy
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 2. 手动导入公钥</span>
+</span></span><span style=display:flex><span>import_sshkey<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    ensure_ssh_dir
+</span></span><span style=display:flex><span>    printf <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_hui<span style=color:#e6db74>}</span><span style=color:#e6db74>请粘贴公钥内容: </span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    read pub_content
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> -z <span style=color:#e6db74>&#34;</span>$pub_content<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>        echo -e <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_hong<span style=color:#e6db74>}</span><span style=color:#e6db74>错误：输入内容为空</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        sleep <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>fi</span>
+</span></span><span style=display:flex><span>    echo <span style=color:#e6db74>&#34;</span>$pub_content<span style=color:#e6db74>&#34;</span> &gt;&gt; <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>    echo -e <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_lv<span style=color:#e6db74>}</span><span style=color:#e6db74>公钥导入完成</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    sleep <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 3. 从 GitHub 导入</span>
+</span></span><span style=display:flex><span>import_github<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    ensure_ssh_dir
+</span></span><span style=display:flex><span>    printf <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_hui<span style=color:#e6db74>}</span><span style=color:#e6db74>请输入 GitHub 用户名: </span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    read username
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> -n <span style=color:#e6db74>&#34;</span>$username<span style=color:#e6db74>&#34;</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>        curl -fsSL <span style=color:#e6db74>&#34;https://github.com/</span><span style=color:#e6db74>${</span>username<span style=color:#e6db74>}</span><span style=color:#e6db74>.keys&#34;</span> &gt;&gt; <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>        echo -e <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>gl_lv<span style=color:#e6db74>}</span><span style=color:#e6db74>GitHub 公钥导入尝试完成</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        sleep <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>fi</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 主菜单</span>
+</span></span><span style=display:flex><span>sshkey_panel<span style=color:#f92672>()</span> <span style=color:#f92672>{</span>
+</span></span><span style=display:flex><span>    init_check
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>while</span> true; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>        clear
+</span></span><span style=display:flex><span>        echo -e <span style=color:#e6db74>&#34;Alpine SSH 密钥管理面板 (当前用户: </span><span style=color:#e6db74>${</span>gl_lv<span style=color:#e6db74>}${</span>USER<span style=color:#e6db74>}${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>)&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;------------------------------------------------&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;1. 生成新密钥对 (ED25519)&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;2. 手动输入已有公钥&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;3. 从 GitHub 导入公钥&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;4. 编辑公钥文件 (authorized_keys)&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;5. 查看当前密钥信息&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;0. 退出&#34;</span>
+</span></span><span style=display:flex><span>        echo <span style=color:#e6db74>&#34;------------------------------------------------&#34;</span>
+</span></span><span style=display:flex><span>        printf <span style=color:#e6db74>&#34;请输入选择: &#34;</span>
+</span></span><span style=display:flex><span>        read choice
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>case</span> $choice in
+</span></span><span style=display:flex><span>            1<span style=color:#f92672>)</span> add_sshkey ;;
+</span></span><span style=display:flex><span>            2<span style=color:#f92672>)</span> import_sshkey ;;
+</span></span><span style=display:flex><span>            3<span style=color:#f92672>)</span> import_github ;;
+</span></span><span style=display:flex><span>            4<span style=color:#f92672>)</span> nano <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span> ;;
+</span></span><span style=display:flex><span>            5<span style=color:#f92672>)</span>
+</span></span><span style=display:flex><span>                echo -e <span style=color:#e6db74>&#34;\n</span><span style=color:#e6db74>${</span>gl_huang<span style=color:#e6db74>}</span><span style=color:#e6db74>--- 已授权公钥 ---</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>[</span> -s <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> cat <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span> <span style=color:#f92672>||</span> echo <span style=color:#e6db74>&#34;为空&#34;</span>
+</span></span><span style=display:flex><span>                echo -e <span style=color:#e6db74>&#34;\n</span><span style=color:#e6db74>${</span>gl_huang<span style=color:#e6db74>}</span><span style=color:#e6db74>--- 本地私钥 (如有) ---</span><span style=color:#e6db74>${</span>gl_bai<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>[</span> -f <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/sshkey&#34;</span> <span style=color:#f92672>]</span> <span style=color:#f92672>&amp;&amp;</span> cat <span style=color:#e6db74>&#34;</span>$USER_HOME<span style=color:#e6db74>/.ssh/sshkey&#34;</span> <span style=color:#f92672>||</span> echo <span style=color:#e6db74>&#34;未找到&#34;</span>
+</span></span><span style=display:flex><span>                printf <span style=color:#e6db74>&#34;\n按回车继续...&#34;</span>
+</span></span><span style=display:flex><span>                read dummy
+</span></span><span style=display:flex><span>                ;;
+</span></span><span style=display:flex><span>            0<span style=color:#f92672>)</span> exit <span style=color:#ae81ff>0</span> ;;
+</span></span><span style=display:flex><span>            *<span style=color:#f92672>)</span> echo <span style=color:#e6db74>&#34;无效选择&#34;</span>; sleep <span style=color:#ae81ff>1</span> ;;
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>esac</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>done</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>sshkey_panel</span></span></code></pre></div><script class=code-source type=application/json>"#!/bin/ash\n\n# 动态获取当前用户家目录\nUSER_HOME=$HOME\n\n# 颜色定义\ngl_lv='\\033[32m'\ngl_huang='\\033[33m'\ngl_hong='\\033[31m'\ngl_bai='\\033[0m'\ngl_hui='\\e[37m'\n\n# 检查依赖：普通用户无法使用 apk 安装，仅做缺失提示\ninit_check() {\n    if ! command -v curl \u003e/dev/null 2\u003e\u00261 || ! command -v nano \u003e/dev/null 2\u003e\u00261; then\n        echo -e \"${gl_huang}警告: 系统缺失 curl 或 nano，部分功能受限，请联系管理员安装。${gl_bai}\"\n        sleep 2\n    fi\n}\n\n# 获取 IP 地址\nip_address() {\n    ipv4_address=$(curl -s --connect-timeout 5 https://ipinfo.io/ip)\n    [ -z \"$ipv4_address\" ] \u0026\u0026 ipv4_address=\"VPS_IP\"\n}\n\n# 确保目录权限正确\nensure_ssh_dir() {\n    [ ! -d \"$USER_HOME/.ssh\" ] \u0026\u0026 mkdir -p \"$USER_HOME/.ssh\"\n    chmod 700 \"$USER_HOME/.ssh\"\n    [ ! -f \"$USER_HOME/.ssh/authorized_keys\" ] \u0026\u0026 touch \"$USER_HOME/.ssh/authorized_keys\"\n    chmod 600 \"$USER_HOME/.ssh/authorized_keys\"\n}\n\n# 1. 生成新密钥对\nadd_sshkey() {\n    ensure_ssh_dir\n    local key_path=\"$USER_HOME/.ssh/sshkey\"\n\n    ssh-keygen -t ed25519 -C \"${USER}@vps\" -f \"$key_path\" -N \"\"\n    cat \"${key_path}.pub\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n\n    ip_address\n    echo -e \"\\n${gl_lv}密钥对生成成功！${gl_bai}\"\n    echo -e \"请保存私钥，建议文件名: ${gl_huang}${ipv4_address}_${USER}_ssh.key${gl_bai}\"\n    echo \"------------------------------------------------\"\n    cat \"$key_path\"\n    echo \"------------------------------------------------\"\n    printf \"\\n按回车继续...\"\n    read dummy\n}\n\n# 2. 手动导入公钥\nimport_sshkey() {\n    ensure_ssh_dir\n    printf \"${gl_hui}请粘贴公钥内容: ${gl_bai}\"\n    read pub_content\n    if [ -z \"$pub_content\" ]; then\n        echo -e \"${gl_hong}错误：输入内容为空${gl_bai}\"\n        sleep 1\n        return 1\n    fi\n    echo \"$pub_content\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n    echo -e \"${gl_lv}公钥导入完成${gl_bai}\"\n    sleep 1\n}\n\n# 3. 从 GitHub 导入\nimport_github() {\n    ensure_ssh_dir\n    printf \"${gl_hui}请输入 GitHub 用户名: ${gl_bai}\"\n    read username\n    if [ -n \"$username\" ]; then\n        curl -fsSL \"https://github.com/${username}.keys\" \u003e\u003e \"$USER_HOME/.ssh/authorized_keys\"\n        echo -e \"${gl_lv}GitHub 公钥导入尝试完成${gl_bai}\"\n        sleep 1\n    fi\n}\n\n# 主菜单\nsshkey_panel() {\n    init_check\n    while true; do\n        clear\n        echo -e \"Alpine SSH 密钥管理面板 (当前用户: ${gl_lv}${USER}${gl_bai})\"\n        echo \"------------------------------------------------\"\n        echo \"1. 生成新密钥对 (ED25519)\"\n        echo \"2. 手动输入已有公钥\"\n        echo \"3. 从 GitHub 导入公钥\"\n        echo \"4. 编辑公钥文件 (authorized_keys)\"\n        echo \"5. 查看当前密钥信息\"\n        echo \"0. 退出\"\n        echo \"------------------------------------------------\"\n        printf \"请输入选择: \"\n        read choice\n        case $choice in\n            1) add_sshkey ;;\n            2) import_sshkey ;;\n            3) import_github ;;\n            4) nano \"$USER_HOME/.ssh/authorized_keys\" ;;\n            5)\n                echo -e \"\\n${gl_huang}--- 已授权公钥 ---${gl_bai}\"\n                [ -s \"$USER_HOME/.ssh/authorized_keys\" ] \u0026\u0026 cat \"$USER_HOME/.ssh/authorized_keys\" || echo \"为空\"\n                echo -e \"\\n${gl_huang}--- 本地私钥 (如有) ---${gl_bai}\"\n                [ -f \"$USER_HOME/.ssh/sshkey\" ] \u0026\u0026 cat \"$USER_HOME/.ssh/sshkey\" || echo \"未找到\"\n                printf \"\\n按回车继续...\"\n                read dummy\n                ;;\n            0) exit 0 ;;\n            *) echo \"无效选择\"; sleep 1 ;;\n        esac\n    done\n}\n\nsshkey_panel"</script></div><h2 id=以后重装后先做这组检查>以后重装后先做这组检查</h2><p>以后只要是用一键 DD、reinstall、极简 Alpine 镜像、或者安装过程中创建普通用户，都建议在第一次登录后先跑这组命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>whoami
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>grep <span style=color:#e6db74>&#34;^</span>$USER<span style=color:#e6db74>:&#34;</span> /etc/passwd
+</span></span><span style=display:flex><span>ls -ld <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>touch <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.home-write-test&#34;</span> <span style=color:#f92672>&amp;&amp;</span> rm <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.home-write-test&#34;</span></span></span></code></pre></div><script class=code-source type=application/json>"whoami\necho \"$HOME\"\ngrep \"^$USER:\" /etc/passwd\nls -ld \"$HOME\"\ntouch \"$HOME/.home-write-test\" \u0026\u0026 rm \"$HOME/.home-write-test\""</script></div><p>如果 <code>touch</code> 都失败，就先不要急着配置 Neovim、SSH key、Git、Docker 或其它用户级工具。先修主目录，否则后面每一步都会变成权限问题。</p><h2 id=总结>总结</h2><p>这次的根因不是 <code>nvim</code> 配置坏了，也不是 SSH 密钥脚本有问题，而是普通用户 <code>jay</code> 的主目录没有被正确创建或没有正确归属给 <code>jay</code>。</p><p>稳定修复顺序是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>sudo -i
+</span></span><span style=display:flex><span>install -d -o jay -g jay -m <span style=color:#ae81ff>755</span> /home/jay
+</span></span><span style=display:flex><span>chown -R jay:jay /home/jay
+</span></span><span style=display:flex><span>exit
+</span></span><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.local/share/nvim&#34;</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.cache/nvim&#34;</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.config/nvim&#34;</span>
+</span></span><span style=display:flex><span>mkdir -p <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>touch <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>700</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh&#34;</span>
+</span></span><span style=display:flex><span>chmod <span style=color:#ae81ff>600</span> <span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>/.ssh/authorized_keys&#34;</span>
+</span></span><span style=display:flex><span>nvim alpine_user_ssh.sh</span></span></code></pre></div><script class=code-source type=application/json>"sudo -i\ninstall -d -o jay -g jay -m 755 /home/jay\nchown -R jay:jay /home/jay\nexit\nmkdir -p \"$HOME/.local/share/nvim\" \"$HOME/.cache/nvim\" \"$HOME/.config/nvim\"\nmkdir -p \"$HOME/.ssh\"\ntouch \"$HOME/.ssh/authorized_keys\"\nchmod 700 \"$HOME/.ssh\"\nchmod 600 \"$HOME/.ssh/authorized_keys\"\nnvim alpine_user_ssh.sh"</script></div><p>以后遇到类似问题，先看 <code>/etc/passwd</code>、<code>$HOME</code>、<code>ls -ld /home/jay</code>，不要只盯着 Neovim 报错本身。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

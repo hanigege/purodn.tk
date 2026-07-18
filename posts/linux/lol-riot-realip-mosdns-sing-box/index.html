@@ -1,360 +1,78 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录 | 电脑自习室</title>
-    <meta name="description" content="记录如何在 mosdns 和 sing-box 的 fake-ip 分流环境里，把 Riot / League of Legends 域名单独剥离出来，改成 real-ip 直连，避免游戏被 fake-ip 误伤。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-26">2026年5月26日</time>
-        </div>
-        <h1>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</h1>
-          <p>记录如何在 mosdns 和 sing-box 的 fake-ip 分流环境里，把 Riot / League of Legends 域名单独剥离出来，改成 real-ip 直连，避免游戏被 fake-ip 误伤。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/lol-riot-realip-mosdns-sing-box/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇是给美服 LoL 单独整理的部署记录。</p>
-<p>背景很简单：你已经有一套正常工作的 <code>sing-box + mosdns + fake-ip</code> 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 <strong>Riot / League of Legends 相关域名被 fake-ip 链路提前接管了</strong>。</p>
-<p>本文的目标不是重写整套代理架构，而是只做两件事：</p>
-<ol>
-<li>让 LoL / Riot 相关域名在 DNS 层走 real-ip。</li>
-<li>让 sing-box 路由层把这些域名明确导向 <code>direct</code>。</li>
-</ol>
-<p>这样做之后，游戏连接不会再落到 <code>28.0.0.0/8</code> 这类 fake-ip 上，延迟和兼容性都会更稳。</p>
-<h2 id="1-先理解问题">1. 先理解问题</h2>
-<p>如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>客户端 -&gt; mosdns
-</span></span><span style="display:flex;"><span>mosdns -&gt; 返回 fake-ip
-</span></span><span style="display:flex;"><span>客户端 -&gt; 连接 fake-ip
-</span></span><span style="display:flex;"><span>sing-box 还原域名后再决定走代理还是直连</span></span></code></pre></div><script class="code-source" type="application/json">"客户端 -\u003e mosdns\nmosdns -\u003e 返回 fake-ip\n客户端 -\u003e 连接 fake-ip\nsing-box 还原域名后再决定走代理还是直连"</script>
-</div>
-<p>这套机制对网页、下载、流媒体通常很顺。</p>
-<p>但 LoL 不一样，它的连接链路里会出现：</p>
-<ul>
-<li>登录域名</li>
-<li>客户端域名</li>
-<li>游戏服域名</li>
-<li>语音 / 控制域名</li>
-<li>一些地区性 <code>pvp.net</code> 域名</li>
-</ul>
-<p>这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 <code>direct</code>，实际连接还是没走你想要的路径。</p>
-<p>所以正确思路不是“让 LoL 也走 fake-ip”，而是反过来：</p>
-<ul>
-<li>LoL / Riot 域名走 real-ip</li>
-<li>这些域名在 sing-box 路由里强制 <code>direct</code></li>
-</ul>
-<h2 id="2-先看现有环境">2. 先看现有环境</h2>
-<p>先确认你已经有：</p>
-<ul>
-<li><code>mosdns</code> 负责 DNS 分流</li>
-<li><code>sing-box</code> 负责透明代理和路由</li>
-<li><code>fake-ip</code> 已经在跑</li>
-</ul>
-<p>常见检查命令：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>systemctl is-active sing-box
-</span></span><span style="display:flex;"><span>systemctl is-active mosdns</span></span></code></pre></div><script class="code-source" type="application/json">"systemctl is-active sing-box\nsystemctl is-active mosdns"</script>
-</div>
-<p>如果你用的是 Alpine 或 OpenRC，服务命令可能不同，但思路一样。</p>
-<p>再确认 mosdns 监听和 sing-box 监听：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -lntup | grep -E <span style="color:#e6db74">&#39;:53|:111|:5353|:9090|:9333&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ss -lntup | grep -E ':53|:111|:5353|:9090|:9333'"</script>
-</div>
-<h2 id="3-为什么-direct-还不够">3. 为什么 <code>direct</code> 还不够</h2>
-<p>很多人会先在 sing-box 里加一条：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;rule_set&#34;</span>: <span style="color:#e6db74">&#34;geosite-riot&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;outbound&#34;</span>: <span style="color:#e6db74">&#34;direct&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"rule_set\": \"geosite-riot\",\n  \"outbound\": \"direct\"\n}"</script>
-</div>
-<p>这一步是必要的，但不一定够。</p>
-<p>原因是：</p>
-<ol>
-<li>如果 mosdns 还在把 LoL 域名转成 fake-ip，那 sing-box 看到的第一眼已经不是原始 DNS 结果了。</li>
-<li>某些游戏连接路径并不是单一的 HTTP 请求，而是会混合登录、控制和游戏会话。</li>
-<li>仅改路由，不改 DNS，效果经常不稳定。</li>
-</ol>
-<p>所以要同时改两边。</p>
-<h2 id="4-在-mosdns-里加-real-ip-列表">4. 在 mosdns 里加 real-ip 列表</h2>
-<p>先把 Riot / LoL 相关域名加入 <code>realiplist.txt</code>。</p>
-<p>路径通常是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/cus/mosdns/rule/realiplist.txt</span></span></code></pre></div><script class="code-source" type="application/json">"/cus/mosdns/rule/realiplist.txt"</script>
-</div>
-<p>可以追加这些常见后缀：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span># Riot / League of Legends real-ip direct
-</span></span><span style="display:flex;"><span>domain:riotgames.com
-</span></span><span style="display:flex;"><span>domain:riotcdn.net
-</span></span><span style="display:flex;"><span>domain:leagueoflegends.com
-</span></span><span style="display:flex;"><span>domain:lolesports.com
-</span></span><span style="display:flex;"><span>domain:pvp.net
-</span></span><span style="display:flex;"><span>domain:lolstatic.com
-</span></span><span style="display:flex;"><span>domain:lolstatic-a.akamaihd.net
-</span></span><span style="display:flex;"><span>domain:rgpub.io
-</span></span><span style="display:flex;"><span>domain:riotcdn.cn</span></span></code></pre></div><script class="code-source" type="application/json">"# Riot / League of Legends real-ip direct\ndomain:riotgames.com\ndomain:riotcdn.net\ndomain:leagueoflegends.com\ndomain:lolesports.com\ndomain:pvp.net\ndomain:lolstatic.com\ndomain:lolstatic-a.akamaihd.net\ndomain:rgpub.io\ndomain:riotcdn.cn"</script>
-</div>
-<p>这一步的意思是：</p>
-<ul>
-<li>这些域名不要再走 fake-ip</li>
-<li>让 mosdns 给它们返回真实公网 IP</li>
-</ul>
-<p>如果你的 mosdns 里已经有“记忆直连”或者“订阅直连”机制，也可以把这些域名放进去，原则一样：让它们进入 real-ip 链路。</p>
-<h2 id="5-在-sing-box-dns-里提前拦截-riot">5. 在 sing-box DNS 里提前拦截 Riot</h2>
-<p>仅改 mosdns 还不够，sing-box 自己的 DNS 规则也要补一层。</p>
-<p>在 <code>/etc/sing-box/conf/02_dns.json</code> 里，给 <code>geosite-riot</code> 单独加一条：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;rule_set&#34;</span>: <span style="color:#e6db74">&#34;geosite-riot&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;action&#34;</span>: <span style="color:#e6db74">&#34;route&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;server&#34;</span>: <span style="color:#e6db74">&#34;remote-dns&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;rewrite_ttl&#34;</span>: <span style="color:#ae81ff">60</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"rule_set\": \"geosite-riot\",\n  \"action\": \"route\",\n  \"server\": \"remote-dns\",\n  \"rewrite_ttl\": 60\n}"</script>
-</div>
-<p>重点是放在 <code>geosite-geolocation-!cn -&gt; fakeip-dns</code> 之前。</p>
-<p>这样 Riot 域名会优先走真实 DNS，而不是被泛化的国外 fake-ip 规则吃掉。</p>
-<h2 id="6-在-sing-box-路由里强制直连">6. 在 sing-box 路由里强制直连</h2>
-<p>再到 <code>/etc/sing-box/conf/05_route.json</code> 里，加上 Riot 专用直连规则：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;rule_set&#34;</span>: <span style="color:#e6db74">&#34;geosite-riot&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;outbound&#34;</span>: <span style="color:#e6db74">&#34;direct&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"rule_set\": \"geosite-riot\",\n  \"outbound\": \"direct\"\n}"</script>
-</div>
-<p>建议放在前面，优先级高于这些规则：</p>
-<ul>
-<li><code>udp/443</code> 拒绝</li>
-<li><code>geosite-geolocation-!cn</code></li>
-<li>其它大范围国外规则</li>
-</ul>
-<p>这样就不会出现“游戏被整体判成代理流量”的情况。</p>
-<h2 id="7-riot-规则集怎么定义">7. Riot 规则集怎么定义</h2>
-<p>如果你的 sing-box 配置里还没有 <code>geosite-riot</code>，可以补一个本地规则集：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;local&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;format&#34;</span>: <span style="color:#e6db74">&#34;binary&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;tag&#34;</span>: <span style="color:#e6db74">&#34;geosite-riot&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;path&#34;</span>: <span style="color:#e6db74">&#34;/etc/sing-box/rules/geosite/riot.srs&#34;</span>
-</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"type\": \"local\",\n  \"format\": \"binary\",\n  \"tag\": \"geosite-riot\",\n  \"path\": \"/etc/sing-box/rules/geosite/riot.srs\"\n}"</script>
-</div>
-<p>这一步之后，路由和 DNS 才能引用同一个规则标签。</p>
-<h2 id="8-你会看到什么变化">8. 你会看到什么变化</h2>
-<p>改完后，Riot / LoL 常见域名会从 fake-ip 变成真实 IP。</p>
-<p>例如：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>leagueoflegends.com            -&gt; 真实公网 IP
-</span></span><span style="display:flex;"><span>login.riotgames.com            -&gt; 真实公网 IP
-</span></span><span style="display:flex;"><span>na-red.lol.sgp.pvp.net         -&gt; 真实公网 IP
-</span></span><span style="display:flex;"><span>lol.secure.dyn.riotcdn.net     -&gt; 真实公网 IP
-</span></span><span style="display:flex;"><span>clientconfig.rpg.riotgames.com -&gt; 真实公网 IP</span></span></code></pre></div><script class="code-source" type="application/json">"leagueoflegends.com            -\u003e 真实公网 IP\nlogin.riotgames.com            -\u003e 真实公网 IP\nna-red.lol.sgp.pvp.net         -\u003e 真实公网 IP\nlol.secure.dyn.riotcdn.net     -\u003e 真实公网 IP\nclientconfig.rpg.riotgames.com -\u003e 真实公网 IP"</script>
-</div>
-<p>而不是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>28.0.x.x</span></span></code></pre></div><script class="code-source" type="application/json">"28.0.x.x"</script>
-</div>
-<p>这就是关键。</p>
-<h2 id="9-你的-sing-box-主结构不用动">9. 你的 sing-box 主结构不用动</h2>
-<p>这类修复不需要重写整套 sing-box：</p>
-<ul>
-<li>不用改 TUN</li>
-<li>不用改主分流框架</li>
-<li>不用改已有的代理节点结构</li>
-</ul>
-<p>只要保证：</p>
-<ol>
-<li>Riot 域名在 DNS 层走 real-ip</li>
-<li>Riot 域名在路由层走 <code>direct</code></li>
-</ol>
-<p>就够了。</p>
-<h2 id="10-验证方法">10. 验证方法</h2>
-<h3 id="101-看-dns-返回值">10.1 看 DNS 返回值</h3>
-<p>先确认同一个域名不再返回 fake-ip。</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import socket, struct, random
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">def q(name, server, port):
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    tid = random.randrange(65536)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    parts = name.rstrip(&#39;.&#39;).split(&#39;.&#39;)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    body = b&#39;&#39;.join(bytes([len(p)]) + p.encode() for p in parts) + b&#39;\0&#39; + struct.pack(&#39;!HH&#39;, 1, 1)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    pkt = struct.pack(&#39;!HHHHHH&#39;, tid, 0x0100, 1, 0, 0, 0) + body
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    s.settimeout(2)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    try:
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        s.sendto(pkt, (server, port))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        data, _ = s.recvfrom(4096)
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        an = struct.unpack(&#39;!H&#39;, data[6:8])[0]
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        return an
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    finally:
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        s.close()
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(q(&#39;login.riotgames.com&#39;, &#39;127.0.0.1&#39;, 53))
-</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"python3 - \u003c\u003c'PY'\nimport socket, struct, random\n\ndef q(name, server, port):\n    tid = random.randrange(65536)\n    parts = name.rstrip('.').split('.')\n    body = b''.join(bytes([len(p)]) + p.encode() for p in parts) + b'\\0' + struct.pack('!HH', 1, 1)\n    pkt = struct.pack('!HHHHHH', tid, 0x0100, 1, 0, 0, 0) + body\n    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n    s.settimeout(2)\n    try:\n        s.sendto(pkt, (server, port))\n        data, _ = s.recvfrom(4096)\n        an = struct.unpack('!H', data[6:8])[0]\n        return an\n    finally:\n        s.close()\n\nprint(q('login.riotgames.com', '127.0.0.1', 53))\nPY"</script>
-</div>
-<p>更实用的是直接看返回 IP，别再出现 <code>28.0.0.0/8</code>。</p>
-<h3 id="102-看-sing-box-路由">10.2 看 sing-box 路由</h3>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sing-box check -C /etc/sing-box/conf
-</span></span><span style="display:flex;"><span>systemctl restart sing-box</span></span></code></pre></div><script class="code-source" type="application/json">"sing-box check -C /etc/sing-box/conf\nsystemctl restart sing-box"</script>
-</div>
-<h3 id="103-看实际业务">10.3 看实际业务</h3>
-<p>LoL 不是测速站，最终要看：</p>
-<ul>
-<li>游戏能不能进</li>
-<li>选 <code>direct</code> 后是否还会绕回代理</li>
-<li>登录页和对局内是否稳定</li>
-</ul>
-<h2 id="11-常见坑">11. 常见坑</h2>
-<h3 id="只改-sing-box不改-mosdns">只改 sing-box，不改 mosdns</h3>
-<p>这会导致 DNS 还是 fake-ip，游戏还是不稳。</p>
-<h3 id="只改-mosdns不改-sing-box">只改 mosdns，不改 sing-box</h3>
-<p>这会导致域名虽然拿到了真实 IP，但路由还可能被丢到代理出口。</p>
-<h3 id="规则顺序放错">规则顺序放错</h3>
-<p><code>geosite-riot</code> 要比泛化的 <code>geosite-geolocation-!cn</code> 更靠前。</p>
-<h3 id="混淆理解错">混淆理解错</h3>
-<p>Riot/LoL 这类场景，真正关键的是 DNS 和路由，不是再去堆一个更花的节点参数。</p>
-<h2 id="12-经验结论">12. 经验结论</h2>
-<p>这次实测最重要的结论是：</p>
-<ul>
-<li>LoL 不是单纯“节点慢”</li>
-<li>也不是单纯“选 direct 就行”</li>
-<li>真问题通常在 fake-ip 链路里</li>
-</ul>
-<p>把 Riot 域名拉回 real-ip，再让 sing-box 明确直连，游戏体验会比单独折腾节点更稳定。</p>
-<h2 id="13-一句话总结">13. 一句话总结</h2>
-<p>美服 LoL 要稳，核心不是“再换一个更快节点”，而是：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Riot 域名 -&gt; real-ip
-</span></span><span style="display:flex;"><span>sing-box 路由 -&gt; direct</span></span></code></pre></div><script class="code-source" type="application/json">"Riot 域名 -\u003e real-ip\nsing-box 路由 -\u003e direct"</script>
-</div>
-<p>这样游戏连接才不会被 fake-ip 搅乱。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录 | 电脑自习室</title>
+<meta name=description content="记录如何在 mosdns 和 sing-box 的 fake-ip 分流环境里，把 Riot / League of Legends 域名单独剥离出来，改成 real-ip 直连，避免游戏被 fake-ip 误伤。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-26>2026年5月26日</time></div><h1>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</h1><p>记录如何在 mosdns 和 sing-box 的 fake-ip 分流环境里，把 Riot / League of Legends 域名单独剥离出来，改成 real-ip 直连，避免游戏被 fake-ip 误伤。</p></header><img class=article-cover src=/posts/linux/lol-riot-realip-mosdns-sing-box/assets/cover.svg alt><div class=article-content><p>这篇是给美服 LoL 单独整理的部署记录。</p><p>背景很简单：你已经有一套正常工作的 <code>sing-box + mosdns + fake-ip</code> 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 <strong>Riot / League of Legends 相关域名被 fake-ip 链路提前接管了</strong>。</p><p>本文的目标不是重写整套代理架构，而是只做两件事：</p><ol><li>让 LoL / Riot 相关域名在 DNS 层走 real-ip。</li><li>让 sing-box 路由层把这些域名明确导向 <code>direct</code>。</li></ol><p>这样做之后，游戏连接不会再落到 <code>28.0.0.0/8</code> 这类 fake-ip 上，延迟和兼容性都会更稳。</p><h2 id=1-先理解问题>1. 先理解问题</h2><p>如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>客户端 -&gt; mosdns
+</span></span><span style=display:flex><span>mosdns -&gt; 返回 fake-ip
+</span></span><span style=display:flex><span>客户端 -&gt; 连接 fake-ip
+</span></span><span style=display:flex><span>sing-box 还原域名后再决定走代理还是直连</span></span></code></pre></div><script class=code-source type=application/json>"客户端 -\u003e mosdns\nmosdns -\u003e 返回 fake-ip\n客户端 -\u003e 连接 fake-ip\nsing-box 还原域名后再决定走代理还是直连"</script></div><p>这套机制对网页、下载、流媒体通常很顺。</p><p>但 LoL 不一样，它的连接链路里会出现：</p><ul><li>登录域名</li><li>客户端域名</li><li>游戏服域名</li><li>语音 / 控制域名</li><li>一些地区性 <code>pvp.net</code> 域名</li></ul><p>这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 <code>direct</code>，实际连接还是没走你想要的路径。</p><p>所以正确思路不是“让 LoL 也走 fake-ip”，而是反过来：</p><ul><li>LoL / Riot 域名走 real-ip</li><li>这些域名在 sing-box 路由里强制 <code>direct</code></li></ul><h2 id=2-先看现有环境>2. 先看现有环境</h2><p>先确认你已经有：</p><ul><li><code>mosdns</code> 负责 DNS 分流</li><li><code>sing-box</code> 负责透明代理和路由</li><li><code>fake-ip</code> 已经在跑</li></ul><p>常见检查命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>systemctl is-active sing-box
+</span></span><span style=display:flex><span>systemctl is-active mosdns</span></span></code></pre></div><script class=code-source type=application/json>"systemctl is-active sing-box\nsystemctl is-active mosdns"</script></div><p>如果你用的是 Alpine 或 OpenRC，服务命令可能不同，但思路一样。</p><p>再确认 mosdns 监听和 sing-box 监听：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ss -lntup | grep -E <span style=color:#e6db74>&#39;:53|:111|:5353|:9090|:9333&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"ss -lntup | grep -E ':53|:111|:5353|:9090|:9333'"</script></div><h2 id=3-为什么-direct-还不够>3. 为什么 <code>direct</code> 还不够</h2><p>很多人会先在 sing-box 里加一条：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;rule_set&#34;</span>: <span style=color:#e6db74>&#34;geosite-riot&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;outbound&#34;</span>: <span style=color:#e6db74>&#34;direct&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"rule_set\": \"geosite-riot\",\n  \"outbound\": \"direct\"\n}"</script></div><p>这一步是必要的，但不一定够。</p><p>原因是：</p><ol><li>如果 mosdns 还在把 LoL 域名转成 fake-ip，那 sing-box 看到的第一眼已经不是原始 DNS 结果了。</li><li>某些游戏连接路径并不是单一的 HTTP 请求，而是会混合登录、控制和游戏会话。</li><li>仅改路由，不改 DNS，效果经常不稳定。</li></ol><p>所以要同时改两边。</p><h2 id=4-在-mosdns-里加-real-ip-列表>4. 在 mosdns 里加 real-ip 列表</h2><p>先把 Riot / LoL 相关域名加入 <code>realiplist.txt</code>。</p><p>路径通常是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>/cus/mosdns/rule/realiplist.txt</span></span></code></pre></div><script class=code-source type=application/json>"/cus/mosdns/rule/realiplist.txt"</script></div><p>可以追加这些常见后缀：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span># Riot / League of Legends real-ip direct
+</span></span><span style=display:flex><span>domain:riotgames.com
+</span></span><span style=display:flex><span>domain:riotcdn.net
+</span></span><span style=display:flex><span>domain:leagueoflegends.com
+</span></span><span style=display:flex><span>domain:lolesports.com
+</span></span><span style=display:flex><span>domain:pvp.net
+</span></span><span style=display:flex><span>domain:lolstatic.com
+</span></span><span style=display:flex><span>domain:lolstatic-a.akamaihd.net
+</span></span><span style=display:flex><span>domain:rgpub.io
+</span></span><span style=display:flex><span>domain:riotcdn.cn</span></span></code></pre></div><script class=code-source type=application/json>"# Riot / League of Legends real-ip direct\ndomain:riotgames.com\ndomain:riotcdn.net\ndomain:leagueoflegends.com\ndomain:lolesports.com\ndomain:pvp.net\ndomain:lolstatic.com\ndomain:lolstatic-a.akamaihd.net\ndomain:rgpub.io\ndomain:riotcdn.cn"</script></div><p>这一步的意思是：</p><ul><li>这些域名不要再走 fake-ip</li><li>让 mosdns 给它们返回真实公网 IP</li></ul><p>如果你的 mosdns 里已经有“记忆直连”或者“订阅直连”机制，也可以把这些域名放进去，原则一样：让它们进入 real-ip 链路。</p><h2 id=5-在-sing-box-dns-里提前拦截-riot>5. 在 sing-box DNS 里提前拦截 Riot</h2><p>仅改 mosdns 还不够，sing-box 自己的 DNS 规则也要补一层。</p><p>在 <code>/etc/sing-box/conf/02_dns.json</code> 里，给 <code>geosite-riot</code> 单独加一条：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;rule_set&#34;</span>: <span style=color:#e6db74>&#34;geosite-riot&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;action&#34;</span>: <span style=color:#e6db74>&#34;route&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;server&#34;</span>: <span style=color:#e6db74>&#34;remote-dns&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;rewrite_ttl&#34;</span>: <span style=color:#ae81ff>60</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"rule_set\": \"geosite-riot\",\n  \"action\": \"route\",\n  \"server\": \"remote-dns\",\n  \"rewrite_ttl\": 60\n}"</script></div><p>重点是放在 <code>geosite-geolocation-!cn -> fakeip-dns</code> 之前。</p><p>这样 Riot 域名会优先走真实 DNS，而不是被泛化的国外 fake-ip 规则吃掉。</p><h2 id=6-在-sing-box-路由里强制直连>6. 在 sing-box 路由里强制直连</h2><p>再到 <code>/etc/sing-box/conf/05_route.json</code> 里，加上 Riot 专用直连规则：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;rule_set&#34;</span>: <span style=color:#e6db74>&#34;geosite-riot&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;outbound&#34;</span>: <span style=color:#e6db74>&#34;direct&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"rule_set\": \"geosite-riot\",\n  \"outbound\": \"direct\"\n}"</script></div><p>建议放在前面，优先级高于这些规则：</p><ul><li><code>udp/443</code> 拒绝</li><li><code>geosite-geolocation-!cn</code></li><li>其它大范围国外规则</li></ul><p>这样就不会出现“游戏被整体判成代理流量”的情况。</p><h2 id=7-riot-规则集怎么定义>7. Riot 规则集怎么定义</h2><p>如果你的 sing-box 配置里还没有 <code>geosite-riot</code>，可以补一个本地规则集：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;local&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;format&#34;</span>: <span style=color:#e6db74>&#34;binary&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;tag&#34;</span>: <span style=color:#e6db74>&#34;geosite-riot&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;path&#34;</span>: <span style=color:#e6db74>&#34;/etc/sing-box/rules/geosite/riot.srs&#34;</span>
+</span></span><span style=display:flex><span>}</span></span></code></pre></div><script class=code-source type=application/json>"{\n  \"type\": \"local\",\n  \"format\": \"binary\",\n  \"tag\": \"geosite-riot\",\n  \"path\": \"/etc/sing-box/rules/geosite/riot.srs\"\n}"</script></div><p>这一步之后，路由和 DNS 才能引用同一个规则标签。</p><h2 id=8-你会看到什么变化>8. 你会看到什么变化</h2><p>改完后，Riot / LoL 常见域名会从 fake-ip 变成真实 IP。</p><p>例如：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>leagueoflegends.com            -&gt; 真实公网 IP
+</span></span><span style=display:flex><span>login.riotgames.com            -&gt; 真实公网 IP
+</span></span><span style=display:flex><span>na-red.lol.sgp.pvp.net         -&gt; 真实公网 IP
+</span></span><span style=display:flex><span>lol.secure.dyn.riotcdn.net     -&gt; 真实公网 IP
+</span></span><span style=display:flex><span>clientconfig.rpg.riotgames.com -&gt; 真实公网 IP</span></span></code></pre></div><script class=code-source type=application/json>"leagueoflegends.com            -\u003e 真实公网 IP\nlogin.riotgames.com            -\u003e 真实公网 IP\nna-red.lol.sgp.pvp.net         -\u003e 真实公网 IP\nlol.secure.dyn.riotcdn.net     -\u003e 真实公网 IP\nclientconfig.rpg.riotgames.com -\u003e 真实公网 IP"</script></div><p>而不是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>28.0.x.x</span></span></code></pre></div><script class=code-source type=application/json>"28.0.x.x"</script></div><p>这就是关键。</p><h2 id=9-你的-sing-box-主结构不用动>9. 你的 sing-box 主结构不用动</h2><p>这类修复不需要重写整套 sing-box：</p><ul><li>不用改 TUN</li><li>不用改主分流框架</li><li>不用改已有的代理节点结构</li></ul><p>只要保证：</p><ol><li>Riot 域名在 DNS 层走 real-ip</li><li>Riot 域名在路由层走 <code>direct</code></li></ol><p>就够了。</p><h2 id=10-验证方法>10. 验证方法</h2><h3 id=101-看-dns-返回值>10.1 看 DNS 返回值</h3><p>先确认同一个域名不再返回 fake-ip。</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>python3 - <span style=color:#e6db74>&lt;&lt;&#39;PY&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>import socket, struct, random
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>def q(name, server, port):
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    tid = random.randrange(65536)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    parts = name.rstrip(&#39;.&#39;).split(&#39;.&#39;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    body = b&#39;&#39;.join(bytes([len(p)]) + p.encode() for p in parts) + b&#39;\0&#39; + struct.pack(&#39;!HH&#39;, 1, 1)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    pkt = struct.pack(&#39;!HHHHHH&#39;, tid, 0x0100, 1, 0, 0, 0) + body
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    s.settimeout(2)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    try:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        s.sendto(pkt, (server, port))
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        data, _ = s.recvfrom(4096)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        an = struct.unpack(&#39;!H&#39;, data[6:8])[0]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        return an
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    finally:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        s.close()
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>print(q(&#39;login.riotgames.com&#39;, &#39;127.0.0.1&#39;, 53))
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>PY</span></span></span></code></pre></div><script class=code-source type=application/json>"python3 - \u003c\u003c'PY'\nimport socket, struct, random\n\ndef q(name, server, port):\n    tid = random.randrange(65536)\n    parts = name.rstrip('.').split('.')\n    body = b''.join(bytes([len(p)]) + p.encode() for p in parts) + b'\\0' + struct.pack('!HH', 1, 1)\n    pkt = struct.pack('!HHHHHH', tid, 0x0100, 1, 0, 0, 0) + body\n    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n    s.settimeout(2)\n    try:\n        s.sendto(pkt, (server, port))\n        data, _ = s.recvfrom(4096)\n        an = struct.unpack('!H', data[6:8])[0]\n        return an\n    finally:\n        s.close()\n\nprint(q('login.riotgames.com', '127.0.0.1', 53))\nPY"</script></div><p>更实用的是直接看返回 IP，别再出现 <code>28.0.0.0/8</code>。</p><h3 id=102-看-sing-box-路由>10.2 看 sing-box 路由</h3><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sing-box check -C /etc/sing-box/conf
+</span></span><span style=display:flex><span>systemctl restart sing-box</span></span></code></pre></div><script class=code-source type=application/json>"sing-box check -C /etc/sing-box/conf\nsystemctl restart sing-box"</script></div><h3 id=103-看实际业务>10.3 看实际业务</h3><p>LoL 不是测速站，最终要看：</p><ul><li>游戏能不能进</li><li>选 <code>direct</code> 后是否还会绕回代理</li><li>登录页和对局内是否稳定</li></ul><h2 id=11-常见坑>11. 常见坑</h2><h3 id=只改-sing-box不改-mosdns>只改 sing-box，不改 mosdns</h3><p>这会导致 DNS 还是 fake-ip，游戏还是不稳。</p><h3 id=只改-mosdns不改-sing-box>只改 mosdns，不改 sing-box</h3><p>这会导致域名虽然拿到了真实 IP，但路由还可能被丢到代理出口。</p><h3 id=规则顺序放错>规则顺序放错</h3><p><code>geosite-riot</code> 要比泛化的 <code>geosite-geolocation-!cn</code> 更靠前。</p><h3 id=混淆理解错>混淆理解错</h3><p>Riot/LoL 这类场景，真正关键的是 DNS 和路由，不是再去堆一个更花的节点参数。</p><h2 id=12-经验结论>12. 经验结论</h2><p>这次实测最重要的结论是：</p><ul><li>LoL 不是单纯“节点慢”</li><li>也不是单纯“选 direct 就行”</li><li>真问题通常在 fake-ip 链路里</li></ul><p>把 Riot 域名拉回 real-ip，再让 sing-box 明确直连，游戏体验会比单独折腾节点更稳定。</p><h2 id=13-一句话总结>13. 一句话总结</h2><p>美服 LoL 要稳，核心不是“再换一个更快节点”，而是：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Riot 域名 -&gt; real-ip
+</span></span><span style=display:flex><span>sing-box 路由 -&gt; direct</span></span></code></pre></div><script class=code-source type=application/json>"Riot 域名 -\u003e real-ip\nsing-box 路由 -\u003e direct"</script></div><p>这样游戏连接才不会被 fake-ip 搅乱。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

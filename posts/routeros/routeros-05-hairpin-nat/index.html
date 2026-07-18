@@ -1,180 +1,29 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>05.RouterOS 配置动态公网 IP 的本地网络回流 | 电脑自习室</title>
-    <meta name="description" content="RouterOS 动态公网 IP 本地网络回流。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2025-08-14">2025年8月14日</time>
-        </div>
-        <h1>05.RouterOS 配置动态公网 IP 的本地网络回流</h1>
-          <p>RouterOS 动态公网 IP 本地网络回流。</p>
-      </header>
-          <img class="article-cover" src="/posts/routeros/routeros-05-hairpin-nat/assets/routeros-05.svg" alt="">
-
-      <div class="article-content">
-        <h2 id="特别注意配置源地址伪装时若未限制出接口则回流已自动生效无需参考本文设置">特别注意！！配置源地址伪装时若未限制出接口，则回流已自动生效，无需参考本文设置</h2>
-<h3 id="1-适用条件">1. 适用条件</h3>
-<p>本文介绍动态源地址伪装时限制出接口为pppoe-out1的情况下，如何在动态公网IP环境中，为ROS配置域名的本地网络回流。以动态公网IPv6为例，IPv4同理</p>
-<blockquote>
-<p>注：先做好域名的DDNS</p>
-</blockquote>
-<h3 id="2-公网入口映射">2. 公网入口映射</h3>
-<ul>
-<li>在/ipv6/firewall/address-list中添加域名（任意一个能解析到ros的域名均可），以 ros.11111.xyz 为例
-<img src="assets/routeros-05-hairpin-nat-05.png" alt=""></li>
-<li>添加来自公网（pppoe-out1接口）的端口映射
-注：dc00::6666为内网反向代理服务（caddy）的ip，8443为转发的端口</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ipv6 firewall nat add action<span style="color:#f92672">=</span>dst-nat chain<span style="color:#f92672">=</span>dstnat dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">8443</span> in-interface<span style="color:#f92672">=</span>pppoe-out1 protocol<span style="color:#f92672">=</span>tcp to-address<span style="color:#f92672">=</span>dc00::6666/128 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">8443</span></span></span></code></pre></div><script class="code-source" type="application/json">"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-port=8443 in-interface=pppoe-out1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"</script>
-</div>
-<p><img src="assets/routeros-05-hairpin-nat-01.png" alt=""></p>
-<h3 id="3-内网回流映射">3. 内网回流映射</h3>
-<ul>
-<li>添加来自内网（bridge1接口）的端口映射
-注：Dst.Address List选择第一步添加的域名，转发端口依然是8443</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ipv6 firewall nat add action<span style="color:#f92672">=</span>dst-nat chain<span style="color:#f92672">=</span>dstnat dst-address-list<span style="color:#f92672">=</span>ros.11111.xyz dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">8443</span> in-interface<span style="color:#f92672">=</span>bridge1 protocol<span style="color:#f92672">=</span>tcp to-address<span style="color:#f92672">=</span>dc00::6666/128 to-ports<span style="color:#f92672">=</span><span style="color:#ae81ff">8443</span></span></span></code></pre></div><script class="code-source" type="application/json">"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-address-list=ros.11111.xyz dst-port=8443 in-interface=bridge1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"</script>
-</div>
-<p><img src="assets/routeros-05-hairpin-nat-02.png" alt=""></p>
-<h3 id="4-回流伪装">4. 回流伪装</h3>
-<ul>
-<li>为来自内网的回流流量添加动态伪装
-注：dc00::/64为内网IPv6段</li>
-</ul>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/ipv6 firewall nat add action<span style="color:#f92672">=</span>masquerade chain<span style="color:#f92672">=</span>srcnat dst-port<span style="color:#f92672">=</span><span style="color:#ae81ff">8443</span> out-interface<span style="color:#f92672">=</span>bridge1 protocol<span style="color:#f92672">=</span>tcp src-address<span style="color:#f92672">=</span>dc00::/64</span></span></code></pre></div><script class="code-source" type="application/json">"/ipv6 firewall nat add action=masquerade chain=srcnat dst-port=8443 out-interface=bridge1 protocol=tcp src-address=dc00::/64"</script>
-</div>
-<p><img src="assets/routeros-05-hairpin-nat-03.png" alt=""></p>
-<h3 id="5-回家节点说明">5. 回家节点说明</h3>
-<p>若手机使用hy2回家，在家里WIFI下回家节点不通，参照回流操作即可
-<img src="assets/routeros-05-hairpin-nat-04.png" alt=""></p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>05.RouterOS 配置动态公网 IP 的本地网络回流 | 电脑自习室</title>
+<meta name=description content="RouterOS 动态公网 IP 本地网络回流。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2025-08-14>2025年8月14日</time></div><h1>05.RouterOS 配置动态公网 IP 的本地网络回流</h1><p>RouterOS 动态公网 IP 本地网络回流。</p></header><img class=article-cover src=/posts/routeros/routeros-05-hairpin-nat/assets/routeros-05.svg alt><div class=article-content><h2 id=特别注意配置源地址伪装时若未限制出接口则回流已自动生效无需参考本文设置>特别注意！！配置源地址伪装时若未限制出接口，则回流已自动生效，无需参考本文设置</h2><h3 id=1-适用条件>1. 适用条件</h3><p>本文介绍动态源地址伪装时限制出接口为pppoe-out1的情况下，如何在动态公网IP环境中，为ROS配置域名的本地网络回流。以动态公网IPv6为例，IPv4同理</p><blockquote><p>注：先做好域名的DDNS</p></blockquote><h3 id=2-公网入口映射>2. 公网入口映射</h3><ul><li>在/ipv6/firewall/address-list中添加域名（任意一个能解析到ros的域名均可），以 ros.11111.xyz 为例
+<img src=assets/routeros-05-hairpin-nat-05.png alt></li><li>添加来自公网（pppoe-out1接口）的端口映射
+注：dc00::6666为内网反向代理服务（caddy）的ip，8443为转发的端口</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ipv6 firewall nat add action<span style=color:#f92672>=</span>dst-nat chain<span style=color:#f92672>=</span>dstnat dst-port<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span> in-interface<span style=color:#f92672>=</span>pppoe-out1 protocol<span style=color:#f92672>=</span>tcp to-address<span style=color:#f92672>=</span>dc00::6666/128 to-ports<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span></span></span></code></pre></div><script class=code-source type=application/json>"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-port=8443 in-interface=pppoe-out1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"</script></div><p><img src=assets/routeros-05-hairpin-nat-01.png alt></p><h3 id=3-内网回流映射>3. 内网回流映射</h3><ul><li>添加来自内网（bridge1接口）的端口映射
+注：Dst.Address List选择第一步添加的域名，转发端口依然是8443</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ipv6 firewall nat add action<span style=color:#f92672>=</span>dst-nat chain<span style=color:#f92672>=</span>dstnat dst-address-list<span style=color:#f92672>=</span>ros.11111.xyz dst-port<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span> in-interface<span style=color:#f92672>=</span>bridge1 protocol<span style=color:#f92672>=</span>tcp to-address<span style=color:#f92672>=</span>dc00::6666/128 to-ports<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span></span></span></code></pre></div><script class=code-source type=application/json>"/ipv6 firewall nat add action=dst-nat chain=dstnat dst-address-list=ros.11111.xyz dst-port=8443 in-interface=bridge1 protocol=tcp to-address=dc00::6666/128 to-ports=8443"</script></div><p><img src=assets/routeros-05-hairpin-nat-02.png alt></p><h3 id=4-回流伪装>4. 回流伪装</h3><ul><li>为来自内网的回流流量添加动态伪装
+注：dc00::/64为内网IPv6段</li></ul><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ipv6 firewall nat add action<span style=color:#f92672>=</span>masquerade chain<span style=color:#f92672>=</span>srcnat dst-port<span style=color:#f92672>=</span><span style=color:#ae81ff>8443</span> out-interface<span style=color:#f92672>=</span>bridge1 protocol<span style=color:#f92672>=</span>tcp src-address<span style=color:#f92672>=</span>dc00::/64</span></span></code></pre></div><script class=code-source type=application/json>"/ipv6 firewall nat add action=masquerade chain=srcnat dst-port=8443 out-interface=bridge1 protocol=tcp src-address=dc00::/64"</script></div><p><img src=assets/routeros-05-hairpin-nat-03.png alt></p><h3 id=5-回家节点说明>5. 回家节点说明</h3><p>若手机使用hy2回家，在家里WIFI下回家节点不通，参照回流操作即可
+<img src=assets/routeros-05-hairpin-nat-04.png alt></p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

@@ -1,26 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Coturn on 电脑自习室</title>
-    <link>https://purodn.tk/tags/coturn/</link>
-    <description>Recent content in Coturn on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 20 May 2026 21:35:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/coturn/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link>
-      <pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid>
-      <description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。&#xA;三套方案的选择可以这样理解：&#xA;没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：&#xA;复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description>
-    </item>
-    <item>
-      <title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</title>
-      <link>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</link>
-      <pubDate>Tue, 19 May 2026 20:08:12 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</guid>
-      <description>这篇记录 coturn TURN 服务器的 Docker Compose 部署方式。coturn 主要用于解决 Matrix 语音、视频通话中的 NAT 穿透问题，部署好之后可以在 Synapse 的 homeserver.yaml 中配置 turn_uris 和共享密钥。&#xA;前面 Synapse、Nginx Proxy Manager、ntfy 这类 HTTP 服务适合统一接入 matrix bridge 网络，反代容器可以直接通过容器名访问它们。但 coturn 不太一样：TURN 服务要直接处理 3478/udp 和一整段 UDP 中继端口。这里按小规模自用场景收窄为 50000-50200/udp，大约 200 个 UDP 中继端口；如果用 Docker bridge 网络再映射端口段，启动容器时仍然可能比 host 网络慢。&#xA;所以本文的 coturn 改用 network_mode: host：coturn 直接监听宿主机端口，不再加入 matrix Docker 网络。Synapse 仍然通过公网域名和共享密钥使用 coturn，不需要和 coturn 在同一个 Docker 网络里。&#xA;一、准备目录 先创建 coturn 的配置目录：&#xA;复制mkdir -p /root/data/docker_data/coturn/etc/coturn cd /root/data/docker_data/coturn/etc/coturn 创建基础配置文件：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Coturn on 电脑自习室</title><link>https://purodn.tk/tags/coturn/</link><description>Recent content in Coturn on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 20 May 2026 21:35:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/coturn/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link><pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid><description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。
+三套方案的选择可以这样理解：
+没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：
+复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description></item><item><title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</title><link>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 20:08:12 +0800</pubDate><guid>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</guid><description>这篇记录 coturn TURN 服务器的 Docker Compose 部署方式。coturn 主要用于解决 Matrix 语音、视频通话中的 NAT 穿透问题，部署好之后可以在 Synapse 的 homeserver.yaml 中配置 turn_uris 和共享密钥。
+前面 Synapse、Nginx Proxy Manager、ntfy 这类 HTTP 服务适合统一接入 matrix bridge 网络，反代容器可以直接通过容器名访问它们。但 coturn 不太一样：TURN 服务要直接处理 3478/udp 和一整段 UDP 中继端口。这里按小规模自用场景收窄为 50000-50200/udp，大约 200 个 UDP 中继端口；如果用 Docker bridge 网络再映射端口段，启动容器时仍然可能比 host 网络慢。
+所以本文的 coturn 改用 network_mode: host：coturn 直接监听宿主机端口，不再加入 matrix Docker 网络。Synapse 仍然通过公网域名和共享密钥使用 coturn，不需要和 coturn 在同一个 Docker 网络里。
+一、准备目录 先创建 coturn 的配置目录：
+复制mkdir -p /root/data/docker_data/coturn/etc/coturn cd /root/data/docker_data/coturn/etc/coturn 创建基础配置文件：</description></item></channel></rss>

@@ -1,223 +1,44 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ubuntu 设置北京时间并使用 chrony 校准系统时间 | 电脑自习室</title>
-    <meta name="description" content="在 Ubuntu 服务器上将时区设置为 Asia/Shanghai，并使用 chrony 同步准确时间，避免时间漂移导致证书校验、软件源更新和服务运行异常。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-05-29">2026年5月29日</time>
-        </div>
-        <h1>Ubuntu 设置北京时间并使用 chrony 校准系统时间</h1>
-          <p>在 Ubuntu 服务器上将时区设置为 Asia/Shanghai，并使用 chrony 同步准确时间，避免时间漂移导致证书校验、软件源更新和服务运行异常。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 <code>Asia/Shanghai</code>，再用 <code>chrony</code> 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。</p>
-<h2 id="时间同步和北京时间的关系">时间同步和北京时间的关系</h2>
-<p>这里要分清两件事：</p>
-<ul>
-<li><code>Asia/Shanghai</code> 负责把系统显示时区设为北京时间，也就是 UTC+8。</li>
-<li><code>chrony</code> 负责通过 NTP 校准系统时钟，让时间本身准确。</li>
-</ul>
-<p>所以只安装 <code>chrony</code> 不等于设置北京时间；只设置 <code>Asia/Shanghai</code> 也不等于时间已经校准。两个都做完，<code>date</code> 看到的时间才会是准确的北京时间。</p>
-<h2 id="一设置时区为北京时间">一、设置时区为北京时间</h2>
-<p>先查看当前时间和时区：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate"</script>
-</div>
-<p>设置系统时区为北京时间：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo timedatectl set-timezone Asia/Shanghai</span></span></code></pre></div><script class="code-source" type="application/json">"sudo timedatectl set-timezone Asia/Shanghai"</script>
-</div>
-<p>再次确认：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate"</script>
-</div>
-<p><code>timedatectl</code> 输出里应能看到：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Time zone: Asia/Shanghai (CST, +0800)</span></span></code></pre></div><script class="code-source" type="application/json">"Time zone: Asia/Shanghai (CST, +0800)"</script>
-</div>
-<p><code>date</code> 输出里也应该出现 <code>CST</code> 或 <code>+0800</code>。这一步只负责时区显示，不负责从网络校准时间。</p>
-<h2 id="二使用-chrony-校准系统时间">二、使用 chrony 校准系统时间</h2>
-<p>Ubuntu 默认可以使用 <code>systemd-timesyncd</code> 做基础时间同步，但服务器环境更推荐使用 <code>chrony</code>。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。</p>
-<p>先安装 <code>chrony</code>：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt update
-</span></span><span style="display:flex;"><span>sudo apt install -y chrony</span></span></code></pre></div><script class="code-source" type="application/json">"sudo apt update\nsudo apt install -y chrony"</script>
-</div>
-<p>编辑配置文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nvim /etc/chrony/chrony.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sudo nvim /etc/chrony/chrony.conf"</script>
-</div>
-<p style="color:#c2410c;font-weight:700;">清空或覆盖 <code>/etc/chrony/chrony.conf</code>，写入以下完整配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span># 定义上游 NTP 服务器池，iburst 用于加速初始同步
-</span></span><span style="display:flex;"><span>pool ntp.ubuntu.com        iburst maxsources 4
-</span></span><span style="display:flex;"><span>pool 0.ubuntu.pool.ntp.org iburst maxsources 1
-</span></span><span style="display:flex;"><span>pool 1.ubuntu.pool.ntp.org iburst maxsources 1
-</span></span><span style="display:flex;"><span>pool 2.ubuntu.pool.ntp.org iburst maxsources 2
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span># 记录系统时钟漂移速率
-</span></span><span style="display:flex;"><span>driftfile /var/lib/chrony/chrony.drift
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span># 系统刚启动时，如果前 3 次更新时间误差大于 1 秒，则允许直接校正
-</span></span><span style="display:flex;"><span>makestep 1 3
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span># 启用内核同步硬件时钟
-</span></span><span style="display:flex;"><span>rtcsync</span></span></code></pre></div><script class="code-source" type="application/json">"# 定义上游 NTP 服务器池，iburst 用于加速初始同步\npool ntp.ubuntu.com        iburst maxsources 4\npool 0.ubuntu.pool.ntp.org iburst maxsources 1\npool 1.ubuntu.pool.ntp.org iburst maxsources 1\npool 2.ubuntu.pool.ntp.org iburst maxsources 2\n\n# 记录系统时钟漂移速率\ndriftfile /var/lib/chrony/chrony.drift\n\n# 系统刚启动时，如果前 3 次更新时间误差大于 1 秒，则允许直接校正\nmakestep 1 3\n\n# 启用内核同步硬件时钟\nrtcsync"</script>
-</div>
-<p>重启并设置开机启动：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl restart chrony
-</span></span><span style="display:flex;"><span>sudo systemctl enable chrony</span></span></code></pre></div><script class="code-source" type="application/json">"sudo systemctl restart chrony\nsudo systemctl enable chrony"</script>
-</div>
-<p>查看当前 NTP 源状态：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chronyc sources -v</span></span></code></pre></div><script class="code-source" type="application/json">"chronyc sources -v"</script>
-</div>
-<p>输出里带 <code>^*</code> 的那一行表示当前正在使用的主要同步源。继续查看系统时钟同步详情：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chronyc tracking</span></span></code></pre></div><script class="code-source" type="application/json">"chronyc tracking"</script>
-</div>
-<p>最后确认系统时间和同步状态：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>timedatectl
-</span></span><span style="display:flex;"><span>date</span></span></code></pre></div><script class="code-source" type="application/json">"timedatectl\ndate"</script>
-</div>
-<p>重点看这几项：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Time zone: Asia/Shanghai (CST, +0800)
-</span></span><span style="display:flex;"><span>System clock synchronized: yes
-</span></span><span style="display:flex;"><span>NTP service: active</span></span></code></pre></div><script class="code-source" type="application/json">"Time zone: Asia/Shanghai (CST, +0800)\nSystem clock synchronized: yes\nNTP service: active"</script>
-</div>
-<p>如果 <code>date</code> 显示的是北京时间，且 <code>timedatectl</code> 里同步状态正常，就说明时区和时间同步都已经处理好了。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间 | 电脑自习室</title>
+<meta name=description content="在 Ubuntu 服务器上将时区设置为 Asia/Shanghai，并使用 chrony 同步准确时间，避免时间漂移导致证书校验、软件源更新和服务运行异常。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-05-29>2026年5月29日</time></div><h1>Ubuntu 设置北京时间并使用 chrony 校准系统时间</h1><p>在 Ubuntu 服务器上将时区设置为 Asia/Shanghai，并使用 chrony 同步准确时间，避免时间漂移导致证书校验、软件源更新和服务运行异常。</p></header><img class=article-cover src=/posts/linux/ubuntu-nodejs-nvm-chrony/assets/cover.svg alt><div class=article-content><p>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 <code>Asia/Shanghai</code>，再用 <code>chrony</code> 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。</p><h2 id=时间同步和北京时间的关系>时间同步和北京时间的关系</h2><p>这里要分清两件事：</p><ul><li><code>Asia/Shanghai</code> 负责把系统显示时区设为北京时间，也就是 UTC+8。</li><li><code>chrony</code> 负责通过 NTP 校准系统时钟，让时间本身准确。</li></ul><p>所以只安装 <code>chrony</code> 不等于设置北京时间；只设置 <code>Asia/Shanghai</code> 也不等于时间已经校准。两个都做完，<code>date</code> 看到的时间才会是准确的北京时间。</p><h2 id=一设置时区为北京时间>一、设置时区为北京时间</h2><p>先查看当前时间和时区：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate"</script></div><p>设置系统时区为北京时间：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo timedatectl set-timezone Asia/Shanghai</span></span></code></pre></div><script class=code-source type=application/json>"sudo timedatectl set-timezone Asia/Shanghai"</script></div><p>再次确认：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate"</script></div><p><code>timedatectl</code> 输出里应能看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Time zone: Asia/Shanghai (CST, +0800)</span></span></code></pre></div><script class=code-source type=application/json>"Time zone: Asia/Shanghai (CST, +0800)"</script></div><p><code>date</code> 输出里也应该出现 <code>CST</code> 或 <code>+0800</code>。这一步只负责时区显示，不负责从网络校准时间。</p><h2 id=二使用-chrony-校准系统时间>二、使用 chrony 校准系统时间</h2><p>Ubuntu 默认可以使用 <code>systemd-timesyncd</code> 做基础时间同步，但服务器环境更推荐使用 <code>chrony</code>。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。</p><p>先安装 <code>chrony</code>：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt update
+</span></span><span style=display:flex><span>sudo apt install -y chrony</span></span></code></pre></div><script class=code-source type=application/json>"sudo apt update\nsudo apt install -y chrony"</script></div><p>编辑配置文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo nvim /etc/chrony/chrony.conf</span></span></code></pre></div><script class=code-source type=application/json>"sudo nvim /etc/chrony/chrony.conf"</script></div><p style=color:#c2410c;font-weight:700>清空或覆盖 <code>/etc/chrony/chrony.conf</code>，写入以下完整配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span># 定义上游 NTP 服务器池，iburst 用于加速初始同步
+</span></span><span style=display:flex><span>pool ntp.ubuntu.com        iburst maxsources 4
+</span></span><span style=display:flex><span>pool 0.ubuntu.pool.ntp.org iburst maxsources 1
+</span></span><span style=display:flex><span>pool 1.ubuntu.pool.ntp.org iburst maxsources 1
+</span></span><span style=display:flex><span>pool 2.ubuntu.pool.ntp.org iburst maxsources 2
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span># 记录系统时钟漂移速率
+</span></span><span style=display:flex><span>driftfile /var/lib/chrony/chrony.drift
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span># 系统刚启动时，如果前 3 次更新时间误差大于 1 秒，则允许直接校正
+</span></span><span style=display:flex><span>makestep 1 3
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span># 启用内核同步硬件时钟
+</span></span><span style=display:flex><span>rtcsync</span></span></code></pre></div><script class=code-source type=application/json>"# 定义上游 NTP 服务器池，iburst 用于加速初始同步\npool ntp.ubuntu.com        iburst maxsources 4\npool 0.ubuntu.pool.ntp.org iburst maxsources 1\npool 1.ubuntu.pool.ntp.org iburst maxsources 1\npool 2.ubuntu.pool.ntp.org iburst maxsources 2\n\n# 记录系统时钟漂移速率\ndriftfile /var/lib/chrony/chrony.drift\n\n# 系统刚启动时，如果前 3 次更新时间误差大于 1 秒，则允许直接校正\nmakestep 1 3\n\n# 启用内核同步硬件时钟\nrtcsync"</script></div><p>重启并设置开机启动：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo systemctl restart chrony
+</span></span><span style=display:flex><span>sudo systemctl enable chrony</span></span></code></pre></div><script class=code-source type=application/json>"sudo systemctl restart chrony\nsudo systemctl enable chrony"</script></div><p>查看当前 NTP 源状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>chronyc sources -v</span></span></code></pre></div><script class=code-source type=application/json>"chronyc sources -v"</script></div><p>输出里带 <code>^*</code> 的那一行表示当前正在使用的主要同步源。继续查看系统时钟同步详情：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>chronyc tracking</span></span></code></pre></div><script class=code-source type=application/json>"chronyc tracking"</script></div><p>最后确认系统时间和同步状态：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>timedatectl
+</span></span><span style=display:flex><span>date</span></span></code></pre></div><script class=code-source type=application/json>"timedatectl\ndate"</script></div><p>重点看这几项：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>Time zone: Asia/Shanghai (CST, +0800)
+</span></span><span style=display:flex><span>System clock synchronized: yes
+</span></span><span style=display:flex><span>NTP service: active</span></span></code></pre></div><script class=code-source type=application/json>"Time zone: Asia/Shanghai (CST, +0800)\nSystem clock synchronized: yes\nNTP service: active"</script></div><p>如果 <code>date</code> 显示的是北京时间，且 <code>timedatectl</code> 里同步状态正常，就说明时区和时间同步都已经处理好了。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

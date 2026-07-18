@@ -1,117 +1,95 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Matrix on 电脑自习室</title>
-    <link>https://purodn.tk/tags/matrix/</link>
-    <description>Recent content in Matrix on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 07 Jun 2026 07:35:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/matrix/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title>
-      <link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link>
-      <pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid>
-      <description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。&#xA;上游项目是 SultanAlburaq/matrix-element-call-musicbot。本文使用的是我整理后的 Docker 部署包 hanigege/matrix-element-call-musicbot-docker-pro，它保留上游镜像，通过只读挂载增强版 patches/bot.py，补上电台短命令、Podcast RSS 别名、房间白名单和管理员控制边界。&#xA;本文使用的实际环境如下：&#xA;复制Matrix server_name: 666666.xyz Synapse client API: https://matrix.666666.xyz:12335 Docker 数据目录: /root/data/docker_data MusicBot 账号: @musicbot:666666.xyz MusicBot 目录: /root/data/docker_data/matrix-musicbot Docker 网络: matrix 这个机器人适合在 Matrix 房间里用命令点歌、播放 URL 或网络电台，然后把声音推入 Element Call。它不是普通聊天窗口里的音频播放器：要听到声音，用户自己的 Element 客户端也必须点击右上角“加入”进入通话。&#xA;如果只是想复刻本文的生产方案，推荐直接使用 Docker 部署包：&#xA;复制git clone https://github.com/hanigege/matrix-element-call-musicbot-docker-pro.git cd matrix-element-call-musicbot-docker-pro cp .env.example .env vi .env chmod +x scripts/*.sh ./scripts/install.sh 这会渲染 config/config.</description>
-    </item>
-    <item>
-      <title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</title>
-      <link>https://purodn.tk/posts/ai/hermes-backup-migration/</link>
-      <pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-backup-migration/</guid>
-      <description>Hermes Agent 自带 backup 和 import，适合把一台机器上的 Hermes 环境完整搬到另一台机器。它不是只导出一份配置文件，而是把 profile、技能、记忆、会话历史、认证状态和本地数据库一起打包。&#xA;如果你已经有一个默认助手和一个开发助手，例如默认 profile 用来日常聊天，coder profile 用来写代码和运维，那么迁移时不需要分别手工复制两个目录。正常情况下，一个 hermes backup 就能把它们一起带走。&#xA;这篇教程按公版写法整理：旧机器备份，新机器安装，导入备份，恢复 gateway，再检查 Matrix 反向代理和客户端地址。&#xA;迁移前先确认什么 开始前建议确认三件事：&#xA;旧机器上的 Hermes 能正常启动。 新机器可以访问 GitHub 或能通过其他方式安装 Hermes。 你知道 Hermes 运行在哪个系统用户下，例如当前登录用户、hermes 用户或其他专用用户。 后续命令默认在运行 Hermes 的那个用户下执行。不要一会儿用普通用户，一会儿用 root，否则导入后的数据可能落到不同 home 目录里。&#xA;先确认当前用户和 Hermes 命令位置：&#xA;复制whoami echo &amp;#34;$HOME&amp;#34; command -v hermes hermes --version 如果 Hermes 是 systemd user service，后续也要用同一个用户管理 gateway：&#xA;复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 备份包会包含什么 hermes backup 会把 Hermes 的本地数据打成一个 zip 包。实际包含内容会随 Hermes 版本和本机配置略有变化，但迁移时可以按下面理解：</description>
-    </item>
-    <item>
-      <title>Matrix 非标准端口用 Cloudflare Worker 让 Element 默认不加密房间</title>
-      <link>https://purodn.tk/posts/docker/matrix-worker-well-known-disable-e2ee/</link>
-      <pubDate>Mon, 25 May 2026 15:45:18 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-worker-well-known-disable-e2ee/</guid>
-      <description>Matrix 客户端在登录和发现 Homeserver 时，会优先访问服务器名下面的标准 well-known 地址：&#xA;复制https://example.com/.well-known/matrix/client 这个入口默认就是 HTTPS 443。即使 Synapse 实际监听在非标准端口，例如：&#xA;复制https://matrix.example.com:12335 客户端发现配置时仍然会先找 https://example.com/.well-known/matrix/client。所以没有本机 443，或者 443 不能直接给 Matrix 使用时，可以让 Cloudflare Worker 在 Cloudflare 边缘承接这个标准入口，再把真实 Homeserver 地址公告给客户端。&#xA;本文同时记录一个常见需求：通过 /.well-known/matrix/client 给 Element 客户端下发 E2EE 策略，让支持该配置的 Element 客户端默认不创建加密房间，并隐藏或禁用加密入口。&#xA;能解决什么 这套方案解决的是两个问题：&#xA;服务器本机没有标准 443，Synapse 只能放在自定义 HTTPS 端口。 希望 Element 客户端读取 well-known 后，默认不启用端到端加密。 最终访问链路是：&#xA;复制Element 客户端 -&amp;gt; https://example.com/.well-known/matrix/client -&amp;gt; Cloudflare Worker 返回 JSON -&amp;gt; m.homeserver.base_url 指向 https://matrix.example.com:12335 如果还部署了 MatrixRTC / LiveKit，也可以在同一个 JSON 里继续公告 JWT 服务地址。</description>
-    </item>
-    <item>
-      <title>Synapse 非 443 端口下禁止用户创建加密房间</title>
-      <link>https://purodn.tk/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/</link>
-      <pubDate>Mon, 25 May 2026 08:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/</guid>
-      <description>这篇记录一个特殊整改方案：Matrix Synapse 的客户端访问地址不是标准 443，而是类似：&#xA;复制public_baseurl: &amp;#34;https://matrix.example.com:12335&amp;#34; 在这种部署里，不打算依赖 .well-known 或客户端侧配置来约束房间加密，而是直接在 Synapse 服务端禁止用户创建加密房间，也禁止用户在普通房间里手动开启端到端加密。&#xA;这个方案能做到“服务端强制”，但它不是一个无副作用的通用推荐方案。Element、Element X、Element Classic 在添加好友或发起私聊时，可能会默认夹带 m.room.encryption 初始状态。服务端如果强制拒绝这类请求，部分客户端会出现建房失败、一直转圈、显示空房间等兼容性问题。&#xA;所以这篇更适合做故障记录和方案备忘：知道怎么做，也知道什么时候不该做。&#xA;目标 目标是让 Synapse 服务端满足以下规则：&#xA;新房间默认不启用加密。 客户端创建房间时如果携带 m.room.encryption，服务端拒绝。 客户端在已有房间里发送 m.room.encryption 状态事件，服务端拒绝。 已经加密的旧房间不尝试转换，因为 Matrix 加密房间不能原地变回非加密房间。 最终表现是：只要请求试图把房间变成加密房间，Synapse 返回 403 Forbidden。&#xA;为什么不能只改客户端 Element 客户端里可以设置默认是否创建加密房间，但这不是强制边界。用户换客户端、换版本，或者客户端在创建私聊时自动携带初始加密状态，都可能绕过“默认不加密”的 UI 设置。&#xA;真正需要拦截的是 Matrix 事件本身：&#xA;复制m.room.encryption 只要这个状态事件成功进入房间，房间就成为加密房间，后续无法原地关闭。&#xA;因此服务端要拦两条路径：&#xA;createRoom 请求里的 initial_state 携带 m.room.encryption。 已存在房间里后续发送 m.room.encryption 状态事件。 路径约定 本文以 Docker 部署为例：&#xA;复制/opt/synapse/ 相关文件：&#xA;复制/opt/synapse/docker-compose.yml /opt/synapse/data/homeserver.yaml /opt/synapse/data/modules/no_room_encryption.py Synapse 容器名：&#xA;复制matrix-synapse 如果你的路径或容器名不同，照着替换即可。&#xA;第一步：备份配置 先进入部署目录：&#xA;复制cd /opt/synapse 备份 Compose 和 Synapse 配置：</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 机器人：天气推送与服务器监控提醒</title>
-      <link>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</link>
-      <pubDate>Mon, 25 May 2026 00:53:44 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</guid>
-      <description>这篇记录一个很实用的小自动化：在自建 Matrix Synapse 上创建一个真正的机器人账号 @bot:666666.xyz。本服用户可以主动邀请它，发送“帮助”查看命令，发送“设置天气时间 07:30”自行设置每日天气推送时间；管理员仍然可以接收磁盘、Docker、TURN / LiveKit 等服务器监控提醒。&#xA;这个方案不是 Synapse Server Notices，而是普通 Matrix 机器人账号。好处是体验更像一个联系人：用户可以手动邀请它进私聊，普通用户只使用天气功能，服务器监控提醒则只发给管理员。&#xA;一、最终效果 完成后会得到这些文件和配置：&#xA;复制机器人账号: @bot:666666.xyz 机器人 token: /root/.config/matrix-bot/access_token 机器人密码: /root/.config/matrix-bot/bot-password 主脚本: /root/data/docker_data/synapse/scripts/matrix-bot-weather.py 配置文件: /root/data/docker_data/synapse/scripts/matrix-bot-weather.json 定时包装脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather.sh 天气循环脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather-loop.sh 天气 OpenRC 服务: /etc/init.d/matrix-bot-weather 聊天同步脚本: /root/data/docker_data/synapse/scripts/matrix-bot-sync.py 聊天同步 OpenRC 服务: /etc/init.d/matrix-bot-sync 日志: /var/log/matrix-bot-weather.log /var/log/matrix-bot-sync.log 监控脚本: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.py 监控配置: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.json 监控日志: /var/log/matrix-bot-monitor.log 天气推送和聊天命令使用 OpenRC 常驻服务控制。天气服务每 20 秒检查一次配置，谁到了自己的推送时间，就给谁发送天气；聊天同步服务每 20 秒处理一次邀请和命令。&#xA;复制rc-service matrix-bot-weather status rc-service matrix-bot-sync status 服务器监控提醒仍然由 root crontab 控制：&#xA;复制*/5 * * * * /root/data/docker_data/synapse/scripts/run-matrix-bot-monitor.</description>
-    </item>
-    <item>
-      <title>Matrix Synapse Server Notices：给用户发送媒体清理规则通知</title>
-      <link>https://purodn.tk/posts/docker/synapse-server-notices-media-policy/</link>
-      <pubDate>Fri, 22 May 2026 10:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/synapse-server-notices-media-policy/</guid>
-      <description>自建 Matrix Synapse 做媒体维护之前，最好先告诉用户规则。否则用户只知道“为什么不建议发大文件”，不知道服务器正在控制媒体仓库体积。&#xA;这里说的 media_store 不是“视频文件夹”。它是 Synapse 的媒体仓库，聊天里上传或缓存下来的媒体类内容都会放到这里。常见内容包括：&#xA;聊天图片、截图、表情包、动图和视频。 语音消息、音频文件、PDF、压缩包、文档等普通附件。 用户头像和房间头像。 Synapse 为图片、视频等生成的缩略图。 远程服务器媒体缓存，也就是本服用户查看过的其他服务器上的图片或文件副本。 URL 预览缓存，例如链接预览抓取到的图片和缩略图。 所以媒体维护规则影响的不是某一种文件，而是整个 Synapse 媒体仓库。本地上传的大图片、动图、视频、语音、文档和压缩包都会按大小和时间进入清理规则；远程服务器媒体缓存会定期清理；头像和房间头像也建议控制在 5MiB 以内，避免变成长期的大媒体负担。&#xA;本文目标是用 Synapse 官方的 Server Notices 给本服用户发送一条系统通知，内容类似：&#xA;复制5MiB 以内文件长期保留 超过 5MiB 的文件，90 天后清理 超过 100MiB 的超大文件 7 天后清理 重要文件请自行保存 这里不是做“每次上传都实时提醒”。实时拦截上传需要额外模块或反代日志分析，复杂度更高。Server Notices 更适合做上线公告、规则变更通知和新用户补发。&#xA;关于头像这条规则要先说清楚：清理脚本使用 keep_profiles=true，会尽量保留仍被用户头像、房间头像等 profile image 使用的媒体。通知里写“头像和房间头像建议不要超过 5MiB”，主要是为了减少客户端加载压力和长期存储负担。&#xA;官方参考：&#xA;Server Notices 配置说明：https://element-hq.github.io/synapse/latest/server_notices.html Server Notices Admin API：https://element-hq.github.io/synapse/latest/admin_api/server_notices.html 一、准备信息 下面示例统一使用这些占位值：&#xA;复制Matrix server_name: 666666.xyz Synapse 本机地址: http://127.0.0.1:8008 管理员 token 文件: /root/.config/synapse-admin/access_token Server Notices 系统账号: @server:666666.</description>
-    </item>
-    <item>
-      <title>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</title>
-      <link>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</link>
-      <pubDate>Fri, 22 May 2026 05:18:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</guid>
-      <description>这篇记录一个很实用的小组件：在 Matrix Synapse 同一台 Docker 主机上单独跑一个 Element Web，用来登录管理员账号、获取 access token、验证 Synapse 登录和 MatrixRTC 配置。&#xA;它不是 Element Call。这里的 web-call 只是本地目录名，实际跑的是 Element Web 客户端，也就是浏览器版 Matrix 客户端。它适合下面这些场景：&#xA;临时登录管理员账号，获取 Synapse Admin API token。 不想在公网 Element、桌面端或手机端里折腾管理员账号。 需要一个固定指向自己 Synapse 的内网 Matrix Web 客户端。 浏览器访问 http://10.20.20.8:8181 提示不支持、白屏或一直转圈。 本文示例用：&#xA;复制Docker 主机内网 IP: 10.20.20.8 Matrix server_name: 666666.xyz Synapse 客户端地址: https://matrix.666666.xyz:12335 Element Web 域名: https://element.666666.xyz:12335 部署路径: /root/data/docker_data/web-call 实际使用时，把 666666.xyz 换成自己的域名。&#xA;一、为什么不直接访问 IP Element Web 对浏览器安全上下文比较敏感。你直接打开：&#xA;复制http://10.20.20.8:8181 可能会看到：&#xA;复制Element does not support this browser 或者点了继续后一直转圈。这通常不是容器坏了，而是浏览器把普通内网 IP 的 HTTP 页面当成不安全上下文。一些 Web API、存储能力或加密相关能力在这种上下文里会受限制。</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link>
-      <pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid>
-      <description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。&#xA;三套方案的选择可以这样理解：&#xA;没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：&#xA;复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：Cloudflare Worker 与 NPM 部署方案</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</link>
-      <pubDate>Wed, 20 May 2026 21:05:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</guid>
-      <description>这篇是 Matrix Synapse 接入 LiveKit 的另一套部署路线：不使用 Cloudflare Tunnel 承载 JWT / LiveKit 的控制链路，而是让 Cloudflare Worker 只负责标准 HTTPS 443 上的 /.well-known/matrix/client 和 /.well-known/matrix/server，真正的 Synapse、matrix-livekit-jwt-service、LiveKit server 和 ntfy 仍然交给 Nginx Proxy Manager（NPM）反代。&#xA;如果你在中国大陆地区使用 Cloudflare Tunnel 版时遇到呼叫界面白屏、发起呼叫慢、等待 8 秒以上才弹出呼叫界面，但 coturn 传统通话正常，那么问题通常不在 coturn，而是在 MatrixRTC 这条新链路里的 JWT / LiveKit HTTPS 与 WebSocket 控制路径。只要你的网络环境允许转发自定义端口，本文这种 Worker + NPM 方案通常更稳。&#xA;本文按一次真实生产迁移后的配置重新整理，重点是：&#xA;NPM 配置全部通过 NPM UI 管理，后台能看到，不使用隐藏的手写 nginx 配置。 Cloudflare Worker 只接管 666666.xyz/.well-known/matrix/*。 NPM 用 12335、12336、12337、12338 暴露实际服务。 LiveKit 媒体走真实 UDP 端口，不走 NPM，不走 Worker，不走 Cloudflare HTTP 代理。 示例域名统一写成 666666.</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：Cloudflare Tunnel 免 NPM Docker Compose 部署</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-docker-compose/</link>
-      <pubDate>Wed, 20 May 2026 10:40:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-docker-compose/</guid>
-      <description>这篇记录一套已经实际跑通的 Matrix Synapse 接入 LiveKit 语音视频方案：公网 HTTPS 入口走 Cloudflare Tunnel，Docker 主机上的 LiveKit server、matrix-livekit-jwt-service、coturn 都使用 network_mode: host，全程不走 Nginx Proxy Manager。&#xA;先把限制说在前面：如果主要使用地点在中国大陆，这套方案不一定稳定，尤其不适合把 LiveKit 呼叫控制面长期压在 Cloudflare Tunnel 上。实际现象可能是 coturn 老通话路径正常，但使用 LiveKit / MatrixRTC 呼叫时，Element 点呼叫后白屏、等待 8 秒甚至更久才弹出呼叫界面。这个问题通常不是 coturn relay 端口的问题，而是 LiveKit 相关的 HTTPS / WebSocket / JWT 控制链路经 Tunnel 后延迟和抖动变大。&#xA;如果你有稳定公网 80/443，优先看“公网 443 标准部署方案”。如果没有本地标准 443，但能转发自定义 HTTPS 端口并想继续用 NPM，优先看“Cloudflare Worker 与 NPM 部署方案”。本文更适合作为没有公网 443 时的临时方案、验证方案，或者对呼叫启动延迟不敏感的环境。&#xA;这不是 Synapse 从零安装篇，而是在已经有 Matrix Synapse 的基础上补齐新版 Element / MatrixRTC 需要的 LiveKit 后端。本文示例里：</description>
-    </item>
-    <item>
-      <title>2026 年 Matrix 消息过期自动删除配置</title>
-      <link>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</link>
-      <pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</guid>
-      <description>这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 retention，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 expiringmessages 插件，让机器人在房间里按时间撤回消息。&#xA;如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 retention。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。&#xA;一、两种方案怎么选 服务器端 retention 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 homeserver.yaml 并重启 Synapse，而且房间还需要设置 m.room.retention 状态事件。&#xA;机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 redact 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。&#xA;简单理解：&#xA;有 Synapse 管理权限：优先用 retention。 只有房间管理权限：可以用 maubot 机器人。 对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。 二、方案一：启用 Synapse retention 先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：&#xA;复制nvim /root/data/docker_data/synapse/data/homeserver.yaml 在 homeserver.yaml 中加入或调整下面这段配置。注意：retention: 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。&#xA;复制retention: enabled: true default_policy: max_lifetime: 3d allowed_lifetime_max: 3d purge_jobs: - interval: 1d 这段配置的含义是：&#xA;enabled: true：启用 Synapse 的消息保留策略。 default_policy.</description>
-    </item>
-    <item>
-      <title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</title>
-      <link>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</link>
-      <pubDate>Tue, 19 May 2026 20:08:12 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</guid>
-      <description>这篇记录 coturn TURN 服务器的 Docker Compose 部署方式。coturn 主要用于解决 Matrix 语音、视频通话中的 NAT 穿透问题，部署好之后可以在 Synapse 的 homeserver.yaml 中配置 turn_uris 和共享密钥。&#xA;前面 Synapse、Nginx Proxy Manager、ntfy 这类 HTTP 服务适合统一接入 matrix bridge 网络，反代容器可以直接通过容器名访问它们。但 coturn 不太一样：TURN 服务要直接处理 3478/udp 和一整段 UDP 中继端口。这里按小规模自用场景收窄为 50000-50200/udp，大约 200 个 UDP 中继端口；如果用 Docker bridge 网络再映射端口段，启动容器时仍然可能比 host 网络慢。&#xA;所以本文的 coturn 改用 network_mode: host：coturn 直接监听宿主机端口，不再加入 matrix Docker 网络。Synapse 仍然通过公网域名和共享密钥使用 coturn，不需要和 coturn 在同一个 Docker 网络里。&#xA;一、准备目录 先创建 coturn 的配置目录：&#xA;复制mkdir -p /root/data/docker_data/coturn/etc/coturn cd /root/data/docker_data/coturn/etc/coturn 创建基础配置文件：</description>
-    </item>
-    <item>
-      <title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title>
-      <link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link>
-      <pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid>
-      <description>这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。&#xA;这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 8008 端口映射到宿主机 8008，方便内网客户端访问或后续接入反代。&#xA;网络方面使用统一的 matrix bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。&#xA;注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。&#xA;一、安装基础环境 如果宿主机还没有 Docker，可以先更新系统并安装常用工具：&#xA;复制apt update -y &amp;amp;&amp;amp; apt upgrade -y apt install -y curl wget sudo socat 安装 Docker：&#xA;复制curl -fsSL https://get.docker.com -o get-docker.sh sh get-docker.sh 如果你的系统还没有 docker compose，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。</description>
-    </item>
-    <item>
-      <title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title>
-      <link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link>
-      <pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid>
-      <description>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 matrix，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。&#xA;如果你的反代入口也接在 matrix 网络里，NPM 后台就可以直接用容器名 ntfy 作为上游地址。&#xA;一、先确认 matrix 网络 如果前面已经创建过 matrix 网络，这一步可以跳过。否则先在宿主机终端创建：&#xA;复制docker network create matrix 查看网络是否存在：&#xA;复制docker network ls | grep matrix 后续需要被反代的容器，都建议统一接入这个网络。&#xA;二、准备数据目录 这份配置把 ntfy 的缓存和配置目录挂载到宿主机：&#xA;复制/root/data/docker_data/ntfy/data/cache /root/data/docker_data/ntfy/data/config 可以先创建目录：&#xA;复制mkdir -p /root/data/docker_data/ntfy/data/cache mkdir -p /root/data/docker_data/ntfy/data/config 其中：&#xA;cache 用来保存 ntfy 的缓存数据。 config 对应容器内的 /etc/ntfy，后续可以放置 ntfy 配置文件。 三、创建 docker-compose.yml 新建并编辑 docker-compose.yml：&#xA;复制nvim docker-compose.yml 写入下面的配置：&#xA;复制services: ntfy: image: binwiederhier/ntfy:latest container_name: ntfy command: - serve environment: - TZ=Asia/Shanghai volumes: - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy - /root/data/docker_data/ntfy/data/config:/etc/ntfy restart: unless-stopped networks: - matrix networks: matrix: external: true name: matrix 这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 matrix 网络内访问 ntfy。</description>
-    </item>
-    <item>
-      <title>Matrix 安装 Element Call 加密通话组件教程：使用单域名</title>
-      <link>https://purodn.tk/posts/docker/matrix-element-call-livekit-selfhosted/</link>
-      <pubDate>Fri, 02 May 2025 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-element-call-livekit-selfhosted/</guid>
-      <description>Matrix 通信网络协议最常用的客户端 Element 过去一直使用免费的 Jitsi 作为群组视频会议组件。一对一音视频通话则相对复杂：如果双方客户端具有公网 IP，则可以建立点对点连接；否则需要通话发起方的服务端托管 TURN 服务来绕过网络地址转换 (NAT)，中继 WebRTC 连接。&#xA;现在这一情况已得到改善。Elment.io 开源了原生的 Matrix 视频会议应用程序 element-call。它的优势在于端到端加密、流畅性，以及基于 LiveKit 的可扩展后端；缺点是与 Jitsi 相比功能仍较为简陋，例如缺少背景虚化、主持功能等。&#xA;Element Call 客户端组件现已内置于 Element 桌面和网页端，并在新一代移动端 Element X 上作为唯一的通话组件。这意味着从 Jitsi 和 TURN 发起的呼叫无法在 X 移动端显示。该组件需要连接到 MatrixRTC 后端才能使用。根据官方博客 ，从 2025 年 5 月开始，Element 将不再为社区提供免费的 MatrixRTC 后端服务，因此 Matrix 站长需要自行搭建。不过这并不是紧迫的任务，因为 Element X 功能尚不完善，还不足以完全替代旧的移动端。&#xA;本教程适用于在家庭服务器（如 NAS）上自建该服务。&#xA;服务概述 Element Call 包含两个服务：Matrix Livekit JWT 身份验证服务和 Livekit SFU WebSocket 信令连接。它们的通信流程如下：&#xA;当用户从客户端发起呼叫时，首先会访问 matrix 域名的 /.well-known/matrix/client 路径查找后端 Livekit JWT 服务地址。JWT 将为指定房间生成具有特定身份的 JWT 令牌，随后客户端与 Livekit SFU 建立安全的 WebSocket 通信，SFU 使用 WebRTC 端口进行实时语音或视频对话。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matrix on 电脑自习室</title><link>https://purodn.tk/tags/matrix/</link><description>Recent content in Matrix on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 07 Jun 2026 07:35:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/matrix/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title><link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link><pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid><description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。
+上游项目是 SultanAlburaq/matrix-element-call-musicbot。本文使用的是我整理后的 Docker 部署包 hanigege/matrix-element-call-musicbot-docker-pro，它保留上游镜像，通过只读挂载增强版 patches/bot.py，补上电台短命令、Podcast RSS 别名、房间白名单和管理员控制边界。
+本文使用的实际环境如下：
+复制Matrix server_name: 666666.xyz Synapse client API: https://matrix.666666.xyz:12335 Docker 数据目录: /root/data/docker_data MusicBot 账号: @musicbot:666666.xyz MusicBot 目录: /root/data/docker_data/matrix-musicbot Docker 网络: matrix 这个机器人适合在 Matrix 房间里用命令点歌、播放 URL 或网络电台，然后把声音推入 Element Call。它不是普通聊天窗口里的音频播放器：要听到声音，用户自己的 Element 客户端也必须点击右上角“加入”进入通话。
+如果只是想复刻本文的生产方案，推荐直接使用 Docker 部署包：
+复制git clone https://github.com/hanigege/matrix-element-call-musicbot-docker-pro.git cd matrix-element-call-musicbot-docker-pro cp .env.example .env vi .env chmod +x scripts/*.sh ./scripts/install.sh 这会渲染 config/config.</description></item><item><title>Hermes Agent 备份与迁移教程：backup / import 一次搬走全部数据</title><link>https://purodn.tk/posts/ai/hermes-backup-migration/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-backup-migration/</guid><description>Hermes Agent 自带 backup 和 import，适合把一台机器上的 Hermes 环境完整搬到另一台机器。它不是只导出一份配置文件，而是把 profile、技能、记忆、会话历史、认证状态和本地数据库一起打包。
+如果你已经有一个默认助手和一个开发助手，例如默认 profile 用来日常聊天，coder profile 用来写代码和运维，那么迁移时不需要分别手工复制两个目录。正常情况下，一个 hermes backup 就能把它们一起带走。
+这篇教程按公版写法整理：旧机器备份，新机器安装，导入备份，恢复 gateway，再检查 Matrix 反向代理和客户端地址。
+迁移前先确认什么 开始前建议确认三件事：
+旧机器上的 Hermes 能正常启动。 新机器可以访问 GitHub 或能通过其他方式安装 Hermes。 你知道 Hermes 运行在哪个系统用户下，例如当前登录用户、hermes 用户或其他专用用户。 后续命令默认在运行 Hermes 的那个用户下执行。不要一会儿用普通用户，一会儿用 root，否则导入后的数据可能落到不同 home 目录里。
+先确认当前用户和 Hermes 命令位置：
+复制whoami echo &amp;#34;$HOME&amp;#34; command -v hermes hermes --version 如果 Hermes 是 systemd user service，后续也要用同一个用户管理 gateway：
+复制systemctl --user list-units &amp;#39;hermes*&amp;#39; --no-pager 备份包会包含什么 hermes backup 会把 Hermes 的本地数据打成一个 zip 包。实际包含内容会随 Hermes 版本和本机配置略有变化，但迁移时可以按下面理解：</description></item><item><title>Matrix 非标准端口用 Cloudflare Worker 让 Element 默认不加密房间</title><link>https://purodn.tk/posts/docker/matrix-worker-well-known-disable-e2ee/</link><pubDate>Mon, 25 May 2026 15:45:18 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-worker-well-known-disable-e2ee/</guid><description>Matrix 客户端在登录和发现 Homeserver 时，会优先访问服务器名下面的标准 well-known 地址：
+复制https://example.com/.well-known/matrix/client 这个入口默认就是 HTTPS 443。即使 Synapse 实际监听在非标准端口，例如：
+复制https://matrix.example.com:12335 客户端发现配置时仍然会先找 https://example.com/.well-known/matrix/client。所以没有本机 443，或者 443 不能直接给 Matrix 使用时，可以让 Cloudflare Worker 在 Cloudflare 边缘承接这个标准入口，再把真实 Homeserver 地址公告给客户端。
+本文同时记录一个常见需求：通过 /.well-known/matrix/client 给 Element 客户端下发 E2EE 策略，让支持该配置的 Element 客户端默认不创建加密房间，并隐藏或禁用加密入口。
+能解决什么 这套方案解决的是两个问题：
+服务器本机没有标准 443，Synapse 只能放在自定义 HTTPS 端口。 希望 Element 客户端读取 well-known 后，默认不启用端到端加密。 最终访问链路是：
+复制Element 客户端 -&amp;gt; https://example.com/.well-known/matrix/client -&amp;gt; Cloudflare Worker 返回 JSON -&amp;gt; m.homeserver.base_url 指向 https://matrix.example.com:12335 如果还部署了 MatrixRTC / LiveKit，也可以在同一个 JSON 里继续公告 JWT 服务地址。</description></item><item><title>Synapse 非 443 端口下禁止用户创建加密房间</title><link>https://purodn.tk/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/</link><pubDate>Mon, 25 May 2026 08:30:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-disable-encrypted-rooms-nonstandard-port/</guid><description>这篇记录一个特殊整改方案：Matrix Synapse 的客户端访问地址不是标准 443，而是类似：
+复制public_baseurl: &amp;#34;https://matrix.example.com:12335&amp;#34; 在这种部署里，不打算依赖 .well-known 或客户端侧配置来约束房间加密，而是直接在 Synapse 服务端禁止用户创建加密房间，也禁止用户在普通房间里手动开启端到端加密。
+这个方案能做到“服务端强制”，但它不是一个无副作用的通用推荐方案。Element、Element X、Element Classic 在添加好友或发起私聊时，可能会默认夹带 m.room.encryption 初始状态。服务端如果强制拒绝这类请求，部分客户端会出现建房失败、一直转圈、显示空房间等兼容性问题。
+所以这篇更适合做故障记录和方案备忘：知道怎么做，也知道什么时候不该做。
+目标 目标是让 Synapse 服务端满足以下规则：
+新房间默认不启用加密。 客户端创建房间时如果携带 m.room.encryption，服务端拒绝。 客户端在已有房间里发送 m.room.encryption 状态事件，服务端拒绝。 已经加密的旧房间不尝试转换，因为 Matrix 加密房间不能原地变回非加密房间。 最终表现是：只要请求试图把房间变成加密房间，Synapse 返回 403 Forbidden。
+为什么不能只改客户端 Element 客户端里可以设置默认是否创建加密房间，但这不是强制边界。用户换客户端、换版本，或者客户端在创建私聊时自动携带初始加密状态，都可能绕过“默认不加密”的 UI 设置。
+真正需要拦截的是 Matrix 事件本身：
+复制m.room.encryption 只要这个状态事件成功进入房间，房间就成为加密房间，后续无法原地关闭。
+因此服务端要拦两条路径：
+createRoom 请求里的 initial_state 携带 m.room.encryption。 已存在房间里后续发送 m.room.encryption 状态事件。 路径约定 本文以 Docker 部署为例：
+复制/opt/synapse/ 相关文件：
+复制/opt/synapse/docker-compose.yml /opt/synapse/data/homeserver.yaml /opt/synapse/data/modules/no_room_encryption.py Synapse 容器名：
+复制matrix-synapse 如果你的路径或容器名不同，照着替换即可。
+第一步：备份配置 先进入部署目录：
+复制cd /opt/synapse 备份 Compose 和 Synapse 配置：</description></item><item><title>Matrix Synapse 机器人：天气推送与服务器监控提醒</title><link>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</link><pubDate>Mon, 25 May 2026 00:53:44 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-weatherbot-daily-shanghai/</guid><description>这篇记录一个很实用的小自动化：在自建 Matrix Synapse 上创建一个真正的机器人账号 @bot:666666.xyz。本服用户可以主动邀请它，发送“帮助”查看命令，发送“设置天气时间 07:30”自行设置每日天气推送时间；管理员仍然可以接收磁盘、Docker、TURN / LiveKit 等服务器监控提醒。
+这个方案不是 Synapse Server Notices，而是普通 Matrix 机器人账号。好处是体验更像一个联系人：用户可以手动邀请它进私聊，普通用户只使用天气功能，服务器监控提醒则只发给管理员。
+一、最终效果 完成后会得到这些文件和配置：
+复制机器人账号: @bot:666666.xyz 机器人 token: /root/.config/matrix-bot/access_token 机器人密码: /root/.config/matrix-bot/bot-password 主脚本: /root/data/docker_data/synapse/scripts/matrix-bot-weather.py 配置文件: /root/data/docker_data/synapse/scripts/matrix-bot-weather.json 定时包装脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather.sh 天气循环脚本: /root/data/docker_data/synapse/scripts/run-matrix-bot-weather-loop.sh 天气 OpenRC 服务: /etc/init.d/matrix-bot-weather 聊天同步脚本: /root/data/docker_data/synapse/scripts/matrix-bot-sync.py 聊天同步 OpenRC 服务: /etc/init.d/matrix-bot-sync 日志: /var/log/matrix-bot-weather.log /var/log/matrix-bot-sync.log 监控脚本: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.py 监控配置: /root/data/docker_data/synapse/scripts/matrix-bot-monitor.json 监控日志: /var/log/matrix-bot-monitor.log 天气推送和聊天命令使用 OpenRC 常驻服务控制。天气服务每 20 秒检查一次配置，谁到了自己的推送时间，就给谁发送天气；聊天同步服务每 20 秒处理一次邀请和命令。
+复制rc-service matrix-bot-weather status rc-service matrix-bot-sync status 服务器监控提醒仍然由 root crontab 控制：
+复制*/5 * * * * /root/data/docker_data/synapse/scripts/run-matrix-bot-monitor.</description></item><item><title>Matrix Synapse Server Notices：给用户发送媒体清理规则通知</title><link>https://purodn.tk/posts/docker/synapse-server-notices-media-policy/</link><pubDate>Fri, 22 May 2026 10:20:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-server-notices-media-policy/</guid><description>自建 Matrix Synapse 做媒体维护之前，最好先告诉用户规则。否则用户只知道“为什么不建议发大文件”，不知道服务器正在控制媒体仓库体积。
+这里说的 media_store 不是“视频文件夹”。它是 Synapse 的媒体仓库，聊天里上传或缓存下来的媒体类内容都会放到这里。常见内容包括：
+聊天图片、截图、表情包、动图和视频。 语音消息、音频文件、PDF、压缩包、文档等普通附件。 用户头像和房间头像。 Synapse 为图片、视频等生成的缩略图。 远程服务器媒体缓存，也就是本服用户查看过的其他服务器上的图片或文件副本。 URL 预览缓存，例如链接预览抓取到的图片和缩略图。 所以媒体维护规则影响的不是某一种文件，而是整个 Synapse 媒体仓库。本地上传的大图片、动图、视频、语音、文档和压缩包都会按大小和时间进入清理规则；远程服务器媒体缓存会定期清理；头像和房间头像也建议控制在 5MiB 以内，避免变成长期的大媒体负担。
+本文目标是用 Synapse 官方的 Server Notices 给本服用户发送一条系统通知，内容类似：
+复制5MiB 以内文件长期保留 超过 5MiB 的文件，90 天后清理 超过 100MiB 的超大文件 7 天后清理 重要文件请自行保存 这里不是做“每次上传都实时提醒”。实时拦截上传需要额外模块或反代日志分析，复杂度更高。Server Notices 更适合做上线公告、规则变更通知和新用户补发。
+关于头像这条规则要先说清楚：清理脚本使用 keep_profiles=true，会尽量保留仍被用户头像、房间头像等 profile image 使用的媒体。通知里写“头像和房间头像建议不要超过 5MiB”，主要是为了减少客户端加载压力和长期存储负担。
+官方参考：
+Server Notices 配置说明：https://element-hq.github.io/synapse/latest/server_notices.html Server Notices Admin API：https://element-hq.github.io/synapse/latest/admin_api/server_notices.html 一、准备信息 下面示例统一使用这些占位值：
+复制Matrix server_name: 666666.xyz Synapse 本机地址: http://127.0.0.1:8008 管理员 token 文件: /root/.config/synapse-admin/access_token Server Notices 系统账号: @server:666666.</description></item><item><title>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</title><link>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</link><pubDate>Fri, 22 May 2026 05:18:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</guid><description>这篇记录一个很实用的小组件：在 Matrix Synapse 同一台 Docker 主机上单独跑一个 Element Web，用来登录管理员账号、获取 access token、验证 Synapse 登录和 MatrixRTC 配置。
+它不是 Element Call。这里的 web-call 只是本地目录名，实际跑的是 Element Web 客户端，也就是浏览器版 Matrix 客户端。它适合下面这些场景：
+临时登录管理员账号，获取 Synapse Admin API token。 不想在公网 Element、桌面端或手机端里折腾管理员账号。 需要一个固定指向自己 Synapse 的内网 Matrix Web 客户端。 浏览器访问 http://10.20.20.8:8181 提示不支持、白屏或一直转圈。 本文示例用：
+复制Docker 主机内网 IP: 10.20.20.8 Matrix server_name: 666666.xyz Synapse 客户端地址: https://matrix.666666.xyz:12335 Element Web 域名: https://element.666666.xyz:12335 部署路径: /root/data/docker_data/web-call 实际使用时，把 666666.xyz 换成自己的域名。
+一、为什么不直接访问 IP Element Web 对浏览器安全上下文比较敏感。你直接打开：
+复制http://10.20.20.8:8181 可能会看到：
+复制Element does not support this browser 或者点了继续后一直转圈。这通常不是容器坏了，而是浏览器把普通内网 IP 的 HTTP 页面当成不安全上下文。一些 Web API、存储能力或加密相关能力在这种上下文里会受限制。</description></item><item><title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link><pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid><description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。
+三套方案的选择可以这样理解：
+没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：
+复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description></item><item><title>Matrix Synapse 接入 LiveKit：Cloudflare Worker 与 NPM 部署方案</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</link><pubDate>Wed, 20 May 2026 21:05:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</guid><description>这篇是 Matrix Synapse 接入 LiveKit 的另一套部署路线：不使用 Cloudflare Tunnel 承载 JWT / LiveKit 的控制链路，而是让 Cloudflare Worker 只负责标准 HTTPS 443 上的 /.well-known/matrix/client 和 /.well-known/matrix/server，真正的 Synapse、matrix-livekit-jwt-service、LiveKit server 和 ntfy 仍然交给 Nginx Proxy Manager（NPM）反代。
+如果你在中国大陆地区使用 Cloudflare Tunnel 版时遇到呼叫界面白屏、发起呼叫慢、等待 8 秒以上才弹出呼叫界面，但 coturn 传统通话正常，那么问题通常不在 coturn，而是在 MatrixRTC 这条新链路里的 JWT / LiveKit HTTPS 与 WebSocket 控制路径。只要你的网络环境允许转发自定义端口，本文这种 Worker + NPM 方案通常更稳。
+本文按一次真实生产迁移后的配置重新整理，重点是：
+NPM 配置全部通过 NPM UI 管理，后台能看到，不使用隐藏的手写 nginx 配置。 Cloudflare Worker 只接管 666666.xyz/.well-known/matrix/*。 NPM 用 12335、12336、12337、12338 暴露实际服务。 LiveKit 媒体走真实 UDP 端口，不走 NPM，不走 Worker，不走 Cloudflare HTTP 代理。 示例域名统一写成 666666.</description></item><item><title>Matrix Synapse 接入 LiveKit：Cloudflare Tunnel 免 NPM Docker Compose 部署</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-docker-compose/</link><pubDate>Wed, 20 May 2026 10:40:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-docker-compose/</guid><description>这篇记录一套已经实际跑通的 Matrix Synapse 接入 LiveKit 语音视频方案：公网 HTTPS 入口走 Cloudflare Tunnel，Docker 主机上的 LiveKit server、matrix-livekit-jwt-service、coturn 都使用 network_mode: host，全程不走 Nginx Proxy Manager。
+先把限制说在前面：如果主要使用地点在中国大陆，这套方案不一定稳定，尤其不适合把 LiveKit 呼叫控制面长期压在 Cloudflare Tunnel 上。实际现象可能是 coturn 老通话路径正常，但使用 LiveKit / MatrixRTC 呼叫时，Element 点呼叫后白屏、等待 8 秒甚至更久才弹出呼叫界面。这个问题通常不是 coturn relay 端口的问题，而是 LiveKit 相关的 HTTPS / WebSocket / JWT 控制链路经 Tunnel 后延迟和抖动变大。
+如果你有稳定公网 80/443，优先看“公网 443 标准部署方案”。如果没有本地标准 443，但能转发自定义 HTTPS 端口并想继续用 NPM，优先看“Cloudflare Worker 与 NPM 部署方案”。本文更适合作为没有公网 443 时的临时方案、验证方案，或者对呼叫启动延迟不敏感的环境。
+这不是 Synapse 从零安装篇，而是在已经有 Matrix Synapse 的基础上补齐新版 Element / MatrixRTC 需要的 LiveKit 后端。本文示例里：</description></item><item><title>2026 年 Matrix 消息过期自动删除配置</title><link>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</link><pubDate>Tue, 19 May 2026 20:37:59 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-self-destructing-messages-guide/</guid><description>这篇记录 Matrix 里实现消息过期、自动删除的两种常见方式。第一种是在 Synapse 服务端启用 retention，让服务器按房间策略从数据库中清理过期事件；第二种是使用 maubot 的 expiringmessages 插件，让机器人在房间里按时间撤回消息。
+如果你已经按前面的 Synapse Docker Compose 文章部署了 Matrix 服务，优先建议使用服务器端 retention。机器人方案更灵活，不一定需要服务器管理员权限，但它本质上是定时撤回消息，不等同于从数据库层面清理。
+一、两种方案怎么选 服务器端 retention 适合你自己管理 Synapse 服务端的场景。它的优点是策略更底层，可以由 Synapse 后台任务定期清理过期事件；缺点是需要修改 homeserver.yaml 并重启 Synapse，而且房间还需要设置 m.room.retention 状态事件。
+机器人方案适合没有服务器权限、但拥有房间管理权限的场景。它通过机器人执行 redact 撤回超时消息，配置更方便；缺点是撤回操作会受机器人权限、联邦同步、客户端缓存等因素影响。
+简单理解：
+有 Synapse 管理权限：优先用 retention。 只有房间管理权限：可以用 maubot 机器人。 对安全性要求很高：不要把这两种方案理解成绝对可靠的“阅后即焚”。 二、方案一：启用 Synapse retention 先编辑 Synapse 的配置文件。Docker 部署时通常在宿主机这个位置：
+复制nvim /root/data/docker_data/synapse/data/homeserver.yaml 在 homeserver.yaml 中加入或调整下面这段配置。注意：retention: 必须顶格写，前面不能有空格，也不能缩进到其他配置项下面。
+复制retention: enabled: true default_policy: max_lifetime: 3d allowed_lifetime_max: 3d purge_jobs: - interval: 1d 这段配置的含义是：
+enabled: true：启用 Synapse 的消息保留策略。 default_policy.</description></item><item><title>2026 年 coturn TURN 服务器 Docker Compose 部署：配合 Matrix Synapse 使用</title><link>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 20:08:12 +0800</pubDate><guid>https://purodn.tk/posts/docker/coturn-docker-compose-matrix/</guid><description>这篇记录 coturn TURN 服务器的 Docker Compose 部署方式。coturn 主要用于解决 Matrix 语音、视频通话中的 NAT 穿透问题，部署好之后可以在 Synapse 的 homeserver.yaml 中配置 turn_uris 和共享密钥。
+前面 Synapse、Nginx Proxy Manager、ntfy 这类 HTTP 服务适合统一接入 matrix bridge 网络，反代容器可以直接通过容器名访问它们。但 coturn 不太一样：TURN 服务要直接处理 3478/udp 和一整段 UDP 中继端口。这里按小规模自用场景收窄为 50000-50200/udp，大约 200 个 UDP 中继端口；如果用 Docker bridge 网络再映射端口段，启动容器时仍然可能比 host 网络慢。
+所以本文的 coturn 改用 network_mode: host：coturn 直接监听宿主机端口，不再加入 matrix Docker 网络。Synapse 仍然通过公网域名和共享密钥使用 coturn，不需要和 coturn 在同一个 Docker 网络里。
+一、准备目录 先创建 coturn 的配置目录：
+复制mkdir -p /root/data/docker_data/coturn/etc/coturn cd /root/data/docker_data/coturn/etc/coturn 创建基础配置文件：</description></item><item><title>2026 年 Synapse Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</link><pubDate>Tue, 19 May 2026 10:25:05 +0800</pubDate><guid>https://purodn.tk/posts/docker/synapse-docker-compose-matrix/</guid><description>这篇记录 Matrix Synapse 的 Docker Compose 部署配置。Synapse 是 Matrix 的服务端实现，可以用来搭建私有化、去中心化的即时通信服务，再配合 Element 这类客户端使用。
+这里把 Synapse 的数据目录和静态页面目录挂载到宿主机，同时把容器内的 8008 端口映射到宿主机 8008，方便内网客户端访问或后续接入反代。
+网络方面使用统一的 matrix bridge 网络，后续如果 Nginx Proxy Manager、ntfy、LiveKit 等服务也接入同一个网络，就可以直接通过容器名互相访问。
+注意：Synapse 服务器不建议走 fakeip DNS 代理上网。尤其后续和 ntfy、推送通知、联邦通信等功能配合时，优先让 Synapse 使用正常的本地网络解析和出站连接。
+一、安装基础环境 如果宿主机还没有 Docker，可以先更新系统并安装常用工具：
+复制apt update -y &amp;amp;&amp;amp; apt upgrade -y apt install -y curl wget sudo socat 安装 Docker：
+复制curl -fsSL https://get.docker.com -o get-docker.sh sh get-docker.sh 如果你的系统还没有 docker compose，也需要先安装 Docker Compose 插件或二进制文件。新系统一般建议直接使用 Docker 官方仓库里的 Compose 插件。</description></item><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 matrix，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。
+如果你的反代入口也接在 matrix 网络里，NPM 后台就可以直接用容器名 ntfy 作为上游地址。
+一、先确认 matrix 网络 如果前面已经创建过 matrix 网络，这一步可以跳过。否则先在宿主机终端创建：
+复制docker network create matrix 查看网络是否存在：
+复制docker network ls | grep matrix 后续需要被反代的容器，都建议统一接入这个网络。
+二、准备数据目录 这份配置把 ntfy 的缓存和配置目录挂载到宿主机：
+复制/root/data/docker_data/ntfy/data/cache /root/data/docker_data/ntfy/data/config 可以先创建目录：
+复制mkdir -p /root/data/docker_data/ntfy/data/cache mkdir -p /root/data/docker_data/ntfy/data/config 其中：
+cache 用来保存 ntfy 的缓存数据。 config 对应容器内的 /etc/ntfy，后续可以放置 ntfy 配置文件。 三、创建 docker-compose.yml 新建并编辑 docker-compose.yml：
+复制nvim docker-compose.yml 写入下面的配置：
+复制services: ntfy: image: binwiederhier/ntfy:latest container_name: ntfy command: - serve environment: - TZ=Asia/Shanghai volumes: - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy - /root/data/docker_data/ntfy/data/config:/etc/ntfy restart: unless-stopped networks: - matrix networks: matrix: external: true name: matrix 这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 matrix 网络内访问 ntfy。</description></item><item><title>Matrix 安装 Element Call 加密通话组件教程：使用单域名</title><link>https://purodn.tk/posts/docker/matrix-element-call-livekit-selfhosted/</link><pubDate>Fri, 02 May 2025 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-call-livekit-selfhosted/</guid><description>Matrix 通信网络协议最常用的客户端 Element 过去一直使用免费的 Jitsi 作为群组视频会议组件。一对一音视频通话则相对复杂：如果双方客户端具有公网 IP，则可以建立点对点连接；否则需要通话发起方的服务端托管 TURN 服务来绕过网络地址转换 (NAT)，中继 WebRTC 连接。
+现在这一情况已得到改善。Elment.io 开源了原生的 Matrix 视频会议应用程序 element-call。它的优势在于端到端加密、流畅性，以及基于 LiveKit 的可扩展后端；缺点是与 Jitsi 相比功能仍较为简陋，例如缺少背景虚化、主持功能等。
+Element Call 客户端组件现已内置于 Element 桌面和网页端，并在新一代移动端 Element X 上作为唯一的通话组件。这意味着从 Jitsi 和 TURN 发起的呼叫无法在 X 移动端显示。该组件需要连接到 MatrixRTC 后端才能使用。根据官方博客 ，从 2025 年 5 月开始，Element 将不再为社区提供免费的 MatrixRTC 后端服务，因此 Matrix 站长需要自行搭建。不过这并不是紧迫的任务，因为 Element X 功能尚不完善，还不足以完全替代旧的移动端。
+本教程适用于在家庭服务器（如 NAS）上自建该服务。
+服务概述 Element Call 包含两个服务：Matrix Livekit JWT 身份验证服务和 Livekit SFU WebSocket 信令连接。它们的通信流程如下：
+当用户从客户端发起呼叫时，首先会访问 matrix 域名的 /.well-known/matrix/client 路径查找后端 Livekit JWT 服务地址。JWT 将为指定房间生成具有特定身份的 JWT 令牌，随后客户端与 Livekit SFU 建立安全的 WebSocket 通信，SFU 使用 WebRTC 端口进行实时语音或视频对话。</description></item></channel></rss>

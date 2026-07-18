@@ -1,263 +1,50 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式 | 电脑自习室</title>
-    <meta name="description" content="先判断 Alpine LXC 里的 sing-box 是旁路网关，还是只接收主路由转发来的 TProxy FakeIP 流量；具体 sysctl 与 UDP 优化统一参考主文。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>Linux</span>
-          <time datetime="2026-06-17">2026年6月17日</time>
-        </div>
-        <h1>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</h1>
-          <p>先判断 Alpine LXC 里的 sing-box 是旁路网关，还是只接收主路由转发来的 TProxy FakeIP 流量；具体 sysctl 与 UDP 优化统一参考主文。</p>
-      </header>
-          <img class="article-cover" src="/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 <strong>旁路网关</strong>，还是 <strong>TProxy + FakeIP 透明代理入口</strong>。</p>
-<p>这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、<code>rp_filter</code> 都容易越调越乱。</p>
-<p>具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox <code>sysctl</code>、OpenRC 限制和实际验证，统一看主文：</p>
-<p><a href="/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/">PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</a></p>
-<p>这篇不再重复具体配置，避免两篇文章参数互相打架。</p>
-<h2 id="一先判断-sing-box-的角色">一、先判断 sing-box 的角色</h2>
-<p>最简单的判断标准：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>客户端默认网关 = Alpine LXC 的 IP    -&gt; 网关模式
-</span></span><span style="display:flex;"><span>客户端默认网关 = 主路由的 IP          -&gt; TProxy + FakeIP 入口模式</span></span></code></pre></div><script class="code-source" type="application/json">"客户端默认网关 = Alpine LXC 的 IP    -\u003e 网关模式\n客户端默认网关 = 主路由的 IP          -\u003e TProxy + FakeIP 入口模式"</script>
-</div>
-<p>这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。</p>
-<h2 id="二模式一alpine-lxc-是旁路网关">二、模式一：Alpine LXC 是旁路网关</h2>
-<p>如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。</p>
-<p>典型链路：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>客户端
-</span></span><span style="display:flex;"><span>  |
-</span></span><span style="display:flex;"><span>  | 默认网关 = Alpine LXC IP
-</span></span><span style="display:flex;"><span>  v
-</span></span><span style="display:flex;"><span>Alpine LXC sing-box
-</span></span><span style="display:flex;"><span>  |
-</span></span><span style="display:flex;"><span>  | 转发 / TProxy / 代理出站
-</span></span><span style="display:flex;"><span>  v
-</span></span><span style="display:flex;"><span>主路由 / PVE 网桥 / 上游网络</span></span></code></pre></div><script class="code-source" type="application/json">"客户端\n  |\n  | 默认网关 = Alpine LXC IP\n  v\nAlpine LXC sing-box\n  |\n  | 转发 / TProxy / 代理出站\n  v\n主路由 / PVE 网桥 / 上游网络"</script>
-</div>
-<p>网关模式下，Alpine LXC 至少要满足：</p>
-<ul>
-<li>容器内 IPv4 转发开启，必要时 IPv6 转发也开启。</li>
-<li>PVE 宿主机、PVE bridge、LXC veth、容器内 eth0 的 <code>rp_filter</code> 不误丢非对称路径流量。</li>
-<li>sing-box 的 TProxy、route、DNS、FakeIP、nftables 或 iptables 规则完整。</li>
-<li>客户端真的把默认网关或目标路由指向 LXC。</li>
-</ul>
-<p>这种模式最容易受 <code>rp_filter</code>、TProxy 策略路由、PVE firewall 路径影响。具体检查和配置看主文的这些部分：</p>
-<ul>
-<li>PVE 宿主机 <code>/etc/sysctl.d/99-sing-box-gateway.conf</code></li>
-<li>PVE 宿主机 <code>/etc/sysctl.d/98-sing-box-pve-bypass.conf</code></li>
-<li>Alpine 容器 <code>/etc/sysctl.d/local.conf</code></li>
-<li><code>veth101i0</code>、<code>vmbr0</code>、<code>enp2s0</code> 这类接口识别</li>
-<li>Alpine BusyBox <code>sysctl -p /etc/sysctl.d/local.conf</code></li>
-</ul>
-<h2 id="三模式二alpine-lxc-只是-tproxy--fakeip-入口">三、模式二：Alpine LXC 只是 TProxy + FakeIP 入口</h2>
-<p>如果客户端默认网关仍然是 RouterOS、OpenWrt、VyOS 或其它主路由，只是 DNS 指向 sing-box，FakeIP 段流量再由主路由转发到 Alpine LXC，那么这台 LXC 更准确地说是透明代理入口，不是完整旁路网关。</p>
-<p>典型链路：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>客户端
-</span></span><span style="display:flex;"><span>  |
-</span></span><span style="display:flex;"><span>  | 默认网关 = 主路由 IP
-</span></span><span style="display:flex;"><span>  | DNS 查询到 sing-box，拿到 FakeIP
-</span></span><span style="display:flex;"><span>  v
-</span></span><span style="display:flex;"><span>主路由
-</span></span><span style="display:flex;"><span>  |
-</span></span><span style="display:flex;"><span>  | 把 FakeIP 段路由到 Alpine LXC
-</span></span><span style="display:flex;"><span>  v
-</span></span><span style="display:flex;"><span>Alpine LXC sing-box
-</span></span><span style="display:flex;"><span>  |
-</span></span><span style="display:flex;"><span>  | TProxy 接住连接并代理出站
-</span></span><span style="display:flex;"><span>  v
-</span></span><span style="display:flex;"><span>上游网络</span></span></code></pre></div><script class="code-source" type="application/json">"客户端\n  |\n  | 默认网关 = 主路由 IP\n  | DNS 查询到 sing-box，拿到 FakeIP\n  v\n主路由\n  |\n  | 把 FakeIP 段路由到 Alpine LXC\n  v\nAlpine LXC sing-box\n  |\n  | TProxy 接住连接并代理出站\n  v\n上游网络"</script>
-</div>
-<p>这个模式的关键不是“把 LXC 调成完整网关”，而是确认 FakeIP 流量路径完整：</p>
-<ul>
-<li>客户端 DNS 查询能到达 sing-box DNS 入站。</li>
-<li>sing-box 返回的 FakeIP 段和路由器上的静态路由一致。</li>
-<li>主路由把 FakeIP 段转发给 Alpine LXC。</li>
-<li>Alpine LXC 内的 sing-box TProxy 入站能接住连接。</li>
-<li>nftables / iptables 没有把回程或透明代理流量误丢。</li>
-</ul>
-<p>如果这些路由和防火墙规则没有打通，单纯打开更多 sysctl 参数也不会让 FakeIP 透明代理自动工作。</p>
-<h2 id="四怎么确认-pve-上-lxc-101-的真实接口">四、怎么确认 PVE 上 LXC 101 的真实接口</h2>
-<p>在 PVE 宿主机执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct config <span style="color:#ae81ff">101</span> | grep <span style="color:#e6db74">&#39;^net0&#39;</span>
-</span></span><span style="display:flex;"><span>ip -br link | grep -E <span style="color:#e6db74">&#39;vmbr|veth101|fwbr101|fwpr101|fwln101|tap&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"pct config 101 | grep '^net0'\nip -br link | grep -E 'vmbr|veth101|fwbr101|fwpr101|fwln101|tap'"</script>
-</div>
-<p>如果输出里只有：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>vmbr0        UP ...
-</span></span><span style="display:flex;"><span>veth101i0   UP ... master vmbr0 ...</span></span></code></pre></div><script class="code-source" type="application/json">"vmbr0        UP ...\nveth101i0   UP ... master vmbr0 ..."</script>
-</div>
-<p>通常说明：</p>
-<ul>
-<li>LXC 101 挂在 <code>vmbr0</code>。</li>
-<li>PVE firewall 对这个 LXC 没有走 <code>fwbr/fwpr/fwln</code> 链路。</li>
-<li>PVE 宿主机侧容器网卡是 <code>veth101i0</code>。</li>
-</ul>
-<p>如果还能看到：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>fwbr101i0
-</span></span><span style="display:flex;"><span>fwpr101p0
-</span></span><span style="display:flex;"><span>fwln101i0</span></span></code></pre></div><script class="code-source" type="application/json">"fwbr101i0\nfwpr101p0\nfwln101i0"</script>
-</div>
-<p>说明这个 LXC 仍在 PVE firewall 路径里。此时 <code>rp_filter</code> 和 offload 检查要按实际存在的接口写，不要把不存在的接口预先塞进 sysctl 文件。</p>
-<p>如果看到 <code>tap100i0</code>、<code>tap100i1</code>，那是 VM 100 的 tap 网卡，不是 LXC 101。不要拿 <code>tap100i0</code> 去判断 sing-box LXC 的链路。</p>
-<h2 id="五这篇和主文如何分工">五、这篇和主文如何分工</h2>
-<p>这篇只负责判断模式：</p>
-<ul>
-<li>设备默认网关是不是 LXC？</li>
-<li>FakeIP 段是不是由主路由转发给 LXC？</li>
-<li>LXC 101 在 PVE 宿主机侧到底叫哪个接口？</li>
-<li>是否走了 PVE firewall 的 <code>fwbr/fwpr/fwln</code> 链路？</li>
-</ul>
-<p>主文负责具体执行：</p>
-<ul>
-<li>sysctl 文件分别写在 PVE 宿主机还是 Alpine 容器内</li>
-<li>Alpine BusyBox <code>sysctl</code> 不支持 <code>--system</code> 怎么处理</li>
-<li>OpenRC <code>sysctl</code> 的 LXC 只读提示怎么判断</li>
-<li>GSO / GRO / <code>tx-udp-segmentation</code> 怎么看</li>
-<li>sing-box OpenRC 文件句柄限制怎么看</li>
-</ul>
-<p>主文链接：</p>
-<p><a href="/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/">PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</a></p>
-<h2 id="六最终建议">六、最终建议</h2>
-<p>如果你是网关模式，先按这篇确认角色，再去主文执行 PVE 宿主机和 Alpine 容器两层配置。</p>
-<p>如果你只是 TProxy + FakeIP 入口模式，不要把所有“网关模式”参数都照搬进容器。重点先查 DNS、FakeIP 段路由、主路由静态路由和 sing-box TProxy 入站。</p>
-<p>如果不确定自己是哪种模式，先回答两个问题：</p>
-<ul>
-<li>客户端的默认网关是谁？</li>
-<li>FakeIP 段的下一跳是谁？</li>
-</ul>
-<p>这两个答案确定以后，再决定该按哪条链路排查。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式 | 电脑自习室</title>
+<meta name=description content="先判断 Alpine LXC 里的 sing-box 是旁路网关，还是只接收主路由转发来的 TProxy FakeIP 流量；具体 sysctl 与 UDP 优化统一参考主文。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>Linux</span>
+<time datetime=2026-06-17>2026年6月17日</time></div><h1>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</h1><p>先判断 Alpine LXC 里的 sing-box 是旁路网关，还是只接收主路由转发来的 TProxy FakeIP 流量；具体 sysctl 与 UDP 优化统一参考主文。</p></header><img class=article-cover src=/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/assets/cover.svg alt><div class=article-content><p>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 <strong>旁路网关</strong>，还是 <strong>TProxy + FakeIP 透明代理入口</strong>。</p><p>这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、<code>rp_filter</code> 都容易越调越乱。</p><p>具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox <code>sysctl</code>、OpenRC 限制和实际验证，统一看主文：</p><p><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</a></p><p>这篇不再重复具体配置，避免两篇文章参数互相打架。</p><h2 id=一先判断-sing-box-的角色>一、先判断 sing-box 的角色</h2><p>最简单的判断标准：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>客户端默认网关 = Alpine LXC 的 IP    -&gt; 网关模式
+</span></span><span style=display:flex><span>客户端默认网关 = 主路由的 IP          -&gt; TProxy + FakeIP 入口模式</span></span></code></pre></div><script class=code-source type=application/json>"客户端默认网关 = Alpine LXC 的 IP    -\u003e 网关模式\n客户端默认网关 = 主路由的 IP          -\u003e TProxy + FakeIP 入口模式"</script></div><p>这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。</p><h2 id=二模式一alpine-lxc-是旁路网关>二、模式一：Alpine LXC 是旁路网关</h2><p>如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。</p><p>典型链路：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>客户端
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>  | 默认网关 = Alpine LXC IP
+</span></span><span style=display:flex><span>  v
+</span></span><span style=display:flex><span>Alpine LXC sing-box
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>  | 转发 / TProxy / 代理出站
+</span></span><span style=display:flex><span>  v
+</span></span><span style=display:flex><span>主路由 / PVE 网桥 / 上游网络</span></span></code></pre></div><script class=code-source type=application/json>"客户端\n  |\n  | 默认网关 = Alpine LXC IP\n  v\nAlpine LXC sing-box\n  |\n  | 转发 / TProxy / 代理出站\n  v\n主路由 / PVE 网桥 / 上游网络"</script></div><p>网关模式下，Alpine LXC 至少要满足：</p><ul><li>容器内 IPv4 转发开启，必要时 IPv6 转发也开启。</li><li>PVE 宿主机、PVE bridge、LXC veth、容器内 eth0 的 <code>rp_filter</code> 不误丢非对称路径流量。</li><li>sing-box 的 TProxy、route、DNS、FakeIP、nftables 或 iptables 规则完整。</li><li>客户端真的把默认网关或目标路由指向 LXC。</li></ul><p>这种模式最容易受 <code>rp_filter</code>、TProxy 策略路由、PVE firewall 路径影响。具体检查和配置看主文的这些部分：</p><ul><li>PVE 宿主机 <code>/etc/sysctl.d/99-sing-box-gateway.conf</code></li><li>PVE 宿主机 <code>/etc/sysctl.d/98-sing-box-pve-bypass.conf</code></li><li>Alpine 容器 <code>/etc/sysctl.d/local.conf</code></li><li><code>veth101i0</code>、<code>vmbr0</code>、<code>enp2s0</code> 这类接口识别</li><li>Alpine BusyBox <code>sysctl -p /etc/sysctl.d/local.conf</code></li></ul><h2 id=三模式二alpine-lxc-只是-tproxy--fakeip-入口>三、模式二：Alpine LXC 只是 TProxy + FakeIP 入口</h2><p>如果客户端默认网关仍然是 RouterOS、OpenWrt、VyOS 或其它主路由，只是 DNS 指向 sing-box，FakeIP 段流量再由主路由转发到 Alpine LXC，那么这台 LXC 更准确地说是透明代理入口，不是完整旁路网关。</p><p>典型链路：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>客户端
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>  | 默认网关 = 主路由 IP
+</span></span><span style=display:flex><span>  | DNS 查询到 sing-box，拿到 FakeIP
+</span></span><span style=display:flex><span>  v
+</span></span><span style=display:flex><span>主路由
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>  | 把 FakeIP 段路由到 Alpine LXC
+</span></span><span style=display:flex><span>  v
+</span></span><span style=display:flex><span>Alpine LXC sing-box
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>  | TProxy 接住连接并代理出站
+</span></span><span style=display:flex><span>  v
+</span></span><span style=display:flex><span>上游网络</span></span></code></pre></div><script class=code-source type=application/json>"客户端\n  |\n  | 默认网关 = 主路由 IP\n  | DNS 查询到 sing-box，拿到 FakeIP\n  v\n主路由\n  |\n  | 把 FakeIP 段路由到 Alpine LXC\n  v\nAlpine LXC sing-box\n  |\n  | TProxy 接住连接并代理出站\n  v\n上游网络"</script></div><p>这个模式的关键不是“把 LXC 调成完整网关”，而是确认 FakeIP 流量路径完整：</p><ul><li>客户端 DNS 查询能到达 sing-box DNS 入站。</li><li>sing-box 返回的 FakeIP 段和路由器上的静态路由一致。</li><li>主路由把 FakeIP 段转发给 Alpine LXC。</li><li>Alpine LXC 内的 sing-box TProxy 入站能接住连接。</li><li>nftables / iptables 没有把回程或透明代理流量误丢。</li></ul><p>如果这些路由和防火墙规则没有打通，单纯打开更多 sysctl 参数也不会让 FakeIP 透明代理自动工作。</p><h2 id=四怎么确认-pve-上-lxc-101-的真实接口>四、怎么确认 PVE 上 LXC 101 的真实接口</h2><p>在 PVE 宿主机执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct config <span style=color:#ae81ff>101</span> | grep <span style=color:#e6db74>&#39;^net0&#39;</span>
+</span></span><span style=display:flex><span>ip -br link | grep -E <span style=color:#e6db74>&#39;vmbr|veth101|fwbr101|fwpr101|fwln101|tap&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"pct config 101 | grep '^net0'\nip -br link | grep -E 'vmbr|veth101|fwbr101|fwpr101|fwln101|tap'"</script></div><p>如果输出里只有：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>vmbr0        UP ...
+</span></span><span style=display:flex><span>veth101i0   UP ... master vmbr0 ...</span></span></code></pre></div><script class=code-source type=application/json>"vmbr0        UP ...\nveth101i0   UP ... master vmbr0 ..."</script></div><p>通常说明：</p><ul><li>LXC 101 挂在 <code>vmbr0</code>。</li><li>PVE firewall 对这个 LXC 没有走 <code>fwbr/fwpr/fwln</code> 链路。</li><li>PVE 宿主机侧容器网卡是 <code>veth101i0</code>。</li></ul><p>如果还能看到：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>fwbr101i0
+</span></span><span style=display:flex><span>fwpr101p0
+</span></span><span style=display:flex><span>fwln101i0</span></span></code></pre></div><script class=code-source type=application/json>"fwbr101i0\nfwpr101p0\nfwln101i0"</script></div><p>说明这个 LXC 仍在 PVE firewall 路径里。此时 <code>rp_filter</code> 和 offload 检查要按实际存在的接口写，不要把不存在的接口预先塞进 sysctl 文件。</p><p>如果看到 <code>tap100i0</code>、<code>tap100i1</code>，那是 VM 100 的 tap 网卡，不是 LXC 101。不要拿 <code>tap100i0</code> 去判断 sing-box LXC 的链路。</p><h2 id=五这篇和主文如何分工>五、这篇和主文如何分工</h2><p>这篇只负责判断模式：</p><ul><li>设备默认网关是不是 LXC？</li><li>FakeIP 段是不是由主路由转发给 LXC？</li><li>LXC 101 在 PVE 宿主机侧到底叫哪个接口？</li><li>是否走了 PVE firewall 的 <code>fwbr/fwpr/fwln</code> 链路？</li></ul><p>主文负责具体执行：</p><ul><li>sysctl 文件分别写在 PVE 宿主机还是 Alpine 容器内</li><li>Alpine BusyBox <code>sysctl</code> 不支持 <code>--system</code> 怎么处理</li><li>OpenRC <code>sysctl</code> 的 LXC 只读提示怎么判断</li><li>GSO / GRO / <code>tx-udp-segmentation</code> 怎么看</li><li>sing-box OpenRC 文件句柄限制怎么看</li></ul><p>主文链接：</p><p><a href=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</a></p><h2 id=六最终建议>六、最终建议</h2><p>如果你是网关模式，先按这篇确认角色，再去主文执行 PVE 宿主机和 Alpine 容器两层配置。</p><p>如果你只是 TProxy + FakeIP 入口模式，不要把所有“网关模式”参数都照搬进容器。重点先查 DNS、FakeIP 段路由、主路由静态路由和 sing-box TProxy 入站。</p><p>如果不确定自己是哪种模式，先回答两个问题：</p><ul><li>客户端的默认网关是谁？</li><li>FakeIP 段的下一跳是谁？</li></ul><p>这两个答案确定以后，再决定该按哪条链路排查。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

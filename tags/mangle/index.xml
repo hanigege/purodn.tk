@@ -1,19 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Mangle on 电脑自习室</title>
-    <link>https://purodn.tk/tags/mangle/</link>
-    <description>Recent content in Mangle on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 21 Jun 2026 05:55:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/mangle/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>RouterOS Mangle 小包优先规则与带宽配置生成器</title>
-      <link>https://purodn.tk/posts/routeros/routeros-mangle-small-packet-generator/</link>
-      <pubDate>Sun, 21 Jun 2026 05:55:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/routeros/routeros-mangle-small-packet-generator/</guid>
-      <description>本文整理自旧文 ROS 的 Mangle 小包规则 和本站现有的 RouterOS 使用 queue tree 配置流量整形。&#xA;这套规则的目标不是让测速数字更好看，而是在下载、上传、BT/PT、代理网关同时工作的情况下，让 DNS、握手、小包和网页交互别被大流量挤死。家庭宽带场景下，最重要的是先把总带宽控制在真实带宽略低一点的位置，再按包类型分优先级。&#xA;什么时候需要小包规则 如果家里只有一两台设备轻量上网，RouterOS 默认队列通常够用。小包优先适合下面这些场景：&#xA;宽带上传比较小，例如 30M、50M，但家里有 NAS、PT、网盘同步或代理节点。 一测速或下载，网页打开、DNS 查询、SSH、游戏延迟明显抖动。 RouterOS 作为主路由，LAN 侧还有 sing-box、mihomo、旁路网关或 Docker 服务。 想保留总带宽限制，例如下载 300M 设置成 285M，上传 30M 设置成 28M，避免把运营商侧队列打满。 不要把这套规则理解成“神奇加速”。它只是把拥塞点尽量留在 RouterOS 自己可控的队列里，并且给关键小包更高优先级。&#xA;default-small 为什么可能变慢 RouterOS 自带的 default-small 是 pfifo-limit=10。这个队列很短，低带宽或小流量时反应很快，但在 300M 以上的下载、网页测速、多连接下载时，10 个包的队列太容易被打满，TCP 会频繁误判拥塞并回退。&#xA;更稳妥的选择：&#xA;普通家庭宽带：先用 default，默认 pfifo-limit=50，不激进，容易排查。 RouterOS 版本支持 fq-codel：可以参考本站 Queue Tree 文章做更细的队列类型。 极低延迟优先并且带宽不高：才考虑 default-small 或更小队列，但要用实际下载和延迟一起验证。 这也是为什么我现在更倾向于把基础小包规则的叶子队列设为 default：优先保证稳定吞吐，再在稳定基础上调延迟。&#xA;规则结构 基础版规则分三层：&#xA;mangle 给包打标：DNS、小包、中包、大包。 queue tree 建立上传总队列和下载总队列。 子队列按优先级分配：DNS 最高，小包其次，中包居中，大包最低。 这里使用的 packet mark：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Mangle on 电脑自习室</title><link>https://purodn.tk/tags/mangle/</link><description>Recent content in Mangle on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 05:55:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/mangle/index.xml" rel="self" type="application/rss+xml"/><item><title>RouterOS Mangle 小包优先规则与带宽配置生成器</title><link>https://purodn.tk/posts/routeros/routeros-mangle-small-packet-generator/</link><pubDate>Sun, 21 Jun 2026 05:55:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/routeros-mangle-small-packet-generator/</guid><description>本文整理自旧文 ROS 的 Mangle 小包规则 和本站现有的 RouterOS 使用 queue tree 配置流量整形。
+这套规则的目标不是让测速数字更好看，而是在下载、上传、BT/PT、代理网关同时工作的情况下，让 DNS、握手、小包和网页交互别被大流量挤死。家庭宽带场景下，最重要的是先把总带宽控制在真实带宽略低一点的位置，再按包类型分优先级。
+什么时候需要小包规则 如果家里只有一两台设备轻量上网，RouterOS 默认队列通常够用。小包优先适合下面这些场景：
+宽带上传比较小，例如 30M、50M，但家里有 NAS、PT、网盘同步或代理节点。 一测速或下载，网页打开、DNS 查询、SSH、游戏延迟明显抖动。 RouterOS 作为主路由，LAN 侧还有 sing-box、mihomo、旁路网关或 Docker 服务。 想保留总带宽限制，例如下载 300M 设置成 285M，上传 30M 设置成 28M，避免把运营商侧队列打满。 不要把这套规则理解成“神奇加速”。它只是把拥塞点尽量留在 RouterOS 自己可控的队列里，并且给关键小包更高优先级。
+default-small 为什么可能变慢 RouterOS 自带的 default-small 是 pfifo-limit=10。这个队列很短，低带宽或小流量时反应很快，但在 300M 以上的下载、网页测速、多连接下载时，10 个包的队列太容易被打满，TCP 会频繁误判拥塞并回退。
+更稳妥的选择：
+普通家庭宽带：先用 default，默认 pfifo-limit=50，不激进，容易排查。 RouterOS 版本支持 fq-codel：可以参考本站 Queue Tree 文章做更细的队列类型。 极低延迟优先并且带宽不高：才考虑 default-small 或更小队列，但要用实际下载和延迟一起验证。 这也是为什么我现在更倾向于把基础小包规则的叶子队列设为 default：优先保证稳定吞吐，再在稳定基础上调延迟。
+规则结构 基础版规则分三层：
+mangle 给包打标：DNS、小包、中包、大包。 queue tree 建立上传总队列和下载总队列。 子队列按优先级分配：DNS 最高，小包其次，中包居中，大包最低。 这里使用的 packet mark：</description></item></channel></rss>

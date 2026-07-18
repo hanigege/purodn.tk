@@ -1,66 +1,15 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Vyos上网系列之-Fakeip配置(2) | 电脑自习室</title>
-    <meta name="description" content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2025-05-10">2025年5月10日</time>
-        </div>
-        <h1>Vyos上网系列之-Fakeip配置(2)</h1>
-      </header>
-          <img class="article-cover" src="/posts/routeros/vyos-fakeip-2/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <h2 id="对于终端网关是vyos的通过mosdns来分流realip和fakeip的流量-可这样配置">对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置:</h2>
-<p>(vyos的group分为address-group,network-group等)</p>
-<h4 id="定义组-ip例">定义组 IP例:</h4>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group address-group Telegram-v4 address &#39;157.148.47.204&#39;
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Vyos上网系列之-Fakeip配置(2) | 电脑自习室</title>
+<meta name=description content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2025-05-10>2025年5月10日</time></div><h1>Vyos上网系列之-Fakeip配置(2)</h1></header><img class=article-cover src=/posts/routeros/vyos-fakeip-2/assets/cover.svg alt><div class=article-content><h2 id=对于终端网关是vyos的通过mosdns来分流realip和fakeip的流量-可这样配置>对于终端网关是vyos的，通过mosdns来分流realip和fakeip的流量, 可这样配置:</h2><p>(vyos的group分为address-group,network-group等)</p><h4 id=定义组-ip例>定义组 IP例:</h4><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group address-group Telegram-v4 address &#39;157.148.47.204&#39;
 set firewall group address-group Telegram-v4 address &#39;182.43.124.6&#39;
-...</code></pre><script class="code-source" type="application/json">"set firewall group address-group Telegram-v4 address '157.148.47.204'\nset firewall group address-group Telegram-v4 address '182.43.124.6'\n..."</script>
-</div>
-<h4 id="定义组网段v4例">定义组网段V4例：</h4>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group network-group Telegram-v4 network &#39;91.108.56.0/22&#39;
+...</code></pre><script class=code-source type=application/json>"set firewall group address-group Telegram-v4 address '157.148.47.204'\nset firewall group address-group Telegram-v4 address '182.43.124.6'\n..."</script></div><h4 id=定义组网段v4例>定义组网段V4例：</h4><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group network-group Telegram-v4 network &#39;91.108.56.0/22&#39;
 set firewall group network-group Telegram-v4 network &#39;91.108.4.0/22&#39;
-...</code></pre><script class="code-source" type="application/json">"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\n..."</script>
-</div>
-<p>定义组telegram V4:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group network-group Telegram-v4 network &#39;91.108.56.0/22&#39;
+...</code></pre><script class=code-source type=application/json>"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\n..."</script></div><p>定义组telegram V4:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group network-group Telegram-v4 network &#39;91.108.56.0/22&#39;
 set firewall group network-group Telegram-v4 network &#39;91.108.4.0/22&#39;
 set firewall group network-group Telegram-v4 network &#39;91.108.8.0/22&#39;
 set firewall group network-group Telegram-v4 network &#39;91.108.16.0/22&#39;
@@ -68,173 +17,43 @@ set firewall group network-group Telegram-v4 network &#39;91.108.12.0/22&#39;
 set firewall group network-group Telegram-v4 network &#39;149.154.160.0/20&#39;
 set firewall group network-group Telegram-v4 network &#39;91.105.192.0/23&#39;
 set firewall group network-group Telegram-v4 network &#39;91.108.20.0/22&#39;
-set firewall group network-group Telegram-v4 network &#39;185.76.151.0/24&#39;</code></pre><script class="code-source" type="application/json">"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\nset firewall group network-group Telegram-v4 network '91.108.8.0/22'\nset firewall group network-group Telegram-v4 network '91.108.16.0/22'\nset firewall group network-group Telegram-v4 network '91.108.12.0/22'\nset firewall group network-group Telegram-v4 network '149.154.160.0/20'\nset firewall group network-group Telegram-v4 network '91.105.192.0/23'\nset firewall group network-group Telegram-v4 network '91.108.20.0/22'\nset firewall group network-group Telegram-v4 network '185.76.151.0/24'"</script>
-</div>
-<h4 id="定义组ip-v6例">定义组ip-V6例：</h4>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group ipv6-address-group Telegram-v6 address &#39;2a00:1098:80:2::1004&#39;
+set firewall group network-group Telegram-v4 network &#39;185.76.151.0/24&#39;</code></pre><script class=code-source type=application/json>"set firewall group network-group Telegram-v4 network '91.108.56.0/22'\nset firewall group network-group Telegram-v4 network '91.108.4.0/22'\nset firewall group network-group Telegram-v4 network '91.108.8.0/22'\nset firewall group network-group Telegram-v4 network '91.108.16.0/22'\nset firewall group network-group Telegram-v4 network '91.108.12.0/22'\nset firewall group network-group Telegram-v4 network '149.154.160.0/20'\nset firewall group network-group Telegram-v4 network '91.105.192.0/23'\nset firewall group network-group Telegram-v4 network '91.108.20.0/22'\nset firewall group network-group Telegram-v4 network '185.76.151.0/24'"</script></div><h4 id=定义组ip-v6例>定义组ip-V6例：</h4><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group ipv6-address-group Telegram-v6 address &#39;2a00:1098:80:2::1004&#39;
 set firewall group ipv6-address-group Telegram-v6 address &#39;2a00:1098:80:2::1001&#39;
-...</code></pre><script class="code-source" type="application/json">"set firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1004'\nset firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1001'\n..."</script>
-</div>
-<p>定义组网段V6例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23d::/48&#39;
+...</code></pre><script class=code-source type=application/json>"set firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1004'\nset firewall group ipv6-address-group Telegram-v6 address '2a00:1098:80:2::1001'\n..."</script></div><p>定义组网段V6例：</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23d::/48&#39;
 set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23f::/48&#39;
-...</code></pre><script class="code-source" type="application/json">"set firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23d::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23f::/48'\n..."</script>
-</div>
-<p>定义组V6 Telegram-V6</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23d::/48&#39;
+...</code></pre><script class=code-source type=application/json>"set firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23d::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23f::/48'\n..."</script></div><p>定义组V6 Telegram-V6</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23d::/48&#39;
 set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23f::/48&#39;
 set firewall group ipv6-network-group Telegram-v6 network &#39;2001:67c:4e8::/48&#39;
 set firewall group ipv6-network-group Telegram-v6 network &#39;2001:b28:f23c::/48&#39;
-set firewall group ipv6-network-group Telegram-v6 network &#39;2a0a:f280::/32&#39;</code></pre><script class="code-source" type="application/json">"set firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23d::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23f::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:67c:4e8::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23c::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2a0a:f280::/32'"</script>
-</div>
-<p>定义组fakeip:</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set firewall group network-group FAKEIP-v4 network &#39;198.18.0.0/15&#39; # fakeip
-set firewall group ipv6-network-group FAKEIP-v6 network &#39;f2b0::/18&#39; # fakeip6</code></pre><script class="code-source" type="application/json">"set firewall group network-group FAKEIP-v4 network '198.18.0.0/15' # fakeip\nset firewall group ipv6-network-group FAKEIP-v6 network 'f2b0::/18' # fakeip6"</script>
-</div>
-<p>配置策略路由:(类似ros中mangle部分)
-IPV4</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set policy route Route-to-SB interface &#39;eth0&#39; # eth0是lan口
+set firewall group ipv6-network-group Telegram-v6 network &#39;2a0a:f280::/32&#39;</code></pre><script class=code-source type=application/json>"set firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23d::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23f::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:67c:4e8::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2001:b28:f23c::/48'\nset firewall group ipv6-network-group Telegram-v6 network '2a0a:f280::/32'"</script></div><p>定义组fakeip:</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set firewall group network-group FAKEIP-v4 network &#39;198.18.0.0/15&#39; # fakeip
+set firewall group ipv6-network-group FAKEIP-v6 network &#39;f2b0::/18&#39; # fakeip6</code></pre><script class=code-source type=application/json>"set firewall group network-group FAKEIP-v4 network '198.18.0.0/15' # fakeip\nset firewall group ipv6-network-group FAKEIP-v6 network 'f2b0::/18' # fakeip6"</script></div><p>配置策略路由:(类似ros中mangle部分)
+IPV4</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set policy route Route-to-SB interface &#39;eth0&#39; # eth0是lan口
 set policy route Route-to-SB rule 10 set table &#39;100&#39; # table 100是to-sb的表
 set policy route Route-to-SB rule 10 destination group network-group &#39;Telegram-v4&#39;
 set policy route Route-to-SB rule 20 set table &#39;100&#39; # table 100是to-sb的表
-set policy route Route-to-SB rule 20 destination group network-group &#39;FAKEIP-v4&#39;</code></pre><script class="code-source" type="application/json">"set policy route Route-to-SB interface 'eth0' # eth0是lan口\nset policy route Route-to-SB rule 10 set table '100' # table 100是to-sb的表\nset policy route Route-to-SB rule 10 destination group network-group 'Telegram-v4'\nset policy route Route-to-SB rule 20 set table '100' # table 100是to-sb的表\nset policy route Route-to-SB rule 20 destination group network-group 'FAKEIP-v4'"</script>
-</div>
-<p>IPV6</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set policy route6 FAKE6-to-SB interface &#39;eth0&#39;
+set policy route Route-to-SB rule 20 destination group network-group &#39;FAKEIP-v4&#39;</code></pre><script class=code-source type=application/json>"set policy route Route-to-SB interface 'eth0' # eth0是lan口\nset policy route Route-to-SB rule 10 set table '100' # table 100是to-sb的表\nset policy route Route-to-SB rule 10 destination group network-group 'Telegram-v4'\nset policy route Route-to-SB rule 20 set table '100' # table 100是to-sb的表\nset policy route Route-to-SB rule 20 destination group network-group 'FAKEIP-v4'"</script></div><p>IPV6</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set policy route6 FAKE6-to-SB interface &#39;eth0&#39;
 set policy route6 FAKE6-to-SB rule 10 set table &#39;106&#39; # table 106是to-sb的表 (v6)
 set policy route6 FAKE6-to-SB rule 10 destination group network-group &#39;FAKEIP-v6&#39;
 set policy route6 FAKE6-to-SB rule 20 set table &#39;106&#39; # table 106是to-sb的表 (v6)
-set policy route6 FAKE6-to-SB rule 20 destination group network-group &#39;Telegram-v6&#39;</code></pre><script class="code-source" type="application/json">"set policy route6 FAKE6-to-SB interface 'eth0'\nset policy route6 FAKE6-to-SB rule 10 set table '106' # table 106是to-sb的表 (v6)\nset policy route6 FAKE6-to-SB rule 10 destination group network-group 'FAKEIP-v6'\nset policy route6 FAKE6-to-SB rule 20 set table '106' # table 106是to-sb的表 (v6)\nset policy route6 FAKE6-to-SB rule 20 destination group network-group 'Telegram-v6'"</script>
-</div>
-<p>配置路由表</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.100.9 # sb的内网ip
-set protocols static table 106 route6 ::/0 next-hop fd88::9999 # sb的ula</code></pre><script class="code-source" type="application/json">"set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.100.9 # sb的内网ip\nset protocols static table 106 route6 ::/0 next-hop fd88::9999 # sb的ula"</script>
-</div>
-<p>voys自己如要科学上网, 一般是在pull容器镜像, 下载更新的ios等情形下, 可以这样配置,</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set system name-server &#39;192.168.10.90&#39; # 192.168.10.90是sb的ip, 或mosdns的ip, based on your topology.</code></pre><script class="code-source" type="application/json">"set system name-server '192.168.10.90' # 192.168.10.90是sb的ip, 或mosdns的ip, based on your topology."</script>
-</div>
-<p>注意这里的name-server, 只需要一个, 就是能区分fakeip的.</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>set policy local-route rule 10 destination address &#39;198.18.0.0/15&#39;
-set policy local-route rule 10 set table &#39;100&#39;</code></pre><script class="code-source" type="application/json">"set policy local-route rule 10 destination address '198.18.0.0/15'\nset policy local-route rule 10 set table '100'"</script>
-</div>
-<p>可以了科学了，下面测试</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>curl www.google.com</code></pre><script class="code-source" type="application/json">"curl www.google.com"</script>
-</div>
-<p>乱码，搞定
-ping是ping不通外网的。用上面的curl看</p>
-<p>配不配ipv6的local-route, 取决于你的需要, 不配置也行, 因为vyos自己的需要, 较为简单</p>
-<hr>
-<p>done!</p>
-<hr>
-<p>tips:</p>
-<ol>
-<li>在’#‘状态下 可用run show config, 来运行’$‘状态下的命令</li>
-<li>我常用的命令 还有
+set policy route6 FAKE6-to-SB rule 20 destination group network-group &#39;Telegram-v6&#39;</code></pre><script class=code-source type=application/json>"set policy route6 FAKE6-to-SB interface 'eth0'\nset policy route6 FAKE6-to-SB rule 10 set table '106' # table 106是to-sb的表 (v6)\nset policy route6 FAKE6-to-SB rule 10 destination group network-group 'FAKEIP-v6'\nset policy route6 FAKE6-to-SB rule 20 set table '106' # table 106是to-sb的表 (v6)\nset policy route6 FAKE6-to-SB rule 20 destination group network-group 'Telegram-v6'"</script></div><p>配置路由表</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.100.9 # sb的内网ip
+set protocols static table 106 route6 ::/0 next-hop fd88::9999 # sb的ula</code></pre><script class=code-source type=application/json>"set protocols static table 100 route 0.0.0.0/0 next-hop 192.168.100.9 # sb的内网ip\nset protocols static table 106 route6 ::/0 next-hop fd88::9999 # sb的ula"</script></div><p>voys自己如要科学上网, 一般是在pull容器镜像, 下载更新的ios等情形下, 可以这样配置,</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set system name-server &#39;192.168.10.90&#39; # 192.168.10.90是sb的ip, 或mosdns的ip, based on your topology.</code></pre><script class=code-source type=application/json>"set system name-server '192.168.10.90' # 192.168.10.90是sb的ip, 或mosdns的ip, based on your topology."</script></div><p>注意这里的name-server, 只需要一个, 就是能区分fakeip的.</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>set policy local-route rule 10 destination address &#39;198.18.0.0/15&#39;
+set policy local-route rule 10 set table &#39;100&#39;</code></pre><script class=code-source type=application/json>"set policy local-route rule 10 destination address '198.18.0.0/15'\nset policy local-route rule 10 set table '100'"</script></div><p>可以了科学了，下面测试</p><div class=code-block><button class=copy-code type=button>复制</button><pre tabindex=0><code>curl www.google.com</code></pre><script class=code-source type=application/json>"curl www.google.com"</script></div><p>乱码，搞定
+ping是ping不通外网的。用上面的curl看</p><p>配不配ipv6的local-route, 取决于你的需要, 不配置也行, 因为vyos自己的需要, 较为简单</p><hr><p>done!</p><hr><p>tips:</p><ol><li>在’#‘状态下 可用run show config, 来运行’$‘状态下的命令</li><li>我常用的命令 还有
 ‘monitor’ (’$‘下), 监视动态变化
-‘compare’ (’#‘下), 未commit前比较edit的变化</li>
-</ol>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+‘compare’ (’#‘下), 未commit前比较edit的变化</li></ol></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

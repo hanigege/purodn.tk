@@ -1,19 +1,10 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Configuration on 电脑自习室</title>
-    <link>https://purodn.tk/tags/configuration/</link>
-    <description>Recent content in Configuration on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sat, 04 Jul 2026 22:25:03 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/configuration/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Agent Busy Input Modes 完全指南</title>
-      <link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link>
-      <pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid>
-      <description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。&#xA;这正是 Busy Input Modes 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。&#xA;问题背景 Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定如何处理这条消息——是排队等做完、插入到当前步骤之间、还是直接打断？&#xA;这个决策由两个配置共同控制：&#xA;配置 作用范围 可选值 display.busy_input_mode CLI 终端 + 网关全局 queue / steer / interrupt display.busy_text_mode 仅网关（Telegram 等）文字消息 queue / interrupt 默认值：CLI 终端为 interrupt，消息网关为 queue。&#xA;三种模式详解 📥 Queue — 排队模式 效果： 你在代理忙碌时发送的消息会排队，等到当前整轮任务完成后再处理。&#xA;复制你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息 特点：&#xA;最安全，不会干扰正在执行的操作 延迟最高——可能等几分钟 消息不会丢失，依次处理 适用场景：&#xA;代理在执行批量任务，你不需要中途介入 你只想提交一个后续请求，不着急 代理正在驱动多个子任务（delegate_task），打断可能导致子任务被取消 配置方式：&#xA;复制# config.yaml [display] busy_input_mode = &amp;#34;queue&amp;#34; 复制# CLI 终端 /busy queue 🎯 Steer — 引导模式 效果： 你的消息会在当前工具调用完成后立即插入处理，处理完毕后继续当前任务，不会中断整个工作流。</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Configuration on 电脑自习室</title><link>https://purodn.tk/tags/configuration/</link><description>Recent content in Configuration on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 04 Jul 2026 22:25:03 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/configuration/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Agent Busy Input Modes 完全指南</title><link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link><pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid><description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。
+这正是 Busy Input Modes 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。
+问题背景 Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定如何处理这条消息——是排队等做完、插入到当前步骤之间、还是直接打断？
+这个决策由两个配置共同控制：
+配置 作用范围 可选值 display.busy_input_mode CLI 终端 + 网关全局 queue / steer / interrupt display.busy_text_mode 仅网关（Telegram 等）文字消息 queue / interrupt 默认值：CLI 终端为 interrupt，消息网关为 queue。
+三种模式详解 📥 Queue — 排队模式 效果： 你在代理忙碌时发送的消息会排队，等到当前整轮任务完成后再处理。
+复制你发消息 → [排队] → [排队] → [整轮完成] → 处理你的消息 特点：
+最安全，不会干扰正在执行的操作 延迟最高——可能等几分钟 消息不会丢失，依次处理 适用场景：
+代理在执行批量任务，你不需要中途介入 你只想提交一个后续请求，不着急 代理正在驱动多个子任务（delegate_task），打断可能导致子任务被取消 配置方式：
+复制# config.yaml [display] busy_input_mode = &amp;#34;queue&amp;#34; 复制# CLI 终端 /busy queue 🎯 Steer — 引导模式 效果： 你的消息会在当前工具调用完成后立即插入处理，处理完毕后继续当前任务，不会中断整个工作流。</description></item></channel></rss>

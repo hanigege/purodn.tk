@@ -1,341 +1,293 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Linux on 电脑自习室</title>
-    <link>https://purodn.tk/posts/linux/</link>
-    <description>Recent content in Linux on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sat, 11 Jul 2026 22:45:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/posts/linux/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</title>
-      <link>https://purodn.tk/posts/linux/alpine-configure-timezone/</link>
-      <pubDate>Sat, 11 Jul 2026 22:45:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-configure-timezone/</guid>
-      <description>为什么 Alpine Linux 需要单独配置时区？ 大多数 Linux 发行版（如 Ubuntu、Debian、CentOS）基于 glibc，默认携带完整的时区数据库。Alpine Linux 使用 musl libc，为追求极致精简，默认不安装 tzdata 包。这意味着：&#xA;date 命令默认输出 UTC 时间 容器日志、定时任务（crond）、应用时间戳全部以 UTC 记录 对于部署在东八区或其它非 UTC 时区的生产环境，排查问题时时间换算十分痛苦 因此，安装并配置时区是 Alpine 环境初始化中不可跳过的一步。&#xA;完整配置步骤 1. 安装 tzdata 包 复制apk add tzdata 安装后，时区文件被释放到 /usr/share/zoneinfo/ 目录下。&#xA;💡 tzdata 仅有数百 KB，安装后可通过 ls /usr/share/zoneinfo/ 查看所有可用时区。&#xA;2. 复制对应的时区文件 以 Asia/Shanghai（北京时间，UTC+8） 为例：&#xA;复制cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime /etc/localtime 是一个二进制时区描述文件，内核和 musl libc 通过读取该文件确定系统时区。&#xA;其他时区：如果需要其它时区，先通过 ls /usr/share/zoneinfo/ 浏览可用区域，再选择具体城市或时区。例如：&#xA;Asia/Tokyo — 日本东京（UTC+9） America/New_York — 美国东部（UTC-5） Europe/London — 英国伦敦（UTC+0/+1） UTC — 世界协调时 复制cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime 3.</description>
-    </item>
-    <item>
-      <title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</title>
-      <link>https://purodn.tk/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</link>
-      <pubDate>Thu, 25 Jun 2026 20:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</guid>
-      <description>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比 前言：为什么需要中转机和负载均衡 中转机（Relay / Transit）在代理场景中扮演着流量枢纽的角色。将一台带宽大、线路好的机器作为入口，把接收到的流量按特定规则分发给背后的多台落地机，核心目的是解决单点故障和资源利用率问题。&#xA;为什么要做负载均衡？&#xA;流量与带宽聚合：当落地机流量配额有限（比如每台 500G），通过多台聚合可以跑满中转机的大流量（比如 3T），避免浪费。 高可用（防失联）：当某台落地机 IP 被封、宕机或流量耗尽时，中转机自动将其剔除，流量无缝切换到其他存活的落地机上，客户端无感知。 本文聚焦三种主流的中转转发方案——HAProxy、Nginx Stream 模块、iptables，逐一给出完整的配置教程，并在最后做横向对比和场景推荐。&#xA;重要概念：理解中转机端口与落地机端口 开始阅读前，先理清中转架构中两个关键端口的区别：&#xA;中转机端口：中转机上监听的端口，客户端直接连接这个端口。比如下文中的 8080、10521（TCP）、10522（UDP）。 落地机端口：落地机上代理服务真实运行的端口。比如下文例子中的 8388、443。这个数字取决于你的落地机上跑的是什么服务： 如果落地机跑的是 Hysteria2，默认端口是 443 如果落地机跑的是 VLESS-Reality，默认端口是 443 如果落地机跑的是 Shadowsocks，常见端口是 8388 如果落地机跑的是 Trojan，常见端口是 443 中转机的工作就是：客户端连接中转机的端口 → 中转机原封不动转给落地机的端口。 下文配置中出现的 8388、443、19527 都只是示例，实际使用时必须替换成你落地机上代理服务的真实端口。&#xA;方案一：HAProxy（专业四层负载均衡器） HAProxy 是业界标准的 TCP/HTTP 负载均衡器，原生健康检查、自动剔除故障节点、Web 流量面板一应俱全，适合对高可用要求严格的场景。&#xA;安装 复制apt update apt install haproxy -y 完整配置 将以下内容写入 /etc/haproxy/haproxy.cfg（注意替换为你真实的落地机 IP 和端口）：&#xA;复制# /etc/haproxy/haproxy.cfg global maxconn 51200 # 全局最大连接数，确保高并发不瓶颈 daemon # 后台守护进程运行 defaults mode tcp # 默认模式设为纯 TCP 四层转发 option tcplog timeout connect 5s timeout client 10m timeout server 10m # 核心：中转机代理端口与落地机负载均衡池 listen proxy_relay bind *:8080 # 中转机对外暴露的监听端口 mode tcp balance roundrobin # 负载均衡策略：轮询 # 落地机节点列表（替换为你真实的落地机 IP 和端口） # check：开启主动健康检查 # inter 5s：每 5 秒检查一次 # rise 2：成功 2 次认为节点恢复正常 # fall 3：失败 3 次认为节点宕机并自动剔除 server node1 1.</description>
-    </item>
-    <item>
-      <title>安装 Alpine 系统教程</title>
-      <link>https://purodn.tk/posts/linux/smbox-alpine-install/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/smbox-alpine-install/</guid>
-      <description>Alpine Linux 是一个轻量级 Linux 发行版，内存占用极低，非常适合作为 SMbox 的运行环境。&#xA;本教程涵盖从 Alpine 系统安装到基础运行环境准备的流程。&#xA;下载镜像 从中科大镜像站下载 Alpine 安装镜像：&#xA;https://mirrors.ustc.edu.cn/&#xA;选择对应架构的 alpine-virt 版本（虚拟机优化版）。&#xA;创建虚拟机 以 PVE 为例：&#xA;重要 关闭安全引导（Secure Boot）。&#xA;安装系统 开机后输入 root 登录（无密码），然后运行：&#xA;复制setup-alpine 安装过程说明 APK Mirror（镜像源）选择：输入 f 自动查找最快镜像源，或输入 s 手动选择，也可直接输入编号（如 14 对应 ustc 源，编号可能变动）。&#xA;安装完成后重启，使用 root 和你设置的密码登录。&#xA;安装前置依赖 SMbox 的安装脚本依赖 bash，必须先安装：&#xA;复制apk add bash 安装虚拟机 Tools（可选） 先开启社区仓库：&#xA;复制sed -i &amp;#39;/community/s/^#//&amp;#39; /etc/apk/repositories ESXI 用户：&#xA;复制apk add open-vm-tools open-vm-tools-guestinfo open-vm-tools-deploypkg &amp;amp;&amp;amp; rc-service open-vm-tools start &amp;amp;&amp;amp; rc-update add open-vm-tools boot PVE 用户：</description>
-    </item>
-    <item>
-      <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
-      <link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
-      <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
-      <description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。&#xA;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。&#xA;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：&#xA;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&#xA;这篇不再重复具体配置，避免两篇文章参数互相打架。&#xA;一、先判断 sing-box 的角色 最简单的判断标准：&#xA;复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&#xA;二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。&#xA;典型链路：&#xA;复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description>
-    </item>
-    <item>
-      <title>sing-box 生产机一键备份与恢复</title>
-      <link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link>
-      <pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid>
-      <description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。&#xA;我把流程整理成两个脚本：&#xA;backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。&#xA;能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：&#xA;复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description>
-    </item>
-    <item>
-      <title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title>
-      <link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link>
-      <pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid>
-      <description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。&#xA;最终效果是：&#xA;复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：&#xA;复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。&#xA;准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。&#xA;先在终端检查 Git：&#xA;复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。&#xA;然后确认当前 Mac 能通过 SSH 连接 GitHub：&#xA;复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。&#xA;在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。&#xA;仓库名称填写：</description>
-    </item>
-    <item>
-      <title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title>
-      <link>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link>
-      <pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid>
-      <description>这次是在 VPS 上通过 bin456789/reinstall 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 jay，也配置了登录密码。系统起来以后，确实可以用 jay 这个普通用户 SSH 登录。&#xA;问题出在登录后才发现：/home/ 下面没有正常的 jay 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：&#xA;复制apk update apk upgrade apk add curl nano nvim 然后再回到普通用户使用 nvim 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。&#xA;现象 普通用户 jay 执行：&#xA;复制nvim alpine_user_ssh.sh Neovim 报错大意是无法创建 /home/jay/.local 下面的目录，或者提示权限被拒。&#xA;这类报错说明重点不在 Neovim 本身，而在用户主目录：&#xA;/home/jay 根本不存在； /home/jay 存在，但所有者是 root； $HOME 指向 /home/jay，但普通用户无法在里面创建 .local、.cache、.config； 后续 .ssh/authorized_keys、Neovim 缓存和配置目录都会一起受影响。 先确认问题 先用普通用户登录后检查当前身份和主目录变量：&#xA;复制whoami echo &amp;#34;$HOME&amp;#34; pwd id 正常情况下，whoami 应该输出：</description>
-    </item>
-    <item>
-      <title>Alpine Linux 将普通用户加入 Docker 组</title>
-      <link>https://purodn.tk/posts/linux/alpine-user-docker-group/</link>
-      <pubDate>Sun, 07 Jun 2026 21:31:04 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-user-docker-group/</guid>
-      <description>在 Alpine Linux 上，Docker daemon 通常通过 /var/run/docker.sock 对外提供本机控制入口。这个 socket 一般归属 root:docker，所以普通用户只要加入 docker 组，重新登录后就可以直接执行 docker ps、docker compose up -d 这类命令，不需要每次都加 sudo。&#xA;需要注意的是，docker 组等同于本机 root 级别能力：能启动特权容器、挂载宿主机目录、读写系统文件。只应该把可信任的本机用户加入这个组。&#xA;结论 推荐命令如下，下面以用户 jay 为例：&#xA;复制rc-update add docker default rc-service docker start addgroup jay docker 然后退出当前 SSH 或终端会话，重新登录，再验证：&#xA;复制id docker ps 如果 id 输出里已经能看到 docker 组，并且 docker ps 不再报权限错误，就说明配置完成。&#xA;为什么不推荐写 newgrp docker 很多 Linux 发行版可以用 newgrp docker 在当前 shell 中临时刷新组权限，但 Alpine 最小系统里经常没有这个命令。你看到下面的提示是正常的：&#xA;复制/bin/sh: newgrp: not found 在 Alpine 上最稳的做法是退出当前登录会话，然后重新 SSH 登录。重新登录时，系统会重新加载用户所属组，docker 组权限才会真正进入当前会话。</description>
-    </item>
-    <item>
-      <title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</title>
-      <link>https://purodn.tk/posts/linux/hugo-two-git-repos-purodn-purodncode/</link>
-      <pubDate>Wed, 03 Jun 2026 21:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/hugo-two-git-repos-purodn-purodncode/</guid>
-      <description>Hugo 静态站点有一个很容易混乱的地方：源码和发布产物都在同一个目录附近，但它们其实不是一类东西。&#xA;源码是 content/、layouts/、assets/、static/、hugo.yaml 这些文件；发布产物是 Hugo 构建后生成的 HTML、CSS、JS、图片索引和站点地图。我的站点把这两部分拆成两个 Git 仓库：&#xA;复制/Users/mana/Documents/codex/hugo/ Hugo 源码仓库 /Users/mana/Documents/codex/hugo/public/ GitHub Pages 发布仓库 这样做以后，日常操作也分成两个命令：&#xA;复制purodn 构建 Hugo，并把 public/ 推到 GitHub Pages 仓库 purodncode 验证 Hugo 源码，并把源码推到私有源码仓库 这篇文章记录这套工作流，也顺便记一下这次 purodncode 失效的排查过程。&#xA;为什么要分成两个仓库 如果只维护一个仓库，很容易把 Hugo 生成物当成源码提交进去。比如这些文件和目录都不是源码：&#xA;复制public/ resources/ .hugo_build.lock categories/ css/ js/ posts/ tags/ index.html index.json sitemap.xml 它们要么是构建结果，要么是本地缓存。真正值得长期维护的是 Markdown 文章、文章图片、主题模板、样式脚本和站点配置。&#xA;双仓库的边界可以这样理解：&#xA;复制源码仓库：保存人写的东西 发布仓库：保存 Hugo 生成给浏览器看的东西 源码仓库可以是私有仓库，里面有草稿、脚本和本地协作规则；发布仓库通常是公开仓库，GitHub Pages 直接从里面读取静态网页。&#xA;目录结构 本地 Hugo 源码目录：&#xA;复制/Users/mana/Documents/codex/hugo 源码仓库远程：&#xA;复制git@github.com:hanigege/purodn.tk-source-code.git 本地发布目录：&#xA;复制/Users/mana/Documents/codex/hugo/public 发布仓库远程：&#xA;复制git@github.com:hanigege/purodn.tk.git 注意，public/ 虽然在 Hugo 源码目录里面，但它自己也是一个独立 Git 仓库。检查源码状态时在 Hugo 根目录执行 git status；检查发布产物状态时要进入 public/，或者使用 git -C public status。</description>
-    </item>
-    <item>
-      <title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title>
-      <link>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</link>
-      <pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</guid>
-      <description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。&#xA;目标有两个：&#xA;系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：&#xA;复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：&#xA;复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：&#xA;复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：&#xA;复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description>
-    </item>
-    <item>
-      <title>sing-box FakeIP &#43; TProxy 旁路网关部署草稿</title>
-      <link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link>
-      <pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid>
-      <description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。&#xA;目标 把一台 Linux 机器做成家庭网络旁路透明网关：&#xA;DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：&#xA;生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description>
-    </item>
-    <item>
-      <title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</title>
-      <link>https://purodn.tk/posts/linux/softether-vps-vlan/</link>
-      <pubDate>Fri, 29 May 2026 21:50:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/softether-vps-vlan/</guid>
-      <description>本文原始内容较长，迁移时保留原有截图，并对标题、结构和部分说明做了整理。SoftEther 版本、Linux 发行版和云厂商控制台可能随时间变化，实际操作时请以当前界面和官方下载页为准。&#xA;建议使用 VM 部署，原文在 Debian 12 和 Ubuntu 22.04 上测试通过。 原文提到 CT 容器场景可能出现客户端熄屏后图标仍在但无法继续连接的问题，因此这里仍按 VM 方案整理。&#xA;提醒：阅读本文并按照步骤操作预计需要30分钟以上，请读者保持绝对的细心和耐心。&#xA;1. 背景介绍 动机：codemaster F1系列游戏的联机模式类似P2P，在分布式的节点环境下数据传输和同步异常缓慢，经常出现长时间的加载等候、发车灭灯延迟、圈数和名次计算错乱等影响游戏和比赛体验的状况，因此考虑自己架设私人VPN实现虚拟局域网游戏。&#xA;本文所述 VPN 遵循其英文全称 Virtual Private Network 的严格表述，目标是创建远程私人局域网环境以供游戏或自有设备互联使用。请遵守所在地法律法规和云服务商使用条款。&#xA;如果按照本文步骤操作，可以搭建一个用于虚拟局域网联机的 SoftEther VPN Server。实际效果会受 VPS 区域、带宽、延迟和客户端网络环境影响。&#xA;2. 准备工作 一台可以用作 VPS 的服务器。免费服务器亦可尝试，但不保证效果。&#xA;服务器需要有固定公网 IP。&#xA;原示例使用 GCP 香港实例、阿里云和腾讯云轻量应用主机搭配 Ubuntu 系统镜像测试通过。如果追求长期稳定，建议选择离玩家更近、延迟更低的区域。&#xA;系统镜像可以选择 Ubuntu / Debian，minimal 镜像也可以。&#xA;服务器带宽最好大于等于 5 Mbps，否则联机游戏容易出现延迟。&#xA;CPU 核心数和内存要求不高，根据预算选择即可。&#xA;非常重要：确认服务器系统防火墙和云厂商安全组都允许客户端访问 TCP 5555 端口。不知道怎么检查和编辑防火墙规则的，可以先看本文最后一节。&#xA;一台 Windows 10 / Windows 11 PC，用于运行 SoftEther Server Manager 和 VPN Client。</description>
-    </item>
-    <item>
-      <title>Vim 查找替换命令速查</title>
-      <link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link>
-      <pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid>
-      <description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。&#xA;基本格式 Vim 替换命令的基本格式是：&#xA;复制:[范围]s/查找内容/替换内容/[标志] 常见写法：&#xA;复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。&#xA;复制:s/foo/bar/g 表示只在当前行，把所有 foo 都替换成 bar。&#xA;复制:%s/foo/bar/g 表示在整个文件里，把所有 foo 都替换成 bar。&#xA;这里的 % 表示整个文件范围，等价于 1,$。&#xA;替换整个文件里的 IP 地址 如果要把当前文件中的 8.8.8.8 全部替换成 10.20.20.29，不要直接写：&#xA;复制:%s/8.8.8.8/10.20.20.29/g 这条命令看起来直观，但在 Vim 正则里，. 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：&#xA;复制:%s/8\.8\.8\.8/10.20.20.29/g 这样才是精确匹配 8.8.8.8。&#xA;每次替换前都确认 如果担心误替换，可以加 c 标志，让 Vim 每次替换前都询问：&#xA;复制:%s/8\.8\.8\.8/10.20.20.29/gc 提示时常见按键含义：&#xA;按键 作用 y 替换当前匹配项 n 跳过当前匹配项 a 替换剩余所有匹配项 q 退出替换 l 替换当前项后退出 只替换指定范围 只替换当前行：&#xA;复制:s/foo/bar/g 替换第 10 到第 30 行：</description>
-    </item>
-    <item>
-      <title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title>
-      <link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link>
-      <pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid>
-      <description>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 Asia/Shanghai，再用 chrony 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。&#xA;时间同步和北京时间的关系 这里要分清两件事：&#xA;Asia/Shanghai 负责把系统显示时区设为北京时间，也就是 UTC+8。 chrony 负责通过 NTP 校准系统时钟，让时间本身准确。 所以只安装 chrony 不等于设置北京时间；只设置 Asia/Shanghai 也不等于时间已经校准。两个都做完，date 看到的时间才会是准确的北京时间。&#xA;一、设置时区为北京时间 先查看当前时间和时区：&#xA;复制timedatectl date 设置系统时区为北京时间：&#xA;复制sudo timedatectl set-timezone Asia/Shanghai 再次确认：&#xA;复制timedatectl date timedatectl 输出里应能看到：&#xA;复制Time zone: Asia/Shanghai (CST, +0800) date 输出里也应该出现 CST 或 +0800。这一步只负责时区显示，不负责从网络校准时间。&#xA;二、使用 chrony 校准系统时间 Ubuntu 默认可以使用 systemd-timesyncd 做基础时间同步，但服务器环境更推荐使用 chrony。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。&#xA;先安装 chrony：&#xA;复制sudo apt update sudo apt install -y chrony 编辑配置文件：&#xA;复制sudo nvim /etc/chrony/chrony.conf 清空或覆盖 /etc/chrony/chrony.conf，写入以下完整配置：</description>
-    </item>
-    <item>
-      <title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title>
-      <link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link>
-      <pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid>
-      <description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。&#xA;后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。&#xA;准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：&#xA;https://cloud-images.ubuntu.com/&#xA;在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。&#xA;创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：&#xA;复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：&#xA;复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description>
-    </item>
-    <item>
-      <title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title>
-      <link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link>
-      <pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid>
-      <description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。&#xA;适用场景：&#xA;使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。&#xA;一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：&#xA;Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.</description>
-    </item>
-    <item>
-      <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</title>
-      <link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link>
-      <pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid>
-      <description>这篇是给美服 LoL 单独整理的部署记录。&#xA;背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。&#xA;本文的目标不是重写整套代理架构，而是只做两件事：&#xA;让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。&#xA;1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：&#xA;复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。&#xA;但 LoL 不一样，它的连接链路里会出现：&#xA;登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description>
-    </item>
-    <item>
-      <title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
-      <link>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</link>
-      <pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</guid>
-      <description>这篇是 Alpine 版的保姆教程。目标很简单：&#xA;服务端只跑 Hysteria2，监听 443/udp 证书、自启动、日志、内核参数一次配好 客户端只补一个 outbound，不改现有 TUN 结构 节点域名和节点 IP 永远走直连，避免回环 本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。&#xA;先说结论 Alpine 很适合这类节点：&#xA;系统轻 OpenRC 简单 重装干净 资源占用小 Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：&#xA;443/udp 是否真放通 域名是否正确解析到服务器公网 IP 客户端的带宽参数是否和实际家宽大致匹配 1. 检查新系统 先确认系统和基础状态：&#xA;复制cat /etc/os-release uname -a cat /etc/alpine-release ps -ef | grep -i &amp;#39;[h]ysteria&amp;#39; || true ss -lntup 2&amp;gt;/dev/null | grep -E &amp;#39;:443|hysteria|hy2&amp;#39; || true apk --version 干净的新机一般不会有 Hysteria2 进程，也不会有 443/udp 监听。&#xA;再看一下防火墙和解析：&#xA;复制getent hosts proxy.</description>
-    </item>
-    <item>
-      <title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
-      <link>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</link>
-      <pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</guid>
-      <description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。&#xA;示例里使用占位符：&#xA;项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：&#xA;域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description>
-    </item>
-    <item>
-      <title>Linux 临时开启 root 密码 SSH 登录</title>
-      <link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link>
-      <pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid>
-      <description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。&#xA;本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。&#xA;1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：&#xA;复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。&#xA;例如密码是 change passwd，命令应写成：&#xA;复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：&#xA;复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：&#xA;PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description>
-    </item>
-    <item>
-      <title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title>
-      <link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link>
-      <pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid>
-      <description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&#xA;架构说明 访问链路如下：&#xA;复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：&#xA;项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：&#xA;项目 文档示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path 服务端入口 443 Gost 后端端口 18080 客户端本地 SOCKS 127.</description>
-    </item>
-    <item>
-      <title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title>
-      <link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link>
-      <pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid>
-      <description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。&#xA;这个方案适合下面这种链路：&#xA;复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。&#xA;为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。&#xA;第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。&#xA;第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：&#xA;复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。&#xA;前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：&#xA;复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description>
-    </item>
-    <item>
-      <title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title>
-      <link>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</guid>
-      <description>本文记录在 Alpine Linux 上搭建 sing-box 服务端的完整流程：从 Edge community 临时安装 sing-box，编译并加载 tcp-brutal 内核模块，然后配置 VLESS Reality 入站。&#xA;本文不需要申请域名证书，Reality 会伪装到指定的 TLS 站点，例如 mirrors.kernel.org。&#xA;一、准备系统和组件 建议使用 Alpine virt 内核环境，并以 root 用户执行下面的命令。&#xA;先安装基础工具：&#xA;复制apk update apk add curl wget bash vim nano jq openssl ca-certificates iproute2 从 Edge community 临时安装 sing-box。这种方式只对本次安装使用 Edge community，避免把系统仓库永久混用。&#xA;复制apk update apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box 设置 sing-box 开机自启：&#xA;复制rc-update add sing-box default 确认版本：&#xA;复制sing-box version 二、升级 virt 内核 安装 tcp-brutal 前，先确保包索引是最新的，并升级 virt 内核：</description>
-    </item>
-    <item>
-      <title>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</title>
-      <link>https://purodn.tk/posts/linux/docker-headscale-derp-tailscale-npm-proxy/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/docker-headscale-derp-tailscale-npm-proxy/</guid>
-      <description>说明 这教程全网应该是唯一的 内网部署。 因为太实用了，不管是回家，还是建立私有隧道，或者是添加节点等等吧都行,不过也有硬性要求，就是家里要使用pve或其它虚拟系统，软路由是ros（其它的路由系统道理也是相通的）才可以部署！ pve下新建一个vm虚拟机 ubuntu 24.04为例： 目录结构(需要建立4个容器） 都装在同一台机器上，内网ip例如：10.20.20.8 复制~/data/docker_data/ ├── headscale及headscale-UI/ # 服务端与配置 ├── derps/ # 中继服务器 └── tailscale/ # 网关节点 |—— Nginx Proxy Manager / # 反向代理服务 后面引用会简称npm 域名只供参考，只是举例 ，域名可以在内网搭建好npm容器后，通过npm申请证书，下面有教程。 Domain Forward IP Forward Port https://hs.jgaga.xyz:12335 10.20.20.8 8080 (Headscale 容器对外服务端口) https://derps.jgaga.xyz:12335 10.20.20.8 8082 (DERP 容器对外服务端口) https://hs-ui.jgaga.xyz:12335 10.20.20.8 9443 (web页后台管理端口) http://10.20.20.8 10.20.20.8 81 (Nginx Proxy Manage后台管理端口) 开始安装 docker一键安装 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh &amp;amp;&amp;amp; sh docker.sh docker.sh 该脚本用于自动安装 docker 以及 docker 插件(composes、buildx 等), 同时该脚本将会自动配置 /etc/docker/daemon.</description>
-    </item>
-    <item>
-      <title>手动申请域名ssl证书acme.sh脚本申请cloudflare的证书 支持泛域名</title>
-      <link>https://purodn.tk/posts/linux/manual-domain-ssl-cert/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/manual-domain-ssl-cert/</guid>
-      <description>acme.sh脚本申请cloudflare的证书 支持泛域名&#xA;前言：acme.sh是一个非常好用的用于申请证书的脚本，它开源在Github，它极大地降低了申请证书的难度，支持使用cloudflare api等多种api来申请证书。&#xA;本文主要介绍使用此脚本来申请 ssl 证书，给你的http请求加把锁，具体可以用来cloudflare api介绍。&#xA;准备条件： 一台被分配了公网IP的主机&#xA;一个域名(建议购买收费域名)&#xA;电脑ssh客户端&#xA;能解决个体的问题&#xA;一、全球API申请证书 1.1、安装脚本文件 以root用户ssh连接到主机，使用下面的命令安装脚本：&#xA;复制apt update &amp;amp;&amp;amp; apt -y install socat //更新源并安装socat wget -qO- get.acme.sh | bash //安装此脚本 source ~/.bashrc //让别名生效，此后无论在哪里直接使用acme.sh，不用输绝对路径 # 由于最新acme.sh脚本默认ca变成了zerossl，现## 执行下面命令修改脚本默认ca为letsencrypt acme.sh --set-default-ca --server letsencrypt 1.2、证书配置 1.2.1 获取Cloudflare api key 注册好cloudflare账号，把域名解析的解析权限锁定cloudflare处理，这样以后只需要在cloudflare这里配置解析记录。按照图标获取cloudflare api key。&#xA;1.2.2 申请证书（二选一） 这里假设您的域名是yourdomain.com，执行下面命令申请证书：&#xA;1.2.2.1 dns方式验证&#xA;复制export CF_Key=&amp;#34;slfjksjffjfhfhkjhfksjf&amp;#34; //此处替换成你自己的Key export CF_Email=&amp;#34;yourcloudflare@gmail.com&amp;#34; //此处填写你给Cloudflare绑定的邮箱账号 acme.sh --issue --dns dns_cf -d yourdomain.com -d www.yourdomain.com -k ec-256 说明：Cloudflare 目前不支持.</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（二）：FreePBX 16 基础配置</title>
-      <link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid>
-      <description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。&#xA;基础假设 示例网络如下：&#xA;项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。&#xA;原文中的整体架构图如下：&#xA;固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：&#xA;复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：&#xA;复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：&#xA;复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title>
-      <link>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</guid>
-      <description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。&#xA;设备与限制 旧款 SMG4004-4LC 常见特点：&#xA;4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。&#xA;旧文中的设备和卡槽界面截图：&#xA;网络规划 示例：&#xA;项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。&#xA;FreePBX 侧先确认基础页面和 SIP 端口设置无误：&#xA;如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：&#xA;升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。&#xA;建议检查：&#xA;设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title>
-      <link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid>
-      <description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。&#xA;为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。&#xA;更稳的方式是：&#xA;复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。&#xA;创建 Bot 在 Telegram 搜索：&#xA;复制@BotFather 创建流程：&#xA;发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：&#xA;复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。&#xA;获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：&#xA;先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：&#xA;复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title>
-      <link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid>
-      <description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。&#xA;准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：&#xA;复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：&#xA;复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：&#xA;复制python3 -m venv .venv 安装依赖：&#xA;复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。&#xA;准备脚本 把测试通过的桥接脚本放到：&#xA;复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：&#xA;复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description>
-    </item>
-    <item>
-      <title>出国自建 VoIP（一）：整体架构与实现路线</title>
-      <link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link>
-      <pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid>
-      <description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。&#xA;适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：&#xA;SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。&#xA;推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description>
-    </item>
-    <item>
-      <title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title>
-      <link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link>
-      <pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid>
-      <description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。&#xA;原始脚本也保存在本文同级 assets/ 目录中：&#xA;Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。&#xA;Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。&#xA;复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description>
-    </item>
-    <item>
-      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
-      <link>https://purodn.tk/posts/linux/tmux-basic-config/</link>
-      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid>
-      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
-    </item>
-    <item>
-      <title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title>
-      <link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link>
-      <pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid>
-      <description>在 Alpine Linux 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。&#xA;本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /var/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。&#xA;准备证书 正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 acme.sh、lego 或 certbot。&#xA;本文后续示例假设证书和私钥已经放在下面的位置：&#xA;复制/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key。&#xA;安装并启用 Nginx Alpine 使用 apk 安装软件，服务管理使用 OpenRC：&#xA;复制apk update apk add nginx openssl logrotate rc-update add nginx default 创建 Web 根目录：&#xA;复制mkdir -p /var/www/fetch.jgaga.tk chown -R root:nginx /var/www/fetch.jgaga.tk 这里推荐让目录归属为 root:nginx。Nginx worker 以 nginx 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。&#xA;创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。下面以用户名 admin 为例：</description>
-    </item>
-    <item>
-      <title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title>
-      <link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link>
-      <pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid>
-      <description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。&#xA;视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：&#xA;复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：&#xA;用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。&#xA;还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。&#xA;二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：&#xA;复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：&#xA;复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description>
-    </item>
-    <item>
-      <title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title>
-      <link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link>
-      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid>
-      <description>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。&#xA;视频演示 这套配置包含：&#xA;lazy.nvim 插件管理器 onedark.nvim 护眼深色主题 nvim-tree.lua 文件树 nvim-osc52 远程复制 conform.nvim 代码格式化 jq JSON 格式化工具 prettier 前端、Markdown 与 YAML 格式化工具 ;t 智能切换文件树 ;f 手动格式化 ;w 保存并自动格式化 一、安装 Neovim 要求 Neovim 版本不低于 0.10.0。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。&#xA;Debian / Ubuntu 复制sudo apt update sudo apt install -y neovim git curl nvim --version | grep ^NVIM Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 neovim 仍可能停留在 0.9.x：</description>
-    </item>
-    <item>
-      <title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title>
-      <link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link>
-      <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid>
-      <description>本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。&#xA;这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 conform.nvim 和 prettier 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。&#xA;第一步：安装依赖并源码编译 Neovim 在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。&#xA;复制sudo apt update sudo apt install ninja-build gettext cmake unzip curl build-essential git -y 拉取 Neovim 源码，并切换到稳定版分支。使用 stable 分支可以规避开发版中可能出现的临时问题。&#xA;复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并全局安装：&#xA;复制make CMAKE_BUILD_TYPE=Release -j$(nproc) sudo make install 清理 shell 路径缓存，并验证 Neovim 版本：&#xA;复制hash -r nvim -v 如果系统里原本安装过旧版 Neovim，可以额外确认实际调用路径：</description>
-    </item>
-    <item>
-      <title>mosdns 安装教程</title>
-      <link>https://purodn.tk/posts/linux/mosdns-install/</link>
-      <pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/mosdns-install/</guid>
-      <description>本文介绍 mosdns（Tom魔改版） 安装使用的方法&#xA;[TOC]&#xA;一、脚本部署 mosdns 需从github下载配置文件，自行准备科学环境&#xA;步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本&#xA;复制wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &amp;amp;&amp;amp; chmod +x /mnt/main_install.sh &amp;amp;&amp;amp; /mnt/main_install.sh 步骤 2： 输入 5 ，再输入 1 ，安装mosdns&#xA;步骤 3： 按提示输入以下信息：&#xA;sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890） 输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666) 步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099&#xA;MosDNS UI 界面预览 更多 mosdns 和 UI 设置问题：加入 TG 群咨询 点击加入 TG 群&#xA;二、手动部署 mosdns 配置 systemd 开机自启（Debian/Ubuntu）：&#xA;步骤 1： 下载 service 文件</description>
-    </item>
-    <item>
-      <title>sing-box 安装教程</title>
-      <link>https://purodn.tk/posts/linux/sing-box-install/</link>
-      <pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-install/</guid>
-      <description>本文介绍 sing-box 作为透明网关的安装方法&#xA;[TOC]&#xA;一、脚本部署 sing-box 脚本在 GitHub，虚拟机需具备科学上网能力&#xA;步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本&#xA;复制wget https://raw.githubusercontent.com/herozmy/StoreHouse/refs/heads/latest/install.sh &amp;amp;&amp;amp; bash install.sh 步骤 2： 输入 y 确认&#xA;步骤 3： 输入 3 安装 sing-box&#xA;步骤 4： 选择核心版本&#xA;VPS 用户：选择 1.官方核心 机场用户：选择 3.reF1nd 核心 步骤 5： 输入 y 确认，粘贴订阅链接&#xA;步骤 6： 回车确认&#xA;步骤 7： 安装成功后，输入 proxytool 管理服务&#xA;步骤 8： 打开 UI 面板&#xA;访问提示的地址，输入 sing-box 所在 VM 的 IP:9090 即可打开 UI 面板。&#xA;脚本也可安装 mihomo 裸核，自行探索。</description>
-    </item>
-    <item>
-      <title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title>
-      <link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link>
-      <pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid>
-      <description>这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 /srv/backup 单向同步到 B 机器，不让备份端的改动反向影响源端。&#xA;如果前面还有一台业务服务器只负责打包并上传备份，生产链路可以拆成三段：&#xA;复制业务服务器 A -&amp;gt; SSH 上传 tar.gz -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 单向同步 -&amp;gt; 最终备份端 C:/srv/backup 这种情况下，A 不必运行 Syncthing；A 只需要把完整备份包原子地放入 B 的 /srv/backup。真正负责同步状态、设备连接和最终落盘的是 B 与 C 上的 Syncthing。&#xA;Syncthing 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。&#xA;适用场景 源端目录：/srv/backup 备份端目录：/srv/backup 目录属主：syncthing:syncthing 同步模式：源端 仅发送，备份端 仅接收 运行用户：专门创建的 syncthing 普通服务用户 管理方式：通过 SSH 隧道访问 Syncthing Web GUI 实际生产里也可以把源端同步端口改成非默认端口，例如 B 机监听 29029/tcp 和 29029/udp，C 机继续监听默认 22000。Syncthing 设备地址保留 dynamic 时会通过发现服务交换真实地址；手动指定地址时才需要写成 tcp://公网IP:端口。</description>
-    </item>
-    <item>
-      <title>Bash指令下命令行颜色美化及ll命令添加</title>
-      <link>https://purodn.tk/posts/linux/bash-color-ll-alias/</link>
-      <pubDate>Mon, 02 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/bash-color-ll-alias/</guid>
-      <description>操作 复制nano ~/.bashrc 添加内容(最底部添加） 复制alias ll=&amp;#39;ls -la&amp;#39; PS1=&amp;#39;\[\033[1;32m\]\u\[\033[0m\]@\[\033[1;34m\]\h\[\033[0m\] \[\033[1;31m\]\w\[\033[0m\] # &amp;#39; alias rm=&amp;#39;rm -i&amp;#39; alias mv=&amp;#39;mv -i&amp;#39; 同时删除和移动加了一次确认&#xA;生效 复制. ~/.bashrc 应该看到变化了</description>
-    </item>
-    <item>
-      <title>拉取github公钥做为自己服务器的公钥的脚本</title>
-      <link>https://purodn.tk/posts/linux/github-ssh-keys-authorized-script/</link>
-      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/github-ssh-keys-authorized-script/</guid>
-      <description>适用于ubuntu&amp;amp;debian&amp;amp;alpine,请对应安装 说明： 极大简化了服务器安装ssh密钥的工作，一键导入，导入后，脚本会自动修改sshd_config的配置参数，省心省力，当然也可以直接生成新证书使用。&#xA;Ubuntu&amp;amp;Debian 脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/ubuntu_ssh_key_manage.sh -o ubuntu_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x ubuntu_ssh_key_manage.sh &amp;amp;&amp;amp; bash ubuntu_ssh_key_manage.sh Alpine root 用户脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/alpine_root_ssh_key_manage.sh -o alpine_root_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x alpine_root_ssh_key_manage.sh &amp;amp;&amp;amp; sh alpine_root_ssh_key_manage.sh Alpine 普通用户脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/alpine_user_ssh_key_manage.sh -o alpine_user_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x alpine_user_ssh_key_manage.sh &amp;amp;&amp;amp; sh alpine_user_ssh_key_manage.sh </description>
-    </item>
-    <item>
-      <title>一键申请 SSL 证书脚本</title>
-      <link>https://purodn.tk/posts/linux/one-click-ssl-cert-script/</link>
-      <pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/one-click-ssl-cert-script/</guid>
-      <description>支持ubuntu&amp;amp;debian 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/ssl.sh -o ssl.sh &amp;amp;&amp;amp; chmod +x ssl.sh &amp;amp;&amp;amp; bash ssl.sh </description>
-    </item>
-    <item>
-      <title>2026版Ubuntu&amp;Debian下iptables&#43;mss防火墙管理一键脚本</title>
-      <link>https://purodn.tk/posts/linux/ubuntu-debian-iptables-mss-firewall-script/</link>
-      <pubDate>Fri, 27 Feb 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/ubuntu-debian-iptables-mss-firewall-script/</guid>
-      <description>说明：支持ipv4&amp;amp;ipv6,自动检测有无ipv6，添加mss.自动检测ssh端口等，很方便 一键拉取脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/iptables_manager.sh -o iptables_manager.sh &amp;amp;&amp;amp; chmod +x iptables_manager.sh &amp;amp;&amp;amp; bash iptables_manager.sh 手动安装方法（可选） 复制nano iptables_manager.sh 直接复制并执行以下完整代码覆盖原脚本： 复制cat &amp;lt;&amp;lt; &amp;#39;EOF&amp;#39; &amp;gt; iptables_manager.sh #!/bin/bash # ========================================================== # 脚本名称：高级防火墙管理工具 (Debian/Ubuntu 专属自适应版 V4.1) # 核心升级：基于软件和内核模块的深度智能检测，消除冗余规则 # ========================================================== gl_lv=&amp;#39;\033[32m&amp;#39; gl_huang=&amp;#39;\033[33m&amp;#39; gl_hong=&amp;#39;\033[31m&amp;#39; gl_bai=&amp;#39;\033[0m&amp;#39; root_use() { [ &amp;#34;$EUID&amp;#34; -ne 0 ] &amp;amp;&amp;amp; echo -e &amp;#34;${gl_huang}提示: ${gl_bai}需 root 权限运行！&amp;#34; &amp;amp;&amp;amp; exit 1 } check_deps() { if ! dpkg -l | grep -qw iptables-persistent; then echo -e &amp;#34;${gl_huang}检测到未安装持久化组件，正在自动安装.</description>
-    </item>
-    <item>
-      <title>以 FakeIP 分流为基石的科学上网方案</title>
-      <link>https://purodn.tk/posts/linux/fakeip-routing-solution/</link>
-      <pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/fakeip-routing-solution/</guid>
-      <description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流&#xA;[TOC]&#xA;一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。&#xA;DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：&#xA;IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：&#xA;198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description>
-    </item>
-    <item>
-      <title>使用 tailscale 内网穿透回家及异地组网</title>
-      <link>https://purodn.tk/posts/linux/tailscale-home-network/</link>
-      <pubDate>Fri, 22 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/tailscale-home-network/</guid>
-      <description>一、通过部署tailscale，内网穿透到家中，使用家里的mosdns分流。国内流量走客户端直连，国外流量（fakeip）通过tailscale回家后再通过家里的singbox走代理。适用于无公网ip无法使用hy2回家的小朋友~ pve中使用vm虚拟机（推荐debian12）部署tailscale 复制curl -fsSL https://tailscale.com/install.sh | sh 开启流量转发 使用nano编辑/etc/sysctl.conf文件 复制sudo nano /etc/sysctl.conf 找到net.ipv4.ip_forward=1去掉#注释，修改为 复制net.ipv4.ip_forward=1 使修改生效 复制sysctl --system 先关闭tailscale 复制tailscale down 加参数启动tailscale 自行修改示例中的内网ip段和fakeip段，添加后tailscale将允许上述流量通过&#xA;复制tailscale up --advertise-routes=dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes 点击ssh界面中的登录链接登录ts账号 登录tailscale官网，编辑刚才新建的节点点击“Edit route settings…”，点击“Approve all”选中所有路由的IP，勾选“Use as exit node”，点击“Save保存 官网地址：https://login.tailscale.com/admin/machines 添加mosdns为DNS服务器 修改Global nameservers为mosdns的内网ip 手机等设备登录tailscale后，勾选刚才新建的tailscale服务为“exit node”，并打开 “Allow Local Network Access” 按需开启Enbale选项（开启后ts将路由所有流量，分流失效，图示为未开启状态） 二、通过tailscale异地组网 可实现vps通过tailscale隧道访问家中服务，配合vps中部署的反代使用效果极佳 可以通过在tailscale up时候添加key的方式加入新的设备，无需点击登录连接 异地组网不能配置Global nameservers，所以上述分流回家方案与这个方案不可兼得。手机需要科学的话只能开启路由所有流量。 如果从上述方案迁移到这个方案，先在A家里停止刚才的tailscale并重新启动 复制tailscale down 重新启动，通告A家庭中的局域网IP段，可使用key登录 复制tailscale up --auth-key=你的key --advertise-routes=10.0.0.0/24 --advertise-exit-node --accept-routes 在ts网页中，将ts回家时添加的Global nameservers删除，同时点击 DISABLE MagicDNS，禁用 MagicDNS 在B家中任意vm中安装tailscale 复制curl -fsSL https://tailscale.</description>
-    </item>
-    <item>
-      <title>使用 traefik 搭建反向代理</title>
-      <link>https://purodn.tk/posts/linux/traefik-reverse-proxy/</link>
-      <pubDate>Fri, 15 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/traefik-reverse-proxy/</guid>
-      <description>本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能 注：1.目前traefik仅能通过docker部署 2. 后附unraid使用的traefik模板&#xA;以下教程以在pve的lxc中安装为例 （一）lxc环境准备 pve中以ubuntu22.04或debian12为模板，创建lxc 修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录 ssh登录lxc，更换国内源（有科学环境可不用换源） 复制bash &amp;lt;(curl -sSL https://linuxmirrors.cn/main.sh) \ --source mirrors.tuna.tsinghua.edu.cn \ --web-protocol https \ --backup true \ --ignore-backup-tips \ --updata-software false 更新软件包，安装必要依赖（若弹出选择框直接回车即可） 复制apt update &amp;amp;&amp;amp; apt upgrade -y &amp;amp;&amp;amp; apt install curl nano -y 使用官方脚本一键安装docker和docker-compose 复制curl -fsSL https://get.docker.com -o get-docker.sh （二）部署traefik 创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik 复制mkdir -p /root/docker/traefik/configurations cd /root/docker/traefik touch docker-compose.yaml touch traefik.yml touch acme.json touch configurations/dynamic.yml chmod 600 acme.json 编辑docker-compose.yaml文件 复制nano /root/docker/traefik/docker-compose.yaml 粘贴以下代码至docker-compose.</description>
-    </item>
-    <item>
-      <title>使用 caddy 搭建反向代理</title>
-      <link>https://purodn.tk/posts/linux/caddy-reverse-proxy/</link>
-      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/caddy-reverse-proxy/</guid>
-      <description>本文介绍家庭宽带及VPS中部署caddy，实现反向代理、自动申请并续签证书、http自动跳转https等功能，可通过docker或裸跑二进制的方式部署 ① 家庭宽带中通过docker部署 由于家庭宽带80 443端口被封，无法通过DNS验证的方式申请证书，需配合cloudflare DNS token申请证书，故只推荐通过docker安装 使用docker官方脚本一键安装docker，已安装docker的跳过 复制curl -fsSL https://get.docker.com | bash -s docker 可选用阿里镜像仓库加速安装 复制curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun 创建好容器所需文件夹及文件 复制mkdir -p /root/docker/caddy/data touch /root/docker/caddy/data/caddyfile.txt touch /root/docker/caddy/compose.yml compose.yml内容如下，使用host模式会自动占用8080和55443端口（55443为公网访问时所加端口，可在配置文件中修改） 复制version: &amp;#39;3&amp;#39; services: caddy: pull_policy: always image: sliamb/caddy:latest container_name: caddy restart: unless-stopped environment: - TZ=Asia/Shanghai - DNS=223.5.5.5,8.8.8.8 volumes: - ./data:/data - ./cert:/root/.local/share/caddy/certificates # 证书路径 network_mode: &amp;#34;host&amp;#34; 修改caddyfile.txt配置文件 以下为配置示例，根据情况自行调整 格式参考如下，修改对应邮箱、dns_token、域名及服务地址 将caddy监听的https端口修改为55443，相对应的公网端口（即之后访问域名时候加的端口）也是55443，主路由做好wan端口55443到caddy 55443的映射。该端口根据自己需求修改即可。 配置模板内容依次为：反向代理pve等https连接、反向代理普通http连接、反向代理静态网页 复制{ # 配置 cloudflare 的 DNS-01 挑战 email [email protected] # 替换为您的邮箱 acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx # 替换为 cloudflare 的 token # 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功） #acme_ca https://acme.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Linux on 电脑自习室</title><link>https://purodn.tk/posts/linux/</link><description>Recent content in Linux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sat, 11 Jul 2026 22:45:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/posts/linux/index.xml" rel="self" type="application/rss+xml"/><item><title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</title><link>https://purodn.tk/posts/linux/alpine-configure-timezone/</link><pubDate>Sat, 11 Jul 2026 22:45:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-configure-timezone/</guid><description>为什么 Alpine Linux 需要单独配置时区？ 大多数 Linux 发行版（如 Ubuntu、Debian、CentOS）基于 glibc，默认携带完整的时区数据库。Alpine Linux 使用 musl libc，为追求极致精简，默认不安装 tzdata 包。这意味着：
+date 命令默认输出 UTC 时间 容器日志、定时任务（crond）、应用时间戳全部以 UTC 记录 对于部署在东八区或其它非 UTC 时区的生产环境，排查问题时时间换算十分痛苦 因此，安装并配置时区是 Alpine 环境初始化中不可跳过的一步。
+完整配置步骤 1. 安装 tzdata 包 复制apk add tzdata 安装后，时区文件被释放到 /usr/share/zoneinfo/ 目录下。
+💡 tzdata 仅有数百 KB，安装后可通过 ls /usr/share/zoneinfo/ 查看所有可用时区。
+2. 复制对应的时区文件 以 Asia/Shanghai（北京时间，UTC+8） 为例：
+复制cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime /etc/localtime 是一个二进制时区描述文件，内核和 musl libc 通过读取该文件确定系统时区。
+其他时区：如果需要其它时区，先通过 ls /usr/share/zoneinfo/ 浏览可用区域，再选择具体城市或时区。例如：
+Asia/Tokyo — 日本东京（UTC+9） America/New_York — 美国东部（UTC-5） Europe/London — 英国伦敦（UTC+0/+1） UTC — 世界协调时 复制cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime 3.</description></item><item><title>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比</title><link>https://purodn.tk/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</link><pubDate>Thu, 25 Jun 2026 20:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/relay-transit-comparison-haproxy-nginx-iptables/</guid><description>中转机搭建配置全面指南：HAProxy、Nginx、iptables 方案对比 前言：为什么需要中转机和负载均衡 中转机（Relay / Transit）在代理场景中扮演着流量枢纽的角色。将一台带宽大、线路好的机器作为入口，把接收到的流量按特定规则分发给背后的多台落地机，核心目的是解决单点故障和资源利用率问题。
+为什么要做负载均衡？
+流量与带宽聚合：当落地机流量配额有限（比如每台 500G），通过多台聚合可以跑满中转机的大流量（比如 3T），避免浪费。 高可用（防失联）：当某台落地机 IP 被封、宕机或流量耗尽时，中转机自动将其剔除，流量无缝切换到其他存活的落地机上，客户端无感知。 本文聚焦三种主流的中转转发方案——HAProxy、Nginx Stream 模块、iptables，逐一给出完整的配置教程，并在最后做横向对比和场景推荐。
+重要概念：理解中转机端口与落地机端口 开始阅读前，先理清中转架构中两个关键端口的区别：
+中转机端口：中转机上监听的端口，客户端直接连接这个端口。比如下文中的 8080、10521（TCP）、10522（UDP）。 落地机端口：落地机上代理服务真实运行的端口。比如下文例子中的 8388、443。这个数字取决于你的落地机上跑的是什么服务： 如果落地机跑的是 Hysteria2，默认端口是 443 如果落地机跑的是 VLESS-Reality，默认端口是 443 如果落地机跑的是 Shadowsocks，常见端口是 8388 如果落地机跑的是 Trojan，常见端口是 443 中转机的工作就是：客户端连接中转机的端口 → 中转机原封不动转给落地机的端口。 下文配置中出现的 8388、443、19527 都只是示例，实际使用时必须替换成你落地机上代理服务的真实端口。
+方案一：HAProxy（专业四层负载均衡器） HAProxy 是业界标准的 TCP/HTTP 负载均衡器，原生健康检查、自动剔除故障节点、Web 流量面板一应俱全，适合对高可用要求严格的场景。
+安装 复制apt update apt install haproxy -y 完整配置 将以下内容写入 /etc/haproxy/haproxy.cfg（注意替换为你真实的落地机 IP 和端口）：
+复制# /etc/haproxy/haproxy.cfg global maxconn 51200 # 全局最大连接数，确保高并发不瓶颈 daemon # 后台守护进程运行 defaults mode tcp # 默认模式设为纯 TCP 四层转发 option tcplog timeout connect 5s timeout client 10m timeout server 10m # 核心：中转机代理端口与落地机负载均衡池 listen proxy_relay bind *:8080 # 中转机对外暴露的监听端口 mode tcp balance roundrobin # 负载均衡策略：轮询 # 落地机节点列表（替换为你真实的落地机 IP 和端口） # check：开启主动健康检查 # inter 5s：每 5 秒检查一次 # rise 2：成功 2 次认为节点恢复正常 # fall 3：失败 3 次认为节点宕机并自动剔除 server node1 1.</description></item><item><title>安装 Alpine 系统教程</title><link>https://purodn.tk/posts/linux/smbox-alpine-install/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/smbox-alpine-install/</guid><description>Alpine Linux 是一个轻量级 Linux 发行版，内存占用极低，非常适合作为 SMbox 的运行环境。
+本教程涵盖从 Alpine 系统安装到基础运行环境准备的流程。
+下载镜像 从中科大镜像站下载 Alpine 安装镜像：
+https://mirrors.ustc.edu.cn/
+选择对应架构的 alpine-virt 版本（虚拟机优化版）。
+创建虚拟机 以 PVE 为例：
+重要 关闭安全引导（Secure Boot）。
+安装系统 开机后输入 root 登录（无密码），然后运行：
+复制setup-alpine 安装过程说明 APK Mirror（镜像源）选择：输入 f 自动查找最快镜像源，或输入 s 手动选择，也可直接输入编号（如 14 对应 ustc 源，编号可能变动）。
+安装完成后重启，使用 root 和你设置的密码登录。
+安装前置依赖 SMbox 的安装脚本依赖 bash，必须先安装：
+复制apk add bash 安装虚拟机 Tools（可选） 先开启社区仓库：
+复制sed -i &amp;#39;/community/s/^#//&amp;#39; /etc/apk/repositories ESXI 用户：
+复制apk add open-vm-tools open-vm-tools-guestinfo open-vm-tools-deploypkg &amp;amp;&amp;amp; rc-service open-vm-tools start &amp;amp;&amp;amp; rc-update add open-vm-tools boot PVE 用户：</description></item><item><title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title><link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link><pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid><description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。
+这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。
+具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：
+PVE LXC sing-box 网关 sysctl 与 UDP 性能优化
+这篇不再重复具体配置，避免两篇文章参数互相打架。
+一、先判断 sing-box 的角色 最简单的判断标准：
+复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。
+二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。
+典型链路：
+复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description></item><item><title>sing-box 生产机一键备份与恢复</title><link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link><pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid><description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。
+我把流程整理成两个脚本：
+backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。
+能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：
+复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description></item><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。
+最终效果是：
+复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：
+复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。
+准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。
+先在终端检查 Git：
+复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。
+然后确认当前 Mac 能通过 SSH 连接 GitHub：
+复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。
+在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。
+仓库名称填写：</description></item><item><title>Alpine 3.23 重装后普通用户没有主目录，导致 Neovim 和 SSH 密钥脚本报错的修复记录</title><link>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</link><pubDate>Mon, 08 Jun 2026 09:28:46 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-reinstall-user-home-nvim-ssh/</guid><description>这次是在 VPS 上通过 bin456789/reinstall 一键 DD 了新的 Alpine 3.23 系统。重装过程中选择创建普通用户 jay，也配置了登录密码。系统起来以后，确实可以用 jay 这个普通用户 SSH 登录。
+问题出在登录后才发现：/home/ 下面没有正常的 jay 主目录，或者主目录存在但归属权限不对。后面切到 root 管理环境以后安装了基础工具：
+复制apk update apk upgrade apk add curl nano nvim 然后再回到普通用户使用 nvim 编辑脚本，就会遇到 Neovim 创建运行目录失败的问题。这个坑很隐蔽，因为 SSH 登录本身能成功，容易误以为普通用户环境已经完整初始化了。
+现象 普通用户 jay 执行：
+复制nvim alpine_user_ssh.sh Neovim 报错大意是无法创建 /home/jay/.local 下面的目录，或者提示权限被拒。
+这类报错说明重点不在 Neovim 本身，而在用户主目录：
+/home/jay 根本不存在； /home/jay 存在，但所有者是 root； $HOME 指向 /home/jay，但普通用户无法在里面创建 .local、.cache、.config； 后续 .ssh/authorized_keys、Neovim 缓存和配置目录都会一起受影响。 先确认问题 先用普通用户登录后检查当前身份和主目录变量：
+复制whoami echo &amp;#34;$HOME&amp;#34; pwd id 正常情况下，whoami 应该输出：</description></item><item><title>Alpine Linux 将普通用户加入 Docker 组</title><link>https://purodn.tk/posts/linux/alpine-user-docker-group/</link><pubDate>Sun, 07 Jun 2026 21:31:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-user-docker-group/</guid><description>在 Alpine Linux 上，Docker daemon 通常通过 /var/run/docker.sock 对外提供本机控制入口。这个 socket 一般归属 root:docker，所以普通用户只要加入 docker 组，重新登录后就可以直接执行 docker ps、docker compose up -d 这类命令，不需要每次都加 sudo。
+需要注意的是，docker 组等同于本机 root 级别能力：能启动特权容器、挂载宿主机目录、读写系统文件。只应该把可信任的本机用户加入这个组。
+结论 推荐命令如下，下面以用户 jay 为例：
+复制rc-update add docker default rc-service docker start addgroup jay docker 然后退出当前 SSH 或终端会话，重新登录，再验证：
+复制id docker ps 如果 id 输出里已经能看到 docker 组，并且 docker ps 不再报权限错误，就说明配置完成。
+为什么不推荐写 newgrp docker 很多 Linux 发行版可以用 newgrp docker 在当前 shell 中临时刷新组权限，但 Alpine 最小系统里经常没有这个命令。你看到下面的提示是正常的：
+复制/bin/sh: newgrp: not found 在 Alpine 上最稳的做法是退出当前登录会话，然后重新 SSH 登录。重新登录时，系统会重新加载用户所属组，docker 组权限才会真正进入当前会话。</description></item><item><title>Hugo 双仓库工作流：用 purodn 发布网站，用 purodncode 备份源码</title><link>https://purodn.tk/posts/linux/hugo-two-git-repos-purodn-purodncode/</link><pubDate>Wed, 03 Jun 2026 21:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/hugo-two-git-repos-purodn-purodncode/</guid><description>Hugo 静态站点有一个很容易混乱的地方：源码和发布产物都在同一个目录附近，但它们其实不是一类东西。
+源码是 content/、layouts/、assets/、static/、hugo.yaml 这些文件；发布产物是 Hugo 构建后生成的 HTML、CSS、JS、图片索引和站点地图。我的站点把这两部分拆成两个 Git 仓库：
+复制/Users/mana/Documents/codex/hugo/ Hugo 源码仓库 /Users/mana/Documents/codex/hugo/public/ GitHub Pages 发布仓库 这样做以后，日常操作也分成两个命令：
+复制purodn 构建 Hugo，并把 public/ 推到 GitHub Pages 仓库 purodncode 验证 Hugo 源码，并把源码推到私有源码仓库 这篇文章记录这套工作流，也顺便记一下这次 purodncode 失效的排查过程。
+为什么要分成两个仓库 如果只维护一个仓库，很容易把 Hugo 生成物当成源码提交进去。比如这些文件和目录都不是源码：
+复制public/ resources/ .hugo_build.lock categories/ css/ js/ posts/ tags/ index.html index.json sitemap.xml 它们要么是构建结果，要么是本地缓存。真正值得长期维护的是 Markdown 文章、文章图片、主题模板、样式脚本和站点配置。
+双仓库的边界可以这样理解：
+复制源码仓库：保存人写的东西 发布仓库：保存 Hugo 生成给浏览器看的东西 源码仓库可以是私有仓库，里面有草稿、脚本和本地协作规则；发布仓库通常是公开仓库，GitHub Pages 直接从里面读取静态网页。
+目录结构 本地 Hugo 源码目录：
+复制/Users/mana/Documents/codex/hugo 源码仓库远程：
+复制git@github.com:hanigege/purodn.tk-source-code.git 本地发布目录：
+复制/Users/mana/Documents/codex/hugo/public 发布仓库远程：
+复制git@github.com:hanigege/purodn.tk.git 注意，public/ 虽然在 Hugo 源码目录里面，但它自己也是一个独立 Git 仓库。检查源码状态时在 Hugo 根目录执行 git status；检查发布产物状态时要进入 public/，或者使用 git -C public status。</description></item><item><title>Ubuntu / Debian 设置北京时间与修复 NTP 同步</title><link>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</link><pubDate>Tue, 02 Jun 2026 14:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-timesync-asia-shanghai/</guid><description>这篇记录一次内网 sing-box 旁路网关上的时间修复过程。表面问题是系统显示 UTC，实际继续检查后发现 systemd-timesyncd 虽然在运行，但一直没有同步成功；NTP 域名被 DNS 分流解析成 FakeIP，UDP/123 请求没有拿到回复。
+目标有两个：
+系统本地时间显示为北京时间。 NTP 服务真正同步成功，而不是只把时区改成 Asia/Shanghai。 检查当前时间状态 先看系统时区、UTC 时间、RTC 时间和 NTP 同步状态：
+复制timedatectl date 如果看到类似下面的状态，说明时区还是 UTC，而且 NTP 没有同步成功：
+复制Local time: Tue 2026-06-02 14:16:50 UTC Universal time: Tue 2026-06-02 14:16:50 UTC Time zone: Etc/UTC (UTC, +0000) System clock synchronized: no NTP service: active 这里容易误判：NTP service: active 只表示服务开着，不代表已经校时成功。真正要看的是：
+复制System clock synchronized: yes 设置北京时间时区 设置为中国大陆常用的 Asia/Shanghai：
+复制timedatectl set-timezone Asia/Shanghai timedatectl set-ntp true timedatectl date 设置完成后应看到：</description></item><item><title>sing-box FakeIP + TProxy 旁路网关部署草稿</title><link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link><pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid><description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。
+目标 把一台 Linux 机器做成家庭网络旁路透明网关：
+DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：
+生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description></item><item><title>SoftEther 搭配 VPS 搭建 VLAN 联机环境</title><link>https://purodn.tk/posts/linux/softether-vps-vlan/</link><pubDate>Fri, 29 May 2026 21:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/softether-vps-vlan/</guid><description>本文原始内容较长，迁移时保留原有截图，并对标题、结构和部分说明做了整理。SoftEther 版本、Linux 发行版和云厂商控制台可能随时间变化，实际操作时请以当前界面和官方下载页为准。
+建议使用 VM 部署，原文在 Debian 12 和 Ubuntu 22.04 上测试通过。 原文提到 CT 容器场景可能出现客户端熄屏后图标仍在但无法继续连接的问题，因此这里仍按 VM 方案整理。
+提醒：阅读本文并按照步骤操作预计需要30分钟以上，请读者保持绝对的细心和耐心。
+1. 背景介绍 动机：codemaster F1系列游戏的联机模式类似P2P，在分布式的节点环境下数据传输和同步异常缓慢，经常出现长时间的加载等候、发车灭灯延迟、圈数和名次计算错乱等影响游戏和比赛体验的状况，因此考虑自己架设私人VPN实现虚拟局域网游戏。
+本文所述 VPN 遵循其英文全称 Virtual Private Network 的严格表述，目标是创建远程私人局域网环境以供游戏或自有设备互联使用。请遵守所在地法律法规和云服务商使用条款。
+如果按照本文步骤操作，可以搭建一个用于虚拟局域网联机的 SoftEther VPN Server。实际效果会受 VPS 区域、带宽、延迟和客户端网络环境影响。
+2. 准备工作 一台可以用作 VPS 的服务器。免费服务器亦可尝试，但不保证效果。
+服务器需要有固定公网 IP。
+原示例使用 GCP 香港实例、阿里云和腾讯云轻量应用主机搭配 Ubuntu 系统镜像测试通过。如果追求长期稳定，建议选择离玩家更近、延迟更低的区域。
+系统镜像可以选择 Ubuntu / Debian，minimal 镜像也可以。
+服务器带宽最好大于等于 5 Mbps，否则联机游戏容易出现延迟。
+CPU 核心数和内存要求不高，根据预算选择即可。
+非常重要：确认服务器系统防火墙和云厂商安全组都允许客户端访问 TCP 5555 端口。不知道怎么检查和编辑防火墙规则的，可以先看本文最后一节。
+一台 Windows 10 / Windows 11 PC，用于运行 SoftEther Server Manager 和 VPN Client。</description></item><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。
+基本格式 Vim 替换命令的基本格式是：
+复制:[范围]s/查找内容/替换内容/[标志] 常见写法：
+复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。
+复制:s/foo/bar/g 表示只在当前行，把所有 foo 都替换成 bar。
+复制:%s/foo/bar/g 表示在整个文件里，把所有 foo 都替换成 bar。
+这里的 % 表示整个文件范围，等价于 1,$。
+替换整个文件里的 IP 地址 如果要把当前文件中的 8.8.8.8 全部替换成 10.20.20.29，不要直接写：
+复制:%s/8.8.8.8/10.20.20.29/g 这条命令看起来直观，但在 Vim 正则里，. 表示“任意一个字符”，不是普通点号。更稳妥的写法是把点号转义：
+复制:%s/8\.8\.8\.8/10.20.20.29/g 这样才是精确匹配 8.8.8.8。
+每次替换前都确认 如果担心误替换，可以加 c 标志，让 Vim 每次替换前都询问：
+复制:%s/8\.8\.8\.8/10.20.20.29/gc 提示时常见按键含义：
+按键 作用 y 替换当前匹配项 n 跳过当前匹配项 a 替换剩余所有匹配项 q 退出替换 l 替换当前项后退出 只替换指定范围 只替换当前行：
+复制:s/foo/bar/g 替换第 10 到第 30 行：</description></item><item><title>Ubuntu 设置北京时间并使用 chrony 校准系统时间</title><link>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</link><pubDate>Fri, 29 May 2026 08:32:50 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-nodejs-nvm-chrony/</guid><description>这篇只保留实测可用、日常维护里也最有价值的做法：先把 Ubuntu 服务器时区设置为北京时间，也就是 Asia/Shanghai，再用 chrony 把系统时间同步准确。系统时间不准时，HTTPS 下载、证书校验、包管理器更新和一些依赖时间戳的服务都可能出现奇怪问题，所以建议新机器先把时间处理好。
+时间同步和北京时间的关系 这里要分清两件事：
+Asia/Shanghai 负责把系统显示时区设为北京时间，也就是 UTC+8。 chrony 负责通过 NTP 校准系统时钟，让时间本身准确。 所以只安装 chrony 不等于设置北京时间；只设置 Asia/Shanghai 也不等于时间已经校准。两个都做完，date 看到的时间才会是准确的北京时间。
+一、设置时区为北京时间 先查看当前时间和时区：
+复制timedatectl date 设置系统时区为北京时间：
+复制sudo timedatectl set-timezone Asia/Shanghai 再次确认：
+复制timedatectl date timedatectl 输出里应能看到：
+复制Time zone: Asia/Shanghai (CST, +0800) date 输出里也应该出现 CST 或 +0800。这一步只负责时区显示，不负责从网络校准时间。
+二、使用 chrony 校准系统时间 Ubuntu 默认可以使用 systemd-timesyncd 做基础时间同步，但服务器环境更推荐使用 chrony。它在虚拟机暂停、网络不稳定或时间偏移较大的场景下恢复同步通常更快。
+先安装 chrony：
+复制sudo apt update sudo apt install -y chrony 编辑配置文件：
+复制sudo nvim /etc/chrony/chrony.conf 清空或覆盖 /etc/chrony/chrony.conf，写入以下完整配置：</description></item><item><title>ESXi 8 快速安装 Ubuntu Linux 虚拟机前置配置</title><link>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</link><pubDate>Fri, 29 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/esxi8-ubuntu-vm-prep/</guid><description>在 ESXi 8 上快速准备一台 Ubuntu Linux 虚拟机。目标是把系统先跑起来，并完成 SSH、时区语言、固定 IP 和 53 端口释放等基础配置。
+后续如果要部署 DNS 服务，比如 mosdns，建议先确认本文这些前置步骤都已经完成。
+准备 Ubuntu Cloud Image Ubuntu Cloud Image 官方下载站：
+https://cloud-images.ubuntu.com/
+在 ESXi 中使用 Cloud Image 的好处是部署速度快，适合快速拉起一台轻量 Linux 虚拟机。但 Cloud Image 默认会依赖 cloud-init，因此创建虚拟机时建议提前准备好用户、密码或 SSH 公钥配置。
+创建虚拟机并写入 cloud-init 在 ESXi 里创建虚拟机后，可以通过 guestinfo.userdata 写入 cloud-init 配置。原文示例里使用了 base64 方式：
+复制guestinfo.userdata.encoding base64 guestinfo.userdata 下面是对应的 cloud-init 明文示例。请把用户名、密码和 SSH 公钥改成你自己的值：
+复制#cloud-config users: - name: mac groups: sudo sudo: [&amp;#39;ALL=(ALL) NOPASSWD:ALL&amp;#39;] plain_text_passwd: &amp;#39;12345&amp;#39; lock_passwd: false # ssh_authorized_keys: # - ssh-ed25519 AAAA.</description></item><item><title>Proxmox VE 创建 Ubuntu 25.04 虚拟机并安装 Docker、Dockge、Portainer</title><link>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</link><pubDate>Wed, 27 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-ubuntu2504-vm-docker/</guid><description>本文整理 Proxmox VE 中 Ubuntu 虚拟机的常用初始化命令，并补充 community-scripts 的 Ubuntu 25.04 VM 安装入口。原始 discussion 标题为 “Useful Ubuntu 22.04/24.04 VM Commands”，这里按中文教程重写说明部分，代码块保持原样，便于直接复制执行。
+适用场景：
+使用 Proxmox VE 创建 Ubuntu 25.04 虚拟机。 需要配置 Cloud-Init、SSH、qemu-guest-agent。 需要把 Ubuntu VM 作为 Docker 宿主机，部署 Dockge 或 Portainer。 提醒：文中的 SSH 配置示例会允许 root 密码登录，只适合受控内网或临时初始化。生产环境建议改为普通用户 + SSH Key，并关闭 root 密码登录。
+一、使用 community-scripts 创建 Ubuntu 25.04 VM 项目页面：
+Ubuntu 25.04 VM 脚本页面 ProxmoxVE community-scripts 仓库 在 Proxmox VE 节点 Shell 中执行：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.</description></item><item><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</title><link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link><pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid><description>这篇是给美服 LoL 单独整理的部署记录。
+背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。
+本文的目标不是重写整套代理架构，而是只做两件事：
+让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。
+1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：
+复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。
+但 LoL 不一样，它的连接链路里会出现：
+登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description></item><item><title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title><link>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</link><pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</guid><description>这篇是 Alpine 版的保姆教程。目标很简单：
+服务端只跑 Hysteria2，监听 443/udp 证书、自启动、日志、内核参数一次配好 客户端只补一个 outbound，不改现有 TUN 结构 节点域名和节点 IP 永远走直连，避免回环 本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。
+先说结论 Alpine 很适合这类节点：
+系统轻 OpenRC 简单 重装干净 资源占用小 Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：
+443/udp 是否真放通 域名是否正确解析到服务器公网 IP 客户端的带宽参数是否和实际家宽大致匹配 1. 检查新系统 先确认系统和基础状态：
+复制cat /etc/os-release uname -a cat /etc/alpine-release ps -ef | grep -i &amp;#39;[h]ysteria&amp;#39; || true ss -lntup 2&amp;gt;/dev/null | grep -E &amp;#39;:443|hysteria|hy2&amp;#39; || true apk --version 干净的新机一般不会有 Hysteria2 进程，也不会有 443/udp 监听。
+再看一下防火墙和解析：
+复制getent hosts proxy.</description></item><item><title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title><link>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</link><pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</guid><description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。
+示例里使用占位符：
+项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：
+域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description></item><item><title>Linux 临时开启 root 密码 SSH 登录</title><link>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</link><pubDate>Mon, 25 May 2026 14:08:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/enable-root-ssh-password-login/</guid><description>有些新装的 VPS 或云主机默认禁止 root 密码登录，只允许普通用户配合 sudo 或 SSH key。临时迁移、救急维护、批量初始化时，可以短时间打开 root 密码登录；用完后建议再关回去，或者至少换成高强度密码并限制来源 IP。
+本文以 Debian、Ubuntu 等使用 OpenSSH 的 Linux 系统为例。
+1. 设置 root 密码 先把 root 密码写入系统。把 YOUR_STRONG_PASSWORD 换成自己的强密码：
+复制echo &amp;#39;root:YOUR_STRONG_PASSWORD&amp;#39; | sudo chpasswd 如果密码里有空格、!、$ 等特殊字符，一定要用单引号包起来，避免被 shell 解释。
+例如密码是 change passwd，命令应写成：
+复制echo &amp;#39;root:change passwd&amp;#39; | sudo chpasswd 2. 开启 root SSH 登录 修改 OpenSSH 服务端配置：
+复制sudo sed -i &amp;#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/g&amp;#39; /etc/ssh/sshd_config sudo sed -i &amp;#39;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g&amp;#39; /etc/ssh/sshd_config 这两行分别表示：
+PermitRootLogin yes：允许 root 通过 SSH 登录。 PasswordAuthentication yes：允许使用密码认证。 如果原配置文件里没有这两个字段，可以手动追加：</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。
+架构说明 访问链路如下：
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：
+项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：
+项目 文档示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path 服务端入口 443 Gost 后端端口 18080 客户端本地 SOCKS 127.</description></item><item><title>Docker 数据打包上传到 Syncthing 源目录的备份脚本</title><link>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</link><pubDate>Sun, 24 May 2026 23:11:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-data-backup-upload-syncthing-script/</guid><description>这篇记录一个很实用的小脚本：在业务服务器上把 Docker 数据目录打包成 tar.gz，通过 SSH 上传到另一台服务器的 /srv/backup，再由那台服务器上的 Syncthing 继续同步到备份端。
+这个方案适合下面这种链路：
+复制业务服务器 A -&amp;gt; SSH 上传 -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 同步 -&amp;gt; 备份端 C:/srv/backup 脚本本身只负责“打包”和“上传”。真正的多端同步、断点传输、设备连接状态和备份端落盘，由 Syncthing 继续处理。
+为什么要这样写 直接把备份文件 scp 到 /srv/backup 也能用，但有两个细节容易踩坑。
+第一，上传大文件时，Syncthing 可能看到一个还没有传完的半截文件。更稳妥的方式是先上传到远端临时目录，传完后再 mv 到 /srv/backup。同一文件系统内的 mv 基本是原子操作，Syncthing 看到的是最终文件。
+第二，Syncthing 现在以普通 syncthing 用户运行。远端文件最好统一成：
+复制syncthing:syncthing 0644 这样 Syncthing 后续读取、索引、同步都更稳。文件如果是 root:root 且权限为 0644，通常也能读；但如果脚本或系统 umask 让文件变成 0600，Syncthing 就读不到了。
+前提条件 这篇假设远端服务器已经按下面方式准备好 Syncthing 源目录：
+复制install -d -o syncthing -g syncthing /srv/backup 远端 Syncthing 服务以 syncthing 用户运行，并且文件夹路径配置为：</description></item><item><title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title><link>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</guid><description>本文记录在 Alpine Linux 上搭建 sing-box 服务端的完整流程：从 Edge community 临时安装 sing-box，编译并加载 tcp-brutal 内核模块，然后配置 VLESS Reality 入站。
+本文不需要申请域名证书，Reality 会伪装到指定的 TLS 站点，例如 mirrors.kernel.org。
+一、准备系统和组件 建议使用 Alpine virt 内核环境，并以 root 用户执行下面的命令。
+先安装基础工具：
+复制apk update apk add curl wget bash vim nano jq openssl ca-certificates iproute2 从 Edge community 临时安装 sing-box。这种方式只对本次安装使用 Edge community，避免把系统仓库永久混用。
+复制apk update apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box 设置 sing-box 开机自启：
+复制rc-update add sing-box default 确认版本：
+复制sing-box version 二、升级 virt 内核 安装 tcp-brutal 前，先确保包索引是最新的，并升级 virt 内核：</description></item><item><title>Docker版headscale&amp;derp&amp;tailscale配合npm反向代理回家的方法</title><link>https://purodn.tk/posts/linux/docker-headscale-derp-tailscale-npm-proxy/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/docker-headscale-derp-tailscale-npm-proxy/</guid><description>说明 这教程全网应该是唯一的 内网部署。 因为太实用了，不管是回家，还是建立私有隧道，或者是添加节点等等吧都行,不过也有硬性要求，就是家里要使用pve或其它虚拟系统，软路由是ros（其它的路由系统道理也是相通的）才可以部署！ pve下新建一个vm虚拟机 ubuntu 24.04为例： 目录结构(需要建立4个容器） 都装在同一台机器上，内网ip例如：10.20.20.8 复制~/data/docker_data/ ├── headscale及headscale-UI/ # 服务端与配置 ├── derps/ # 中继服务器 └── tailscale/ # 网关节点 |—— Nginx Proxy Manager / # 反向代理服务 后面引用会简称npm 域名只供参考，只是举例 ，域名可以在内网搭建好npm容器后，通过npm申请证书，下面有教程。 Domain Forward IP Forward Port https://hs.jgaga.xyz:12335 10.20.20.8 8080 (Headscale 容器对外服务端口) https://derps.jgaga.xyz:12335 10.20.20.8 8082 (DERP 容器对外服务端口) https://hs-ui.jgaga.xyz:12335 10.20.20.8 9443 (web页后台管理端口) http://10.20.20.8 10.20.20.8 81 (Nginx Proxy Manage后台管理端口) 开始安装 docker一键安装 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/docker.sh -o docker.sh &amp;amp;&amp;amp; sh docker.sh docker.sh 该脚本用于自动安装 docker 以及 docker 插件(composes、buildx 等), 同时该脚本将会自动配置 /etc/docker/daemon.</description></item><item><title>手动申请域名ssl证书acme.sh脚本申请cloudflare的证书 支持泛域名</title><link>https://purodn.tk/posts/linux/manual-domain-ssl-cert/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/manual-domain-ssl-cert/</guid><description>acme.sh脚本申请cloudflare的证书 支持泛域名
+前言：acme.sh是一个非常好用的用于申请证书的脚本，它开源在Github，它极大地降低了申请证书的难度，支持使用cloudflare api等多种api来申请证书。
+本文主要介绍使用此脚本来申请 ssl 证书，给你的http请求加把锁，具体可以用来cloudflare api介绍。
+准备条件： 一台被分配了公网IP的主机
+一个域名(建议购买收费域名)
+电脑ssh客户端
+能解决个体的问题
+一、全球API申请证书 1.1、安装脚本文件 以root用户ssh连接到主机，使用下面的命令安装脚本：
+复制apt update &amp;amp;&amp;amp; apt -y install socat //更新源并安装socat wget -qO- get.acme.sh | bash //安装此脚本 source ~/.bashrc //让别名生效，此后无论在哪里直接使用acme.sh，不用输绝对路径 # 由于最新acme.sh脚本默认ca变成了zerossl，现## 执行下面命令修改脚本默认ca为letsencrypt acme.sh --set-default-ca --server letsencrypt 1.2、证书配置 1.2.1 获取Cloudflare api key 注册好cloudflare账号，把域名解析的解析权限锁定cloudflare处理，这样以后只需要在cloudflare这里配置解析记录。按照图标获取cloudflare api key。
+1.2.2 申请证书（二选一） 这里假设您的域名是yourdomain.com，执行下面命令申请证书：
+1.2.2.1 dns方式验证
+复制export CF_Key=&amp;#34;slfjksjffjfhfhkjhfksjf&amp;#34; //此处替换成你自己的Key export CF_Email=&amp;#34;yourcloudflare@gmail.com&amp;#34; //此处填写你给Cloudflare绑定的邮箱账号 acme.sh --issue --dns dns_cf -d yourdomain.com -d www.yourdomain.com -k ec-256 说明：Cloudflare 目前不支持.</description></item><item><title>出国自建 VoIP（二）：FreePBX 16 基础配置</title><link>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/freepbx16-voip-server-setup/</guid><description>本文整理 FreePBX 侧配置。目标是让 SIP 软电话可以注册，并为后续语音网关接入准备中继和路由。
+基础假设 示例网络如下：
+项目 示例值 FreePBX IP 10.20.20.60 默认网关/路由器 IP 10.20.20.1 SMG4004 网关 IP 10.20.20.74 DNS 114.114.114.114 PJSIP 端口 5060 chan_sip 端口 5160 FreePBX 可以直接使用官方 ISO 安装。老版本 FreePBX 16 常见底层是 CentOS/RHEL 系发行版，网络配置路径和 Debian/Ubuntu 不同。
+原文中的整体架构图如下：
+固定 FreePBX IP 安装完成后，如果系统通过 DHCP 获取地址，先改为静态 IP。以 eth0 为例：
+复制vi /etc/sysconfig/network-scripts/ifcfg-eth0 保留原文件里的其他字段，只调整关键项：
+复制TYPE=&amp;#34;Ethernet&amp;#34; BOOTPROTO=&amp;#34;static&amp;#34; IPADDR=10.20.20.60 NETMASK=255.255.255.0 GATEWAY=10.20.20.1 DNS1=114.114.114.114 DEFROUTE=&amp;#34;yes&amp;#34; NAME=&amp;#34;eth0&amp;#34; DEVICE=&amp;#34;eth0&amp;#34; ONBOOT=&amp;#34;yes&amp;#34; 重启后确认地址：
+复制ip addr show eth0 ip route 不要在 FreePBX 初始阶段把 DNS 指向代理 DNS。PBX 的外部地址检测、NAT 判断和模块更新都可能因此变得难排查。</description></item><item><title>出国自建 VoIP（三）：三汇 SMG4004 网关对接 FreePBX</title><link>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/synway-smg4004-sip-gateway/</guid><description>本文讲语音网关侧。不同固件菜单名称可能略有差异，但核心都是：SIM 卡正常、网关整机注册 FreePBX、呼入呼出路由打通。
+设备与限制 旧款 SMG4004-4LC 常见特点：
+4 个 SIM 卡槽； 可做 GSM/GOIP 语音网关； 部分老硬件只支持 2G 通话和短信； 支持 SIP 注册到 PBX； 短信可通过 HTTP API、SMTP、SMPP 或设备自带接口处理，具体看固件。 使用前先确认本地运营商还支持设备可用的制式。很多地区 2G 退网后，老设备会出现可识别 SIM 但无法稳定驻网的问题。
+旧文中的设备和卡槽界面截图：
+网络规划 示例：
+项目 示例 FreePBX 10.20.20.60 SMG4004 10.20.20.74 SIP 传输 UDP FreePBX chan_sip 端口 5160 中继账号 smg4004 网关后台、FreePBX 后台和 SIP 信令都建议只放在内网或 VPN 内，不要直接暴露公网。
+FreePBX 侧先确认基础页面和 SIP 端口设置无误：
+如果前面有软路由或防火墙，也要确认 SIP 与 RTP 所需端口已经在内网策略里放行：
+升级固件 旧设备到手后，第一步不是接 PBX，而是确认固件版本。
+建议检查：
+设备型号是否和固件完全匹配。 是否支持当前 SIM 卡运营商网络。 是否有短信 API 或短信转发相关功能。 升级前导出当前配置。 固件升级失败可能导致设备不可用，所以不要跨型号刷，也不要在不稳定供电环境下升级。</description></item><item><title>出国自建 VoIP（四）：创建 Telegram Bot 并规划短信桥接</title><link>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/telegram-bot-for-voip-sms/</guid><description>这篇只处理 Telegram Bot 和短信桥接设计。Python 程序部署、自启动和日志放到下一篇。
+为什么短信单独处理 FreePBX 擅长处理语音呼叫，但短信不是它的强项。很多语音网关虽然支持 SMS over SIP、SMPP、SMTP 或 HTTP API，但 FreePBX 默认并不适合直接接管短信。
+更稳的方式是：
+复制语音网关短信接口 ↓ Python 桥接程序 ↓ Telegram Bot 这样电话链路和短信链路彼此独立。电话坏了不一定影响短信，短信脚本升级也不会动到 PBX。
+创建 Bot 在 Telegram 搜索：
+复制@BotFather 创建流程：
+发送 /newbot。 输入机器人显示名称，例如 Home VoIP SMS。 输入唯一用户名，必须以 bot 结尾，例如 home_voip_sms_bot。 BotFather 返回 API Token。 Token 形态类似：
+复制1234567890:AAExampleTokenDoNotExpose 保存好这个 Token。它相当于机器人密码，不要写进公开仓库，也不要截图发到公开群里。
+获取 chat_id Bot 需要知道把短信发给谁。最简单的办法：
+先给你的 Bot 发一条消息，例如 hello。 在服务器上请求 Telegram API： 复制curl &amp;#34;https://api.telegram.org/bot&amp;lt;TOKEN&amp;gt;/getUpdates&amp;#34; 返回 JSON 里找到：
+复制&amp;#34;chat&amp;#34;: { &amp;#34;id&amp;#34;: 123456789, &amp;#34;type&amp;#34;: &amp;#34;private&amp;#34; } 这个 id 就是私聊 chat_id。如果要发到群组，需要先把 Bot 拉进群里，再在群里发一条消息，然后同样用 getUpdates 找群组 ID。</description></item><item><title>出国自建 VoIP（五）：Python 短信 Bot 与 systemd 自启动</title><link>https://purodn.tk/posts/linux/python-sms-bot-systemd/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/python-sms-bot-systemd/</guid><description>本文把旧的 tmux、nohup 和 systemd 三种运行方式重新梳理一遍。长期运行建议直接用 systemd。
+准备系统 建议使用 Debian 12/13 或 Ubuntu LTS。先更新系统并安装 Python 虚拟环境：
+复制apt update apt install -y python3 python3-venv python3-pip curl 创建专用目录：
+复制mkdir -p /opt/voip-sms-bot cd /opt/voip-sms-bot 创建虚拟环境：
+复制python3 -m venv .venv 安装依赖：
+复制/opt/voip-sms-bot/.venv/bin/pip install --upgrade pip /opt/voip-sms-bot/.venv/bin/pip install python-telegram-bot smpplib 本文采用已经测试通过的 SMPP 桥接方式，所以需要安装 smpplib。如果后面改成 HTTP API，再按网关 API 重新调整依赖和脚本。
+准备脚本 把测试通过的桥接脚本放到：
+复制/opt/voip-sms-bot/sms.py 脚本顶部的配置区需要按自己的环境修改。下面是公共占位版本，不要把真实 Token、chat_id、SMPP 密码或手机号写到公开文章里：
+复制# 配置：下面这些值都要改成你自己的 TELEGRAM_BOT_TOKEN = &amp;#34;1234567890:AAExampleTokenDoNotExpose&amp;#34; # 改成 BotFather 给你的 Token TELEGRAM_CHAT_ID = &amp;#34;123456789&amp;#34; # 改成接收短信通知的 Telegram chat_id SMPP_SERVER = &amp;#34;10.</description></item><item><title>出国自建 VoIP（一）：整体架构与实现路线</title><link>https://purodn.tk/posts/linux/self-hosted-voip-overview/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/self-hosted-voip-overview/</guid><description>这篇先讲整体方案。后面几篇分别拆 FreePBX、三汇/申瓯类 GSM 语音网关、Telegram Bot 和 Python 短信桥接服务。
+适用场景 出国或长期异地时，国内手机号还要接验证码、接电话、偶尔拨电话，但实体 SIM 卡不方便带在身边。这套方案的思路是：
+SIM 卡插在国内的 GSM/VoLTE/GOIP 语音网关里。 语音网关通过 SIP 注册到内网的 FreePBX。 手机、电脑或平板使用 SIP 软电话注册到 FreePBX。 来电从语音网关进入 FreePBX，再分配到你的 SIP 分机。 拨号时 SIP 分机呼叫 FreePBX，FreePBX 再把呼叫送到语音网关，由国内 SIM 卡呼出。 短信不强行走 FreePBX，而是通过网关的 HTTP API、邮件或本地脚本桥接到 Telegram。 这不是商用呼叫中心方案，更适合作为个人学习和低频自用。使用前务必确认所在地和 SIM 卡运营商规则，别拿它做违法、骚扰、批量呼叫等事情。
+推荐拓扑 复制国内机房 / 家中内网 SIM 卡 ↓ 语音网关（SMG4004 / GOIP） ↓ SIP Trunk FreePBX / Asterisk ↓ PJSIP Extension SIP 软电话客户端 短信路径： 语音网关 API / Email / SMPP ↓ Python Bot 服务 ↓ Telegram Bot / 私聊 / 群组 如果人在海外，SIP 客户端不要直接裸露访问家里的 FreePBX。更稳的做法是先用 WireGuard、Tailscale、ZeroTier 或其他 VPN 回到内网，再注册 SIP 分机。</description></item><item><title>Alpine Linux 常用管理脚本备份：防火墙、SSL 证书与 SSH 密钥</title><link>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</link><pubDate>Mon, 18 May 2026 20:57:38 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-admin-scripts-backup/</guid><description>这里备份四份 Alpine Linux 下常用的管理脚本，方便以后迁移服务器、重装系统或临时排查时直接查阅。
+原始脚本也保存在本文同级 assets/ 目录中：
+Alpine_firewall.sh ssl_alpine.sh alpine_root_ssh_key_manage.sh alpine_user_ssh_key_manage.sh 这些脚本有的会修改系统防火墙、证书目录、SSH 配置和 root 用户密钥，也有的只管理当前普通用户自己的 SSH 公钥。实际执行前建议先完整阅读脚本内容，并确认当前 SSH 会话、开放端口、域名解析和系统服务状态。
+Alpine IPv4 防火墙脚本 这个脚本用于安装 iptables 与 OpenRC 服务组件，清空旧规则后设置默认入站丢弃策略，并放行 SSH、HTTP、HTTPS、8000、10521 等 TCP 端口，以及 UDP 443。
+复制#!/bin/sh # ============================================================ # Alpine Linux 严谨版防火墙脚本 (IPv4 专用) # 针对 sing-box 性能优化 &amp;amp; 安全加固 # ============================================================ set -e # 颜色输出 info=&amp;#39;\033[32m[INFO]\033[0m&amp;#39; warn=&amp;#39;\033[33m[WARN]\033[0m&amp;#39; echo -e &amp;#34;$info 安装 iptables 及其服务组件...&amp;#34; apk add --no-cache iptables iptables-openrc echo -e &amp;#34;$info 清空旧规则并预设安全策略.</description></item><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
+下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
+写入配置文件 编辑 ~/.tmux.conf：
+复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
+写入下面这份配置：
+复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item><item><title>Alpine 使用 Nginx 搭建 HTTPS 静态文件浏览服务</title><link>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</link><pubDate>Mon, 18 May 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-nginx-static-file-browser/</guid><description>在 Alpine Linux 下，如果只是临时分享目录，python3 -m http.server 很方便；但如果要长期对外提供文件浏览和下载，Nginx 更适合。它可以处理 HTTPS、目录浏览、Basic Auth、访问日志、限流、安全响应头和强制下载，资源占用也很低。
+本文以 fetch.jgaga.tk 为示例域名，Web 根目录为 /var/www/fetch.jgaga.tk。实际使用时，把域名和目录替换成自己的即可。
+准备证书 正式对外提供 HTTPS 之前，需要先给域名签发证书。可以使用你现有的一键脚本，也可以使用 acme.sh、lego 或 certbot。
+本文后续示例假设证书和私钥已经放在下面的位置：
+复制/etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.crt /etc/ssl/fetch.jgaga.tk/fetch.jgaga.tk.key 如果你的一键脚本生成的是其他路径，只需要修改 Nginx 配置里的 ssl_certificate 和 ssl_certificate_key。
+安装并启用 Nginx Alpine 使用 apk 安装软件，服务管理使用 OpenRC：
+复制apk update apk add nginx openssl logrotate rc-update add nginx default 创建 Web 根目录：
+复制mkdir -p /var/www/fetch.jgaga.tk chown -R root:nginx /var/www/fetch.jgaga.tk 这里推荐让目录归属为 root:nginx。Nginx worker 以 nginx 用户运行，只需要读取文件即可；后面如果要让普通用户上传文件，再单独调整目录权限。
+创建认证密码文件 如果目录要对外开放，建议先加 Basic Auth。下面以用户名 admin 为例：</description></item><item><title>Proxmox VE 安装 Debian 13 并部署 mosdns 魔改版</title><link>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</link><pubDate>Thu, 14 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/proxmox-debian13-mosdns/</guid><description>本文记录在 Proxmox VE 中通过社区脚本安装 Debian 13 虚拟机，并在系统内离线部署 yyysuo 版 mosdns 的流程。
+视频演示 一、在 Proxmox VE 中创建 Debian 13 虚拟机 进入 Proxmox VE Shell，执行社区脚本：
+复制bash -c &amp;#34;$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/vm/debian-13-vm.sh)&amp;#34; 虚拟机创建完成后，到后台的 Cloud-Init 页面自行添加：
+用户名和密码 IP 地址 DNS 填写完成后点击“重生成镜像”，然后重启虚拟机。
+还有一个容易踩坑的地方：进入虚拟机的“硬件”页面，把 CPU 类型改成 host。如果保持默认 CPU 类型，后面的 mosdns 程序可能无法正常运行。
+二、登录 Debian 13 并安装基础工具 通过 SSH 客户端登录 Debian 13 系统后，先更新软件源并安装常用工具：
+复制apt update &amp;amp;&amp;amp; apt install -y curl wget unzip 操作前检查 53 端口占用情况：
+复制ss -tupln | grep 53 如果看到 systemd-resolved 正在占用 53 端口，需要关闭它的本地 DNS stub 监听。</description></item><item><title>2026 现代式 Alpine、Debian 与 macOS 的 Neovim 格式化全家桶安装教程</title><link>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/nvim-format-toolkit-cross-platform-2026/</guid><description>本文整理一套跨平台 Neovim 格式化全家桶安装方案，目标是在 Alpine、Debian/Ubuntu 和 macOS 下保持一致的使用体验。
+视频演示 这套配置包含：
+lazy.nvim 插件管理器 onedark.nvim 护眼深色主题 nvim-tree.lua 文件树 nvim-osc52 远程复制 conform.nvim 代码格式化 jq JSON 格式化工具 prettier 前端、Markdown 与 YAML 格式化工具 ;t 智能切换文件树 ;f 手动格式化 ;w 保存并自动格式化 一、安装 Neovim 要求 Neovim 版本不低于 0.10.0。如果系统仓库版本太旧，建议改用官方 release 或源码编译方式。
+Debian / Ubuntu 复制sudo apt update sudo apt install -y neovim git curl nvim --version | grep ^NVIM Debian / Ubuntu 官方仓库里的 Neovim 版本可能落后于上游稳定版。例如部分环境中即使系统已经升级到 Ubuntu 25.04，仓库中的 neovim 仍可能停留在 0.9.x：</description></item><item><title>Ubuntu 24.04 环境的 Neovim 源码编译与格式化全家桶部署教程</title><link>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</link><pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/ubuntu2404-neovim-source-toolkit/</guid><description>本文记录在 Ubuntu 24.04 环境中，从源码编译安装 Neovim 稳定版，并部署一套实用的编辑器全家桶配置。
+这套配置包含基础显示、文件树、OneDark 主题、OSC 52 远程复制，以及基于 conform.nvim 和 prettier 的代码格式化。适合新服务器、新桌面环境，或者需要统一 Neovim 使用体验的场景。
+第一步：安装依赖并源码编译 Neovim 在全新 Ubuntu 24.04 系统中，先安装编译 Neovim 所需的基础工具和系统依赖。
+复制sudo apt update sudo apt install ninja-build gettext cmake unzip curl build-essential git -y 拉取 Neovim 源码，并切换到稳定版分支。使用 stable 分支可以规避开发版中可能出现的临时问题。
+复制git clone https://github.com/neovim/neovim.git ~/neovim-src cd ~/neovim-src git checkout stable 开始编译并全局安装：
+复制make CMAKE_BUILD_TYPE=Release -j$(nproc) sudo make install 清理 shell 路径缓存，并验证 Neovim 版本：
+复制hash -r nvim -v 如果系统里原本安装过旧版 Neovim，可以额外确认实际调用路径：</description></item><item><title>mosdns 安装教程</title><link>https://purodn.tk/posts/linux/mosdns-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/mosdns-install/</guid><description>本文介绍 mosdns（Tom魔改版） 安装使用的方法
+[TOC]
+一、脚本部署 mosdns 需从github下载配置文件，自行准备科学环境
+步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本
+复制wget --quiet --show-progress -O /mnt/main_install.sh https://raw.githubusercontent.com/jasonxtt/LinuxScripts/main/AIO/Scripts/main_install.sh &amp;amp;&amp;amp; chmod +x /mnt/main_install.sh &amp;amp;&amp;amp; /mnt/main_install.sh 步骤 2： 输入 5 ，再输入 1 ，安装mosdns
+步骤 3： 按提示输入以下信息：
+sing-box/mihomo 提供的socks代理 IP:端口（例如 10.0.0.2:7890） 输入sing-box/mihomo监听的DNS端口，用于获取fakeip (例如 10.0.0.2:6666) 步骤 4： 安装完成后，UI 地址为 IP:9099, 例如http://10.0.0.3:9099
+MosDNS UI 界面预览 更多 mosdns 和 UI 设置问题：加入 TG 群咨询 点击加入 TG 群
+二、手动部署 mosdns 配置 systemd 开机自启（Debian/Ubuntu）：
+步骤 1： 下载 service 文件</description></item><item><title>sing-box 安装教程</title><link>https://purodn.tk/posts/linux/sing-box-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/sing-box-install/</guid><description>本文介绍 sing-box 作为透明网关的安装方法
+[TOC]
+一、脚本部署 sing-box 脚本在 GitHub，虚拟机需具备科学上网能力
+步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本
+复制wget https://raw.githubusercontent.com/herozmy/StoreHouse/refs/heads/latest/install.sh &amp;amp;&amp;amp; bash install.sh 步骤 2： 输入 y 确认
+步骤 3： 输入 3 安装 sing-box
+步骤 4： 选择核心版本
+VPS 用户：选择 1.官方核心 机场用户：选择 3.reF1nd 核心 步骤 5： 输入 y 确认，粘贴订阅链接
+步骤 6： 回车确认
+步骤 7： 安装成功后，输入 proxytool 管理服务
+步骤 8： 打开 UI 面板
+访问提示的地址，输入 sing-box 所在 VM 的 IP:9090 即可打开 UI 面板。
+脚本也可安装 mihomo 裸核，自行探索。</description></item><item><title>Syncthing 实现 Ubuntu 到 Ubuntu/Alpine 的单向安全同步</title><link>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</link><pubDate>Wed, 04 Mar 2026 13:24:03 +0800</pubDate><guid>https://purodn.tk/posts/linux/syncthing-ubuntu-alpine-one-way-backup/</guid><description>这篇记录一个从零部署 Syncthing 的备份场景：A 机器是 Ubuntu 或 Debian，作为源端；B 机器可以是 Ubuntu、Debian 或 Alpine，作为备份端；目标是把 A 机器上的 /srv/backup 单向同步到 B 机器，不让备份端的改动反向影响源端。
+如果前面还有一台业务服务器只负责打包并上传备份，生产链路可以拆成三段：
+复制业务服务器 A -&amp;gt; SSH 上传 tar.gz -&amp;gt; Syncthing 源端 B:/srv/backup -&amp;gt; Syncthing 单向同步 -&amp;gt; 最终备份端 C:/srv/backup 这种情况下，A 不必运行 Syncthing；A 只需要把完整备份包原子地放入 B 的 /srv/backup。真正负责同步状态、设备连接和最终落盘的是 B 与 C 上的 Syncthing。
+Syncthing 是一个持续文件同步工具，可以在两台或多台机器之间实时同步文件。它没有中心服务器，数据只保存在自己的设备上；设备之间的通信使用 TLS 加密，每台设备也通过独立证书身份识别。Web 管理面板只建议通过本机监听和 SSH 隧道访问，不要直接暴露到公网。
+适用场景 源端目录：/srv/backup 备份端目录：/srv/backup 目录属主：syncthing:syncthing 同步模式：源端 仅发送，备份端 仅接收 运行用户：专门创建的 syncthing 普通服务用户 管理方式：通过 SSH 隧道访问 Syncthing Web GUI 实际生产里也可以把源端同步端口改成非默认端口，例如 B 机监听 29029/tcp 和 29029/udp，C 机继续监听默认 22000。Syncthing 设备地址保留 dynamic 时会通过发现服务交换真实地址；手动指定地址时才需要写成 tcp://公网IP:端口。</description></item><item><title>Bash指令下命令行颜色美化及ll命令添加</title><link>https://purodn.tk/posts/linux/bash-color-ll-alias/</link><pubDate>Mon, 02 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/bash-color-ll-alias/</guid><description>操作 复制nano ~/.bashrc 添加内容(最底部添加） 复制alias ll=&amp;#39;ls -la&amp;#39; PS1=&amp;#39;\[\033[1;32m\]\u\[\033[0m\]@\[\033[1;34m\]\h\[\033[0m\] \[\033[1;31m\]\w\[\033[0m\] # &amp;#39; alias rm=&amp;#39;rm -i&amp;#39; alias mv=&amp;#39;mv -i&amp;#39; 同时删除和移动加了一次确认
+生效 复制. ~/.bashrc 应该看到变化了</description></item><item><title>拉取github公钥做为自己服务器的公钥的脚本</title><link>https://purodn.tk/posts/linux/github-ssh-keys-authorized-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/github-ssh-keys-authorized-script/</guid><description>适用于ubuntu&amp;amp;debian&amp;amp;alpine,请对应安装 说明： 极大简化了服务器安装ssh密钥的工作，一键导入，导入后，脚本会自动修改sshd_config的配置参数，省心省力，当然也可以直接生成新证书使用。
+Ubuntu&amp;amp;Debian 脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/ubuntu_ssh_key_manage.sh -o ubuntu_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x ubuntu_ssh_key_manage.sh &amp;amp;&amp;amp; bash ubuntu_ssh_key_manage.sh Alpine root 用户脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/alpine_root_ssh_key_manage.sh -o alpine_root_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x alpine_root_ssh_key_manage.sh &amp;amp;&amp;amp; sh alpine_root_ssh_key_manage.sh Alpine 普通用户脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/alpine_user_ssh_key_manage.sh -o alpine_user_ssh_key_manage.sh &amp;amp;&amp;amp; chmod +x alpine_user_ssh_key_manage.sh &amp;amp;&amp;amp; sh alpine_user_ssh_key_manage.sh</description></item><item><title>一键申请 SSL 证书脚本</title><link>https://purodn.tk/posts/linux/one-click-ssl-cert-script/</link><pubDate>Sun, 01 Mar 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/one-click-ssl-cert-script/</guid><description>支持ubuntu&amp;amp;debian 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/ssl.sh -o ssl.sh &amp;amp;&amp;amp; chmod +x ssl.sh &amp;amp;&amp;amp; bash ssl.sh</description></item><item><title>2026版Ubuntu&amp;Debian下iptables+mss防火墙管理一键脚本</title><link>https://purodn.tk/posts/linux/ubuntu-debian-iptables-mss-firewall-script/</link><pubDate>Fri, 27 Feb 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-debian-iptables-mss-firewall-script/</guid><description>说明：支持ipv4&amp;amp;ipv6,自动检测有无ipv6，添加mss.自动检测ssh端口等，很方便 一键拉取脚本 复制curl -fsSL https://raw.githubusercontent.com/hanigege/scripts/main/iptables_manager.sh -o iptables_manager.sh &amp;amp;&amp;amp; chmod +x iptables_manager.sh &amp;amp;&amp;amp; bash iptables_manager.sh 手动安装方法（可选） 复制nano iptables_manager.sh 直接复制并执行以下完整代码覆盖原脚本： 复制cat &amp;lt;&amp;lt; &amp;#39;EOF&amp;#39; &amp;gt; iptables_manager.sh #!/bin/bash # ========================================================== # 脚本名称：高级防火墙管理工具 (Debian/Ubuntu 专属自适应版 V4.1) # 核心升级：基于软件和内核模块的深度智能检测，消除冗余规则 # ========================================================== gl_lv=&amp;#39;\033[32m&amp;#39; gl_huang=&amp;#39;\033[33m&amp;#39; gl_hong=&amp;#39;\033[31m&amp;#39; gl_bai=&amp;#39;\033[0m&amp;#39; root_use() { [ &amp;#34;$EUID&amp;#34; -ne 0 ] &amp;amp;&amp;amp; echo -e &amp;#34;${gl_huang}提示: ${gl_bai}需 root 权限运行！&amp;#34; &amp;amp;&amp;amp; exit 1 } check_deps() { if ! dpkg -l | grep -qw iptables-persistent; then echo -e &amp;#34;${gl_huang}检测到未安装持久化组件，正在自动安装.</description></item><item><title>以 FakeIP 分流为基石的科学上网方案</title><link>https://purodn.tk/posts/linux/fakeip-routing-solution/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/fakeip-routing-solution/</guid><description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流
+[TOC]
+一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。
+DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：
+IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：
+198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description></item><item><title>使用 tailscale 内网穿透回家及异地组网</title><link>https://purodn.tk/posts/linux/tailscale-home-network/</link><pubDate>Fri, 22 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/tailscale-home-network/</guid><description>一、通过部署tailscale，内网穿透到家中，使用家里的mosdns分流。国内流量走客户端直连，国外流量（fakeip）通过tailscale回家后再通过家里的singbox走代理。适用于无公网ip无法使用hy2回家的小朋友~ pve中使用vm虚拟机（推荐debian12）部署tailscale 复制curl -fsSL https://tailscale.com/install.sh | sh 开启流量转发 使用nano编辑/etc/sysctl.conf文件 复制sudo nano /etc/sysctl.conf 找到net.ipv4.ip_forward=1去掉#注释，修改为 复制net.ipv4.ip_forward=1 使修改生效 复制sysctl --system 先关闭tailscale 复制tailscale down 加参数启动tailscale 自行修改示例中的内网ip段和fakeip段，添加后tailscale将允许上述流量通过
+复制tailscale up --advertise-routes=dc00::/64,10.0.0.0/24,f2b0::/18,28.0.0.0/8,100.100.200.0/24,91.108.56.0/22,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.12.0/22,149.154.160.0/20,91.105.192.0/23,91.108.20.0/22,185.76.151.0/24,2001:67c:4e8::/48,2001:b28:f23f::/48,2a0a:f280::/32,2001:b28:f23c::/48,2001:b28:f23d::/48 --advertise-exit-node --accept-routes 点击ssh界面中的登录链接登录ts账号 登录tailscale官网，编辑刚才新建的节点点击“Edit route settings…”，点击“Approve all”选中所有路由的IP，勾选“Use as exit node”，点击“Save保存 官网地址：https://login.tailscale.com/admin/machines 添加mosdns为DNS服务器 修改Global nameservers为mosdns的内网ip 手机等设备登录tailscale后，勾选刚才新建的tailscale服务为“exit node”，并打开 “Allow Local Network Access” 按需开启Enbale选项（开启后ts将路由所有流量，分流失效，图示为未开启状态） 二、通过tailscale异地组网 可实现vps通过tailscale隧道访问家中服务，配合vps中部署的反代使用效果极佳 可以通过在tailscale up时候添加key的方式加入新的设备，无需点击登录连接 异地组网不能配置Global nameservers，所以上述分流回家方案与这个方案不可兼得。手机需要科学的话只能开启路由所有流量。 如果从上述方案迁移到这个方案，先在A家里停止刚才的tailscale并重新启动 复制tailscale down 重新启动，通告A家庭中的局域网IP段，可使用key登录 复制tailscale up --auth-key=你的key --advertise-routes=10.0.0.0/24 --advertise-exit-node --accept-routes 在ts网页中，将ts回家时添加的Global nameservers删除，同时点击 DISABLE MagicDNS，禁用 MagicDNS 在B家中任意vm中安装tailscale 复制curl -fsSL https://tailscale.</description></item><item><title>使用 traefik 搭建反向代理</title><link>https://purodn.tk/posts/linux/traefik-reverse-proxy/</link><pubDate>Fri, 15 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/traefik-reverse-proxy/</guid><description>本文介绍家庭宽带环境下，使用traefik部署反向代理，实现自动申请证书、自动续签、反代局域网内服务等功能 注：1.目前traefik仅能通过docker部署 2. 后附unraid使用的traefik模板
+以下教程以在pve的lxc中安装为例 （一）lxc环境准备 pve中以ubuntu22.04或debian12为模板，创建lxc 修改/etc/ssh/sshd_config，找到并改为 PermitRootLogin yes ，允许root登录 ssh登录lxc，更换国内源（有科学环境可不用换源） 复制bash &amp;lt;(curl -sSL https://linuxmirrors.cn/main.sh) \ --source mirrors.tuna.tsinghua.edu.cn \ --web-protocol https \ --backup true \ --ignore-backup-tips \ --updata-software false 更新软件包，安装必要依赖（若弹出选择框直接回车即可） 复制apt update &amp;amp;&amp;amp; apt upgrade -y &amp;amp;&amp;amp; apt install curl nano -y 使用官方脚本一键安装docker和docker-compose 复制curl -fsSL https://get.docker.com -o get-docker.sh （二）部署traefik 创建traefik所需文件及文件夹，默认traefik配置文件安装于/root/docker/traefik 复制mkdir -p /root/docker/traefik/configurations cd /root/docker/traefik touch docker-compose.yaml touch traefik.yml touch acme.json touch configurations/dynamic.yml chmod 600 acme.json 编辑docker-compose.yaml文件 复制nano /root/docker/traefik/docker-compose.yaml 粘贴以下代码至docker-compose.</description></item><item><title>使用 caddy 搭建反向代理</title><link>https://purodn.tk/posts/linux/caddy-reverse-proxy/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/caddy-reverse-proxy/</guid><description>本文介绍家庭宽带及VPS中部署caddy，实现反向代理、自动申请并续签证书、http自动跳转https等功能，可通过docker或裸跑二进制的方式部署 ① 家庭宽带中通过docker部署 由于家庭宽带80 443端口被封，无法通过DNS验证的方式申请证书，需配合cloudflare DNS token申请证书，故只推荐通过docker安装 使用docker官方脚本一键安装docker，已安装docker的跳过 复制curl -fsSL https://get.docker.com | bash -s docker 可选用阿里镜像仓库加速安装 复制curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun 创建好容器所需文件夹及文件 复制mkdir -p /root/docker/caddy/data touch /root/docker/caddy/data/caddyfile.txt touch /root/docker/caddy/compose.yml compose.yml内容如下，使用host模式会自动占用8080和55443端口（55443为公网访问时所加端口，可在配置文件中修改） 复制version: &amp;#39;3&amp;#39; services: caddy: pull_policy: always image: sliamb/caddy:latest container_name: caddy restart: unless-stopped environment: - TZ=Asia/Shanghai - DNS=223.5.5.5,8.8.8.8 volumes: - ./data:/data - ./cert:/root/.local/share/caddy/certificates # 证书路径 network_mode: &amp;#34;host&amp;#34; 修改caddyfile.txt配置文件 以下为配置示例，根据情况自行调整 格式参考如下，修改对应邮箱、dns_token、域名及服务地址 将caddy监听的https端口修改为55443，相对应的公网端口（即之后访问域名时候加的端口）也是55443，主路由做好wan端口55443到caddy 55443的映射。该端口根据自己需求修改即可。 配置模板内容依次为：反向代理pve等https连接、反向代理普通http连接、反向代理静态网页 复制{ # 配置 cloudflare 的 DNS-01 挑战 email [email protected] # 替换为您的邮箱 acme_dns cloudflare xxxxxxxxxxxxxxxxxxxxxxx # 替换为 cloudflare 的 token # 以上两条是基于let‘s encrypt的格式，如果是zerossl，参考下面，（zerossl博主没试过，仅供参考，以上两条基于let‘s encrypt的已测试成功） #acme_ca https://acme.</description></item></channel></rss>

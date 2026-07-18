@@ -1,19 +1,6 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Tmux on 电脑自习室</title>
-    <link>https://purodn.tk/tags/tmux/</link>
-    <description>Recent content in Tmux on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Mon, 18 May 2026 14:30:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/tmux/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title>
-      <link>https://purodn.tk/posts/linux/tmux-basic-config/</link>
-      <pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid>
-      <description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。&#xA;下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。&#xA;写入配置文件 编辑 ~/.tmux.conf：&#xA;复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。&#xA;写入下面这份配置：&#xA;复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Tmux on 电脑自习室</title><link>https://purodn.tk/tags/tmux/</link><description>Recent content in Tmux on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Mon, 18 May 2026 14:30:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/tmux/index.xml" rel="self" type="application/rss+xml"/><item><title>Linux 下 tmux 基础配置：鼠标、状态栏、vi 复制与系统剪贴板</title><link>https://purodn.tk/posts/linux/tmux-basic-config/</link><pubDate>Mon, 18 May 2026 14:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/tmux-basic-config/</guid><description>tmux 适合长期 SSH 到服务器、在一个终端里同时维护多个任务的场景。它可以把会话、窗口和面板留在远端，即使本地终端断开，重新登录后也能接着原来的工作现场继续。
+下面这份配置偏向日常使用：关闭 tmux 自己的鼠标接管，让外部终端继续负责鼠标选中复制；窗口和面板从 1 开始编号，状态栏保持简洁，复制模式使用 vi 键位，并尽量把复制内容同步到系统剪贴板。
+写入配置文件 编辑 ~/.tmux.conf：
+复制nvim ~/.tmux.conf 如果没有安装 nvim，也可以使用 vim 或 nano。
+写入下面这份配置：
+复制# --- 基础设置 --- set -g mouse off set -g base-index 1 set -g pane-base-index 1 set -g renumber-windows on # --- 状态栏美化（通用无乱码版） --- set -g status-style &amp;#34;bg=#282c34,fg=#abb2bf&amp;#34; set -g status-left-length 30 set -g status-left &amp;#34;#[bg=#61afef,fg=#282c34,bold] #S #[bg=default,fg=#61afef] &amp;#34; # 1. 开启 vi 风格的复制模式 setw -g mode-keys vi # 2.</description></item></channel></rss>

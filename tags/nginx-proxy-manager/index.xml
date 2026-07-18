@@ -1,47 +1,30 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Nginx Proxy Manager on 电脑自习室</title>
-    <link>https://purodn.tk/tags/nginx-proxy-manager/</link>
-    <description>Recent content in Nginx Proxy Manager on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 22 May 2026 05:18:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/nginx-proxy-manager/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</title>
-      <link>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</link>
-      <pubDate>Fri, 22 May 2026 05:18:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</guid>
-      <description>这篇记录一个很实用的小组件：在 Matrix Synapse 同一台 Docker 主机上单独跑一个 Element Web，用来登录管理员账号、获取 access token、验证 Synapse 登录和 MatrixRTC 配置。&#xA;它不是 Element Call。这里的 web-call 只是本地目录名，实际跑的是 Element Web 客户端，也就是浏览器版 Matrix 客户端。它适合下面这些场景：&#xA;临时登录管理员账号，获取 Synapse Admin API token。 不想在公网 Element、桌面端或手机端里折腾管理员账号。 需要一个固定指向自己 Synapse 的内网 Matrix Web 客户端。 浏览器访问 http://10.20.20.8:8181 提示不支持、白屏或一直转圈。 本文示例用：&#xA;复制Docker 主机内网 IP: 10.20.20.8 Matrix server_name: 666666.xyz Synapse 客户端地址: https://matrix.666666.xyz:12335 Element Web 域名: https://element.666666.xyz:12335 部署路径: /root/data/docker_data/web-call 实际使用时，把 666666.xyz 换成自己的域名。&#xA;一、为什么不直接访问 IP Element Web 对浏览器安全上下文比较敏感。你直接打开：&#xA;复制http://10.20.20.8:8181 可能会看到：&#xA;复制Element does not support this browser 或者点了继续后一直转圈。这通常不是容器坏了，而是浏览器把普通内网 IP 的 HTTP 页面当成不安全上下文。一些 Web API、存储能力或加密相关能力在这种上下文里会受限制。</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link>
-      <pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid>
-      <description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。&#xA;三套方案的选择可以这样理解：&#xA;没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：&#xA;复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description>
-    </item>
-    <item>
-      <title>Matrix Synapse 接入 LiveKit：Cloudflare Worker 与 NPM 部署方案</title>
-      <link>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</link>
-      <pubDate>Wed, 20 May 2026 21:05:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</guid>
-      <description>这篇是 Matrix Synapse 接入 LiveKit 的另一套部署路线：不使用 Cloudflare Tunnel 承载 JWT / LiveKit 的控制链路，而是让 Cloudflare Worker 只负责标准 HTTPS 443 上的 /.well-known/matrix/client 和 /.well-known/matrix/server，真正的 Synapse、matrix-livekit-jwt-service、LiveKit server 和 ntfy 仍然交给 Nginx Proxy Manager（NPM）反代。&#xA;如果你在中国大陆地区使用 Cloudflare Tunnel 版时遇到呼叫界面白屏、发起呼叫慢、等待 8 秒以上才弹出呼叫界面，但 coturn 传统通话正常，那么问题通常不在 coturn，而是在 MatrixRTC 这条新链路里的 JWT / LiveKit HTTPS 与 WebSocket 控制路径。只要你的网络环境允许转发自定义端口，本文这种 Worker + NPM 方案通常更稳。&#xA;本文按一次真实生产迁移后的配置重新整理，重点是：&#xA;NPM 配置全部通过 NPM UI 管理，后台能看到，不使用隐藏的手写 nginx 配置。 Cloudflare Worker 只接管 666666.xyz/.well-known/matrix/*。 NPM 用 12335、12336、12337、12338 暴露实际服务。 LiveKit 媒体走真实 UDP 端口，不走 NPM，不走 Worker，不走 Cloudflare HTTP 代理。 示例域名统一写成 666666.</description>
-    </item>
-    <item>
-      <title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title>
-      <link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link>
-      <pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid>
-      <description>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 matrix，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。&#xA;如果你的反代入口也接在 matrix 网络里，NPM 后台就可以直接用容器名 ntfy 作为上游地址。&#xA;一、先确认 matrix 网络 如果前面已经创建过 matrix 网络，这一步可以跳过。否则先在宿主机终端创建：&#xA;复制docker network create matrix 查看网络是否存在：&#xA;复制docker network ls | grep matrix 后续需要被反代的容器，都建议统一接入这个网络。&#xA;二、准备数据目录 这份配置把 ntfy 的缓存和配置目录挂载到宿主机：&#xA;复制/root/data/docker_data/ntfy/data/cache /root/data/docker_data/ntfy/data/config 可以先创建目录：&#xA;复制mkdir -p /root/data/docker_data/ntfy/data/cache mkdir -p /root/data/docker_data/ntfy/data/config 其中：&#xA;cache 用来保存 ntfy 的缓存数据。 config 对应容器内的 /etc/ntfy，后续可以放置 ntfy 配置文件。 三、创建 docker-compose.yml 新建并编辑 docker-compose.yml：&#xA;复制nvim docker-compose.yml 写入下面的配置：&#xA;复制services: ntfy: image: binwiederhier/ntfy:latest container_name: ntfy command: - serve environment: - TZ=Asia/Shanghai volumes: - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy - /root/data/docker_data/ntfy/data/config:/etc/ntfy restart: unless-stopped networks: - matrix networks: matrix: external: true name: matrix 这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 matrix 网络内访问 ntfy。</description>
-    </item>
-    <item>
-      <title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title>
-      <link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link>
-      <pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate>
-      <guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid>
-      <description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。&#xA;这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。&#xA;注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。&#xA;一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：&#xA;复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。&#xA;可以用下面的命令确认网络是否已经存在：&#xA;复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。&#xA;二、创建 docker-compose.yml 新建并编辑 docker-compose.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Nginx Proxy Manager on 电脑自习室</title><link>https://purodn.tk/tags/nginx-proxy-manager/</link><description>Recent content in Nginx Proxy Manager on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 22 May 2026 05:18:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/nginx-proxy-manager/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix 管理用 Element Web：Docker Compose 与 NPM 内网 HTTPS 部署</title><link>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</link><pubDate>Fri, 22 May 2026 05:18:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-web-npm-intranet/</guid><description>这篇记录一个很实用的小组件：在 Matrix Synapse 同一台 Docker 主机上单独跑一个 Element Web，用来登录管理员账号、获取 access token、验证 Synapse 登录和 MatrixRTC 配置。
+它不是 Element Call。这里的 web-call 只是本地目录名，实际跑的是 Element Web 客户端，也就是浏览器版 Matrix 客户端。它适合下面这些场景：
+临时登录管理员账号，获取 Synapse Admin API token。 不想在公网 Element、桌面端或手机端里折腾管理员账号。 需要一个固定指向自己 Synapse 的内网 Matrix Web 客户端。 浏览器访问 http://10.20.20.8:8181 提示不支持、白屏或一直转圈。 本文示例用：
+复制Docker 主机内网 IP: 10.20.20.8 Matrix server_name: 666666.xyz Synapse 客户端地址: https://matrix.666666.xyz:12335 Element Web 域名: https://element.666666.xyz:12335 部署路径: /root/data/docker_data/web-call 实际使用时，把 666666.xyz 换成自己的域名。
+一、为什么不直接访问 IP Element Web 对浏览器安全上下文比较敏感。你直接打开：
+复制http://10.20.20.8:8181 可能会看到：
+复制Element does not support this browser 或者点了继续后一直转圈。这通常不是容器坏了，而是浏览器把普通内网 IP 的 HTTP 页面当成不安全上下文。一些 Web API、存储能力或加密相关能力在这种上下文里会受限制。</description></item><item><title>Matrix Synapse 接入 LiveKit：公网 443 标准部署方案</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</link><pubDate>Wed, 20 May 2026 21:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-public-443/</guid><description>这篇记录有公网 80/443 时最干净的一套 Matrix Synapse + LiveKit 部署方案。和前面两篇不同，这里不需要 Cloudflare Tunnel，也不需要 Cloudflare Worker：公网 443 直接交给 Nginx Proxy Manager（NPM），按域名把请求反代到 Synapse、matrix-livekit-jwt-service 和 LiveKit。
+三套方案的选择可以这样理解：
+没有公网 443，又想内网穿透：用 Cloudflare Tunnel 免 NPM 版。 没有本地 443，但能开放非标准端口且想继续用 NPM：用 Cloudflare Worker + NPM 版。 有公网 80/443：用本文的公网 443 标准版，最省心。 本文示例：
+复制Matrix server_name: 666666.xyz Docker 主机公网 IP: 你的公网 IP Docker 主机内网 IP: 10.20.20.8 NPM: 80/tcp 443/tcp HTTPS 域名: https://666666.xyz -&amp;gt; Synapse 8008 https://matrix-jwt.666666.xyz -&amp;gt; JWT service 8170 https://livekit.666666.xyz -&amp;gt; LiveKit 7880 LiveKit RTC: 50201-50400/udp 17882/tcp 可选，TCP fallback coturn: coturncoturn7829.</description></item><item><title>Matrix Synapse 接入 LiveKit：Cloudflare Worker 与 NPM 部署方案</title><link>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</link><pubDate>Wed, 20 May 2026 21:05:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-livekit-jwt-npm-worker/</guid><description>这篇是 Matrix Synapse 接入 LiveKit 的另一套部署路线：不使用 Cloudflare Tunnel 承载 JWT / LiveKit 的控制链路，而是让 Cloudflare Worker 只负责标准 HTTPS 443 上的 /.well-known/matrix/client 和 /.well-known/matrix/server，真正的 Synapse、matrix-livekit-jwt-service、LiveKit server 和 ntfy 仍然交给 Nginx Proxy Manager（NPM）反代。
+如果你在中国大陆地区使用 Cloudflare Tunnel 版时遇到呼叫界面白屏、发起呼叫慢、等待 8 秒以上才弹出呼叫界面，但 coturn 传统通话正常，那么问题通常不在 coturn，而是在 MatrixRTC 这条新链路里的 JWT / LiveKit HTTPS 与 WebSocket 控制路径。只要你的网络环境允许转发自定义端口，本文这种 Worker + NPM 方案通常更稳。
+本文按一次真实生产迁移后的配置重新整理，重点是：
+NPM 配置全部通过 NPM UI 管理，后台能看到，不使用隐藏的手写 nginx 配置。 Cloudflare Worker 只接管 666666.xyz/.well-known/matrix/*。 NPM 用 12335、12336、12337、12338 暴露实际服务。 LiveKit 媒体走真实 UDP 端口，不走 NPM，不走 Worker，不走 Cloudflare HTTP 代理。 示例域名统一写成 666666.</description></item><item><title>2026 年 ntfy Docker Compose 部署：接入 matrix 网络</title><link>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</link><pubDate>Mon, 18 May 2026 23:12:58 +0800</pubDate><guid>https://purodn.tk/posts/docker/ntfy-docker-compose-matrix/</guid><description>这篇记录 ntfy 的 Docker Compose 部署配置。这里的重点不是复杂参数，而是把 ntfy 接入统一的外部 Docker 网络 matrix，方便后续和 Nginx Proxy Manager（NPM）或其他服务放在同一个网络里通信。
+如果你的反代入口也接在 matrix 网络里，NPM 后台就可以直接用容器名 ntfy 作为上游地址。
+一、先确认 matrix 网络 如果前面已经创建过 matrix 网络，这一步可以跳过。否则先在宿主机终端创建：
+复制docker network create matrix 查看网络是否存在：
+复制docker network ls | grep matrix 后续需要被反代的容器，都建议统一接入这个网络。
+二、准备数据目录 这份配置把 ntfy 的缓存和配置目录挂载到宿主机：
+复制/root/data/docker_data/ntfy/data/cache /root/data/docker_data/ntfy/data/config 可以先创建目录：
+复制mkdir -p /root/data/docker_data/ntfy/data/cache mkdir -p /root/data/docker_data/ntfy/data/config 其中：
+cache 用来保存 ntfy 的缓存数据。 config 对应容器内的 /etc/ntfy，后续可以放置 ntfy 配置文件。 三、创建 docker-compose.yml 新建并编辑 docker-compose.yml：
+复制nvim docker-compose.yml 写入下面的配置：
+复制services: ntfy: image: binwiederhier/ntfy:latest container_name: ntfy command: - serve environment: - TZ=Asia/Shanghai volumes: - /root/data/docker_data/ntfy/data/cache:/var/cache/ntfy - /root/data/docker_data/ntfy/data/config:/etc/ntfy restart: unless-stopped networks: - matrix networks: matrix: external: true name: matrix 这份配置没有直接暴露宿主机端口，适合让 NPM 这类反代容器从同一个 matrix 网络内访问 ntfy。</description></item><item><title>2026 年 Nginx Proxy Manager（NPM）IPv6 配置</title><link>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</link><pubDate>Mon, 18 May 2026 23:09:15 +0800</pubDate><guid>https://purodn.tk/posts/docker/nginx-proxy-manager-ipv6/</guid><description>这篇记录一个支持 IPv6 访问的 Nginx Proxy Manager（NPM）部署配置。核心思路很简单：需要被 HTTP/HTTPS 反代的容器统一接入同一个外部 Docker 网络 matrix，NPM 再通过多个宿主机端口把请求转发到容器内部的 443。
+这种方式适合把 Synapse、JWT、LiveKit 等服务放在同一个 Docker 网络里，让 NPM 作为统一入口处理 HTTPS 代理。
+注意，coturn 这类 TURN 服务不建议按普通 Web 服务接入 NPM。coturn 需要直接处理 3478/udp 和大范围 UDP 中继端口，更适合单独使用 network_mode: host，不要接入 matrix 网络，也不要交给 NPM 反代。
+一、先创建 matrix 网络 在启动需要接入 matrix 的容器之前，先在宿主机终端手动创建一个供容器之间通信的 Docker 网桥：
+复制docker network create matrix 这个网络只需要创建一次。后续 NPM、Synapse、JWT、LiveKit 等需要互相访问的容器，都统一接入 matrix。
+可以用下面的命令确认网络是否已经存在：
+复制docker network ls | grep matrix 如果已经能看到 matrix，就可以继续写 Compose 配置。
+二、创建 docker-compose.yml 新建并编辑 docker-compose.</description></item></channel></rss>

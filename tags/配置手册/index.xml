@@ -1,19 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>配置手册 on 电脑自习室</title>
-    <link>https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E6%89%8B%E5%86%8C/</link>
-    <description>Recent content in 配置手册 on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 31 May 2026 07:23:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E6%89%8B%E5%86%8C/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Hermes Profile 多机器人隔离查询手册</title>
-      <link>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</link>
-      <pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</guid>
-      <description>Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。&#xA;这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。&#xA;最重要的一句话：操作具名 profile 时一定要带 -p &amp;lt;profile&amp;gt; 或 --profile &amp;lt;profile&amp;gt;。不带 profile 的命令通常会改默认机器人。&#xA;速查表 需求 命令或路径 默认 profile 配置 ~/.hermes/config.yaml 默认 profile 密钥 ~/.hermes/.env groupbot 配置 ~/.hermes/profiles/groupbot/config.yaml groupbot 密钥 ~/.hermes/profiles/groupbot/.env 查看 profile hermes profile list 创建 profile hermes profile create groupbot 复制当前配置创建 hermes profile create groupbot --clone 尽量完整复制创建 hermes profile create groupbot --clone-all 查看工具 hermes -p groupbot tools list 进入工具开关界面 hermes -p groupbot tools 配置模型 hermes -p groupbot model 配置 Telegram hermes -p groupbot gateway setup 重启 gateway hermes -p groupbot gateway restart 查看 gateway 状态 hermes -p groupbot gateway status Profile 配置文件在哪里 默认 profile：</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>配置手册 on 电脑自习室</title><link>https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E6%89%8B%E5%86%8C/</link><description>Recent content in 配置手册 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 31 May 2026 07:23:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E9%85%8D%E7%BD%AE%E6%89%8B%E5%86%8C/index.xml" rel="self" type="application/rss+xml"/><item><title>Hermes Profile 多机器人隔离查询手册</title><link>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</link><pubDate>Sun, 31 May 2026 07:23:00 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-profiles-multi-bot-isolation/</guid><description>Hermes 的 profile 可以理解成几套独立机器人环境。不同 profile 下的工具开关、模型、记忆、skills、sessions、Telegram token 和 gateway 配置基本都是隔离的。
+这篇不是从零部署教程，而是一份查询手册。已经装好 Hermes 后，如果你想把默认私聊机器人、群聊机器人、私人全能机器人、看图/生图机器人分开管理，可以直接按下面的小节查命令。
+最重要的一句话：操作具名 profile 时一定要带 -p &amp;lt;profile&amp;gt; 或 --profile &amp;lt;profile&amp;gt;。不带 profile 的命令通常会改默认机器人。
+速查表 需求 命令或路径 默认 profile 配置 ~/.hermes/config.yaml 默认 profile 密钥 ~/.hermes/.env groupbot 配置 ~/.hermes/profiles/groupbot/config.yaml groupbot 密钥 ~/.hermes/profiles/groupbot/.env 查看 profile hermes profile list 创建 profile hermes profile create groupbot 复制当前配置创建 hermes profile create groupbot --clone 尽量完整复制创建 hermes profile create groupbot --clone-all 查看工具 hermes -p groupbot tools list 进入工具开关界面 hermes -p groupbot tools 配置模型 hermes -p groupbot model 配置 Telegram hermes -p groupbot gateway setup 重启 gateway hermes -p groupbot gateway restart 查看 gateway 状态 hermes -p groupbot gateway status Profile 配置文件在哪里 默认 profile：</description></item></channel></rss>

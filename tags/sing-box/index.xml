@@ -1,96 +1,74 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Sing-Box on 电脑自习室</title>
-    <link>https://purodn.tk/tags/sing-box/</link>
-    <description>Recent content in Sing-Box on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
-      <link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
-      <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
-      <description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。&#xA;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。&#xA;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：&#xA;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&#xA;这篇不再重复具体配置，避免两篇文章参数互相打架。&#xA;一、先判断 sing-box 的角色 最简单的判断标准：&#xA;复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&#xA;二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。&#xA;典型链路：&#xA;复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description>
-    </item>
-    <item>
-      <title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title>
-      <link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link>
-      <pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate>
-      <guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid>
-      <description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：&#xA;在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：&#xA;LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。&#xA;1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。&#xA;先列出容器，确认 sing-box 所在的 LXC ID：&#xA;复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description>
-    </item>
-    <item>
-      <title>sing-box 生产机一键备份与恢复</title>
-      <link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link>
-      <pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid>
-      <description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。&#xA;我把流程整理成两个脚本：&#xA;backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。&#xA;能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：&#xA;复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description>
-    </item>
-    <item>
-      <title>sing-box FakeIP &#43; TProxy 旁路网关部署草稿</title>
-      <link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link>
-      <pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid>
-      <description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。&#xA;目标 把一台 Linux 机器做成家庭网络旁路透明网关：&#xA;DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：&#xA;生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description>
-    </item>
-    <item>
-      <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</title>
-      <link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link>
-      <pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid>
-      <description>这篇是给美服 LoL 单独整理的部署记录。&#xA;背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。&#xA;本文的目标不是重写整套代理架构，而是只做两件事：&#xA;让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。&#xA;1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：&#xA;复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。&#xA;但 LoL 不一样，它的连接链路里会出现：&#xA;登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description>
-    </item>
-    <item>
-      <title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
-      <link>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</link>
-      <pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</guid>
-      <description>这篇是 Alpine 版的保姆教程。目标很简单：&#xA;服务端只跑 Hysteria2，监听 443/udp 证书、自启动、日志、内核参数一次配好 客户端只补一个 outbound，不改现有 TUN 结构 节点域名和节点 IP 永远走直连，避免回环 本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。&#xA;先说结论 Alpine 很适合这类节点：&#xA;系统轻 OpenRC 简单 重装干净 资源占用小 Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：&#xA;443/udp 是否真放通 域名是否正确解析到服务器公网 IP 客户端的带宽参数是否和实际家宽大致匹配 1. 检查新系统 先确认系统和基础状态：&#xA;复制cat /etc/os-release uname -a cat /etc/alpine-release ps -ef | grep -i &amp;#39;[h]ysteria&amp;#39; || true ss -lntup 2&amp;gt;/dev/null | grep -E &amp;#39;:443|hysteria|hy2&amp;#39; || true apk --version 干净的新机一般不会有 Hysteria2 进程，也不会有 443/udp 监听。&#xA;再看一下防火墙和解析：&#xA;复制getent hosts proxy.</description>
-    </item>
-    <item>
-      <title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title>
-      <link>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</link>
-      <pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</guid>
-      <description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。&#xA;示例里使用占位符：&#xA;项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：&#xA;域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description>
-    </item>
-    <item>
-      <title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link>
-      <pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid>
-      <description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。&#xA;先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。&#xA;这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。&#xA;整体结构如下：&#xA;复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description>
-    </item>
-    <item>
-      <title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title>
-      <link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link>
-      <pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid>
-      <description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。&#xA;架构说明 访问链路如下：&#xA;复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：&#xA;项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：&#xA;项目 文档示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path 服务端入口 443 Gost 后端端口 18080 客户端本地 SOCKS 127.</description>
-    </item>
-    <item>
-      <title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title>
-      <link>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</link>
-      <pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</guid>
-      <description>本文记录在 Alpine Linux 上搭建 sing-box 服务端的完整流程：从 Edge community 临时安装 sing-box，编译并加载 tcp-brutal 内核模块，然后配置 VLESS Reality 入站。&#xA;本文不需要申请域名证书，Reality 会伪装到指定的 TLS 站点，例如 mirrors.kernel.org。&#xA;一、准备系统和组件 建议使用 Alpine virt 内核环境，并以 root 用户执行下面的命令。&#xA;先安装基础工具：&#xA;复制apk update apk add curl wget bash vim nano jq openssl ca-certificates iproute2 从 Edge community 临时安装 sing-box。这种方式只对本次安装使用 Edge community，避免把系统仓库永久混用。&#xA;复制apk update apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box 设置 sing-box 开机自启：&#xA;复制rc-update add sing-box default 确认版本：&#xA;复制sing-box version 二、升级 virt 内核 安装 tcp-brutal 前，先确保包索引是最新的，并升级 virt 内核：</description>
-    </item>
-    <item>
-      <title>sing-box 安装教程</title>
-      <link>https://purodn.tk/posts/linux/sing-box-install/</link>
-      <pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-install/</guid>
-      <description>本文介绍 sing-box 作为透明网关的安装方法&#xA;[TOC]&#xA;一、脚本部署 sing-box 脚本在 GitHub，虚拟机需具备科学上网能力&#xA;步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本&#xA;复制wget https://raw.githubusercontent.com/herozmy/StoreHouse/refs/heads/latest/install.sh &amp;amp;&amp;amp; bash install.sh 步骤 2： 输入 y 确认&#xA;步骤 3： 输入 3 安装 sing-box&#xA;步骤 4： 选择核心版本&#xA;VPS 用户：选择 1.官方核心 机场用户：选择 3.reF1nd 核心 步骤 5： 输入 y 确认，粘贴订阅链接&#xA;步骤 6： 回车确认&#xA;步骤 7： 安装成功后，输入 proxytool 管理服务&#xA;步骤 8： 打开 UI 面板&#xA;访问提示的地址，输入 sing-box 所在 VM 的 IP:9090 即可打开 UI 面板。&#xA;脚本也可安装 mihomo 裸核，自行探索。</description>
-    </item>
-    <item>
-      <title>FreeBSD 手动安装 Go 最新版</title>
-      <link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link>
-      <pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate>
-      <guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid>
-      <description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。&#xA;本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。&#xA;root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。&#xA;复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：&#xA;复制/usr/local/go 然后把 Go 加入环境变量：&#xA;复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：&#xA;复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：&#xA;复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：&#xA;复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sing-Box on 电脑自习室</title><link>https://purodn.tk/tags/sing-box/</link><description>Recent content in Sing-Box on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Wed, 17 Jun 2026 22:40:43 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/sing-box/index.xml" rel="self" type="application/rss+xml"/><item><title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title><link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link><pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid><description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。
+这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。
+具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：
+PVE LXC sing-box 网关 sysctl 与 UDP 性能优化
+这篇不再重复具体配置，避免两篇文章参数互相打架。
+一、先判断 sing-box 的角色 最简单的判断标准：
+复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。
+二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。
+典型链路：
+复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description></item><item><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</title><link>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</link><pubDate>Wed, 17 Jun 2026 12:09:28 +0800</pubDate><guid>https://purodn.tk/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/</guid><description>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：
+在 PVE 宿主机添加宿主机网络参数。 在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 rp_filter 已关闭。 在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。 按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。 下面示例使用：
+LXC ID：101 PVE 网桥：vmbr0 容器 IPv4：10.20.20.6/24 IPv4 网关：10.20.20.1 容器 IPv6：fd88::6666/64 IPv6 网关：fd88::1111 容器网卡 MAC：BC:24:11:1E:91:3C 这些值只是示例，必须按你自己的 pct config &amp;lt;CTID&amp;gt; 输出替换。
+1. 先获取自己的变量 所有 pct 命令都在 PVE 宿主机 Shell 执行，不是在 LXC 容器里执行。
+先列出容器，确认 sing-box 所在的 LXC ID：
+复制pct list 假设 sing-box 容器 ID 是 101，查看它当前的网卡配置：</description></item><item><title>sing-box 生产机一键备份与恢复</title><link>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</link><pubDate>Mon, 15 Jun 2026 10:30:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-production-manual-restore/</guid><description>这篇文章讲一件事：不依赖 GitHub，不在新机器跑远程一键安装脚本，只从现有生产机生成一个离线备份包，然后在新机器上一键恢复同一套 sing-box 网关。
+我把流程整理成两个脚本：
+backup-sing-box-production.sh：在旧生产机执行，生成 .tar.gz 和 .sha256。 restore-sing-box-production.sh：在新机器执行，校验备份包、备份现有文件、恢复服务并启动。 恢复包里通常包含代理节点、Rule UI token、Clash secret、自定义规则和真实网络地址，它不是公开下载包。生成后只放在你自己的可信机器或加密备份里，不要发到公开仓库、公开网盘或聊天群。
+能恢复什么 当前脚本按本地生产结构收集并恢复这些内容：
+复制/etc/sing-box/ # 主配置、UI 管理配置、自定义规则、token /opt/singbox-rule-ui/ # 9091 Rule UI 后端和静态前端 /usr/local/bin/sing-box # sing-box 二进制 /usr/local/bin/sing-box-gateway-info # 查看 UI 地址和 token /usr/local/bin/sing-box-gateway-uninstall # 卸载辅助脚本 /usr/local/sbin/refresh-sing-box-runtime-config # 重渲染 config.json /usr/local/sbin/refresh-sing-box-tproxy-setup # 按当前网卡/IP 重生成 TProxy 脚本 /usr/local/sbin/sing-box-tproxy-setup # 应用 nftables 与策略路由 /usr/local/sbin/update-sing-box-rules-jsdelivr # 更新 geosite/geoip 与 Telegram CIDR /usr/local/sbin/monitor-sing-box-runtime # 运行状态自愈检查 /etc/systemd/system/*.service 和 *.timer /etc/sysctl.d/99-sing-box-tproxy.conf /etc/systemd/journald.conf.d/90-sing-box-gateway.conf 也就是说，它恢复的是整台旁路网关的运行边界，不只是某个 config.</description></item><item><title>sing-box FakeIP + TProxy 旁路网关部署草稿</title><link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link><pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid><description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。
+目标 把一台 Linux 机器做成家庭网络旁路透明网关：
+DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：
+生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description></item><item><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</title><link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link><pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid><description>这篇是给美服 LoL 单独整理的部署记录。
+背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。
+本文的目标不是重写整套代理架构，而是只做两件事：
+让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。
+1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：
+复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。
+但 LoL 不一样，它的连接链路里会出现：
+登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description></item><item><title>Alpine Linux 生产级 Hysteria2 节点与 sing-box 客户端接入</title><link>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</link><pubDate>Tue, 26 May 2026 16:20:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-hysteria2-sing-box-production/</guid><description>这篇是 Alpine 版的保姆教程。目标很简单：
+服务端只跑 Hysteria2，监听 443/udp 证书、自启动、日志、内核参数一次配好 客户端只补一个 outbound，不改现有 TUN 结构 节点域名和节点 IP 永远走直连，避免回环 本文以自建单节点为例。你可以把它当成后面重装后直接复用的标准模板。
+先说结论 Alpine 很适合这类节点：
+系统轻 OpenRC 简单 重装干净 资源占用小 Hysteria2 适合 UDP 质量还可以、想要速度和稳定性兼顾的线路。它不是传统 TCP 代理，核心是 QUIC，所以你要盯住的是：
+443/udp 是否真放通 域名是否正确解析到服务器公网 IP 客户端的带宽参数是否和实际家宽大致匹配 1. 检查新系统 先确认系统和基础状态：
+复制cat /etc/os-release uname -a cat /etc/alpine-release ps -ef | grep -i &amp;#39;[h]ysteria&amp;#39; || true ss -lntup 2&amp;gt;/dev/null | grep -E &amp;#39;:443|hysteria|hy2&amp;#39; || true apk --version 干净的新机一般不会有 Hysteria2 进程，也不会有 443/udp 监听。
+再看一下防火墙和解析：
+复制getent hosts proxy.</description></item><item><title>Debian 13 生产级 Hysteria2 节点与 sing-box 客户端接入</title><link>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</link><pubDate>Tue, 26 May 2026 12:35:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/debian13-hysteria2-sing-box-production/</guid><description>这篇记录一套简单、稳定、适合长期跑的 Hysteria2 节点部署方式。服务端使用 Debian 13 stable，Hysteria2 监听 443/udp，客户端继续使用既有 sing-box 结构：不改 TUN、不重写 DNS，只新增一个 outbound，并把节点域名和节点 IP 放到路由最前面直连，避免代理回环。
+示例里使用占位符：
+项目 示例值 服务端 IP 203.0.113.10 服务端域名 proxy.example.com Hysteria2 端口 443/udp 节点 tag hy2-debian13 认证密码 HY2_AUTH_PASSWORD 混淆密码 HY2_OBFS_PASSWORD sing-box 配置目录 /etc/sing-box/conf/ 方案结构 复制LAN client -&amp;gt; 10.20.20.6 sing-box -&amp;gt; hysteria2 outbound: hy2-debian13 -&amp;gt; proxy.example.com:443/udp -&amp;gt; Debian 13 hysteria-server.service Hysteria2 基于 QUIC，适合 UDP 质量不错、希望速度更稳的线路。这里不套 Nginx，因为 Hysteria2 走 UDP，Nginx 的 HTTP/TCP 反代不参与这条链路。生产环境里最重要的是三件事：
+域名真实解析到服务器公网 IP。 服务端只暴露需要的 UDP 443 和 SSH。 客户端把节点域名和节点 IP 直连，不能让它们再走代理。 1.</description></item><item><title>FreeBSD 15 下 Nginx 前置 Gost MWSS 生产级配置</title><link>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</link><pubDate>Mon, 25 May 2026 21:25:00 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd15-gost-mwss-nginx-sing-box-lab/</guid><description>这篇记录 FreeBSD 15 上 Nginx 前置 Gost v3 MWSS 的完整部署流程，目标是做一条可长期运行、伪装自然、客户端容易接入的 TCP 代理节点。
+先说结论：在新的 FreeBSD 15 VPS 上，Gost MWSS + Nginx 的表现比 Xray Reality TCP 更适合作为这台机器的 TCP 生产候选。实测同一台服务器、同一个客户端下，Xray Reality 大文件下载多在 6-9 MB/s，Gost MWSS + Nginx 多轮在 8-18 MB/s 间波动，最终选择 Gost 作为这台 FreeBSD 的 TCP 主方案。
+这个结果也说明 FreeBSD TCP 代理性能和 VPS 商家、虚拟化环境、线路关系很大。不要只看延迟，部署完一定要做本文最后的大文件吞吐测试。
+整体结构如下：
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 客户端 Gost -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; FreeBSD Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost v3 MWS 这里有一个关键点：普通用户不能监听 443 这种低端口，但本方案监听 443/tcp 的是 Nginx。Nginx master 以 root 启动绑定低端口，worker 用 www 用户处理请求；Gost 只监听本机 127.</description></item><item><title>Nginx 前置 Gost MWSS 服务端与 sing-box 客户端配置</title><link>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</link><pubDate>Mon, 25 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/gost-mwss-nginx-sing-box/</guid><description>这套方案的核心思路很简单：公网只暴露 Nginx 的 443 端口，Nginx 负责 TLS 和普通网页伪装；真正的 Gost 服务只监听本机 127.0.0.1:18080，并且只接收指定 WebSocket 路径。客户端先用 Gost 连上服务端，把它转成一个本地 SOCKS5 代理，再交给 sing-box 做透明代理和分流。
+架构说明 访问链路如下：
+复制sing-box -&amp;gt; 127.0.0.1:1080 -&amp;gt; 本地 Gost 客户端 -&amp;gt; mwss://proxy.example.com:443/secret-gost-path -&amp;gt; Nginx 443 -&amp;gt; 127.0.0.1:18080 -&amp;gt; 服务端 Gost MWS 本文使用下面这些占位值，部署时请替换成自己的信息：
+项目 示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path Gost 用户名 GOST_USER Gost 密码 GOST_PASS 服务端后端端口 127.0.0.1:18080 客户端本地 SOCKS 127.0.0.1:1080 本文示例可以按下面这样替换：
+项目 文档示例值 域名 proxy.example.com 服务器公网 IP 203.0.113.10 WebSocket 路径 /secret-gost-path 服务端入口 443 Gost 后端端口 18080 客户端本地 SOCKS 127.</description></item><item><title>Alpine 安装 sing-box-server 并支持 tcp-brutal</title><link>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</link><pubDate>Sun, 24 May 2026 00:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-sing-box-server-brutal/</guid><description>本文记录在 Alpine Linux 上搭建 sing-box 服务端的完整流程：从 Edge community 临时安装 sing-box，编译并加载 tcp-brutal 内核模块，然后配置 VLESS Reality 入站。
+本文不需要申请域名证书，Reality 会伪装到指定的 TLS 站点，例如 mirrors.kernel.org。
+一、准备系统和组件 建议使用 Alpine virt 内核环境，并以 root 用户执行下面的命令。
+先安装基础工具：
+复制apk update apk add curl wget bash vim nano jq openssl ca-certificates iproute2 从 Edge community 临时安装 sing-box。这种方式只对本次安装使用 Edge community，避免把系统仓库永久混用。
+复制apk update apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/community sing-box 设置 sing-box 开机自启：
+复制rc-update add sing-box default 确认版本：
+复制sing-box version 二、升级 virt 内核 安装 tcp-brutal 前，先确保包索引是最新的，并升级 virt 内核：</description></item><item><title>sing-box 安装教程</title><link>https://purodn.tk/posts/linux/sing-box-install/</link><pubDate>Fri, 01 May 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/sing-box-install/</guid><description>本文介绍 sing-box 作为透明网关的安装方法
+[TOC]
+一、脚本部署 sing-box 脚本在 GitHub，虚拟机需具备科学上网能力
+步骤 1： 新建 Debian 或 Ubuntu 虚拟机，运行安装脚本
+复制wget https://raw.githubusercontent.com/herozmy/StoreHouse/refs/heads/latest/install.sh &amp;amp;&amp;amp; bash install.sh 步骤 2： 输入 y 确认
+步骤 3： 输入 3 安装 sing-box
+步骤 4： 选择核心版本
+VPS 用户：选择 1.官方核心 机场用户：选择 3.reF1nd 核心 步骤 5： 输入 y 确认，粘贴订阅链接
+步骤 6： 回车确认
+步骤 7： 安装成功后，输入 proxytool 管理服务
+步骤 8： 打开 UI 面板
+访问提示的地址，输入 sing-box 所在 VM 的 IP:9090 即可打开 UI 面板。
+脚本也可安装 mihomo 裸核，自行探索。</description></item><item><title>FreeBSD 手动安装 Go 最新版</title><link>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</link><pubDate>Mon, 12 May 2025 09:12:59 +0800</pubDate><guid>https://purodn.tk/posts/freebsd/freebsd-install-go-latest/</guid><description>在 FreeBSD 上安装 Go，最直接的方式是从 Go 官方下载页获取 FreeBSD 对应的二进制压缩包，然后解压到指定目录。
+本文以 go1.26.0.freebsd-amd64.tar.gz 为示例。后续 Go 版本更新时，请先到 Go 官方下载页 确认 FreeBSD 对应的最新包名，通常只需要把命令里的版本号替换成新版本即可。
+root 用户安装到默认路径 如果希望 Go 对系统所有用户可用，可以用 root 权限安装到 /usr/local/go。
+复制fetch https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz tar -C /usr/local -xzf go1.26.0.freebsd-amd64.tar.gz 默认解压后，Go 会位于：
+复制/usr/local/go 然后把 Go 加入环境变量：
+复制export PATH=$PATH:/usr/local/go/bin 如果希望长期生效，可以把上面这一行写入当前用户的 ~/.profile：
+复制printf &amp;#39;\nexport PATH=$PATH:/usr/local/go/bin\n&amp;#39; &amp;gt;&amp;gt; ~/.profile 写入后，让变量在当前终端立即生效：
+复制. ~/.profile go version root 用户安装到自定义路径 如果你更喜欢把手动安装的软件统一放到 /usr/local/opt/ 下面，可以这样操作：
+复制mkdir -p /usr/local/opt/ fetch -o /usr/local/opt/go1.26.0.freebsd-amd64.tar.gz https://golang.org/dl/go1.26.0.freebsd-amd64.tar.gz cd /usr/local/opt/ tar -C /usr/local/opt/ -xzf go1.</description></item></channel></rss>

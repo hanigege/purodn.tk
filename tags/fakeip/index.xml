@@ -1,61 +1,43 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>FakeIP on 电脑自习室</title>
-    <link>https://purodn.tk/tags/fakeip/</link>
-    <description>Recent content in FakeIP on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/fakeip/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>SMbox OPNsense 配置教程</title>
-      <link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid>
-      <description>开始前先确认两个地址：&#xA;10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：&#xA;打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。&#xA;proxy_cidr 为需要代理的 IP 地址：&#xA;复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。&#xA;任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。&#xA;打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：&#xA;打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：&#xA;将规则移动至最前面：&#xA;复制刚才的规则：&#xA;将方向改为 out，然后保存：&#xA;再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description>
-    </item>
-    <item>
-      <title>SMbox RouterOS 配置教程</title>
-      <link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link>
-      <pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid>
-      <description>10.0.0.2 是 SMbox 的 IP。&#xA;如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。&#xA;配置思路：两步缺一不可&#xA;SMbox 的分流需要 DNS 和 路由 两步配合才能生效。&#xA;第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。&#xA;第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。&#xA;方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description>
-    </item>
-    <item>
-      <title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title>
-      <link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link>
-      <pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid>
-      <description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。&#xA;这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。&#xA;具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：&#xA;PVE LXC sing-box 网关 sysctl 与 UDP 性能优化&#xA;这篇不再重复具体配置，避免两篇文章参数互相打架。&#xA;一、先判断 sing-box 的角色 最简单的判断标准：&#xA;复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。&#xA;二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。&#xA;典型链路：&#xA;复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description>
-    </item>
-    <item>
-      <title>sing-box FakeIP &#43; TProxy 旁路网关部署草稿</title>
-      <link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link>
-      <pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid>
-      <description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。&#xA;目标 把一台 Linux 机器做成家庭网络旁路透明网关：&#xA;DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：&#xA;生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description>
-    </item>
-    <item>
-      <title>美服 LoL 走 real-ip 的 mosdns &#43; sing-box 部署记录</title>
-      <link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link>
-      <pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate>
-      <guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid>
-      <description>这篇是给美服 LoL 单独整理的部署记录。&#xA;背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。&#xA;本文的目标不是重写整套代理架构，而是只做两件事：&#xA;让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。&#xA;1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：&#xA;复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。&#xA;但 LoL 不一样，它的连接链路里会出现：&#xA;登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description>
-    </item>
-    <item>
-      <title>以 FakeIP 分流为基石的科学上网方案</title>
-      <link>https://purodn.tk/posts/linux/fakeip-routing-solution/</link>
-      <pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/linux/fakeip-routing-solution/</guid>
-      <description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流&#xA;[TOC]&#xA;一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。&#xA;DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：&#xA;IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：&#xA;198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description>
-    </item>
-    <item>
-      <title>03.RouterOS 配置 FakeIP</title>
-      <link>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</link>
-      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</guid>
-      <description>本文介绍使用FakeIP分流法，实现局域网内设备透明代理中，主路由部分的设置 sing-box及mosdns的使用方法不在本文讨论范围内&#xA;1. 三种方案总览 默认sing-box的ipv4为10.0.0.2，ipv6为dc00::2222，Fake v4网段为28.0.0.0/8，Fake v6网段为f2b0::/18。 特别注意：ros开启fasttrack，mangle会失效，只能采取route的方式路由fakeip 小tips：添加完下方的proxy_ipv4和proxy_ipv6列表后，在源地址伪装中排除掉目标地址是代理列表的IP，即可实现在代理程序（sing-box或mihomo）中正确显示连接的源IP 1.1 方案一：使用 mangle 打标签的方式 IPv4 部分 添加sing-box-v4路由表 复制/routing table add name=sing-box-v4 fib 地址列表中新增proxy_ipv4列表，填入fakeip网段、tg v4网段、奈菲v4网段 复制/ip firewall address-list add list=proxy_ipv4 address=28.0.0.0/8 /ip firewall address-list add list=proxy_ipv4 address=1.1.1.1/32 /ip firewall address-list add list=proxy_ipv4 address=1.0.0.1/32 /ip firewall address-list add list=proxy_ipv4 address=8.8.8.8/32 /ip firewall address-list add list=proxy_ipv4 address=8.8.4.4/32 /ip firewall address-list add list=proxy_ipv4 address=8.41.4.0/24 /ip firewall address-list add list=proxy_ipv4 address=23.23.189.144/28 /ip firewall address-list add list=proxy_ipv4 address=23.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FakeIP on 电脑自习室</title><link>https://purodn.tk/tags/fakeip/</link><description>Recent content in FakeIP on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 21 Jun 2026 06:20:00 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/fakeip/index.xml" rel="self" type="application/rss+xml"/><item><title>SMbox OPNsense 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-opnsense-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-opnsense-config/</guid><description>开始前先确认两个地址：
+10.0.0.2 需要替换为你自己的 SMbox IP。 10.0.0.1 需要替换为你自己的 OPNsense IP。 修改 DNS 下发为主路由 新建网关配置 按下图新建一个网关配置：
+打开防火墙别名 打开 防火墙 -&amp;gt; 别名，新建两个别名：proxy_cidr 和 proxy_device。
+proxy_cidr 为需要代理的 IP 地址：
+复制198.18.0.0/15 91.108.56.0/22 91.108.4.0/22 91.108.8.0/22 91.108.16.0/22 91.108.12.0/22 149.154.160.0/20 91.105.192.0/23 91.108.20.0/22 185.76.151.0/24 proxy_device 为需要代理设备的 MAC 地址。
+任何时候不要把 SMbox 的 IP 加入到 proxy_device 中，否则会引起环回导致崩溃。
+打开 NAT 转发并新建规则 打开 NAT -&amp;gt; 转发 -&amp;gt; 新建规则，按下图配置：
+打开 LAN 防火墙并新建规则 打开 防火墙 -&amp;gt; LAN -&amp;gt; 新建规则：
+将规则移动至最前面：
+复制刚才的规则：
+将方向改为 out，然后保存：
+再次复制第一次创建的规则，将源改为 proxy_cidr，目标改为 any：</description></item><item><title>SMbox RouterOS 配置教程</title><link>https://purodn.tk/posts/routeros/smbox-routeros-config/</link><pubDate>Sun, 21 Jun 2026 06:20:00 +0800</pubDate><guid>https://purodn.tk/posts/routeros/smbox-routeros-config/</guid><description>10.0.0.2 是 SMbox 的 IP。
+如果配置了 IPv6，在 IPv6 -&amp;gt; ND -&amp;gt; bridge 取消勾选 Advertise DNS。
+配置思路：两步缺一不可
+SMbox 的分流需要 DNS 和 路由 两步配合才能生效。
+第一步 DNS 分流：把需要代理的域名解析成 FakeIP（198.18.0.0/15 段）。 第二步路由分流：把 FakeIP 网段、以及 Telegram 等纯 IP 连接的流量引导到 SMbox。 DNS 只决定哪些域名被解析成 FakeIP，真正把流量送进 SMbox 靠的是路由规则。只配 DNS 不配路由，设备能解析出 FakeIP 却无法上网。下面第一步的两种 DNS 模式只是二选一，但第二步路由分流无论选哪种 DNS 都必须配置。
+第一步：DNS 分流（两种模式二选一） 下面两种模式效果一致，根据自己情况二选一即可。
+方式一（推荐）：LAN DHCP 下发 SMbox 的 IP LAN DHCP 下发 SMbox 的 IP 作为 DNS，所有设备的 DNS 请求直接交给 SMbox DNS，再由 SMbox 内部的“DNS 分流模式 + 例外设备”控制哪些设备走代理。</description></item><item><title>Proxmox VE 下 Alpine LXC sing-box：先判断网关模式还是 TProxy FakeIP 入口模式</title><link>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</link><pubDate>Wed, 17 Jun 2026 22:40:43 +0800</pubDate><guid>https://purodn.tk/posts/linux/proxmox-lxc-sing-box-sysctl-tuning/</guid><description>这篇只解决一个问题：在 Proxmox VE 的 Alpine LXC 里部署 sing-box 时，先判断这台 LXC 到底是 旁路网关，还是 TProxy + FakeIP 透明代理入口。
+这一步要先弄清楚。角色判断错了，后面的 sysctl、路由、TProxy、FakeIP、PVE firewall、rp_filter 都容易越调越乱。
+具体的 sysctl、UDP 缓冲、GSO/GRO、PVE 宿主机接口、Alpine BusyBox sysctl、OpenRC 限制和实际验证，统一看主文：
+PVE LXC sing-box 网关 sysctl 与 UDP 性能优化
+这篇不再重复具体配置，避免两篇文章参数互相打架。
+一、先判断 sing-box 的角色 最简单的判断标准：
+复制客户端默认网关 = Alpine LXC 的 IP -&amp;gt; 网关模式 客户端默认网关 = 主路由的 IP -&amp;gt; TProxy + FakeIP 入口模式 这里的“客户端”可以是手机、电脑、电视、游戏机，也可以是某个 VLAN 或子网里的设备。
+二、模式一：Alpine LXC 是旁路网关 如果第三方设备的默认网关直接指向 Alpine LXC，或者主路由上有静态路由把某些网段交给这台 LXC 转发，那么它就是网关模式。
+典型链路：
+复制客户端 | | 默认网关 = Alpine LXC IP v Alpine LXC sing-box | | 转发 / TProxy / 代理出站 v 主路由 / PVE 网桥 / 上游网络 网关模式下，Alpine LXC 至少要满足：</description></item><item><title>sing-box FakeIP + TProxy 旁路网关部署草稿</title><link>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</link><pubDate>Tue, 02 Jun 2026 01:00:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/sing-box-fakeip-tproxy-gateway-runbook/</guid><description>草稿。本文按这次实机跑通的方案整理，但已经做成公版模板：节点地址、密码、API secret、个人域名和固定公网 IP 都已替换为示例值。RouterOS 侧只保留和 FakeIP/TProxy 对接必需的通用规则，不包含私有公网节点信息。
+目标 把一台 Linux 机器做成家庭网络旁路透明网关：
+DNS 由 sing-box 接管，国内、Apple/iCloud、自己的 DDNS 域名返回真实 IP 并直连。 Google、YouTube、GitHub、Telegram、Gemini、OpenRouter、Netflix 等明确代理域名返回 FakeIP；其它未命中的普通 A/AAAA 查询走 remote-dns 返回真实 IP，避免把所有域名都强行 FakeIP。 客户端访问 FakeIP 后，流量被主路由送到这台 Linux，Linux 上的 nftables TProxy 把流量交给 sing-box。 sing-box 根据 FakeIP 还原域名，再按域名规则走代理节点。 保留缓存，尤其保留 experimental.cache_file.store_fakeip = true，降低 sing-box 重启后客户端缓存旧 FakeIP 导致 missing fakeip record 的概率。 本文给四套 sing-box 配置：
+生产双栈版：IPv4 + IPv6，包含当前生产环境里的美服 LoL / Riot real-ip 直连规则。 标准双栈版：IPv4 + IPv6，不包含 LoL 直连，适合普通旁路网关。 生产 IPv4-only 版：只处理 IPv4，但保留 LoL / Riot 直连规则。 标准 IPv4-only 版：只处理 IPv4，适合新机器先快速跑通。 示例参数 按自己的环境替换：</description></item><item><title>美服 LoL 走 real-ip 的 mosdns + sing-box 部署记录</title><link>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</link><pubDate>Tue, 26 May 2026 17:50:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/lol-riot-realip-mosdns-sing-box/</guid><description>这篇是给美服 LoL 单独整理的部署记录。
+背景很简单：你已经有一套正常工作的 sing-box + mosdns + fake-ip 环境，平时浏览器、下载、流媒体都没问题，但美服 LoL 的体验不稳定，甚至出现“选了直连也不行”的情况。最后真正的关键点不是节点本身，而是 Riot / League of Legends 相关域名被 fake-ip 链路提前接管了。
+本文的目标不是重写整套代理架构，而是只做两件事：
+让 LoL / Riot 相关域名在 DNS 层走 real-ip。 让 sing-box 路由层把这些域名明确导向 direct。 这样做之后，游戏连接不会再落到 28.0.0.0/8 这类 fake-ip 上，延迟和兼容性都会更稳。
+1. 先理解问题 如果你已经在用 mosdns 的 fake-ip 模式，常见流程是这样的：
+复制客户端 -&amp;gt; mosdns mosdns -&amp;gt; 返回 fake-ip 客户端 -&amp;gt; 连接 fake-ip sing-box 还原域名后再决定走代理还是直连 这套机制对网页、下载、流媒体通常很顺。
+但 LoL 不一样，它的连接链路里会出现：
+登录域名 客户端域名 游戏服域名 语音 / 控制域名 一些地区性 pvp.net 域名 这些域名如果都被丢进 fake-ip，后续连接就不再是传统意义上的“真实 IP 直连”。有时 sing-box 面板里你明明切了 direct，实际连接还是没走你想要的路径。</description></item><item><title>以 FakeIP 分流为基石的科学上网方案</title><link>https://purodn.tk/posts/linux/fakeip-routing-solution/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/linux/fakeip-routing-solution/</guid><description>本文介绍 sing-box（或 mihomo）搭配 mosdns 的 fakeip 方案，实现全家设备透明代理和国内外精确分流
+[TOC]
+一、基础知识 此方案的分流策略是 DNS 分流（域名分流）。本文从实际操作方面做简略介绍，详细进阶知识请参考 skk 大佬的博客。
+DNS 解析基本原理 在浏览器输入 www.google.com 后，浏览器需要知道其 IP 地址才能建立连接 操作系统向本地 DNS 服务器（如 mosdns）发起解析请求 mosdns 返回 www.google.com 的 IP（如 172.217.31.132） 浏览器向该 IP 发起请求并建立连接 传统 CNIP 分流法 在主路由中添加中国 IP 列表：
+IP 不属于 CN 列表 → 流量导向代理软件 IP 属于 CN 列表 → 通过主路由 WAN 口直连 二、FakeIP 分流的流量走向 工作原理 FakeIP 分流法在 DNS 解析阶段 将 Google 等国外域名解析为不存在于公网的虚假 IP，常用网段：
+198.18.0.0/18 28.0.0.0/8 完整流量路径 复制浏览器访问 google ↓ 获取 fakeip（如 28.</description></item><item><title>03.RouterOS 配置 FakeIP</title><link>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</link><pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-03-ipv6-fakeip/</guid><description>本文介绍使用FakeIP分流法，实现局域网内设备透明代理中，主路由部分的设置 sing-box及mosdns的使用方法不在本文讨论范围内
+1. 三种方案总览 默认sing-box的ipv4为10.0.0.2，ipv6为dc00::2222，Fake v4网段为28.0.0.0/8，Fake v6网段为f2b0::/18。 特别注意：ros开启fasttrack，mangle会失效，只能采取route的方式路由fakeip 小tips：添加完下方的proxy_ipv4和proxy_ipv6列表后，在源地址伪装中排除掉目标地址是代理列表的IP，即可实现在代理程序（sing-box或mihomo）中正确显示连接的源IP 1.1 方案一：使用 mangle 打标签的方式 IPv4 部分 添加sing-box-v4路由表 复制/routing table add name=sing-box-v4 fib 地址列表中新增proxy_ipv4列表，填入fakeip网段、tg v4网段、奈菲v4网段 复制/ip firewall address-list add list=proxy_ipv4 address=28.0.0.0/8 /ip firewall address-list add list=proxy_ipv4 address=1.1.1.1/32 /ip firewall address-list add list=proxy_ipv4 address=1.0.0.1/32 /ip firewall address-list add list=proxy_ipv4 address=8.8.8.8/32 /ip firewall address-list add list=proxy_ipv4 address=8.8.4.4/32 /ip firewall address-list add list=proxy_ipv4 address=8.41.4.0/24 /ip firewall address-list add list=proxy_ipv4 address=23.23.189.144/28 /ip firewall address-list add list=proxy_ipv4 address=23.</description></item></channel></rss>

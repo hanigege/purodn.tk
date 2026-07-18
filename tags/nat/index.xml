@@ -1,19 +1,2 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>NAT on 电脑自习室</title>
-    <link>https://purodn.tk/tags/nat/</link>
-    <description>Recent content in NAT on 电脑自习室</description>
-    <generator>Hugo</generator>
-    <language>zh-cn</language>
-    <lastBuildDate>Fri, 27 Feb 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://purodn.tk/tags/nat/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>RouterOS NAT 回流与防火墙规则备份</title>
-      <link>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</link>
-      <pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</guid>
-      <description>内网的dst-nat要加外网接口如pppoe-out1 1. 为什么需要回流？ 当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。&#xA;2. 完整的 ROS NAT 脚本（包含 Web 回流） 请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。 复制/ip firewall nat # --- 基础规则 --- # 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发） add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&amp;#34;Standard Internet Access&amp;#34; # --- 端口转发 (DST-NAT) --- # 2. DERP 转发 add chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=&amp;#34;DERP TCP&amp;#34; add chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=&amp;#34;DERP STUN&amp;#34; # 3.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>NAT on 电脑自习室</title><link>https://purodn.tk/tags/nat/</link><description>Recent content in NAT on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Fri, 27 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://purodn.tk/tags/nat/index.xml" rel="self" type="application/rss+xml"/><item><title>RouterOS NAT 回流与防火墙规则备份</title><link>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</link><pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate><guid>https://purodn.tk/posts/routeros/routeros-nat-hairpin-firewall/</guid><description>内网的dst-nat要加外网接口如pppoe-out1 1. 为什么需要回流？ 当你从内网请求公网 IP 时，ROS 收到包后转发给内网服务器，但服务器发现请求方和自己在同一个网段，会直接把回包传给手机。手机发现自己发给公网 IP 的请求却收到了来自内网私有 IP 的响应，会因为安全机制直接丢弃该包。回流规则通过让 ROS 中转这个“回头包”来解决这个问题。
+2. 完整的 ROS NAT 脚本（包含 Web 回流） 请根据你的实际端口修改 12335 (Web) 和 21 (FTP) 等。 复制/ip firewall nat # --- 基础规则 --- # 1. 核心上网伪装（必须限制在 WAN 口，防止干扰其他转发） add chain=srcnat action=masquerade out-interface=pppoe-out1 comment=&amp;#34;Standard Internet Access&amp;#34; # --- 端口转发 (DST-NAT) --- # 2. DERP 转发 add chain=dstnat protocol=tcp dst-port=12340 action=dst-nat to-addresses=10.20.20.4 to-ports=12340 comment=&amp;#34;DERP TCP&amp;#34; add chain=dstnat protocol=udp dst-port=3478 action=dst-nat to-addresses=10.20.20.4 to-ports=3478 comment=&amp;#34;DERP STUN&amp;#34; # 3.</description></item></channel></rss>

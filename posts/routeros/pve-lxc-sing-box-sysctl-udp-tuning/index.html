@@ -1,505 +1,110 @@
-<!doctype html>
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化 | 电脑自习室</title>
-    <meta name="description" content="明确整理 PVE 宿主机和 LXC 容器里运行 sing-box 旁路网关时分别要添加的 sysctl、网络接口和 UDP 性能配置。">
-      <link rel="stylesheet" href="/css/main.min.5a969cdecf2fd47a906c488287b9782b472879d40833d5ffaff45059a1fe8968.css" integrity="sha256-Wpac3s8v1HqQbEiCh7l4K0coedQIM9X/r/RQWaH&#43;iWg=">
-  </head>
-  <body>
-    <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="电脑自习室 首页">
-      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
-    </a>
-    <nav class="site-nav" aria-label="主导航">
-      
-        <a href="/">首页</a>
-      
-        <a href="/categories/ai/">AI</a>
-      
-        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
-      
-        <a href="/categories/linux/">Linux</a>
-      
-        <a href="/categories/freebsd/">FreeBSD</a>
-      
-        <a href="/categories/docker/">Docker</a>
-      
-    </nav>
-  </div>
-</header>
-
-    <main>
-      
-  <div class="article-layout">
-    <article class="article">
-      <header class="article-header">
-        <div class="post-meta"><span>软路由</span>
-          <time datetime="2026-06-17">2026年6月17日</time>
-        </div>
-        <h1>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</h1>
-          <p>明确整理 PVE 宿主机和 LXC 容器里运行 sing-box 旁路网关时分别要添加的 sysctl、网络接口和 UDP 性能配置。</p>
-      </header>
-          <img class="article-cover" src="/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg" alt="">
-
-      <div class="article-content">
-        <p>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：</p>
-<ol>
-<li>在 PVE 宿主机添加宿主机网络参数。</li>
-<li>在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 <code>rp_filter</code> 已关闭。</li>
-<li>在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。</li>
-<li>按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。</li>
-</ol>
-<p>下面示例使用：</p>
-<ul>
-<li>LXC ID：<code>101</code></li>
-<li>PVE 网桥：<code>vmbr0</code></li>
-<li>容器 IPv4：<code>10.20.20.6/24</code></li>
-<li>IPv4 网关：<code>10.20.20.1</code></li>
-<li>容器 IPv6：<code>fd88::6666/64</code></li>
-<li>IPv6 网关：<code>fd88::1111</code></li>
-<li>容器网卡 MAC：<code>BC:24:11:1E:91:3C</code></li>
-</ul>
-<p>这些值只是示例，必须按你自己的 <code>pct config &lt;CTID&gt;</code> 输出替换。</p>
-<h2 id="1-先获取自己的变量">1. 先获取自己的变量</h2>
-<p>所有 <code>pct</code> 命令都在 <strong>PVE 宿主机 Shell</strong> 执行，不是在 LXC 容器里执行。</p>
-<p>先列出容器，确认 sing-box 所在的 LXC ID：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct list</span></span></code></pre></div><script class="code-source" type="application/json">"pct list"</script>
-</div>
-<p>假设 sing-box 容器 ID 是 <code>101</code>，查看它当前的网卡配置：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct config <span style="color:#ae81ff">101</span> | grep <span style="color:#e6db74">&#39;^net0&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"pct config 101 | grep '^net0'"</script>
-</div>
-<p>你会看到类似输出：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net0: name=eth0,bridge=vmbr0,firewall=1,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth</span></span></code></pre></div><script class="code-source" type="application/json">"net0: name=eth0,bridge=vmbr0,firewall=1,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth"</script>
-</div>
-<p>这里每个字段都可以直接对应到后面的 <code>pct set</code> 命令：</p>
-<table>
-<thead>
-<tr>
-<th>字段</th>
-<th>示例值</th>
-<th>怎么获取</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>CTID</td>
-<td><code>101</code></td>
-<td><code>pct list</code> 第一列</td>
-</tr>
-<tr>
-<td>name</td>
-<td><code>eth0</code></td>
-<td>`pct config 101</td>
-</tr>
-<tr>
-<td>bridge</td>
-<td><code>vmbr0</code></td>
-<td>同一行里的 <code>bridge=</code></td>
-</tr>
-<tr>
-<td>gw</td>
-<td><code>10.20.20.1</code></td>
-<td>同一行里的 <code>gw=</code></td>
-</tr>
-<tr>
-<td>gw6</td>
-<td><code>fd88::1111</code></td>
-<td>同一行里的 <code>gw6=</code>，没有 IPv6 就不要写 <code>gw6</code></td>
-</tr>
-<tr>
-<td>hwaddr</td>
-<td><code>BC:24:11:1E:91:3C</code></td>
-<td>同一行里的 <code>hwaddr=</code>，这就是原来的 MAC 地址</td>
-</tr>
-<tr>
-<td>ip</td>
-<td><code>10.20.20.6/24</code></td>
-<td>同一行里的 <code>ip=</code></td>
-</tr>
-<tr>
-<td>ip6</td>
-<td><code>fd88::6666/64</code></td>
-<td>同一行里的 <code>ip6=</code>，没有 IPv6 就不要写 <code>ip6</code></td>
-</tr>
-<tr>
-<td>type</td>
-<td><code>veth</code></td>
-<td>同一行里的 <code>type=</code></td>
-</tr>
-</tbody>
-</table>
-<p><code>hwaddr</code> 后面的参数不需要重新生成，直接从当前 <code>net0</code> 的 <code>hwaddr=</code> 抄出来即可。这样关闭 PVE firewall 后，容器 MAC 不会变化，路由器 DHCP 静态绑定、邻居表、ACL 也不会被打乱。</p>
-<p>再确认这个 LXC 在 PVE 宿主机侧对应的接口名：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip -br link | grep -E <span style="color:#e6db74">&#39;veth101|fwbr101|fwpr101|fwln101|vmbr0&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"ip -br link | grep -E 'veth101|fwbr101|fwpr101|fwln101|vmbr0'"</script>
-</div>
-<p>常见情况：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>vmbr0             UP ...
-</span></span><span style="display:flex;"><span>veth101i0@if2    UP ... master vmbr0 ...</span></span></code></pre></div><script class="code-source" type="application/json">"vmbr0             UP ...\nveth101i0@if2    UP ... master vmbr0 ..."</script>
-</div>
-<p>含义是：</p>
-<ul>
-<li><code>vmbr0</code> 是容器挂载的 PVE 网桥。</li>
-<li><code>veth101i0</code> 是 LXC 101 在 PVE 宿主机侧的虚拟网卡。</li>
-<li>如果还能看到 <code>fwbr101i0</code>、<code>fwpr101p0</code>、<code>fwln101i0</code>，说明这个 LXC 还在 PVE firewall 路径里。</li>
-</ul>
-<h2 id="2-pve-宿主机要添加什么">2. PVE 宿主机要添加什么</h2>
-<p>这一部分只在 <strong>PVE 宿主机</strong> 做。</p>
-<h3 id="21-添加全局网关性能参数">2.1 添加全局网关性能参数</h3>
-<p>编辑 PVE 宿主机文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /etc/sysctl.d/99-sing-box-gateway.conf</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /etc/sysctl.d/99-sing-box-gateway.conf"</script>
-</div>
-<p>写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># PVE 宿主机承载 sing-box LXC 网关时使用，负责宿主机桥接、物理网卡队列和全局转发。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.ip_forward</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.all.forwarding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.default.forwarding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># TCP 出站使用 fq + BBR；Hysteria2/TUIC/QUIC 主链路是 UDP，BBR 不会直接优化 UDP。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.default_qdisc</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">fq</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_congestion_control</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">bbr</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 提高宿主机收包积压队列和 TCP 监听队列，适合旁路网关突发流量。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.netdev_max_backlog</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">250000</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.somaxconn</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">8192</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_max_syn_backlog</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">8192</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 提高 TCP/UDP socket 缓冲上限，避免高速 UDP 先撞到系统缓冲限制。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.rmem_max</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.wmem_max</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.rmem_default</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">262144</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.core.wmem_default</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">262144</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_rmem</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">4096 87380 67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_wmem</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">4096 65536 67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.udp_rmem_min</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">16384</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># 保留基础连接健壮性，不使用过激 TIME_WAIT 回收参数。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_syncookies</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_mtu_probing</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_fastopen</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">3</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.ip_local_port_range</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">10000 65000</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_fin_timeout</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">30</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_keepalive_time</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1200</span></span></span></code></pre></div><script class="code-source" type="application/json">"# PVE 宿主机承载 sing-box LXC 网关时使用，负责宿主机桥接、物理网卡队列和全局转发。\nnet.ipv4.ip_forward = 1\nnet.ipv6.conf.all.forwarding = 1\nnet.ipv6.conf.default.forwarding = 1\n\n# TCP 出站使用 fq + BBR；Hysteria2/TUIC/QUIC 主链路是 UDP，BBR 不会直接优化 UDP。\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n\n# 提高宿主机收包积压队列和 TCP 监听队列，适合旁路网关突发流量。\nnet.core.netdev_max_backlog = 250000\nnet.core.somaxconn = 8192\nnet.ipv4.tcp_max_syn_backlog = 8192\n\n# 提高 TCP/UDP socket 缓冲上限，避免高速 UDP 先撞到系统缓冲限制。\nnet.core.rmem_max = 67108864\nnet.core.wmem_max = 67108864\nnet.core.rmem_default = 262144\nnet.core.wmem_default = 262144\nnet.ipv4.tcp_rmem = 4096 87380 67108864\nnet.ipv4.tcp_wmem = 4096 65536 67108864\nnet.ipv4.udp_rmem_min = 16384\n\n# 保留基础连接健壮性，不使用过激 TIME_WAIT 回收参数。\nnet.ipv4.tcp_syncookies = 1\nnet.ipv4.tcp_mtu_probing = 1\nnet.ipv4.tcp_fastopen = 3\nnet.ipv4.ip_local_port_range = 10000 65000\nnet.ipv4.tcp_fin_timeout = 30\nnet.ipv4.tcp_keepalive_time = 1200"</script>
-</div>
-<p>应用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl -p /etc/sysctl.d/99-sing-box-gateway.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl -p /etc/sysctl.d/99-sing-box-gateway.conf"</script>
-</div>
-<h3 id="22-添加-pve-旁路网关-rp_filter-配置">2.2 添加 PVE 旁路网关 rp_filter 配置</h3>
-<p>编辑 PVE 宿主机文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim /etc/sysctl.d/98-sing-box-pve-bypass.conf</span></span></code></pre></div><script class="code-source" type="application/json">"nvim /etc/sysctl.d/98-sing-box-pve-bypass.conf"</script>
-</div>
-<p>如果你的 CTID 是 <code>101</code>，网桥是 <code>vmbr0</code>，宿主机侧接口是 <code>veth101i0</code>，写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># PVE 宿主机侧关闭反向路径过滤，避免 TProxy、FakeIP、策略路由的非对称路径被桥接层误丢。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.all.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.default.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.vmbr0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.veth101i0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span></span></span></code></pre></div><script class="code-source" type="application/json">"# PVE 宿主机侧关闭反向路径过滤，避免 TProxy、FakeIP、策略路由的非对称路径被桥接层误丢。\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.default.rp_filter = 0\nnet.ipv4.conf.vmbr0.rp_filter = 0\nnet.ipv4.conf.veth101i0.rp_filter = 0"</script>
-</div>
-<p>如果 <code>ip -br link</code> 里实际存在 PVE firewall 接口，再额外追加：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># 只有这些接口真实存在时才添加；不存在就不要写，避免 sysctl 加载时报错。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.fwbr101i0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.fwpr101p0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.fwln101i0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 只有这些接口真实存在时才添加；不存在就不要写，避免 sysctl 加载时报错。\nnet.ipv4.conf.fwbr101i0.rp_filter = 0\nnet.ipv4.conf.fwpr101p0.rp_filter = 0\nnet.ipv4.conf.fwln101i0.rp_filter = 0"</script>
-</div>
-<p>应用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl -p /etc/sysctl.d/98-sing-box-pve-bypass.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl -p /etc/sysctl.d/98-sing-box-pve-bypass.conf"</script>
-</div>
-<h3 id="23-关闭这个-lxc-的-pve-firewall">2.3 关闭这个 LXC 的 PVE firewall</h3>
-<p>如果这个 LXC 专门做 sing-box 网关，且不依赖 PVE firewall 过滤入站，建议关闭该 LXC 网卡的 PVE firewall，减少 <code>fwbr/fwpr/fwln</code> 这一层。</p>
-<p>先用当前配置取值：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct config <span style="color:#ae81ff">101</span> | grep <span style="color:#e6db74">&#39;^net0&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"pct config 101 | grep '^net0'"</script>
-</div>
-<p>再按原值改写 <code>pct set</code>。示例：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct set <span style="color:#ae81ff">101</span> -net0 name<span style="color:#f92672">=</span>eth0,bridge<span style="color:#f92672">=</span>vmbr0,firewall<span style="color:#f92672">=</span>0,gw<span style="color:#f92672">=</span>10.20.20.1,gw6<span style="color:#f92672">=</span>fd88::1111,hwaddr<span style="color:#f92672">=</span>BC:24:11:1E:91:3C,ip<span style="color:#f92672">=</span>10.20.20.6/24,ip6<span style="color:#f92672">=</span>fd88::6666/64,type<span style="color:#f92672">=</span>veth</span></span></code></pre></div><script class="code-source" type="application/json">"pct set 101 -net0 name=eth0,bridge=vmbr0,firewall=0,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth"</script>
-</div>
-<p>替换规则：</p>
-<ul>
-<li><code>101</code>：换成你的 CTID。</li>
-<li><code>bridge=vmbr0</code>：换成 <code>pct config</code> 里原来的 <code>bridge=</code>。</li>
-<li><code>gw=</code>、<code>gw6=</code>、<code>ip=</code>、<code>ip6=</code>：照抄原来的值；没有 IPv6 就删除 <code>gw6=...</code> 和 <code>ip6=...</code>。</li>
-<li><code>hwaddr=...</code>：照抄原来的 <code>hwaddr=</code>，不要随便换 MAC。</li>
-<li><code>firewall=0</code>：这是这条命令唯一主动修改的目标。</li>
-</ul>
-<p>改完确认：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>pct config <span style="color:#ae81ff">101</span> | grep <span style="color:#e6db74">&#39;^net0&#39;</span>
-</span></span><span style="display:flex;"><span>ip -br link | grep -E <span style="color:#e6db74">&#39;veth101|fwbr101|fwpr101|fwln101&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"pct config 101 | grep '^net0'\nip -br link | grep -E 'veth101|fwbr101|fwpr101|fwln101'"</script>
-</div>
-<p>理想结果是 <code>net0</code> 里显示 <code>firewall=0</code>，运行态只剩 <code>veth101i0</code>，不再出现 <code>fwbr101i0</code>、<code>fwpr101p0</code>、<code>fwln101i0</code>。</p>
-<h2 id="3-lxc-容器里要添加什么">3. LXC 容器里要添加什么</h2>
-<p>这一部分只在 <strong>sing-box 所在的 LXC 容器内</strong> 做。</p>
-<h3 id="31-添加容器转发参数">3.1 添加容器转发参数</h3>
-<p>编辑容器内文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /etc/sysctl.d/local.conf</span></span></code></pre></div><script class="code-source" type="application/json">"vi /etc/sysctl.d/local.conf"</script>
-</div>
-<p>写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># LXC 容器作为旁路网关时必须开启转发，并关闭容器内 eth0 的反向路径过滤。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.ip_forward</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.all.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.default.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.conf.eth0.rp_filter</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.all.forwarding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.default.forwarding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.eth0.forwarding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.eth0.accept_ra</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">2</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv6.conf.eth0.accept_ra_defrtr</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span></span></span></code></pre></div><script class="code-source" type="application/json">"# LXC 容器作为旁路网关时必须开启转发，并关闭容器内 eth0 的反向路径过滤。\nnet.ipv4.ip_forward = 1\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.default.rp_filter = 0\nnet.ipv4.conf.eth0.rp_filter = 0\nnet.ipv6.conf.all.forwarding = 1\nnet.ipv6.conf.default.forwarding = 1\nnet.ipv6.conf.eth0.forwarding = 1\nnet.ipv6.conf.eth0.accept_ra = 2\nnet.ipv6.conf.eth0.accept_ra_defrtr = 1"</script>
-</div>
-<p>Alpine / BusyBox 的 <code>sysctl</code> 通常不支持 <code>--system</code>，直接指定文件加载：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl -p /etc/sysctl.d/local.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl -p /etc/sysctl.d/local.conf"</script>
-</div>
-<p>如果容器不用 IPv6，可以删除所有 <code>net.ipv6.*</code> 行。</p>
-<h3 id="32-添加-sing-box-性能参数">3.2 添加 sing-box 性能参数</h3>
-<p>编辑容器内文件：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>vi /etc/sysctl.d/98-sing-box-performance.conf</span></span></code></pre></div><script class="code-source" type="application/json">"vi /etc/sysctl.d/98-sing-box-performance.conf"</script>
-</div>
-<p>写入：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># sing-box 在容器内发起 TCP/UDP 出站连接，这些参数要在容器命名空间内单独设置。</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_congestion_control</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">bbr</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_rmem</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">4096 131072 67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_wmem</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">4096 65536 67108864</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.udp_rmem_min</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">16384</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_slow_start_after_idle</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">0</span></span></span></code></pre></div><script class="code-source" type="application/json">"# sing-box 在容器内发起 TCP/UDP 出站连接，这些参数要在容器命名空间内单独设置。\nnet.ipv4.tcp_congestion_control = bbr\nnet.ipv4.tcp_rmem = 4096 131072 67108864\nnet.ipv4.tcp_wmem = 4096 65536 67108864\nnet.ipv4.udp_rmem_min = 16384\nnet.ipv4.tcp_slow_start_after_idle = 0"</script>
-</div>
-<p>应用：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl -p /etc/sysctl.d/98-sing-box-performance.conf</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl -p /etc/sysctl.d/98-sing-box-performance.conf"</script>
-</div>
-<p>如果提示 <code>bbr</code> 不可用，先看可用算法：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.tcp_available_congestion_control</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.tcp_available_congestion_control"</script>
-</div>
-<p>如果输出里没有 <code>bbr</code>，就把这一行注释掉：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># net.ipv4.tcp_congestion_control = bbr</span></span></span></code></pre></div><script class="code-source" type="application/json">"# net.ipv4.tcp_congestion_control = bbr"</script>
-</div>
-<h3 id="33-设置开机自动加载">3.3 设置开机自动加载</h3>
-<p>Alpine LXC 使用 OpenRC 时，在容器内执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-update add sysctl boot</span></span></code></pre></div><script class="code-source" type="application/json">"rc-update add sysctl boot"</script>
-</div>
-<p>如果手动验证：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-service sysctl start</span></span></code></pre></div><script class="code-source" type="application/json">"rc-service sysctl start"</script>
-</div>
-<p>非特权 LXC 里可能看到 <code>kernel.*</code>、<code>fs.*</code> 的 <code>Read-only file system</code> 提示，这是系统默认参数碰到容器不可写项。只要下面的检查值正确，就说明本文添加的网关参数已经生效。</p>
-<h2 id="4-最后验证">4. 最后验证</h2>
-<h3 id="41-pve-宿主机验证">4.1 PVE 宿主机验证</h3>
-<p>在 PVE 宿主机执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.ip_forward
-</span></span><span style="display:flex;"><span>sysctl net.ipv6.conf.all.forwarding
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.tcp_congestion_control
-</span></span><span style="display:flex;"><span>sysctl net.core.default_qdisc
-</span></span><span style="display:flex;"><span>sysctl net.core.rmem_max net.core.wmem_max
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.udp_rmem_min
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.conf.all.rp_filter
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.conf.vmbr0.rp_filter
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.conf.veth101i0.rp_filter</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.ip_forward\nsysctl net.ipv6.conf.all.forwarding\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.core.default_qdisc\nsysctl net.core.rmem_max net.core.wmem_max\nsysctl net.ipv4.udp_rmem_min\nsysctl net.ipv4.conf.all.rp_filter\nsysctl net.ipv4.conf.vmbr0.rp_filter\nsysctl net.ipv4.conf.veth101i0.rp_filter"</script>
-</div>
-<p>预期关键值：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.ipv4.ip_forward = 1
-</span></span><span style="display:flex;"><span>net.ipv4.tcp_congestion_control = bbr
-</span></span><span style="display:flex;"><span>net.core.default_qdisc = fq
-</span></span><span style="display:flex;"><span>net.ipv4.conf.all.rp_filter = 0
-</span></span><span style="display:flex;"><span>net.ipv4.conf.vmbr0.rp_filter = 0
-</span></span><span style="display:flex;"><span>net.ipv4.conf.veth101i0.rp_filter = 0</span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.ip_forward = 1\nnet.ipv4.tcp_congestion_control = bbr\nnet.core.default_qdisc = fq\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.vmbr0.rp_filter = 0\nnet.ipv4.conf.veth101i0.rp_filter = 0"</script>
-</div>
-<h3 id="42-lxc-容器验证">4.2 LXC 容器验证</h3>
-<p>在 LXC 容器内执行：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sysctl net.ipv4.ip_forward
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.conf.all.rp_filter
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.conf.eth0.rp_filter
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.tcp_available_congestion_control
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.tcp_congestion_control
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.tcp_rmem net.ipv4.tcp_wmem
-</span></span><span style="display:flex;"><span>sysctl net.ipv4.udp_rmem_min</span></span></code></pre></div><script class="code-source" type="application/json">"sysctl net.ipv4.ip_forward\nsysctl net.ipv4.conf.all.rp_filter\nsysctl net.ipv4.conf.eth0.rp_filter\nsysctl net.ipv4.tcp_available_congestion_control\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.ipv4.tcp_rmem net.ipv4.tcp_wmem\nsysctl net.ipv4.udp_rmem_min"</script>
-</div>
-<p>预期关键值：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>net.ipv4.ip_forward = 1
-</span></span><span style="display:flex;"><span>net.ipv4.conf.all.rp_filter = 0
-</span></span><span style="display:flex;"><span>net.ipv4.conf.eth0.rp_filter = 0
-</span></span><span style="display:flex;"><span>net.ipv4.tcp_congestion_control = bbr
-</span></span><span style="display:flex;"><span>net.ipv4.udp_rmem_min = 16384</span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.ip_forward = 1\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.eth0.rp_filter = 0\nnet.ipv4.tcp_congestion_control = bbr\nnet.ipv4.udp_rmem_min = 16384"</script>
-</div>
-<h3 id="43-udp-丢包检查">4.3 UDP 丢包检查</h3>
-<p>在 LXC 容器内观察 sing-box UDP socket：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -unmp</span></span></code></pre></div><script class="code-source" type="application/json">"ss -unmp"</script>
-</div>
-<p>连续观察：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>watch -n <span style="color:#ae81ff">1</span> <span style="color:#e6db74">&#39;ss -unmp | grep -E &#34;sing-box|drops|udp&#34;&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"watch -n 1 'ss -unmp | grep -E \"sing-box|drops|udp\"'"</script>
-</div>
-<p>如果测速或高峰下载时 <code>drops</code> 持续增长，优先检查：</p>
-<ul>
-<li>容器内 <code>net.ipv4.udp_rmem_min</code> 是否生效。</li>
-<li>PVE 宿主机 <code>net.core.rmem_max</code>、<code>net.core.wmem_max</code> 是否生效。</li>
-<li>sing-box / Hysteria2 / TUIC 自身是否还有 socket buffer 或带宽参数需要调整。</li>
-<li>PVE 宿主机 CPU、物理网卡和 veth offload 能力。</li>
-</ul>
-<h3 id="44-offload-检查">4.4 offload 检查</h3>
-<p>offload 在 PVE 宿主机检查，不是在 LXC 容器里检查。</p>
-<p>先找物理网卡和容器 veth：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip -br link</span></span></code></pre></div><script class="code-source" type="application/json">"ip -br link"</script>
-</div>
-<p>看 <code>master vmbr0</code> 的接口。常见关系如下：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>enp2s0       UP ... master vmbr0 ...
-</span></span><span style="display:flex;"><span>vmbr0        UP ...
-</span></span><span style="display:flex;"><span>veth101i0    UP ... master vmbr0 ...</span></span></code></pre></div><script class="code-source" type="application/json">"enp2s0       UP ... master vmbr0 ...\nvmbr0        UP ...\nveth101i0    UP ... master vmbr0 ..."</script>
-</div>
-<p>检查：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ethtool -k enp2s0
-</span></span><span style="display:flex;"><span>ethtool -k veth101i0</span></span></code></pre></div><script class="code-source" type="application/json">"ethtool -k enp2s0\nethtool -k veth101i0"</script>
-</div>
-<p>重点看：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>generic-segmentation-offload
-</span></span><span style="display:flex;"><span>generic-receive-offload
-</span></span><span style="display:flex;"><span>tx-udp-segmentation</span></span></code></pre></div><script class="code-source" type="application/json">"generic-segmentation-offload\ngeneric-receive-offload\ntx-udp-segmentation"</script>
-</div>
-<p>如果物理网卡或 veth 的关键项是 <code>off</code>，并且驱动允许修改，再尝试：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ethtool -K enp2s0 gso on gro on
-</span></span><span style="display:flex;"><span>ethtool -K enp2s0 tx-udp-segmentation on
-</span></span><span style="display:flex;"><span>ethtool -K veth101i0 gso on gro on
-</span></span><span style="display:flex;"><span>ethtool -K veth101i0 tx-udp-segmentation on</span></span></code></pre></div><script class="code-source" type="application/json">"ethtool -K enp2s0 gso on gro on\nethtool -K enp2s0 tx-udp-segmentation on\nethtool -K veth101i0 gso on gro on\nethtool -K veth101i0 tx-udp-segmentation on"</script>
-</div>
-<p>有些 veth 不允许打开 GRO，有些网卡不支持 <code>tx-udp-segmentation</code>。这不是 sysctl 能解决的问题，按实际输出判断即可。</p>
-<h2 id="5-不要添加这些旧参数">5. 不要添加这些旧参数</h2>
-<p>下面这些参数不建议为了“优化”照抄：</p>
-<div class="code-block">
-  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_congestion_control</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">hybla</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">fs.file-max</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">100000</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_tw_reuse</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">1</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">net.ipv4.tcp_max_tw_buckets</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">5000</span></span></span></code></pre></div><script class="code-source" type="application/json">"net.ipv4.tcp_congestion_control = hybla\nfs.file-max = 100000\nnet.ipv4.tcp_tw_reuse = 1\nnet.ipv4.tcp_max_tw_buckets = 5000"</script>
-</div>
-<p>原因很简单：</p>
-<ul>
-<li><code>hybla</code> 不适合作为现代代理网关默认拥塞控制，优先用 <code>bbr</code>。</li>
-<li><code>fs.file-max = 100000</code> 可能反而低于现代 Linux 默认值。</li>
-<li><code>tcp_tw_reuse</code> 不是透明代理和 UDP 性能问题的通用解法。</li>
-<li><code>tcp_max_tw_buckets = 5000</code> 太小，可能导致内核过早回收连接状态。</li>
-</ul>
-<p>最终只记住两层边界：PVE 宿主机负责 <code>vmbr0</code>、<code>veth101i0</code>、PVE firewall 路径、物理网卡和全局缓冲；LXC 容器负责自己的 <code>eth0</code>、转发、容器命名空间 sysctl，以及 sing-box 进程实际使用的 TCP/UDP 参数。</p>
-
-      </div>
-    </article>
-
-    <aside class="sidebar article-sidebar">
-  <section class="widget search-widget">
-    <form class="search-form" action="/search/" method="get">
-      <label for="article-site-search">搜索</label>
-      <div class="search-row">
-        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
-        <button type="submit" aria-label="搜索">搜索</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="widget article-latest-widget">
-    <h2>最新文章</h2>
-    <ol class="article-latest-list">
-      
-      
-        <li>
-          <a href="/posts/linux/alpine-configure-timezone/">
-            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
-            <span class="latest-rank">1</span>
-            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-profile-guide/">
-            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">2</span>
-            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-yolo-mode/">
-            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
-            <span class="latest-rank">3</span>
-            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-agent-file-conventions/">
-            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
-            <span class="latest-rank">4</span>
-            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-busy-input-modes/">
-            <img src="/posts/ai/hermes-busy-input-modes/assets/cover.svg" alt="">
-            <span class="latest-rank">5</span>
-            <span class="latest-title">Hermes Agent Busy Input Modes 完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/ai-agent-orchestration-guide/">
-            <img src="/posts/ai/ai-agent-orchestration-guide/assets/cover.svg" alt="">
-            <span class="latest-rank">6</span>
-            <span class="latest-title">AI助手多轮分工协作完全指南</span>
-          </a>
-        </li>
-      
-        <li>
-          <a href="/posts/ai/hermes-tui-cli-commands/">
-            <img src="/posts/ai/hermes-tui-cli-commands/assets/cover.svg" alt="">
-            <span class="latest-rank">7</span>
-            <span class="latest-title">Hermes TUI 终端 CLI 命令速查</span>
-          </a>
-        </li>
-      
-    </ol>
-  </section>
-</aside>
-
-  </div>
-
-    </main>
-    <footer class="site-footer">
-  <p>
-    © 2026 电脑自习室.
-    专注清晰、可复现、少踩坑的电脑教程。
-  </p>
-</footer>
-
-      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
-    
-  <script src="/js/article-toolbar.js" defer></script>
-  </body>
-</html>
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化 | 电脑自习室</title>
+<meta name=description content="明确整理 PVE 宿主机和 LXC 容器里运行 sing-box 旁路网关时分别要添加的 sysctl、网络接口和 UDP 性能配置。"><link rel=stylesheet href=/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc="></head><body><header class=site-header><div class=header-inner><a class=brand href=/ aria-label="电脑自习室 首页"><img class=brand-sign src=/images/computer-study-room-logo.svg alt=电脑自习室></a><nav class=site-nav aria-label=主导航><a href=/>首页</a>
+<a href=/categories/ai/>AI</a>
+<a href=/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/>软路由</a>
+<a href=/categories/linux/>Linux</a>
+<a href=/categories/freebsd/>FreeBSD</a>
+<a href=/categories/docker/>Docker</a></nav></div></header><main><div class=article-layout><article class=article><header class=article-header><div class=post-meta><span>软路由</span>
+<time datetime=2026-06-17>2026年6月17日</time></div><h1>PVE LXC sing-box 网关 sysctl 与 UDP 性能优化</h1><p>明确整理 PVE 宿主机和 LXC 容器里运行 sing-box 旁路网关时分别要添加的 sysctl、网络接口和 UDP 性能配置。</p></header><img class=article-cover src=/posts/routeros/pve-lxc-sing-box-sysctl-udp-tuning/assets/cover.svg alt><div class=article-content><p>这篇只保留 PVE 下运行 LXC sing-box 旁路网关时真正需要动手添加的内容。按顺序做即可：</p><ol><li>在 PVE 宿主机添加宿主机网络参数。</li><li>在 PVE 宿主机关闭这个 LXC 的 PVE firewall，或者确认相关接口的 <code>rp_filter</code> 已关闭。</li><li>在 LXC 容器里添加容器自己的转发和 sing-box 性能参数。</li><li>按本文方法从现有配置里取出 CTID、网桥、IP、网关、MAC、IPv6 等变量，替换示例命令。</li></ol><p>下面示例使用：</p><ul><li>LXC ID：<code>101</code></li><li>PVE 网桥：<code>vmbr0</code></li><li>容器 IPv4：<code>10.20.20.6/24</code></li><li>IPv4 网关：<code>10.20.20.1</code></li><li>容器 IPv6：<code>fd88::6666/64</code></li><li>IPv6 网关：<code>fd88::1111</code></li><li>容器网卡 MAC：<code>BC:24:11:1E:91:3C</code></li></ul><p>这些值只是示例，必须按你自己的 <code>pct config &lt;CTID></code> 输出替换。</p><h2 id=1-先获取自己的变量>1. 先获取自己的变量</h2><p>所有 <code>pct</code> 命令都在 <strong>PVE 宿主机 Shell</strong> 执行，不是在 LXC 容器里执行。</p><p>先列出容器，确认 sing-box 所在的 LXC ID：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct list</span></span></code></pre></div><script class=code-source type=application/json>"pct list"</script></div><p>假设 sing-box 容器 ID 是 <code>101</code>，查看它当前的网卡配置：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct config <span style=color:#ae81ff>101</span> | grep <span style=color:#e6db74>&#39;^net0&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"pct config 101 | grep '^net0'"</script></div><p>你会看到类似输出：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>net0: name=eth0,bridge=vmbr0,firewall=1,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth</span></span></code></pre></div><script class=code-source type=application/json>"net0: name=eth0,bridge=vmbr0,firewall=1,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth"</script></div><p>这里每个字段都可以直接对应到后面的 <code>pct set</code> 命令：</p><table><thead><tr><th>字段</th><th>示例值</th><th>怎么获取</th></tr></thead><tbody><tr><td>CTID</td><td><code>101</code></td><td><code>pct list</code> 第一列</td></tr><tr><td>name</td><td><code>eth0</code></td><td>`pct config 101</td></tr><tr><td>bridge</td><td><code>vmbr0</code></td><td>同一行里的 <code>bridge=</code></td></tr><tr><td>gw</td><td><code>10.20.20.1</code></td><td>同一行里的 <code>gw=</code></td></tr><tr><td>gw6</td><td><code>fd88::1111</code></td><td>同一行里的 <code>gw6=</code>，没有 IPv6 就不要写 <code>gw6</code></td></tr><tr><td>hwaddr</td><td><code>BC:24:11:1E:91:3C</code></td><td>同一行里的 <code>hwaddr=</code>，这就是原来的 MAC 地址</td></tr><tr><td>ip</td><td><code>10.20.20.6/24</code></td><td>同一行里的 <code>ip=</code></td></tr><tr><td>ip6</td><td><code>fd88::6666/64</code></td><td>同一行里的 <code>ip6=</code>，没有 IPv6 就不要写 <code>ip6</code></td></tr><tr><td>type</td><td><code>veth</code></td><td>同一行里的 <code>type=</code></td></tr></tbody></table><p><code>hwaddr</code> 后面的参数不需要重新生成，直接从当前 <code>net0</code> 的 <code>hwaddr=</code> 抄出来即可。这样关闭 PVE firewall 后，容器 MAC 不会变化，路由器 DHCP 静态绑定、邻居表、ACL 也不会被打乱。</p><p>再确认这个 LXC 在 PVE 宿主机侧对应的接口名：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ip -br link | grep -E <span style=color:#e6db74>&#39;veth101|fwbr101|fwpr101|fwln101|vmbr0&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"ip -br link | grep -E 'veth101|fwbr101|fwpr101|fwln101|vmbr0'"</script></div><p>常见情况：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>vmbr0             UP ...
+</span></span><span style=display:flex><span>veth101i0@if2    UP ... master vmbr0 ...</span></span></code></pre></div><script class=code-source type=application/json>"vmbr0             UP ...\nveth101i0@if2    UP ... master vmbr0 ..."</script></div><p>含义是：</p><ul><li><code>vmbr0</code> 是容器挂载的 PVE 网桥。</li><li><code>veth101i0</code> 是 LXC 101 在 PVE 宿主机侧的虚拟网卡。</li><li>如果还能看到 <code>fwbr101i0</code>、<code>fwpr101p0</code>、<code>fwln101i0</code>，说明这个 LXC 还在 PVE firewall 路径里。</li></ul><h2 id=2-pve-宿主机要添加什么>2. PVE 宿主机要添加什么</h2><p>这一部分只在 <strong>PVE 宿主机</strong> 做。</p><h3 id=21-添加全局网关性能参数>2.1 添加全局网关性能参数</h3><p>编辑 PVE 宿主机文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nvim /etc/sysctl.d/99-sing-box-gateway.conf</span></span></code></pre></div><script class=code-source type=application/json>"nvim /etc/sysctl.d/99-sing-box-gateway.conf"</script></div><p>写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># PVE 宿主机承载 sing-box LXC 网关时使用，负责宿主机桥接、物理网卡队列和全局转发。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.ip_forward</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.all.forwarding</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.default.forwarding</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># TCP 出站使用 fq + BBR；Hysteria2/TUIC/QUIC 主链路是 UDP，BBR 不会直接优化 UDP。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.default_qdisc</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>fq</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_congestion_control</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>bbr</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 提高宿主机收包积压队列和 TCP 监听队列，适合旁路网关突发流量。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.netdev_max_backlog</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>250000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.somaxconn</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>8192</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_max_syn_backlog</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>8192</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 提高 TCP/UDP socket 缓冲上限，避免高速 UDP 先撞到系统缓冲限制。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.rmem_max</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.wmem_max</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.rmem_default</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>262144</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.core.wmem_default</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>262144</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_rmem</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>4096 87380 67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_wmem</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>4096 65536 67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.udp_rmem_min</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>16384</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 保留基础连接健壮性，不使用过激 TIME_WAIT 回收参数。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_syncookies</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_mtu_probing</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_fastopen</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>3</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.ip_local_port_range</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>10000 65000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_fin_timeout</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>30</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_keepalive_time</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1200</span></span></span></code></pre></div><script class=code-source type=application/json>"# PVE 宿主机承载 sing-box LXC 网关时使用，负责宿主机桥接、物理网卡队列和全局转发。\nnet.ipv4.ip_forward = 1\nnet.ipv6.conf.all.forwarding = 1\nnet.ipv6.conf.default.forwarding = 1\n\n# TCP 出站使用 fq + BBR；Hysteria2/TUIC/QUIC 主链路是 UDP，BBR 不会直接优化 UDP。\nnet.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n\n# 提高宿主机收包积压队列和 TCP 监听队列，适合旁路网关突发流量。\nnet.core.netdev_max_backlog = 250000\nnet.core.somaxconn = 8192\nnet.ipv4.tcp_max_syn_backlog = 8192\n\n# 提高 TCP/UDP socket 缓冲上限，避免高速 UDP 先撞到系统缓冲限制。\nnet.core.rmem_max = 67108864\nnet.core.wmem_max = 67108864\nnet.core.rmem_default = 262144\nnet.core.wmem_default = 262144\nnet.ipv4.tcp_rmem = 4096 87380 67108864\nnet.ipv4.tcp_wmem = 4096 65536 67108864\nnet.ipv4.udp_rmem_min = 16384\n\n# 保留基础连接健壮性，不使用过激 TIME_WAIT 回收参数。\nnet.ipv4.tcp_syncookies = 1\nnet.ipv4.tcp_mtu_probing = 1\nnet.ipv4.tcp_fastopen = 3\nnet.ipv4.ip_local_port_range = 10000 65000\nnet.ipv4.tcp_fin_timeout = 30\nnet.ipv4.tcp_keepalive_time = 1200"</script></div><p>应用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl -p /etc/sysctl.d/99-sing-box-gateway.conf</span></span></code></pre></div><script class=code-source type=application/json>"sysctl -p /etc/sysctl.d/99-sing-box-gateway.conf"</script></div><h3 id=22-添加-pve-旁路网关-rp_filter-配置>2.2 添加 PVE 旁路网关 rp_filter 配置</h3><p>编辑 PVE 宿主机文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>nvim /etc/sysctl.d/98-sing-box-pve-bypass.conf</span></span></code></pre></div><script class=code-source type=application/json>"nvim /etc/sysctl.d/98-sing-box-pve-bypass.conf"</script></div><p>如果你的 CTID 是 <code>101</code>，网桥是 <code>vmbr0</code>，宿主机侧接口是 <code>veth101i0</code>，写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># PVE 宿主机侧关闭反向路径过滤，避免 TProxy、FakeIP、策略路由的非对称路径被桥接层误丢。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.all.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.default.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.vmbr0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.veth101i0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span></span></span></code></pre></div><script class=code-source type=application/json>"# PVE 宿主机侧关闭反向路径过滤，避免 TProxy、FakeIP、策略路由的非对称路径被桥接层误丢。\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.default.rp_filter = 0\nnet.ipv4.conf.vmbr0.rp_filter = 0\nnet.ipv4.conf.veth101i0.rp_filter = 0"</script></div><p>如果 <code>ip -br link</code> 里实际存在 PVE firewall 接口，再额外追加：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># 只有这些接口真实存在时才添加；不存在就不要写，避免 sysctl 加载时报错。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.fwbr101i0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.fwpr101p0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.fwln101i0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span></span></span></code></pre></div><script class=code-source type=application/json>"# 只有这些接口真实存在时才添加；不存在就不要写，避免 sysctl 加载时报错。\nnet.ipv4.conf.fwbr101i0.rp_filter = 0\nnet.ipv4.conf.fwpr101p0.rp_filter = 0\nnet.ipv4.conf.fwln101i0.rp_filter = 0"</script></div><p>应用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl -p /etc/sysctl.d/98-sing-box-pve-bypass.conf</span></span></code></pre></div><script class=code-source type=application/json>"sysctl -p /etc/sysctl.d/98-sing-box-pve-bypass.conf"</script></div><h3 id=23-关闭这个-lxc-的-pve-firewall>2.3 关闭这个 LXC 的 PVE firewall</h3><p>如果这个 LXC 专门做 sing-box 网关，且不依赖 PVE firewall 过滤入站，建议关闭该 LXC 网卡的 PVE firewall，减少 <code>fwbr/fwpr/fwln</code> 这一层。</p><p>先用当前配置取值：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct config <span style=color:#ae81ff>101</span> | grep <span style=color:#e6db74>&#39;^net0&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"pct config 101 | grep '^net0'"</script></div><p>再按原值改写 <code>pct set</code>。示例：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct set <span style=color:#ae81ff>101</span> -net0 name<span style=color:#f92672>=</span>eth0,bridge<span style=color:#f92672>=</span>vmbr0,firewall<span style=color:#f92672>=</span>0,gw<span style=color:#f92672>=</span>10.20.20.1,gw6<span style=color:#f92672>=</span>fd88::1111,hwaddr<span style=color:#f92672>=</span>BC:24:11:1E:91:3C,ip<span style=color:#f92672>=</span>10.20.20.6/24,ip6<span style=color:#f92672>=</span>fd88::6666/64,type<span style=color:#f92672>=</span>veth</span></span></code></pre></div><script class=code-source type=application/json>"pct set 101 -net0 name=eth0,bridge=vmbr0,firewall=0,gw=10.20.20.1,gw6=fd88::1111,hwaddr=BC:24:11:1E:91:3C,ip=10.20.20.6/24,ip6=fd88::6666/64,type=veth"</script></div><p>替换规则：</p><ul><li><code>101</code>：换成你的 CTID。</li><li><code>bridge=vmbr0</code>：换成 <code>pct config</code> 里原来的 <code>bridge=</code>。</li><li><code>gw=</code>、<code>gw6=</code>、<code>ip=</code>、<code>ip6=</code>：照抄原来的值；没有 IPv6 就删除 <code>gw6=...</code> 和 <code>ip6=...</code>。</li><li><code>hwaddr=...</code>：照抄原来的 <code>hwaddr=</code>，不要随便换 MAC。</li><li><code>firewall=0</code>：这是这条命令唯一主动修改的目标。</li></ul><p>改完确认：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pct config <span style=color:#ae81ff>101</span> | grep <span style=color:#e6db74>&#39;^net0&#39;</span>
+</span></span><span style=display:flex><span>ip -br link | grep -E <span style=color:#e6db74>&#39;veth101|fwbr101|fwpr101|fwln101&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"pct config 101 | grep '^net0'\nip -br link | grep -E 'veth101|fwbr101|fwpr101|fwln101'"</script></div><p>理想结果是 <code>net0</code> 里显示 <code>firewall=0</code>，运行态只剩 <code>veth101i0</code>，不再出现 <code>fwbr101i0</code>、<code>fwpr101p0</code>、<code>fwln101i0</code>。</p><h2 id=3-lxc-容器里要添加什么>3. LXC 容器里要添加什么</h2><p>这一部分只在 <strong>sing-box 所在的 LXC 容器内</strong> 做。</p><h3 id=31-添加容器转发参数>3.1 添加容器转发参数</h3><p>编辑容器内文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /etc/sysctl.d/local.conf</span></span></code></pre></div><script class=code-source type=application/json>"vi /etc/sysctl.d/local.conf"</script></div><p>写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># LXC 容器作为旁路网关时必须开启转发，并关闭容器内 eth0 的反向路径过滤。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.ip_forward</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.all.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.default.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.conf.eth0.rp_filter</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.all.forwarding</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.default.forwarding</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.eth0.forwarding</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.eth0.accept_ra</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>2</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv6.conf.eth0.accept_ra_defrtr</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span></span></span></code></pre></div><script class=code-source type=application/json>"# LXC 容器作为旁路网关时必须开启转发，并关闭容器内 eth0 的反向路径过滤。\nnet.ipv4.ip_forward = 1\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.default.rp_filter = 0\nnet.ipv4.conf.eth0.rp_filter = 0\nnet.ipv6.conf.all.forwarding = 1\nnet.ipv6.conf.default.forwarding = 1\nnet.ipv6.conf.eth0.forwarding = 1\nnet.ipv6.conf.eth0.accept_ra = 2\nnet.ipv6.conf.eth0.accept_ra_defrtr = 1"</script></div><p>Alpine / BusyBox 的 <code>sysctl</code> 通常不支持 <code>--system</code>，直接指定文件加载：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl -p /etc/sysctl.d/local.conf</span></span></code></pre></div><script class=code-source type=application/json>"sysctl -p /etc/sysctl.d/local.conf"</script></div><p>如果容器不用 IPv6，可以删除所有 <code>net.ipv6.*</code> 行。</p><h3 id=32-添加-sing-box-性能参数>3.2 添加 sing-box 性能参数</h3><p>编辑容器内文件：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vi /etc/sysctl.d/98-sing-box-performance.conf</span></span></code></pre></div><script class=code-source type=application/json>"vi /etc/sysctl.d/98-sing-box-performance.conf"</script></div><p>写入：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># sing-box 在容器内发起 TCP/UDP 出站连接，这些参数要在容器命名空间内单独设置。</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_congestion_control</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>bbr</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_rmem</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>4096 131072 67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_wmem</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>4096 65536 67108864</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.udp_rmem_min</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>16384</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_slow_start_after_idle</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>0</span></span></span></code></pre></div><script class=code-source type=application/json>"# sing-box 在容器内发起 TCP/UDP 出站连接，这些参数要在容器命名空间内单独设置。\nnet.ipv4.tcp_congestion_control = bbr\nnet.ipv4.tcp_rmem = 4096 131072 67108864\nnet.ipv4.tcp_wmem = 4096 65536 67108864\nnet.ipv4.udp_rmem_min = 16384\nnet.ipv4.tcp_slow_start_after_idle = 0"</script></div><p>应用：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl -p /etc/sysctl.d/98-sing-box-performance.conf</span></span></code></pre></div><script class=code-source type=application/json>"sysctl -p /etc/sysctl.d/98-sing-box-performance.conf"</script></div><p>如果提示 <code>bbr</code> 不可用，先看可用算法：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.tcp_available_congestion_control</span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.tcp_available_congestion_control"</script></div><p>如果输出里没有 <code>bbr</code>，就把这一行注释掉：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># net.ipv4.tcp_congestion_control = bbr</span></span></span></code></pre></div><script class=code-source type=application/json>"# net.ipv4.tcp_congestion_control = bbr"</script></div><h3 id=33-设置开机自动加载>3.3 设置开机自动加载</h3><p>Alpine LXC 使用 OpenRC 时，在容器内执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>rc-update add sysctl boot</span></span></code></pre></div><script class=code-source type=application/json>"rc-update add sysctl boot"</script></div><p>如果手动验证：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>rc-service sysctl start</span></span></code></pre></div><script class=code-source type=application/json>"rc-service sysctl start"</script></div><p>非特权 LXC 里可能看到 <code>kernel.*</code>、<code>fs.*</code> 的 <code>Read-only file system</code> 提示，这是系统默认参数碰到容器不可写项。只要下面的检查值正确，就说明本文添加的网关参数已经生效。</p><h2 id=4-最后验证>4. 最后验证</h2><h3 id=41-pve-宿主机验证>4.1 PVE 宿主机验证</h3><p>在 PVE 宿主机执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.ip_forward
+</span></span><span style=display:flex><span>sysctl net.ipv6.conf.all.forwarding
+</span></span><span style=display:flex><span>sysctl net.ipv4.tcp_congestion_control
+</span></span><span style=display:flex><span>sysctl net.core.default_qdisc
+</span></span><span style=display:flex><span>sysctl net.core.rmem_max net.core.wmem_max
+</span></span><span style=display:flex><span>sysctl net.ipv4.udp_rmem_min
+</span></span><span style=display:flex><span>sysctl net.ipv4.conf.all.rp_filter
+</span></span><span style=display:flex><span>sysctl net.ipv4.conf.vmbr0.rp_filter
+</span></span><span style=display:flex><span>sysctl net.ipv4.conf.veth101i0.rp_filter</span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.ip_forward\nsysctl net.ipv6.conf.all.forwarding\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.core.default_qdisc\nsysctl net.core.rmem_max net.core.wmem_max\nsysctl net.ipv4.udp_rmem_min\nsysctl net.ipv4.conf.all.rp_filter\nsysctl net.ipv4.conf.vmbr0.rp_filter\nsysctl net.ipv4.conf.veth101i0.rp_filter"</script></div><p>预期关键值：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>net.ipv4.ip_forward = 1
+</span></span><span style=display:flex><span>net.ipv4.tcp_congestion_control = bbr
+</span></span><span style=display:flex><span>net.core.default_qdisc = fq
+</span></span><span style=display:flex><span>net.ipv4.conf.all.rp_filter = 0
+</span></span><span style=display:flex><span>net.ipv4.conf.vmbr0.rp_filter = 0
+</span></span><span style=display:flex><span>net.ipv4.conf.veth101i0.rp_filter = 0</span></span></code></pre></div><script class=code-source type=application/json>"net.ipv4.ip_forward = 1\nnet.ipv4.tcp_congestion_control = bbr\nnet.core.default_qdisc = fq\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.vmbr0.rp_filter = 0\nnet.ipv4.conf.veth101i0.rp_filter = 0"</script></div><h3 id=42-lxc-容器验证>4.2 LXC 容器验证</h3><p>在 LXC 容器内执行：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sysctl net.ipv4.ip_forward
+</span></span><span style=display:flex><span>sysctl net.ipv4.conf.all.rp_filter
+</span></span><span style=display:flex><span>sysctl net.ipv4.conf.eth0.rp_filter
+</span></span><span style=display:flex><span>sysctl net.ipv4.tcp_available_congestion_control
+</span></span><span style=display:flex><span>sysctl net.ipv4.tcp_congestion_control
+</span></span><span style=display:flex><span>sysctl net.ipv4.tcp_rmem net.ipv4.tcp_wmem
+</span></span><span style=display:flex><span>sysctl net.ipv4.udp_rmem_min</span></span></code></pre></div><script class=code-source type=application/json>"sysctl net.ipv4.ip_forward\nsysctl net.ipv4.conf.all.rp_filter\nsysctl net.ipv4.conf.eth0.rp_filter\nsysctl net.ipv4.tcp_available_congestion_control\nsysctl net.ipv4.tcp_congestion_control\nsysctl net.ipv4.tcp_rmem net.ipv4.tcp_wmem\nsysctl net.ipv4.udp_rmem_min"</script></div><p>预期关键值：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>net.ipv4.ip_forward = 1
+</span></span><span style=display:flex><span>net.ipv4.conf.all.rp_filter = 0
+</span></span><span style=display:flex><span>net.ipv4.conf.eth0.rp_filter = 0
+</span></span><span style=display:flex><span>net.ipv4.tcp_congestion_control = bbr
+</span></span><span style=display:flex><span>net.ipv4.udp_rmem_min = 16384</span></span></code></pre></div><script class=code-source type=application/json>"net.ipv4.ip_forward = 1\nnet.ipv4.conf.all.rp_filter = 0\nnet.ipv4.conf.eth0.rp_filter = 0\nnet.ipv4.tcp_congestion_control = bbr\nnet.ipv4.udp_rmem_min = 16384"</script></div><h3 id=43-udp-丢包检查>4.3 UDP 丢包检查</h3><p>在 LXC 容器内观察 sing-box UDP socket：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ss -unmp</span></span></code></pre></div><script class=code-source type=application/json>"ss -unmp"</script></div><p>连续观察：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>watch -n <span style=color:#ae81ff>1</span> <span style=color:#e6db74>&#39;ss -unmp | grep -E &#34;sing-box|drops|udp&#34;&#39;</span></span></span></code></pre></div><script class=code-source type=application/json>"watch -n 1 'ss -unmp | grep -E \"sing-box|drops|udp\"'"</script></div><p>如果测速或高峰下载时 <code>drops</code> 持续增长，优先检查：</p><ul><li>容器内 <code>net.ipv4.udp_rmem_min</code> 是否生效。</li><li>PVE 宿主机 <code>net.core.rmem_max</code>、<code>net.core.wmem_max</code> 是否生效。</li><li>sing-box / Hysteria2 / TUIC 自身是否还有 socket buffer 或带宽参数需要调整。</li><li>PVE 宿主机 CPU、物理网卡和 veth offload 能力。</li></ul><h3 id=44-offload-检查>4.4 offload 检查</h3><p>offload 在 PVE 宿主机检查，不是在 LXC 容器里检查。</p><p>先找物理网卡和容器 veth：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ip -br link</span></span></code></pre></div><script class=code-source type=application/json>"ip -br link"</script></div><p>看 <code>master vmbr0</code> 的接口。常见关系如下：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>enp2s0       UP ... master vmbr0 ...
+</span></span><span style=display:flex><span>vmbr0        UP ...
+</span></span><span style=display:flex><span>veth101i0    UP ... master vmbr0 ...</span></span></code></pre></div><script class=code-source type=application/json>"enp2s0       UP ... master vmbr0 ...\nvmbr0        UP ...\nveth101i0    UP ... master vmbr0 ..."</script></div><p>检查：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ethtool -k enp2s0
+</span></span><span style=display:flex><span>ethtool -k veth101i0</span></span></code></pre></div><script class=code-source type=application/json>"ethtool -k enp2s0\nethtool -k veth101i0"</script></div><p>重点看：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>generic-segmentation-offload
+</span></span><span style=display:flex><span>generic-receive-offload
+</span></span><span style=display:flex><span>tx-udp-segmentation</span></span></code></pre></div><script class=code-source type=application/json>"generic-segmentation-offload\ngeneric-receive-offload\ntx-udp-segmentation"</script></div><p>如果物理网卡或 veth 的关键项是 <code>off</code>，并且驱动允许修改，再尝试：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ethtool -K enp2s0 gso on gro on
+</span></span><span style=display:flex><span>ethtool -K enp2s0 tx-udp-segmentation on
+</span></span><span style=display:flex><span>ethtool -K veth101i0 gso on gro on
+</span></span><span style=display:flex><span>ethtool -K veth101i0 tx-udp-segmentation on</span></span></code></pre></div><script class=code-source type=application/json>"ethtool -K enp2s0 gso on gro on\nethtool -K enp2s0 tx-udp-segmentation on\nethtool -K veth101i0 gso on gro on\nethtool -K veth101i0 tx-udp-segmentation on"</script></div><p>有些 veth 不允许打开 GRO，有些网卡不支持 <code>tx-udp-segmentation</code>。这不是 sysctl 能解决的问题，按实际输出判断即可。</p><h2 id=5-不要添加这些旧参数>5. 不要添加这些旧参数</h2><p>下面这些参数不建议为了“优化”照抄：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_congestion_control</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>hybla</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>fs.file-max</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>100000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_tw_reuse</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>net.ipv4.tcp_max_tw_buckets</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>5000</span></span></span></code></pre></div><script class=code-source type=application/json>"net.ipv4.tcp_congestion_control = hybla\nfs.file-max = 100000\nnet.ipv4.tcp_tw_reuse = 1\nnet.ipv4.tcp_max_tw_buckets = 5000"</script></div><p>原因很简单：</p><ul><li><code>hybla</code> 不适合作为现代代理网关默认拥塞控制，优先用 <code>bbr</code>。</li><li><code>fs.file-max = 100000</code> 可能反而低于现代 Linux 默认值。</li><li><code>tcp_tw_reuse</code> 不是透明代理和 UDP 性能问题的通用解法。</li><li><code>tcp_max_tw_buckets = 5000</code> 太小，可能导致内核过早回收连接状态。</li></ul><p>最终只记住两层边界：PVE 宿主机负责 <code>vmbr0</code>、<code>veth101i0</code>、PVE firewall 路径、物理网卡和全局缓冲；LXC 容器负责自己的 <code>eth0</code>、转发、容器命名空间 sysctl，以及 sing-box 进程实际使用的 TCP/UDP 参数。</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-rank>1</span>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-rank>2</span>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-rank>3</span>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-rank>4</span>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-rank>5</span>
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-rank>6</span>
+<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li><li><a href=/posts/ai/hermes-tui-cli-commands/><img src=/posts/ai/hermes-tui-cli-commands/assets/cover.svg alt>
+<span class=latest-rank>7</span>
+<span class=latest-title>Hermes TUI 终端 CLI 命令速查</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
