@@ -116,7 +116,7 @@
     <text x="130" y="260" font-family="monospace" font-size="15" fill="#58a6ff">✓ Docker — installed</text>
     <text x="130" y="285" font-family="monospace" font-size="15" fill="#58a6ff">✓ docker compose — installed</text>
 
-    <!-- Line 6: $ docker --version -->
+    <!-- Line 6: $ docker -v -->
     <text x="130" y="320" font-family="monospace" font-size="16" fill="#8b949e">$</text>
     <text x="150" y="320" font-family="monospace" font-size="16" fill="#58a6ff">docker</text>
     <text x="200" y="320" font-family="monospace" font-size="16" fill="#e6edf3">--version</text>
@@ -124,7 +124,7 @@
     <!-- Line 7: output -->
     <text x="130" y="350" font-family="monospace" font-size="16" fill="#d2a8ff">Docker version 27.0.3</text>
 
-    <!-- Line 8: $ docker compose version -->
+    <!-- Line 8: $ docker compose -v -->
     <text x="130" y="385" font-family="monospace" font-size="16" fill="#8b949e">$</text>
     <text x="150" y="385" font-family="monospace" font-size="16" fill="#58a6ff">docker</text>
     <text x="200" y="385" font-family="monospace" font-size="16" fill="#e6edf3">compose version</text>
