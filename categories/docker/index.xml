@@ -4,10 +4,10 @@
 第一步：登录系统 使用 SSH 工具（如 Xshell、Putty 或 Termius）连接到你的服务器，确保切换到 root 用户。
 第二步：运行官方一键脚本 在终端中复制并输入以下命令，然后按下回车：
 复制curl -fsSL get.docker.com -o get-docker.sh sh get-docker.sh 或者
-复制wget get.docker.com -O docker2.sh bash docker2.sh 💡 大白话：这两行命令的意思是，先从 Docker 官网把&amp;quot;安装程序（脚本）&amp;ldquo;下载到你的服务器上，然后让系统执行这个安装程序。系统会自动识别你的环境并帮你把 Docker 装好。
+复制wget get.docker.com -O docker2.sh bash docker2.sh 或者直接通过管道一行搞定（脚本不落盘，下载即执行）：
+复制wget -qO- get.docker.com | bash 💡 大白话：上面这几种方式都是同一个意思——从 Docker 官网把&amp;quot;安装程序&amp;quot;拉到服务器上，然后让系统帮你装好。第一种是下载后本地执行，第三种是下载的同时直接用管道传给系统执行，不产生中间文件，更加简洁。
 第三步：验证安装 安装完成后，新版的 docker 以及 docker compose 工具就已经全部就位了。输入以下命令检查是否成功：
-复制docker --version docker compose version 如果屏幕上输出了版本号，恭喜你，大功告成！你可以直接去部署你的容器了。
-路线二：极简系统轻量安装（适用于 Alpine Linux） Alpine Linux 是一套主打轻量和精简的系统。由于它极其纯净，官方的一键脚本在这里&amp;quot;吃不开&amp;rdquo;，但 Alpine 拥有自己专属的快捷安装方式。</description></item><item><title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title><link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link><pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid><description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。
+复制docker --version docker compose version 如果屏幕上输出了版本号，恭喜你，大功告成！你可以直接去部署你的容器了。</description></item><item><title>Matrix Element Call MusicBot：Docker 安装、配置与电台播放教程</title><link>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</link><pubDate>Sun, 07 Jun 2026 07:35:00 +0800</pubDate><guid>https://purodn.tk/posts/docker/matrix-element-call-musicbot-radio-docker/</guid><description>这篇记录如何在已经运行 Synapse、Element Call、LiveKit 和 Matrix LiveKit JWT Service 的 Docker 主机上，额外安装一个可以进入 Element Call 播放音乐、电台或 Podcast 的机器人。
 上游项目是 SultanAlburaq/matrix-element-call-musicbot。本文使用的是我整理后的 Docker 部署包 hanigege/matrix-element-call-musicbot-docker-pro，它保留上游镜像，通过只读挂载增强版 patches/bot.py，补上电台短命令、Podcast RSS 别名、房间白名单和管理员控制边界。
 本文使用的实际环境如下：
 复制Matrix server_name: 666666.xyz Synapse client API: https://matrix.666666.xyz:12335 Docker 数据目录: /root/data/docker_data MusicBot 账号: @musicbot:666666.xyz MusicBot 目录: /root/data/docker_data/matrix-musicbot Docker 网络: matrix 这个机器人适合在 Matrix 房间里用命令点歌、播放 URL 或网络电台，然后把声音推入 Element Call。它不是普通聊天窗口里的音频播放器：要听到声音，用户自己的 Element 客户端也必须点击右上角“加入”进入通话。

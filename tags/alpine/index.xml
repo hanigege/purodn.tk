@@ -4,10 +4,10 @@
 第一步：登录系统 使用 SSH 工具（如 Xshell、Putty 或 Termius）连接到你的服务器，确保切换到 root 用户。
 第二步：运行官方一键脚本 在终端中复制并输入以下命令，然后按下回车：
 复制curl -fsSL get.docker.com -o get-docker.sh sh get-docker.sh 或者
-复制wget get.docker.com -O docker2.sh bash docker2.sh 💡 大白话：这两行命令的意思是，先从 Docker 官网把&amp;quot;安装程序（脚本）&amp;ldquo;下载到你的服务器上，然后让系统执行这个安装程序。系统会自动识别你的环境并帮你把 Docker 装好。
+复制wget get.docker.com -O docker2.sh bash docker2.sh 或者直接通过管道一行搞定（脚本不落盘，下载即执行）：
+复制wget -qO- get.docker.com | bash 💡 大白话：上面这几种方式都是同一个意思——从 Docker 官网把&amp;quot;安装程序&amp;quot;拉到服务器上，然后让系统帮你装好。第一种是下载后本地执行，第三种是下载的同时直接用管道传给系统执行，不产生中间文件，更加简洁。
 第三步：验证安装 安装完成后，新版的 docker 以及 docker compose 工具就已经全部就位了。输入以下命令检查是否成功：
-复制docker --version docker compose version 如果屏幕上输出了版本号，恭喜你，大功告成！你可以直接去部署你的容器了。
-路线二：极简系统轻量安装（适用于 Alpine Linux） Alpine Linux 是一套主打轻量和精简的系统。由于它极其纯净，官方的一键脚本在这里&amp;quot;吃不开&amp;rdquo;，但 Alpine 拥有自己专属的快捷安装方式。</description></item><item><title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</title><link>https://purodn.tk/posts/linux/alpine-configure-timezone/</link><pubDate>Sat, 11 Jul 2026 22:45:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-configure-timezone/</guid><description>为什么 Alpine Linux 需要单独配置时区？ 大多数 Linux 发行版（如 Ubuntu、Debian、CentOS）基于 glibc，默认携带完整的时区数据库。Alpine Linux 使用 musl libc，为追求极致精简，默认不安装 tzdata 包。这意味着：
+复制docker --version docker compose version 如果屏幕上输出了版本号，恭喜你，大功告成！你可以直接去部署你的容器了。</description></item><item><title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</title><link>https://purodn.tk/posts/linux/alpine-configure-timezone/</link><pubDate>Sat, 11 Jul 2026 22:45:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/alpine-configure-timezone/</guid><description>为什么 Alpine Linux 需要单独配置时区？ 大多数 Linux 发行版（如 Ubuntu、Debian、CentOS）基于 glibc，默认携带完整的时区数据库。Alpine Linux 使用 musl libc，为追求极致精简，默认不安装 tzdata 包。这意味着：
 date 命令默认输出 UTC 时间 容器日志、定时任务（crond）、应用时间戳全部以 UTC 记录 对于部署在东八区或其它非 UTC 时区的生产环境，排查问题时时间换算十分痛苦 因此，安装并配置时区是 Alpine 环境初始化中不可跳过的一步。
 完整配置步骤 1. 安装 tzdata 包 复制apk add tzdata 安装后，时区文件被释放到 /usr/share/zoneinfo/ 目录下。
 💡 tzdata 仅有数百 KB，安装后可通过 ls /usr/share/zoneinfo/ 查看所有可用时区。
