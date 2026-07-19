@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="accentBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="50%" stop-color="#d2a8ff"/>
+      <stop offset="100%" stop-color="#ff7b72"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Grid pattern -->
+  <g stroke="#30363d" stroke-width="0.5" opacity="0.04">
+    <line x1="0" y1="0" x2="1200" y2="0"/>
+    <line x1="0" y1="30" x2="1200" y2="30"/>
+    <line x1="0" y1="60" x2="1200" y2="60"/>
+    <line x1="0" y1="90" x2="1200" y2="90"/>
+    <line x1="0" y1="120" x2="1200" y2="120"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/>
+    <line x1="0" y1="180" x2="1200" y2="180"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="240" x2="1200" y2="240"/>
+    <line x1="0" y1="270" x2="1200" y2="270"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="330" x2="1200" y2="330"/>
+    <line x1="0" y1="360" x2="1200" y2="360"/>
+    <line x1="0" y1="390" x2="1200" y2="390"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="450" x2="1200" y2="450"/>
+    <line x1="0" y1="480" x2="1200" y2="480"/>
+    <line x1="0" y1="510" x2="1200" y2="510"/>
+    <line x1="0" y1="540" x2="1200" y2="540"/>
+    <line x1="0" y1="570" x2="1200" y2="570"/>
+    <line x1="0" y1="600" x2="1200" y2="600"/>
+    <line x1="0" y1="630" x2="1200" y2="630"/>
+    <line x1="0" y1="0" x2="0" y2="630"/>
+    <line x1="60" y1="0" x2="60" y2="630"/>
+    <line x1="120" y1="0" x2="120" y2="630"/>
+    <line x1="180" y1="0" x2="180" y2="630"/>
+    <line x1="240" y1="0" x2="240" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="360" y1="0" x2="360" y2="630"/>
+    <line x1="420" y1="0" x2="420" y2="630"/>
+    <line x1="480" y1="0" x2="480" y2="630"/>
+    <line x1="540" y1="0" x2="540" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="660" y1="0" x2="660" y2="630"/>
+    <line x1="720" y1="0" x2="720" y2="630"/>
+    <line x1="780" y1="0" x2="780" y2="630"/>
+    <line x1="840" y1="0" x2="840" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="960" y1="0" x2="960" y2="630"/>
+    <line x1="1020" y1="0" x2="1020" y2="630"/>
+    <line x1="1080" y1="0" x2="1080" y2="630"/>
+    <line x1="1140" y1="0" x2="1140" y2="630"/>
+    <line x1="1200" y1="0" x2="1200" y2="630"/>
+  </g>
+
+  <!-- Docker whale icon (simplified container stack) -->
+  <g transform="translate(50, 70)" opacity="0.12">
+    <!-- Stack of container-like boxes -->
+    <rect x="0" y="0" width="80" height="50" rx="4" fill="#2396ed" stroke="#58a6ff" stroke-width="1.5"/>
+    <rect x="10" y="10" width="40" height="30" rx="2" fill="#0d1117"/>
+    <rect x="10" y="60" width="80" height="50" rx="4" fill="#1f7bc2" stroke="#58a6ff" stroke-width="1.5"/>
+    <rect x="20" y="70" width="40" height="30" rx="2" fill="#0d1117"/>
+    <rect x="-10" y="120" width="80" height="50" rx="4" fill="#1a6bb0" stroke="#58a6ff" stroke-width="1.5"/>
+    <rect x="0" y="130" width="40" height="30" rx="2" fill="#0d1117"/>
+  </g>
+
+  <!-- Terminal window -->
+  <g filter="url(#shadow)">
+    <rect x="100" y="55" width="1000" height="400" rx="12" fill="#1c2128" stroke="#30363d" stroke-width="1"/>
+
+    <!-- Title bar -->
+    <rect x="100" y="55" width="1000" height="40" rx="12" fill="#21262d"/>
+    <rect x="100" y="82" width="1000" height="13" fill="#21262d"/>
+
+    <!-- Window buttons -->
+    <circle cx="130" cy="75" r="6" fill="#da3633"/>
+    <circle cx="152" cy="75" r="6" fill="#d29922"/>
+    <circle cx="174" cy="75" r="6" fill="#238636"/>
+
+    <!-- Title bar text -->
+    <text x="600" y="80" text-anchor="middle" font-family="monospace" font-size="13" fill="#8b949e">docker-basic-install — /home/root</text>
+
+    <!-- Terminal content -->
+    <!-- Line 1: comment -->
+    <text x="130" y="130" font-family="monospace" font-size="16" fill="#ff7b72"># Docker 一键安装</text>
+
+    <!-- Line 2: $ curl... prompt -->
+    <text x="130" y="165" font-family="monospace" font-size="16" fill="#8b949e">$</text>
+    <text x="150" y="165" font-family="monospace" font-size="16" fill="#58a6ff">curl</text>
+    <text x="186" y="165" font-family="monospace" font-size="16" fill="#e6edf3">-fsSL get.docker.com -o get-docker.sh</text>
+
+    <!-- Line 3: $ sh... -->
+    <text x="130" y="195" font-family="monospace" font-size="16" fill="#8b949e">$</text>
+    <text x="150" y="195" font-family="monospace" font-size="16" fill="#58a6ff">sh</text>
+    <text x="176" y="195" font-family="monospace" font-size="16" fill="#e6edf3">get-docker.sh</text>
+
+    <!-- Line 4: installation output -->
+    <text x="130" y="230" font-family="monospace" font-size="15" fill="#8b949e"># Executing Docker install script ...</text>
+
+    <!-- Line 5: progress dots -->
+    <text x="130" y="260" font-family="monospace" font-size="15" fill="#58a6ff">✓ Docker — installed</text>
+    <text x="130" y="285" font-family="monospace" font-size="15" fill="#58a6ff">✓ docker compose — installed</text>
+
+    <!-- Line 6: $ docker --version -->
+    <text x="130" y="320" font-family="monospace" font-size="16" fill="#8b949e">$</text>
+    <text x="150" y="320" font-family="monospace" font-size="16" fill="#58a6ff">docker</text>
+    <text x="200" y="320" font-family="monospace" font-size="16" fill="#e6edf3">--version</text>
+
+    <!-- Line 7: output -->
+    <text x="130" y="350" font-family="monospace" font-size="16" fill="#d2a8ff">Docker version 27.0.3</text>
+
+    <!-- Line 8: $ docker compose version -->
+    <text x="130" y="385" font-family="monospace" font-size="16" fill="#8b949e">$</text>
+    <text x="150" y="385" font-family="monospace" font-size="16" fill="#58a6ff">docker</text>
+    <text x="200" y="385" font-family="monospace" font-size="16" fill="#e6edf3">compose version</text>
+
+    <!-- Blinking cursor -->
+    <rect x="295" y="390" width="10" height="2" fill="#e6edf3">
+      <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- Article title -->
+  <text x="600" y="510" text-anchor="middle" font-family="sans-serif" font-size="32" font-weight="bold" fill="#e6edf3">零基础保姆级教程：两大主流 Linux 系统</text>
+  <text x="600" y="548" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="bold" fill="#58a6ff">一键安装 Docker</text>
+
+  <!-- Tags line -->
+  <text x="600" y="578" text-anchor="middle" font-family="monospace" font-size="14" fill="#8b949e">Debian / Ubuntu / CentOS / Alpine Linux — 附带避坑指南</text>
+
+  <!-- Accent bar -->
+  <rect x="0" y="620" width="1200" height="3" fill="url(#accentBar)"/>
+</svg>

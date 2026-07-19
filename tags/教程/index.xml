@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>教程 on 电脑自习室</title><link>https://purodn.tk/tags/%E6%95%99%E7%A8%8B/</link><description>Recent content in 教程 on 电脑自习室</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 19 Jul 2026 08:01:57 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/%E6%95%99%E7%A8%8B/index.xml" rel="self" type="application/rss+xml"/><item><title>零基础保姆级教程：两大主流 Linux 系统一键安装 Docker</title><link>https://purodn.tk/posts/docker/docker-basic-install/</link><pubDate>Sun, 19 Jul 2026 08:01:57 +0800</pubDate><guid>https://purodn.tk/posts/docker/docker-basic-install/</guid><description>Docker 是目前最流行的容器化技术，可以让我们像安装手机 App 一样，在服务器上秒级部署各种好玩的软件（比如路由器管理面板、私人云盘等）。
+本教程将手把手带你在**主流 Linux（Debian/Ubuntu/CentOS 等）以及轻量级系统（Alpine Linux）**上完成 Docker 的安装。
+路线一：主流 Linux 系统一键安装（适用于 Debian / Ubuntu / CentOS 等） 如果你的系统是常规的 Linux 发行版，Docker 官方提供了一个非常贴心的一键安装脚本，全自动配置，省时省力。
+第一步：登录系统 使用 SSH 工具（如 Xshell、Putty 或 Termius）连接到你的服务器，确保切换到 root 用户。
+第二步：运行官方一键脚本 在终端中复制并输入以下命令，然后按下回车：
+复制curl -fsSL get.docker.com -o get-docker.sh sh get-docker.sh 或者
+复制wget get.docker.com -O docker2.sh bash docker2.sh 💡 大白话：这两行命令的意思是，先从 Docker 官网把&amp;quot;安装程序（脚本）&amp;ldquo;下载到你的服务器上，然后让系统执行这个安装程序。系统会自动识别你的环境并帮你把 Docker 装好。
+第三步：验证安装 安装完成后，新版的 docker 以及 docker compose 工具就已经全部就位了。输入以下命令检查是否成功：
+复制docker --version docker compose version 如果屏幕上输出了版本号，恭喜你，大功告成！你可以直接去部署你的容器了。
+路线二：极简系统轻量安装（适用于 Alpine Linux） Alpine Linux 是一套主打轻量和精简的系统。由于它极其纯净，官方的一键脚本在这里&amp;quot;吃不开&amp;rdquo;，但 Alpine 拥有自己专属的快捷安装方式。</description></item></channel></rss>
