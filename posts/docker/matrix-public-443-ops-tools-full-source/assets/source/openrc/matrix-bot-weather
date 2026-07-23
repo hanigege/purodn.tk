@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+name="Matrix bot weather scheduler"
+description="Send scheduled weather forecasts for Matrix bot users"
+command="/root/data/docker_data/synapse/scripts/run-matrix-bot-weather-loop.sh"
+command_background=true
+pidfile="/run/matrix-bot-weather.pid"
+output_log="/var/log/matrix-bot-weather-loop.log"
+error_log="/var/log/matrix-bot-weather-loop.log"
+depend() {
+  need net
+  after docker
+}

@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>机密：Matrix 运维面板、MusicBot 和生产 Bot 小白部署手册 | 电脑自习室</title>
+    <meta name="description" content="在已有 Matrix public-443 主栈上，从零部署 matrix-admin-tools 运维面板、Element Call MusicBot，以及生产正在使用的 matrix-bot-sync、matrix-bot-weather、matrix-bot-monitor 三个 OpenRC Bot 服务。">
+      <link rel="stylesheet" href="/css/main.min.4df1c5935f66ca800eff33ce3a1c8e3afce7afac22ff88e239732cc8bb480447.css" integrity="sha256-TfHFk19myoAO/zPOOhyOOvznr6wi/4jiOXMsyLtIBEc=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="电脑自习室 首页">
+      <img class="brand-sign" src="/images/computer-study-room-logo.svg" alt="电脑自习室">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/%E8%BD%AF%E8%B7%AF%E7%94%B1/">软路由</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Docker</span>
+          <time datetime="2026-06-08">2026年6月8日</time>
+        </div>
+        <h1>机密：Matrix 运维面板、MusicBot 和生产 Bot 小白部署手册</h1>
+          <p>在已有 Matrix public-443 主栈上，从零部署 matrix-admin-tools 运维面板、Element Call MusicBot，以及生产正在使用的 matrix-bot-sync、matrix-bot-weather、matrix-bot-monitor 三个 OpenRC Bot 服务。</p>
+      </header>
+          <img class="article-cover" src="/posts/docker/matrix-public-443-ops-tools-full-source/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>这篇只接着主栈文章往后做三件事：</p>
+<ul>
+<li><code>matrix-admin-tools</code>：网页运维面板，用来发 Server Notice 和管理媒体清理规则。</li>
+<li><code>matrix-musicbot</code>：进入 Element Call 播放音乐、直播流或普通音频。</li>
+<li><code>matrix-bot-sync</code>：接受邀请、处理“帮助/天气/设置天气时间/设置城市”等互动命令。</li>
+<li><code>matrix-bot-weather</code>：按用户配置的时间主动发送每日天气。</li>
+<li><code>matrix-bot-monitor</code>：检查磁盘、Docker、TURN、LiveKit、Element Call，并把告警发到指定用户。</li>
+</ul>
+<p>本文假设主栈已经按上一篇手册完成：Synapse 本机监听 <code>127.0.0.1:8008</code>，Caddy 已接公网 <code>80/443</code>，管理员账号是 <code>@admin2:jgaga.tk</code>，管理员 token 已保存到：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/_secrets/synapse-admin/access_token</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/_secrets/synapse-admin/access_token"</script>
+</div>
+<p>下面所有命令默认已经 <code>sudo -i</code> 到 root shell。源码都在 GitHub 上，下一节给出两个仓库地址。</p>
+<p>把本文里的 <code>jgaga.tk</code>、<code>matrix.jgaga.tk</code>、<code>matrix-tools.jgaga.tk</code>、<code>192.227.236.209</code> 换成自己的值即可。</p>
+<h2 id="获取源码">获取源码</h2>
+<p>所有组件源码托管在 GitHub：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>matrix-manager-ui（运维面板 + Bot 脚本 + OpenRC 服务文件）
+</span></span><span style="display:flex;"><span>https://github.com/hanigege/matrix-manager-ui
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>matrix-music-bot（音乐机器人）
+</span></span><span style="display:flex;"><span>https://github.com/hanigege/matrix-music-bot</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-manager-ui（运维面板 + Bot 脚本 + OpenRC 服务文件）\nhttps://github.com/hanigege/matrix-manager-ui\n\nmatrix-music-bot（音乐机器人）\nhttps://github.com/hanigege/matrix-music-bot"</script>
+</div>
+<p>建议直接在服务器上克隆：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ssh root@你的服务器IP
+</span></span><span style="display:flex;"><span>apt install -y git   <span style="color:#75715e"># Debian/Ubuntu；Alpine 用 apk add git</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 运维面板源码（含 Bot 脚本）</span>
+</span></span><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> /root/data/docker_data
+</span></span><span style="display:flex;"><span>git clone https://github.com/hanigege/matrix-manager-ui.git /root/data/docker_data/_ops-source
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 音乐机器人</span>
+</span></span><span style="display:flex;"><span>git clone https://github.com/hanigege/matrix-music-bot.git /root/data/docker_data/_ops-musicbot</span></span></code></pre></div><script class="code-source" type="application/json">"ssh root@你的服务器IP\napt install -y git   # Debian/Ubuntu；Alpine 用 apk add git\n\n# 运维面板源码（含 Bot 脚本）\ninstall -d -m 755 /root/data/docker_data\ngit clone https://github.com/hanigege/matrix-manager-ui.git /root/data/docker_data/_ops-source\n\n# 音乐机器人\ngit clone https://github.com/hanigege/matrix-music-bot.git /root/data/docker_data/_ops-musicbot"</script>
+</div>
+<p>之后每个服务从对应的克隆目录拷贝模板。</p>
+<h2 id="准备账号和-token">准备账号和 token</h2>
+<p>三个组件需要两类 token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>matrix-admin-tools 读取管理员 token:
+</span></span><span style="display:flex;"><span>/root/data/docker_data/_secrets/synapse-admin/access_token
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>musicbot 和生产 Bot 使用普通 bot token:
+</span></span><span style="display:flex;"><span>/root/data/docker_data/_secrets/matrix-musicbot/access_token
+</span></span><span style="display:flex;"><span>/root/data/docker_data/_secrets/matrix-bot/access_token</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-admin-tools 读取管理员 token:\n/root/data/docker_data/_secrets/synapse-admin/access_token\n\nmusicbot 和生产 Bot 使用普通 bot token:\n/root/data/docker_data/_secrets/matrix-musicbot/access_token\n/root/data/docker_data/_secrets/matrix-bot/access_token"</script>
+</div>
+<p>先创建密钥目录：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">700</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/_secrets/matrix-musicbot <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/_secrets/matrix-bot</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 700 \\\n  /root/data/docker_data/_secrets/matrix-musicbot \\\n  /root/data/docker_data/_secrets/matrix-bot"</script>
+</div>
+<p>创建 musicbot 密码并注册账号：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -base64 <span style="color:#ae81ff">24</span> &gt; /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>musicbot_pass<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>docker exec -it matrix-synapse register_new_matrix_user <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -c /data/homeserver.yaml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -u musicbot <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p <span style="color:#e6db74">&#34;</span>$musicbot_pass<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --no-admin <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  http://127.0.0.1:8008</span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -base64 24 \u003e /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password\nchmod 600 /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password\n\nmusicbot_pass=\"$(cat /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password)\"\ndocker exec -it matrix-synapse register_new_matrix_user \\\n  -c /data/homeserver.yaml \\\n  -u musicbot \\\n  -p \"$musicbot_pass\" \\\n  --no-admin \\\n  http://127.0.0.1:8008"</script>
+</div>
+<p>登录拿 musicbot token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>musicbot_pass<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>curl -fsS -X POST <span style="color:#e6db74">&#39;http://127.0.0.1:8008/_matrix/client/v3/login&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#39;Content-Type: application/json&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -d <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>jq -nc --arg user <span style="color:#e6db74">&#39;musicbot&#39;</span> --arg pass <span style="color:#e6db74">&#34;</span>$musicbot_pass<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#39;{
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    type:&#34;m.login.password&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    identifier:{type:&#34;m.id.user&#34;, user:$user},
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    password:$pass,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    initial_device_display_name:&#34;matrix-musicbot&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  }&#39;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> &gt;/tmp/musicbot-login.json
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>jq -r <span style="color:#e6db74">&#39;.access_token&#39;</span> /tmp/musicbot-login.json &gt; /root/data/docker_data/_secrets/matrix-musicbot/access_token
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /root/data/docker_data/_secrets/matrix-musicbot/access_token
+</span></span><span style="display:flex;"><span>rm -f /tmp/musicbot-login.json</span></span></code></pre></div><script class="code-source" type="application/json">"musicbot_pass=\"$(cat /root/data/docker_data/_secrets/matrix-musicbot/musicbot-password)\"\ncurl -fsS -X POST 'http://127.0.0.1:8008/_matrix/client/v3/login' \\\n  -H 'Content-Type: application/json' \\\n  -d \"$(jq -nc --arg user 'musicbot' --arg pass \"$musicbot_pass\" '{\n    type:\"m.login.password\",\n    identifier:{type:\"m.id.user\", user:$user},\n    password:$pass,\n    initial_device_display_name:\"matrix-musicbot\"\n  }')\" \u003e/tmp/musicbot-login.json\n\njq -r '.access_token' /tmp/musicbot-login.json \u003e /root/data/docker_data/_secrets/matrix-musicbot/access_token\nchmod 600 /root/data/docker_data/_secrets/matrix-musicbot/access_token\nrm -f /tmp/musicbot-login.json"</script>
+</div>
+<p>创建生产 Bot 密码、注册账号并拿 token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>openssl rand -base64 <span style="color:#ae81ff">24</span> &gt; /root/data/docker_data/_secrets/matrix-bot/bot-password
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /root/data/docker_data/_secrets/matrix-bot/bot-password
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>bot_pass<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat /root/data/docker_data/_secrets/matrix-bot/bot-password<span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>docker exec -it matrix-synapse register_new_matrix_user <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -c /data/homeserver.yaml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -u bot <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p <span style="color:#e6db74">&#34;</span>$bot_pass<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --no-admin <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  http://127.0.0.1:8008
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>curl -fsS -X POST <span style="color:#e6db74">&#39;http://127.0.0.1:8008/_matrix/client/v3/login&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -H <span style="color:#e6db74">&#39;Content-Type: application/json&#39;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -d <span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>jq -nc --arg user <span style="color:#e6db74">&#39;bot&#39;</span> --arg pass <span style="color:#e6db74">&#34;</span>$bot_pass<span style="color:#e6db74">&#34;</span> <span style="color:#e6db74">&#39;{
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    type:&#34;m.login.password&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    identifier:{type:&#34;m.id.user&#34;, user:$user},
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    password:$pass,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    initial_device_display_name:&#34;matrix-bot&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  }&#39;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span> &gt;/tmp/bot-login.json
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>jq -r <span style="color:#e6db74">&#39;.access_token&#39;</span> /tmp/bot-login.json &gt; /root/data/docker_data/_secrets/matrix-bot/access_token
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">600</span> /root/data/docker_data/_secrets/matrix-bot/access_token
+</span></span><span style="display:flex;"><span>rm -f /tmp/bot-login.json</span></span></code></pre></div><script class="code-source" type="application/json">"openssl rand -base64 24 \u003e /root/data/docker_data/_secrets/matrix-bot/bot-password\nchmod 600 /root/data/docker_data/_secrets/matrix-bot/bot-password\n\nbot_pass=\"$(cat /root/data/docker_data/_secrets/matrix-bot/bot-password)\"\ndocker exec -it matrix-synapse register_new_matrix_user \\\n  -c /data/homeserver.yaml \\\n  -u bot \\\n  -p \"$bot_pass\" \\\n  --no-admin \\\n  http://127.0.0.1:8008\n\ncurl -fsS -X POST 'http://127.0.0.1:8008/_matrix/client/v3/login' \\\n  -H 'Content-Type: application/json' \\\n  -d \"$(jq -nc --arg user 'bot' --arg pass \"$bot_pass\" '{\n    type:\"m.login.password\",\n    identifier:{type:\"m.id.user\", user:$user},\n    password:$pass,\n    initial_device_display_name:\"matrix-bot\"\n  }')\" \u003e/tmp/bot-login.json\n\njq -r '.access_token' /tmp/bot-login.json \u003e /root/data/docker_data/_secrets/matrix-bot/access_token\nchmod 600 /root/data/docker_data/_secrets/matrix-bot/access_token\nrm -f /tmp/bot-login.json"</script>
+</div>
+<p>验证 token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#66d9ef">for</span> f in <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/_secrets/matrix-musicbot/access_token <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/_secrets/matrix-bot/access_token
+</span></span><span style="display:flex;"><span> <span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span>  TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">$(</span>cat <span style="color:#e6db74">&#34;</span>$f<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>  curl -fsS -H <span style="color:#e6db74">&#34;Authorization: Bearer </span>$TOKEN<span style="color:#e6db74">&#34;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>    http://127.0.0.1:8008/_matrix/client/v3/account/whoami
+</span></span><span style="display:flex;"><span>  echo
+</span></span><span style="display:flex;"><span> <span style="color:#66d9ef">done</span></span></span></code></pre></div><script class="code-source" type="application/json">"for f in \\\n  /root/data/docker_data/_secrets/matrix-musicbot/access_token \\\n  /root/data/docker_data/_secrets/matrix-bot/access_token\n do\n  TOKEN=\"$(cat \"$f\")\"\n  curl -fsS -H \"Authorization: Bearer $TOKEN\" \\\n    http://127.0.0.1:8008/_matrix/client/v3/account/whoami\n  echo\n done"</script>
+</div>
+<h2 id="部署-matrix-admin-tools">部署 matrix-admin-tools</h2>
+<p>创建目录并复制源码：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> /root/data/docker_data/matrix-admin-tools
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/matrix-admin-tools/ /root/data/docker_data/matrix-admin-tools/
+</span></span><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-admin-tools/data <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-admin-tools/logs</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 755 /root/data/docker_data/matrix-admin-tools\nrsync -av /root/data/docker_data/_ops-source/matrix-admin-tools/ /root/data/docker_data/matrix-admin-tools/\ninstall -d -m 755 \\\n  /root/data/docker_data/matrix-admin-tools/data \\\n  /root/data/docker_data/matrix-admin-tools/logs"</script>
+</div>
+<p>确认 compose 里的 server name。本文模板默认 <code>jgaga.tk</code>，如果你的 server name 不同：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/matrix-admin-tools
+</span></span><span style="display:flex;"><span>SERVER_NAME<span style="color:#f92672">=</span>你的server_name docker compose config &gt;/tmp/matrix-admin-tools-compose-check.yaml</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/matrix-admin-tools\nSERVER_NAME=你的server_name docker compose config \u003e/tmp/matrix-admin-tools-compose-check.yaml"</script>
+</div>
+<p>启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/matrix-admin-tools
+</span></span><span style="display:flex;"><span>SERVER_NAME<span style="color:#f92672">=</span>jgaga.tk docker compose up -d --build</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/matrix-admin-tools\nSERVER_NAME=jgaga.tk docker compose up -d --build"</script>
+</div>
+<p>检查端口已监听：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsS http://127.0.0.1:8190 | grep <span style="color:#e6db74">&#39;Matrix 运维面板&#39;</span>
+</span></span><span style="display:flex;"><span>ss -lntp | grep <span style="color:#e6db74">&#39;:8190&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsS http://127.0.0.1:8190 | grep 'Matrix 运维面板'\nss -lntp | grep ':8190'"</script>
+</div>
+<p>给 Caddy 加公网入口。在 <code>/root/data/docker_data/caddy/Caddyfile</code> 添加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-caddy" data-lang="caddy"><span style="display:flex;"><span>matrix-tools.jgaga.tk {
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">encode</span> <span style="color:#e6db74">zstd</span> <span style="color:#e6db74">gzip</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">header</span> <span style="color:#e6db74">Cache-Control</span> <span style="color:#e6db74">&#34;no-store&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">reverse_proxy</span> 127.0.0.1:<span style="color:#ae81ff">8190</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-tools.jgaga.tk {\n  encode zstd gzip\n  header Cache-Control \"no-store\"\n  reverse_proxy 127.0.0.1:8190\n}"</script>
+</div>
+<p>重建 Caddy：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/caddy
+</span></span><span style="display:flex;"><span>docker compose up -d --force-recreate</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/caddy\ndocker compose up -d --force-recreate"</script>
+</div>
+<p>面板自带了 HTTP Basic Auth（用户名 <code>admin</code>，密码存在 <code>_secrets/synapse-admin/admin-password</code>）。浏览器打开 <code>https://matrix-tools.jgaga.tk</code> 后应弹出 Basic Auth 登录框，输入认证后能看到&quot;当前自动清理规则&quot;。</p>
+<p>通知页面直达入口：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -I https://matrix-tools.jgaga.tk/notice</span></span></code></pre></div><script class="code-source" type="application/json">"curl -I https://matrix-tools.jgaga.tk/notice"</script>
+</div>
+<p>登录后访问 <code>https://matrix-tools.jgaga.tk/notice</code> 应显示同一个运维面板，并定位到 Server Notice 表单。<code>GET /notice</code> 只负责打开表单，不会发送通知；真正发信仍然必须提交 <code>POST /notice</code>，这样直达链接不会误触发全站通知。</p>
+<h2 id="部署-matrix-musicbot">部署 matrix-musicbot</h2>
+<p>创建目录并复制模板：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/config <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/logs <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/data <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/cache
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-musicbot/docker-compose.yaml <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/docker-compose.yaml
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-musicbot/config/config.toml.example <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/config/config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 755 \\\n  /root/data/docker_data/matrix-musicbot/config \\\n  /root/data/docker_data/matrix-musicbot/logs \\\n  /root/data/docker_data/matrix-musicbot/data \\\n  /root/data/docker_data/matrix-musicbot/cache\n\nrsync -av /root/data/docker_data/_ops-musicbot/docker-compose.yaml \\\n  /root/data/docker_data/matrix-musicbot/docker-compose.yaml\nrsync -av /root/data/docker_data/_ops-musicbot/config/config.toml.example \\\n  /root/data/docker_data/matrix-musicbot/config/config.toml"</script>
+</div>
+<p>把 token 写进配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>MUSICBOT_TOKEN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span>$musicbot_token<span style="color:#e6db74">&#34;</span> python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">from pathlib import Path
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import os
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">p = Path(&#39;/root/data/docker_data/matrix-musicbot/config/config.toml&#39;)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">s = p.read_text()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">s = s.replace(&#39;replace-with-musicbot-access-token&#39;, os.environ[&#39;MUSICBOT_TOKEN&#39;])
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">p.write_text(s)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"MUSICBOT_TOKEN=\"$musicbot_token\" python3 - \u003c\u003c'PY'\nfrom pathlib import Path\nimport os\np = Path('/root/data/docker_data/matrix-musicbot/config/config.toml')\ns = p.read_text()\ns = s.replace('replace-with-musicbot-access-token', os.environ['MUSICBOT_TOKEN'])\np.write_text(s)\nPY"</script>
+</div>
+<p>设置权限。这个镜像内进程使用 UID <code>10001</code> 写日志和缓存：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>chown -R 10001:10001 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/logs <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/data <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/matrix-musicbot/cache
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">644</span> /root/data/docker_data/matrix-musicbot/config/config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"chown -R 10001:10001 \\\n  /root/data/docker_data/matrix-musicbot/logs \\\n  /root/data/docker_data/matrix-musicbot/data \\\n  /root/data/docker_data/matrix-musicbot/cache\nchmod 644 /root/data/docker_data/matrix-musicbot/config/config.toml"</script>
+</div>
+<p>启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd /root/data/docker_data/matrix-musicbot
+</span></span><span style="display:flex;"><span>docker compose up -d
+</span></span><span style="display:flex;"><span>docker logs --tail<span style="color:#f92672">=</span><span style="color:#ae81ff">120</span> matrix-musicbot</span></span></code></pre></div><script class="code-source" type="application/json">"cd /root/data/docker_data/matrix-musicbot\ndocker compose up -d\ndocker logs --tail=120 matrix-musicbot"</script>
+</div>
+<p>日志里应看到类似 <code>Startup checks passed</code>、<code>Bot ready</code>。使用方式：</p>
+<ol>
+<li>在 Element 里邀请 <code>@musicbot:jgaga.tk</code> 进房间。</li>
+<li>进入房间右上角通话，自己先点“加入”。</li>
+<li>在房间发 <code>!join</code> 让 bot 加入通话。</li>
+<li>发 <code>!play 音频URL</code> 或普通可播放 URL。</li>
+<li>发 <code>!stop</code> 停止，<code>!leave</code> 离开通话。</li>
+</ol>
+<p>注意：<code>!join</code> 是让机器人进通话，不是让你的客户端进通话。你自己仍然要点 Element 的“加入”。</p>
+<h2 id="部署-matrix-生产-bot-栈">部署 Matrix 生产 Bot 栈</h2>
+<p>当前 public-443 栈把普通 Bot 拆成三个 OpenRC 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>matrix-bot-sync     接受邀请和处理用户命令
+</span></span><span style="display:flex;"><span>matrix-bot-weather  定时发送天气
+</span></span><span style="display:flex;"><span>matrix-bot-monitor  监控磁盘、容器、TURN、LiveKit、Element Call</span></span></code></pre></div><script class="code-source" type="application/json">"matrix-bot-sync     接受邀请和处理用户命令\nmatrix-bot-weather  定时发送天气\nmatrix-bot-monitor  监控磁盘、容器、TURN、LiveKit、Element Call"</script>
+</div>
+<p>三者共用同一个 <code>@bot:jgaga.tk</code> token：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/_secrets/matrix-bot/access_token</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/_secrets/matrix-bot/access_token"</script>
+</div>
+<p>复制脚本和配置模板：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>install -d -m <span style="color:#ae81ff">755</span> /root/data/docker_data/synapse/scripts
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/matrix-bot/ <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/synapse/scripts/
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /root/data/docker_data/synapse/scripts/*.py <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  /root/data/docker_data/synapse/scripts/*.sh</span></span></code></pre></div><script class="code-source" type="application/json">"install -d -m 755 /root/data/docker_data/synapse/scripts\nrsync -av /root/data/docker_data/_ops-source/matrix-bot/ \\\n  /root/data/docker_data/synapse/scripts/\nchmod 755 /root/data/docker_data/synapse/scripts/*.py \\\n  /root/data/docker_data/synapse/scripts/*.sh"</script>
+</div>
+<p>如果你的 server name、默认收件人、城市或检查项不同，先改这两个配置：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/matrix-bot-weather.json
+</span></span><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/matrix-bot-monitor.json</span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/matrix-bot-weather.json\n/root/data/docker_data/synapse/scripts/matrix-bot-monitor.json"</script>
+</div>
+<p>当前生产天气配置的关键形状是：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;target_users&#34;</span>: [<span style="color:#e6db74">&#34;@honey:jgaga.tk&#34;</span>, <span style="color:#e6db74">&#34;@black:jgaga.tk&#34;</span>, <span style="color:#e6db74">&#34;@admin2:jgaga.tk&#34;</span>, <span style="color:#e6db74">&#34;@admin:jgaga.tk&#34;</span>],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;default_weather_time&#34;</span>: <span style="color:#e6db74">&#34;05:00&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;schedule_grace_minutes&#34;</span>: <span style="color:#ae81ff">15</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;weather_users&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;@honey:jgaga.tk&#34;</span>: {<span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>, <span style="color:#f92672">&#34;time&#34;</span>: <span style="color:#e6db74">&#34;05:00&#34;</span>},
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;@black:jgaga.tk&#34;</span>: {<span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>, <span style="color:#f92672">&#34;time&#34;</span>: <span style="color:#e6db74">&#34;05:00&#34;</span>},
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;@admin2:jgaga.tk&#34;</span>: {<span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>, <span style="color:#f92672">&#34;time&#34;</span>: <span style="color:#e6db74">&#34;05:00&#34;</span>},
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;@admin:jgaga.tk&#34;</span>: {<span style="color:#f92672">&#34;enabled&#34;</span>: <span style="color:#66d9ef">true</span>, <span style="color:#f92672">&#34;time&#34;</span>: <span style="color:#e6db74">&#34;05:00&#34;</span>}
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;direct_rooms&#34;</span>: {},
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;sync_state_path&#34;</span>: <span style="color:#e6db74">&#34;/root/data/docker_data/synapse/scripts/matrix-bot-sync.state.json&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;state_path&#34;</span>: <span style="color:#e6db74">&#34;/root/data/docker_data/synapse/scripts/matrix-bot-weather.state.json&#34;</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"target_users\": [\"@honey:jgaga.tk\", \"@black:jgaga.tk\", \"@admin2:jgaga.tk\", \"@admin:jgaga.tk\"],\n  \"default_weather_time\": \"05:00\",\n  \"schedule_grace_minutes\": 15,\n  \"weather_users\": {\n    \"@honey:jgaga.tk\": {\"enabled\": true, \"time\": \"05:00\"},\n    \"@black:jgaga.tk\": {\"enabled\": true, \"time\": \"05:00\"},\n    \"@admin2:jgaga.tk\": {\"enabled\": true, \"time\": \"05:00\"},\n    \"@admin:jgaga.tk\": {\"enabled\": true, \"time\": \"05:00\"}\n  },\n  \"direct_rooms\": {},\n  \"sync_state_path\": \"/root/data/docker_data/synapse/scripts/matrix-bot-sync.state.json\",\n  \"state_path\": \"/root/data/docker_data/synapse/scripts/matrix-bot-weather.state.json\"\n}"</script>
+</div>
+<p>天气 Bot 没有 E2EE 密钥管理能力。脚本发现缓存私聊是加密房间时，会离开旧房间并重建不加密私聊；不要把它改成复用加密房间，否则定时推送会发不出去。</p>
+<p>监控配置至少要覆盖当前生产容器名。旧文档或旧脚本里的 <code>web-call</code> 已经不是当前容器，当前是 <code>element-call</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;target_users&#34;</span>: [<span style="color:#e6db74">&#34;@black:jgaga.tk&#34;</span>, <span style="color:#e6db74">&#34;@honey:jgaga.tk&#34;</span>, <span style="color:#e6db74">&#34;@admin2:jgaga.tk&#34;</span>],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;docker&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;expected_containers&#34;</span>: [
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;matrix-admin-tools&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;caddy&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;element-web&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;synapse-admin&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;matrix-musicbot&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;matrix-synapse&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;postgres16&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;ntfy&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;element-call&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;matrix-livekit-jwt-service&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;livekit-server-test&#34;</span>,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#34;coturn&#34;</span>
+</span></span><span style="display:flex;"><span>    ]
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"target_users\": [\"@black:jgaga.tk\", \"@honey:jgaga.tk\", \"@admin2:jgaga.tk\"],\n  \"docker\": {\n    \"expected_containers\": [\n      \"matrix-admin-tools\",\n      \"caddy\",\n      \"element-web\",\n      \"synapse-admin\",\n      \"matrix-musicbot\",\n      \"matrix-synapse\",\n      \"postgres16\",\n      \"ntfy\",\n      \"element-call\",\n      \"matrix-livekit-jwt-service\",\n      \"livekit-server-test\",\n      \"coturn\"\n    ]\n  }\n}"</script>
+</div>
+<p>安装 OpenRC 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-sync /etc/init.d/matrix-bot-sync
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-weather /etc/init.d/matrix-bot-weather
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-monitor /etc/init.d/matrix-bot-monitor
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /etc/init.d/matrix-bot-sync /etc/init.d/matrix-bot-weather /etc/init.d/matrix-bot-monitor</span></span></code></pre></div><script class="code-source" type="application/json">"rsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-sync /etc/init.d/matrix-bot-sync\nrsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-weather /etc/init.d/matrix-bot-weather\nrsync -av /root/data/docker_data/_ops-source/openrc/matrix-bot-monitor /etc/init.d/matrix-bot-monitor\nchmod 755 /etc/init.d/matrix-bot-sync /etc/init.d/matrix-bot-weather /etc/init.d/matrix-bot-monitor"</script>
+</div>
+<p>启动并加入默认运行级别：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-service matrix-bot-sync start
+</span></span><span style="display:flex;"><span>rc-service matrix-bot-weather start
+</span></span><span style="display:flex;"><span>rc-service matrix-bot-monitor start
+</span></span><span style="display:flex;"><span>rc-update add matrix-bot-sync default
+</span></span><span style="display:flex;"><span>rc-update add matrix-bot-weather default
+</span></span><span style="display:flex;"><span>rc-update add matrix-bot-monitor default
+</span></span><span style="display:flex;"><span>rc-status default | grep matrix-bot</span></span></code></pre></div><script class="code-source" type="application/json">"rc-service matrix-bot-sync start\nrc-service matrix-bot-weather start\nrc-service matrix-bot-monitor start\nrc-update add matrix-bot-sync default\nrc-update add matrix-bot-weather default\nrc-update add matrix-bot-monitor default\nrc-status default | grep matrix-bot"</script>
+</div>
+<p>交互验证：</p>
+<ol>
+<li>在 Element 里邀请 <code>@bot:jgaga.tk</code>。</li>
+<li>发送 <code>帮助</code>，应看到天气命令菜单。</li>
+<li>发送 <code>天气</code>，应立即返回天气预报。</li>
+<li>发送 <code>设置天气时间 07:30</code>，应保存你的每日推送时间。</li>
+<li>看同步循环日志：</li>
+</ol>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-sync-loop.log
+</span></span><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-weather-loop.log
+</span></span><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-monitor-loop.log</span></span></code></pre></div><script class="code-source" type="application/json">"tail -80 /var/log/matrix-bot-sync-loop.log\ntail -80 /var/log/matrix-bot-weather-loop.log\ntail -80 /var/log/matrix-bot-monitor-loop.log"</script>
+</div>
+<p>监控验证：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert
+</span></span><span style="display:flex;"><span>python3 - <span style="color:#e6db74">&lt;&lt;&#39;PY&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import json
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">p=&#39;/root/data/docker_data/synapse/scripts/matrix-bot-monitor.state.json&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">d=json.load(open(p))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(json.dumps(d.get(&#39;direct_rooms&#39;, {}), ensure_ascii=False, indent=2))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PY</span></span></span></code></pre></div><script class="code-source" type="application/json">"/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert\npython3 - \u003c\u003c'PY'\nimport json\np='/root/data/docker_data/synapse/scripts/matrix-bot-monitor.state.json'\nd=json.load(open(p))\nprint(json.dumps(d.get('direct_rooms', {}), ensure_ascii=False, indent=2))\nPY"</script>
+</div>
+<p><code>direct_rooms</code> 里应有每个 <code>target_users</code> 对应的私聊房间。只看 <code>rc-service ... status</code> 不够，监控脚本必须真的能给目标用户发出测试告警。</p>
+<p><code>synapse-media-purge</code> 的 OpenRC 文件也随源码保留，但不要默认启用。它会触发生产媒体清理，确认策略、备份和 <code>keep_profiles=true</code> 语义以后再执行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 媒体清理会删除命中规则的生产媒体；确认策略和大备份后再启用自动服务。</span>
+</span></span><span style="display:flex;"><span>rsync -av /root/data/docker_data/_ops-source/openrc/synapse-media-purge /etc/init.d/synapse-media-purge
+</span></span><span style="display:flex;"><span>chmod <span style="color:#ae81ff">755</span> /etc/init.d/synapse-media-purge
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># rc-update add synapse-media-purge default</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># rc-service synapse-media-purge start</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 媒体清理会删除命中规则的生产媒体；确认策略和大备份后再启用自动服务。\nrsync -av /root/data/docker_data/_ops-source/openrc/synapse-media-purge /etc/init.d/synapse-media-purge\nchmod 755 /etc/init.d/synapse-media-purge\n# rc-update add synapse-media-purge default\n# rc-service synapse-media-purge start"</script>
+</div>
+<h2 id="最终验收">最终验收</h2>
+<p>容器：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker ps --format <span style="color:#e6db74">&#39;{{.Names}} {{.Status}}&#39;</span> | sort | grep -E <span style="color:#e6db74">&#39;matrix-admin-tools|matrix-musicbot&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"docker ps --format '{{.Names}} {{.Status}}' | sort | grep -E 'matrix-admin-tools|matrix-musicbot'"</script>
+</div>
+<p>OpenRC：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>rc-status default | grep -E <span style="color:#e6db74">&#39;matrix-bot-sync|matrix-bot-weather|matrix-bot-monitor&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"rc-status default | grep -E 'matrix-bot-sync|matrix-bot-weather|matrix-bot-monitor'"</script>
+</div>
+<p>运维面板：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -fsS http://127.0.0.1:8190 | grep <span style="color:#e6db74">&#39;Matrix 运维面板&#39;</span>
+</span></span><span style="display:flex;"><span>curl -fsS http://127.0.0.1:8190/notice | grep <span style="color:#e6db74">&#39;Server Notice&#39;</span>
+</span></span><span style="display:flex;"><span>curl -I https://matrix-tools.jgaga.tk
+</span></span><span style="display:flex;"><span>curl -I https://matrix-tools.jgaga.tk/notice</span></span></code></pre></div><script class="code-source" type="application/json">"curl -fsS http://127.0.0.1:8190 | grep 'Matrix 运维面板'\ncurl -fsS http://127.0.0.1:8190/notice | grep 'Server Notice'\ncurl -I https://matrix-tools.jgaga.tk\ncurl -I https://matrix-tools.jgaga.tk/notice"</script>
+</div>
+<p>公网 <code>matrix-tools.jgaga.tk</code> 未带密码时返回 <code>401</code> 是正确的，这是面板自带的 Basic Auth 保护。用浏览器输入 admin 密码后应能打开页面。不要把 <code>GET /notice</code> 的历史 <code>404</code> 当成 DNS 或证书问题，它只是后端没给直达通知页配置 GET 路由。</p>
+<p>MusicBot：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs --tail<span style="color:#f92672">=</span><span style="color:#ae81ff">120</span> matrix-musicbot</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs --tail=120 matrix-musicbot"</script>
+</div>
+<p>生产 Bot：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-sync-loop.log
+</span></span><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-weather-loop.log
+</span></span><span style="display:flex;"><span>tail -80 /var/log/matrix-bot-monitor-loop.log
+</span></span><span style="display:flex;"><span>/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert</span></span></code></pre></div><script class="code-source" type="application/json">"tail -80 /var/log/matrix-bot-sync-loop.log\ntail -80 /var/log/matrix-bot-weather-loop.log\ntail -80 /var/log/matrix-bot-monitor-loop.log\n/root/data/docker_data/synapse/scripts/matrix-bot-monitor.py --test-alert"</script>
+</div>
+<p>如果这些都正常，运维面板、MusicBot 和三段式生产 Bot 栈就部署完成。真实 token 和密码只存在 <code>/root/data/docker_data/_secrets/</code>，不要写进文章、公开仓库或聊天记录。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/proxmox-packer-alpine-template/">
+            <img src="/posts/linux/proxmox-packer-alpine-template/assets/cover.svg" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">使用 Packer 在 Proxmox 上自动化构建 Alpine Linux VM 模板</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-basic-install/">
+            <img src="/posts/docker/docker-basic-install/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">零基础保姆级教程：两大主流 Linux 系统一键安装 Docker</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/alpine-configure-timezone/">
+            <img src="/posts/linux/alpine-configure-timezone/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-profile-guide/">
+            <img src="/posts/ai/hermes-agent-profile-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">Hermes Agent 多 Profile 实战指南</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-yolo-mode/">
+            <img src="/posts/ai/hermes-agent-yolo-mode/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">Hermes Agent 全自动模式：YOLO 与命令审批详解</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/ai/hermes-agent-file-conventions/">
+            <img src="/posts/ai/hermes-agent-file-conventions/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/shaoji-mall-docker-install/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">烧鸡商城 Docker 手动安装与入口说明</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 电脑自习室.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

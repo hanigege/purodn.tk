@@ -14,19 +14,19 @@
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#75715e># 把 Docker 塞进开机自启的队列里</span>
 </span></span><span style=display:flex><span>rc-update add docker boot</span></span></code></pre></div><script class=code-source type=application/json>"# 立即把 Docker 后台服务拉起来\nrc-service docker start\n\n# 把 Docker 塞进开机自启的队列里\nrc-update add docker boot"</script></div><h3 id=第三步验证安装-1>第三步：验证安装</h3><p>这时候，我们再次输入测试命令：</p><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker ps</span></span></code></pre></div><script class=code-source type=application/json>"docker ps"</script></div><p>如果屏幕上弹出了包含 <code>CONTAINER ID</code>、<code>IMAGE</code>、<code>COMMAND</code> 的表格头（哪怕下面是空的），就说明 Docker 已经完美复活，开始为你工作了！</p><hr><h2 id=新手进阶如何顺畅地下载软件国内镜像加速>新手进阶：如何顺畅地下载软件？（国内镜像加速）</h2><p>Docker 装好后，我们通常要从国外的 Docker Hub 仓库下载软件镜像。</p><p>如果你发现下载速度极慢或者卡死报错，可以在服务器上安装一个名为 <code>curl</code> 的小工具，便于后续下载各种配置文件。</p><ul><li><strong>Debian/Ubuntu 系统</strong>：<code>apt install curl -y</code></li><li><strong>Alpine 系统</strong>：<code>apk add curl</code></li></ul><p>祝你的 Docker 折腾之旅一路顺风！</p></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/docker/docker-basic-install/><img src=/posts/docker/docker-basic-install/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/linux/proxmox-packer-alpine-template/><img src=/posts/linux/proxmox-packer-alpine-template/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>零基础保姆级教程：两大主流 Linux 系统一键安装 Docker</span></a></li><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
+<span class=latest-title>使用 Packer 在 Proxmox 上自动化构建 Alpine Linux VM 模板</span></a></li><li><a href=/posts/docker/docker-basic-install/><img src=/posts/docker/docker-basic-install/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
+<span class=latest-title>零基础保姆级教程：两大主流 Linux 系统一键安装 Docker</span></a></li><li><a href=/posts/linux/alpine-configure-timezone/><img src=/posts/linux/alpine-configure-timezone/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
+<span class=latest-title>Alpine Linux 时区配置：tzdata 安装与 Asia/Shanghai 设置</span></a></li><li><a href=/posts/ai/hermes-agent-profile-guide/><img src=/posts/ai/hermes-agent-profile-guide/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 多 Profile 实战指南</span></a></li><li><a href=/posts/ai/hermes-agent-yolo-mode/><img src=/posts/ai/hermes-agent-yolo-mode/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 全自动模式：YOLO 与命令审批详解</span></a></li><li><a href=/posts/ai/hermes-agent-file-conventions/><img src=/posts/ai/hermes-agent-file-conventions/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li><li><a href=/posts/ai/ai-agent-orchestration-guide/><img src=/posts/ai/ai-agent-orchestration-guide/assets/cover.svg alt>
+<span class=latest-title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</span></a></li><li><a href=/posts/ai/hermes-busy-input-modes/><img src=/posts/ai/hermes-busy-input-modes/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>AI助手多轮分工协作完全指南</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
+<span class=latest-title>Hermes Agent Busy Input Modes 完全指南</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 电脑自习室.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>
