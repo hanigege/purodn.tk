@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Matrix LiveKit NPM Worker deployment</title>
+  <desc id="desc">Cloudflare Worker well-known, Nginx Proxy Manager, Matrix Synapse, LiveKit and JWT service topology.</desc>
+  <rect width="1200" height="630" fill="#f6f8fb"/>
+  <path d="M0 0h1200v142H0z" fill="#1f3440"/>
+  <path d="M0 142c140 42 236 42 380 0s240-44 384 0 246 43 436 0v488H0z" fill="#e9f0f4"/>
+  <g transform="translate(70 76)">
+    <text x="0" y="0" font-family="Inter, Arial, sans-serif" font-size="44" font-weight="800" fill="#ffffff">MatrixRTC + LiveKit</text>
+    <text x="0" y="44" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#b9d7de">Cloudflare Worker + NPM</text>
+  </g>
+  <g transform="translate(82 214)">
+    <rect x="0" y="0" width="250" height="128" rx="18" fill="#ffffff" stroke="#ccd8df" stroke-width="2"/>
+    <rect x="22" y="24" width="54" height="54" rx="12" fill="#f38020"/>
+    <text x="94" y="52" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800" fill="#24313a">Worker</text>
+    <text x="94" y="84" font-family="Inter, Arial, sans-serif" font-size="18" fill="#60707c">/.well-known</text>
+  </g>
+  <g transform="translate(475 214)">
+    <rect x="0" y="0" width="250" height="128" rx="18" fill="#ffffff" stroke="#ccd8df" stroke-width="2"/>
+    <rect x="22" y="24" width="54" height="54" rx="12" fill="#4c6fff"/>
+    <text x="94" y="52" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800" fill="#24313a">NPM</text>
+    <text x="94" y="84" font-family="Inter, Arial, sans-serif" font-size="18" fill="#60707c">custom HTTPS</text>
+  </g>
+  <g transform="translate(868 214)">
+    <rect x="0" y="0" width="250" height="128" rx="18" fill="#ffffff" stroke="#ccd8df" stroke-width="2"/>
+    <rect x="22" y="24" width="54" height="54" rx="12" fill="#2f9e88"/>
+    <text x="94" y="52" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800" fill="#24313a">Docker</text>
+    <text x="94" y="84" font-family="Inter, Arial, sans-serif" font-size="18" fill="#60707c">Synapse / JWT</text>
+    <text x="94" y="108" font-family="Inter, Arial, sans-serif" font-size="18" fill="#60707c">LiveKit</text>
+  </g>
+  <path d="M342 278h118" stroke="#2f9e88" stroke-width="8" stroke-linecap="round"/>
+  <path d="M446 258l28 20-28 20z" fill="#2f9e88"/>
+  <path d="M735 278h118" stroke="#2f9e88" stroke-width="8" stroke-linecap="round"/>
+  <path d="M839 258l28 20-28 20z" fill="#2f9e88"/>
+  <g transform="translate(128 388)">
+    <rect width="944" height="154" rx="18" fill="#1f3440"/>
+    <text x="34" y="46" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="24" fill="#d8f5ea">666666.xyz/.well-known -> Worker</text>
+    <text x="34" y="91" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="23" fill="#ffffff">NPM: 12335 Synapse | 12336 JWT | 12337 LiveKit</text>
+    <text x="34" y="132" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="23" fill="#b9d7de">Docker upstream: 8008 / 8170 / 7880</text>
+  </g>
+</svg>

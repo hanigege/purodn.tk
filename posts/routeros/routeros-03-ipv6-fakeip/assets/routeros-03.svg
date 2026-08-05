@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">RouterOS IPv6 与 fakeip</title>
+  <desc id="desc">IPv6 网络教程封面插图</desc>
+  <rect width="1200" height="675" fill="#07131f"/>
+  <g fill="none" stroke="#38bdf8" stroke-width="6" opacity=".55">
+    <circle cx="620" cy="320" r="210"/>
+    <ellipse cx="620" cy="320" rx="360" ry="130"/>
+    <ellipse cx="620" cy="320" rx="130" ry="360" transform="rotate(90 620 320)"/>
+  </g>
+  <circle cx="620" cy="320" r="92" fill="#0f172a" stroke="#22c55e" stroke-width="8"/>
+  <text x="538" y="340" fill="#fff" font-family="Arial, sans-serif" font-size="54" font-weight="900">IPv6</text>
+  <text x="86" y="122" fill="#f97316" font-family="Arial, sans-serif" font-size="38" font-weight="800">RouterOS</text>
+  <text x="86" y="548" fill="#fff" font-family="Arial, sans-serif" font-size="62" font-weight="800">开启 IPv6 及 fakeip</text>
+  <text x="90" y="606" fill="#94a3b8" font-family="Arial, sans-serif" font-size="32" font-weight="700">前缀 / 防火墙 / DNS 行为</text>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Matrix LiveKit public 443 deployment</title>
+  <desc id="desc">A public server with standard HTTPS 443 reverse proxy for Matrix Synapse, JWT service and LiveKit.</desc>
+  <rect width="1200" height="630" fill="#f5f7fa"/>
+  <path d="M0 0h1200v630H0z" fill="#eef4f6"/>
+  <path d="M0 0h1200v166H0z" fill="#17313b"/>
+  <text x="72" y="82" font-family="Inter, Arial, sans-serif" font-size="44" font-weight="800" fill="#fff">MatrixRTC 公网 443 方案</text>
+  <text x="74" y="124" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="600" fill="#bfe2df">NPM standard HTTPS + LiveKit + JWT + coturn</text>
+  <g transform="translate(82 232)">
+    <rect width="230" height="116" rx="16" fill="#ffffff" stroke="#cbd8de" stroke-width="2"/>
+    <text x="26" y="48" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="#17313b">443</text>
+    <text x="26" y="78" font-family="Inter, Arial, sans-serif" font-size="18" fill="#5c6b73">公网 HTTPS</text>
+  </g>
+  <g transform="translate(372 232)">
+    <rect width="230" height="116" rx="16" fill="#ffffff" stroke="#cbd8de" stroke-width="2"/>
+    <text x="26" y="48" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="#17313b">NPM</text>
+    <text x="26" y="78" font-family="Inter, Arial, sans-serif" font-size="18" fill="#5c6b73">SNI 反代</text>
+  </g>
+  <g transform="translate(662 232)">
+    <rect width="230" height="116" rx="16" fill="#ffffff" stroke="#cbd8de" stroke-width="2"/>
+    <text x="26" y="48" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="#17313b">Synapse</text>
+    <text x="26" y="78" font-family="Inter, Arial, sans-serif" font-size="18" fill="#5c6b73">666666.xyz</text>
+  </g>
+  <g transform="translate(952 232)">
+    <rect width="166" height="116" rx="16" fill="#ffffff" stroke="#cbd8de" stroke-width="2"/>
+    <text x="22" y="48" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="#17313b">LiveKit</text>
+    <text x="22" y="78" font-family="Inter, Arial, sans-serif" font-size="18" fill="#5c6b73">UDP 直通</text>
+  </g>
+  <path d="M320 290h42" stroke="#2f9e88" stroke-width="8" stroke-linecap="round"/>
+  <path d="M610 290h42" stroke="#2f9e88" stroke-width="8" stroke-linecap="round"/>
+  <path d="M900 290h42" stroke="#2f9e88" stroke-width="8" stroke-linecap="round"/>
+  <g transform="translate(148 438)">
+    <rect width="904" height="92" rx="18" fill="#17313b"/>
+    <text x="32" y="56" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="25" fill="#d9f5ea">666666.xyz -> Synapse</text>
+    <text x="354" y="56" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="25" fill="#ffffff">livekit / matrix-jwt -> host ports</text>
+  </g>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">FreeBSD PF firewall manager cover</title>
+  <desc id="desc">A FreeBSD themed packet filter firewall dashboard with allowed ports and blacklist.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101b21"/>
+      <stop offset="0.52" stop-color="#183941"/>
+      <stop offset="1" stop-color="#32222b"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#244953"/>
+      <stop offset="1" stop-color="#13252b"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <path d="M0 500 C170 438 305 536 475 492 C642 448 738 334 920 382 C1074 423 1132 526 1280 482 L1280 720 L0 720 Z" fill="#286164" opacity="0.42"/>
+  <path d="M0 606 C205 550 358 620 530 580 C710 538 835 500 1010 552 C1130 588 1195 622 1280 592 L1280 720 L0 720 Z" fill="#0b1518" opacity="0.65"/>
+
+  <g transform="translate(104 104)" filter="url(#shadow)">
+    <rect x="0" y="0" width="700" height="486" rx="22" fill="url(#panel)" stroke="#79aeb3" stroke-opacity="0.3"/>
+    <rect x="0" y="0" width="700" height="58" rx="22" fill="#0c171a"/>
+    <path d="M0 38 H700 V58 H0 Z" fill="#0c171a"/>
+    <circle cx="35" cy="29" r="8" fill="#e0645b"/>
+    <circle cx="64" cy="29" r="8" fill="#e8bd55"/>
+    <circle cx="93" cy="29" r="8" fill="#74c273"/>
+
+    <text x="42" y="122" fill="#dff5ef" font-family="Menlo, Consolas, monospace" font-size="28">pfctl -sr</text>
+    <text x="42" y="178" fill="#8fd0ca" font-family="Menlo, Consolas, monospace" font-size="24">block in quick from &lt;blacklist&gt;</text>
+    <text x="42" y="226" fill="#8fd0ca" font-family="Menlo, Consolas, monospace" font-size="24">pass out all keep state</text>
+    <text x="42" y="274" fill="#f3d58b" font-family="Menlo, Consolas, monospace" font-size="24">tcp 20789  overload blacklist</text>
+    <text x="42" y="322" fill="#f3d58b" font-family="Menlo, Consolas, monospace" font-size="24">udp 443    max-src-states</text>
+    <rect x="42" y="362" width="570" height="2" fill="#79aeb3" opacity="0.3"/>
+    <text x="42" y="424" fill="#dff5ef" font-family="Menlo, Consolas, monospace" font-size="26">default deny, explicit allow</text>
+  </g>
+
+  <g transform="translate(815 126)" filter="url(#shadow)">
+    <path d="M210 0 L384 70 V198 C384 322 314 420 210 470 C106 420 36 322 36 198 V70 Z" fill="#b83535" stroke="#ffd0aa" stroke-opacity="0.42" stroke-width="4"/>
+    <path d="M210 44 L338 96 V199 C338 294 286 369 210 410 C134 369 82 294 82 199 V96 Z" fill="#172b31" opacity="0.92"/>
+    <path d="M147 218 L190 262 L276 165" fill="none" stroke="#f1d083" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="70" cy="64" r="38" fill="#c84040"/>
+    <circle cx="82" cy="53" r="12" fill="#fff2d4" opacity="0.88"/>
+    <path d="M50 82 C29 80 16 68 16 49 C40 53 54 62 62 78 Z" fill="#902631"/>
+    <text x="0" y="546" fill="#f1f6f2" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700">PF Firewall</text>
+    <text x="2" y="590" fill="#a9c8c6" font-family="Arial, Helvetica, sans-serif" font-size="25">端口管理与自动黑名单</text>
+  </g>
+</svg>

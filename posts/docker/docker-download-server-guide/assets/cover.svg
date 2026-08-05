@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="accentBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="50%" stop-color="#d2a8ff"/>
+      <stop offset="100%" stop-color="#ff7b72"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Grid pattern -->
+  <g stroke="#30363d" stroke-width="0.5" opacity="0.05">
+    <line x1="0" y1="60" x2="1200" y2="60"/>
+    <line x1="0" y1="120" x2="1200" y2="120"/>
+    <line x1="0" y1="180" x2="1200" y2="180"/>
+    <line x1="0" y1="240" x2="1200" y2="240"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="360" x2="1200" y2="360"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="480" x2="1200" y2="480"/>
+    <line x1="0" y1="540" x2="1200" y2="540"/>
+    <line x1="0" y1="600" x2="1200" y2="600"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="92" text-anchor="middle" font-family="sans-serif" font-size="42" font-weight="bold" fill="#e6edf3">Docker 下载服务部署指南</text>
+  <text x="600" y="132" text-anchor="middle" font-family="monospace" font-size="18" fill="#8b949e">给第三方用户提供文件下载 · 三种方案任选</text>
+
+  <!-- Decorative download arrow above cards -->
+  <g transform="translate(600, 160)">
+    <path d="M-34,-18 L0,16 L34,-18" stroke="#58a6ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="0" y1="-62" x2="0" y2="12" stroke="#58a6ff" stroke-width="6" stroke-linecap="round"/>
+    <rect x="-10" y="-74" width="20" height="8" rx="4" fill="#58a6ff"/>
+  </g>
+
+  <!-- Card 1: Caddy -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="210" width="330" height="330" rx="16" fill="#1c2128" stroke="#30363d" stroke-width="1"/>
+    <rect x="70" y="210" width="330" height="6" rx="3" fill="#58a6ff"/>
+    <!-- Icon: shield with lock -->
+    <g transform="translate(235, 300)">
+      <path d="M-34,-30 L0,-44 L34,-30 L34,8 C34,30 18,46 0,54 C-18,46 -34,30 -34,8 Z" fill="none" stroke="#58a6ff" stroke-width="4" stroke-linejoin="round"/>
+      <rect x="-12" y="-14" width="24" height="18" rx="4" fill="none" stroke="#58a6ff" stroke-width="4"/>
+      <circle cx="0" cy="-2" r="3.5" fill="#58a6ff"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#58a6ff" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="235" y="400" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="bold" fill="#e6edf3">Caddy</text>
+    <text x="235" y="432" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#8b949e">纯静态下载站</text>
+    <text x="235" y="462" text-anchor="middle" font-family="monospace" font-size="14" fill="#58a6ff">公开 / basicauth / HTTPS</text>
+  </g>
+
+  <!-- Card 2: Filebrowser -->
+  <g filter="url(#shadow)">
+    <rect x="435" y="210" width="330" height="330" rx="16" fill="#1c2128" stroke="#30363d" stroke-width="1"/>
+    <rect x="435" y="210" width="330" height="6" rx="3" fill="#d2a8ff"/>
+    <!-- Icon: folder -->
+    <g transform="translate(600, 300)">
+      <path d="M-38,-26 L-12,-26 L-2,-14 L38,-14 L38,28 L-38,28 Z" fill="none" stroke="#d2a8ff" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M-38,4 L38,4" stroke="#d2a8ff" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="10" cy="18" r="4" fill="#d2a8ff"/>
+      <path d="M18,14 L30,26 M30,14 L18,26" stroke="#d2a8ff" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="600" y="400" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="bold" fill="#e6edf3">Filebrowser</text>
+    <text x="600" y="432" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#8b949e">网页网盘 + 多用户</text>
+    <text x="600" y="462" text-anchor="middle" font-family="monospace" font-size="14" fill="#d2a8ff">UI 管理 / 分享链接</text>
+  </g>
+
+  <!-- Card 3: Dufs -->
+  <g filter="url(#shadow)">
+    <rect x="800" y="210" width="330" height="330" rx="16" fill="#1c2128" stroke="#30363d" stroke-width="1"/>
+    <rect x="800" y="210" width="330" height="6" rx="3" fill="#ff7b72"/>
+    <!-- Icon: disk -->
+    <g transform="translate(965, 300)">
+      <ellipse cx="0" cy="-12" rx="36" ry="20" fill="none" stroke="#ff7b72" stroke-width="4"/>
+      <path d="M-36,-12 L-36,12 A36,20 0 0 0 36,12 L36,-12" fill="none" stroke="#ff7b72" stroke-width="4"/>
+      <circle cx="0" cy="6" r="7" fill="#ff7b72"/>
+      <circle cx="-16" cy="-6" r="4" fill="none" stroke="#ff7b72" stroke-width="3"/>
+      <circle cx="16" cy="-6" r="4" fill="none" stroke="#ff7b72" stroke-width="3"/>
+    </g>
+    <text x="965" y="400" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="bold" fill="#e6edf3">Dufs</text>
+    <text x="965" y="432" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#8b949e">极速分发 + WebDAV</text>
+    <text x="965" y="462" text-anchor="middle" font-family="monospace" font-size="14" fill="#ff7b72">匿名读 / 账号写 / 挂载</text>
+  </g>
+
+  <!-- Bottom tagline -->
+  <text x="600" y="588" text-anchor="middle" font-family="monospace" font-size="15" fill="#8b949e">docker compose up -d — 实测验证 · 避坑要点 · 域名 HTTPS 指南</text>
+
+  <!-- Accent bar -->
+  <rect x="0" y="620" width="1200" height="3" fill="url(#accentBar)"/>
+</svg>

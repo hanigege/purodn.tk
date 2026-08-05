@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Proxmox LXC sing-box sysctl tuning</title>
+  <desc id="desc">A technical cover showing a Proxmox host, an Alpine LXC container, sing-box, gateway mode, and TProxy FakeIP mode.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16213a"/>
+      <stop offset="0.55" stop-color="#26384d"/>
+      <stop offset="1" stop-color="#19535f"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fafc"/>
+      <stop offset="1" stop-color="#dce8ef"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#07111f" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.18" stroke="#d7f7ff" stroke-width="1">
+    <path d="M70 92h1060M70 166h1060M70 240h1060M70 314h1060M70 388h1060M70 462h1060M70 536h1060"/>
+    <path d="M130 70v490M260 70v490M390 70v490M520 70v490M650 70v490M780 70v490M910 70v490M1040 70v490"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="72" y="96" width="312" height="438" rx="14" fill="url(#panel)"/>
+    <rect x="444" y="96" width="312" height="438" rx="14" fill="url(#panel)"/>
+    <rect x="816" y="96" width="312" height="438" rx="14" fill="url(#panel)"/>
+  </g>
+  <g font-family="Menlo, Consolas, 'Liberation Mono', monospace" fill="#122033">
+    <text x="104" y="152" font-size="34" font-weight="700">PVE Host</text>
+    <text x="104" y="192" font-size="18">fq + BBR</text>
+    <text x="104" y="222" font-size="18">TCP / UDP buffers</text>
+    <text x="104" y="252" font-size="18">conntrack capacity</text>
+    <rect x="104" y="302" width="238" height="86" rx="8" fill="#f06a2b"/>
+    <text x="128" y="352" font-size="26" font-weight="700" fill="#ffffff">sysctl.conf</text>
+    <text x="128" y="376" font-size="15" fill="#fff3ea">global kernel tuning</text>
+  </g>
+  <g font-family="Menlo, Consolas, 'Liberation Mono', monospace" fill="#122033">
+    <text x="476" y="152" font-size="34" font-weight="700">Alpine LXC</text>
+    <text x="476" y="192" font-size="18">Gateway mode</text>
+    <text x="476" y="222" font-size="18">ip_forward = 1</text>
+    <text x="476" y="252" font-size="18">IPv6 forwarding</text>
+    <rect x="476" y="302" width="238" height="86" rx="8" fill="#2a7de1"/>
+    <text x="500" y="352" font-size="26" font-weight="700" fill="#ffffff">sing-box</text>
+    <text x="500" y="376" font-size="15" fill="#eaf4ff">proxy gateway</text>
+  </g>
+  <g font-family="Menlo, Consolas, 'Liberation Mono', monospace" fill="#122033">
+    <text x="848" y="152" font-size="34" font-weight="700">TProxy</text>
+    <text x="848" y="192" font-size="18">FakeIP route</text>
+    <text x="848" y="222" font-size="18">ip_nonlocal_bind</text>
+    <text x="848" y="252" font-size="18">no gateway forwarding</text>
+    <rect x="848" y="302" width="238" height="86" rx="8" fill="#17a673"/>
+    <text x="872" y="352" font-size="26" font-weight="700" fill="#ffffff">FakeIP</text>
+    <text x="872" y="376" font-size="15" fill="#e9fff7">transparent entry</text>
+  </g>
+  <g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M384 315h60" stroke="#f6c85f"/>
+    <path d="M756 315h60" stroke="#f6c85f"/>
+    <path d="M428 299l20 16-20 16" stroke="#f6c85f"/>
+    <path d="M800 299l20 16-20 16" stroke="#f6c85f"/>
+  </g>
+  <g font-family="Menlo, Consolas, 'Liberation Mono', monospace">
+    <text x="74" y="588" font-size="24" font-weight="700" fill="#ffffff">Proxmox VE + LXC + sing-box network tuning</text>
+    <text x="74" y="616" font-size="16" fill="#bfe7ef">Gateway mode and TProxy FakeIP mode use different sysctl boundaries</text>
+  </g>
+</svg>

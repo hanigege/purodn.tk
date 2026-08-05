@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)" rx="16"/>
+  
+  <!-- Title -->
+  <text x="400" y="65" text-anchor="middle" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="28" font-weight="700">Hermes Agent</text>
+  <text x="400" y="100" text-anchor="middle" fill="url(#accent)" font-family="system-ui, sans-serif" font-size="36" font-weight="800">Busy Input Modes Guide</text>
+  <text x="400" y="135" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="16">面对 AI 忙碌时，你的消息去了哪里？</text>
+  
+  <!-- Three mode cards -->
+  <!-- Queue -->
+  <rect x="40" y="165" width="220" height="260" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <rect x="40" y="165" width="220" height="48" rx="12" fill="url(#bar1)"/>
+  <rect x="40" y="201" width="220" height="12" fill="url(#bar1)"/>
+  <text x="150" y="196" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">📥 Queue</text>
+  <text x="150" y="240" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="13">排队等候</text>
+  <text x="60" y="268" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">你的消息 → 排队</text>
+  <text x="60" y="290" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">↓ 等待整轮完成</text>
+  <text x="60" y="312" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">↓ 消息被处理</text>
+  <text x="60" y="350" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">默认模式（Gateway）</text>
+  <text x="60" y="370" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">安全但延迟高</text>
+  <text x="60" y="400" fill="#f97316" font-family="system-ui, sans-serif" font-size="11" font-weight="600">适合：批量任务，无需指导</text>
+
+  <!-- Steer -->
+  <rect x="290" y="165" width="220" height="260" rx="12" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+  <rect x="290" y="165" width="220" height="48" rx="12" fill="url(#bar2)"/>
+  <rect x="290" y="201" width="220" height="12" fill="url(#bar2)"/>
+  <text x="400" y="196" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">🎯 Steer</text>
+  <text x="400" y="240" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="13">引导插入</text>
+  <text x="310" y="268" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">你的消息 → 当前 step</text>
+  <text x="310" y="290" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">↓ Step 完成后插入</text>
+  <text x="310" y="312" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">处理你的输入 → 继续任务</text>
+  <text x="310" y="350" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">CLI &amp; Gateway 均支持</text>
+  <text x="310" y="370" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">不打断流程</text>
+  <text x="310" y="400" fill="#10b981" font-family="system-ui, sans-serif" font-size="11" font-weight="600">推荐：需要随时纠正方向</text>
+
+  <!-- Interrupt -->
+  <rect x="540" y="165" width="220" height="260" rx="12" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+  <rect x="540" y="165" width="220" height="48" rx="12" fill="url(#bar3)"/>
+  <rect x="540" y="201" width="220" height="12" fill="url(#bar3)"/>
+  <text x="650" y="196" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">⚡ Interrupt</text>
+  <text x="650" y="240" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="13">打断优先</text>
+  <text x="560" y="268" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">你的消息 → 当前 step</text>
+  <text x="560" y="290" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">↓ Step 完成后打断</text>
+  <text x="560" y="312" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="12">优先响应你</text>
+  <text x="560" y="350" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">CLI 默认模式</text>
+  <text x="560" y="370" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">有子任务时降级为 Queue</text>
+  <text x="560" y="400" fill="#3b82f6" font-family="system-ui, sans-serif" font-size="11" font-weight="600">适合：紧急干预、急停</text>
+</svg>

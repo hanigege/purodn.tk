@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">FreePBX setup</title>
+  <desc id="desc">A FreePBX server panel with SIP routes and extension nodes.</desc>
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="90" y="92" width="1100" height="536" rx="18" fill="#111827" stroke="#38bdf8" stroke-width="3"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="130" y="162" fill="#f8fafc" font-size="52" font-weight="700">FreePBX 16 基础配置</text>
+    <text x="132" y="208" fill="#bae6fd" font-size="26">PJSIP Extensions · chan_sip Trunk · Routes</text>
+  </g>
+  <g stroke="#475569" stroke-width="4" fill="none">
+    <path d="M282 388 H498"/>
+    <path d="M782 388 H998"/>
+    <path d="M640 300 V476"/>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" text-anchor="middle" font-size="24" font-weight="700">
+    <rect x="160" y="314" width="180" height="148" rx="12" fill="#1f2937" stroke="#22c55e" stroke-width="3"/>
+    <text x="250" y="380" fill="#f8fafc">PJSIP</text>
+    <text x="250" y="416" fill="#bbf7d0" font-size="20">1001 / 1002</text>
+    <rect x="500" y="254" width="280" height="268" rx="16" fill="#020617" stroke="#38bdf8" stroke-width="4"/>
+    <circle cx="640" cy="354" r="54" fill="#1d4ed8"/>
+    <path d="M606 374 C630 320 652 320 676 374" stroke="#e0f2fe" stroke-width="10" fill="none"/>
+    <text x="640" y="464" fill="#f8fafc">FreePBX</text>
+    <rect x="940" y="314" width="180" height="148" rx="12" fill="#1f2937" stroke="#facc15" stroke-width="3"/>
+    <text x="1030" y="380" fill="#f8fafc">chan_sip</text>
+    <text x="1030" y="416" fill="#fef3c7" font-size="20">5160</text>
+  </g>
+</svg>

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1b2a"/>
+      <stop offset="50%" stop-color="#1b2838"/>
+      <stop offset="100%" stop-color="#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g stroke="#1e3a5f" stroke-width="0.5" opacity="0.3">
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="450"/>
+    <line x1="400" y1="0" x2="400" y2="450"/>
+    <line x1="600" y1="0" x2="600" y2="450"/>
+  </g>
+
+  <!-- Glow behind editor window -->
+  <ellipse cx="400" cy="215" rx="330" ry="170" fill="url(#glow)"/>
+
+  <!-- Main editor window -->
+  <rect x="40" y="80" width="500" height="280" rx="8" fill="#0d1b2a" stroke="#2a4a7f" stroke-width="1.5"/>
+  <!-- Title bar -->
+  <rect x="40" y="80" width="500" height="32" rx="8" fill="#1b2838"/>
+  <rect x="40" y="100" width="500" height="12" fill="#1b2838"/>
+  <circle cx="62" cy="96" r="5" fill="#f87171"/>
+  <circle cx="80" cy="96" r="5" fill="#fbbf24"/>
+  <circle cx="98" cy="96" r="5" fill="#34d399"/>
+  <text x="290" y="101" fill="#64748b" font-family="monospace" font-size="12" text-anchor="middle">GNU nano 8.3    /etc/nginx/nginx.conf</text>
+
+  <!-- Editor text lines -->
+  <g font-family="monospace" font-size="13">
+    <text x="60" y="140" fill="#60a5fa">server {</text>
+    <text x="86" y="162" fill="#9ca3af">listen</text>
+    <text x="140" y="162" fill="#34d399">80;</text>
+    <text x="86" y="184" fill="#9ca3af">server_name</text>
+    <text x="175" y="184" fill="#34d399">example.com;</text>
+    <text x="86" y="206" fill="#9ca3af">root</text>
+    <text x="120" y="206" fill="#34d399">/var/www/html;</text>
+    <text x="60" y="228" fill="#60a5fa">}</text>
+  </g>
+
+  <!-- Cursor block -->
+  <rect x="86" y="192" width="12" height="16" fill="#34d399" opacity="0.35"/>
+
+  <!-- Bottom shortcut bar -->
+  <rect x="40" y="315" width="500" height="45" fill="#12233a" stroke="#2a4a7f" stroke-width="0.8"/>
+  <text x="56" y="333" fill="#f87171" font-family="monospace" font-size="12">^G Help</text>
+  <text x="130" y="333" fill="#f87171" font-family="monospace" font-size="12">^O Write Out</text>
+  <text x="240" y="333" fill="#f87171" font-family="monospace" font-size="12">^F Where Is</text>
+  <text x="360" y="333" fill="#f87171" font-family="monospace" font-size="12">^\ Replace</text>
+  <text x="56" y="351" fill="#fbbf24" font-family="monospace" font-size="12">^X Exit</text>
+  <text x="130" y="351" fill="#fbbf24" font-family="monospace" font-size="12">^K Cut</text>
+  <text x="210" y="351" fill="#fbbf24" font-family="monospace" font-size="12">^U Paste</text>
+  <text x="310" y="351" fill="#fbbf24" font-family="monospace" font-size="12">^/ Go To Line</text>
+  <text x="420" y="351" fill="#fbbf24" font-family="monospace" font-size="12">M-U Undo</text>
+
+  <!-- Right side: shortcut chips -->
+  <g font-family="monospace" font-size="13">
+    <rect x="580" y="100" width="180" height="36" rx="6" fill="#12301f" stroke="#34d399" stroke-width="1"/>
+    <text x="600" y="123" fill="#34d399">Ctrl+O</text>
+    <text x="670" y="123" fill="#e2e8f0">保存文件</text>
+
+    <rect x="580" y="148" width="180" height="36" rx="6" fill="#122a45" stroke="#3b82f6" stroke-width="1"/>
+    <text x="600" y="171" fill="#60a5fa">Ctrl+F</text>
+    <text x="670" y="171" fill="#e2e8f0">查找文本</text>
+
+    <rect x="580" y="196" width="180" height="36" rx="6" fill="#122a45" stroke="#8b5cf6" stroke-width="1"/>
+    <text x="600" y="219" fill="#a78bfa">Ctrl+\</text>
+    <text x="670" y="219" fill="#e2e8f0">查找替换</text>
+
+    <rect x="580" y="244" width="180" height="36" rx="6" fill="#3a1d1d" stroke="#f87171" stroke-width="1"/>
+    <text x="600" y="267" fill="#f87171">Ctrl+X</text>
+    <text x="670" y="267" fill="#e2e8f0">退出编辑器</text>
+
+    <rect x="580" y="292" width="180" height="36" rx="6" fill="#3a2f14" stroke="#fbbf24" stroke-width="1"/>
+    <text x="600" y="315" fill="#fbbf24">Alt+U</text>
+    <text x="670" y="315" fill="#e2e8f0">撤销操作</text>
+
+    <rect x="580" y="340" width="180" height="36" rx="6" fill="#12301f" stroke="#34d399" stroke-width="1"/>
+    <text x="600" y="363" fill="#34d399">Alt+6</text>
+    <text x="670" y="363" fill="#e2e8f0">复制整行</text>
+  </g>
+
+  <!-- Title -->
+  <text x="400" y="408" fill="#e2e8f0" font-family="sans-serif" font-size="28" font-weight="bold" text-anchor="middle" letter-spacing="2">nano 编辑器速查</text>
+  <text x="400" y="432" fill="#64748b" font-family="sans-serif" font-size="14" text-anchor="middle" letter-spacing="1">快捷键 · 查找 · 替换 · Nano Editor Cheatsheet</text>
+</svg>

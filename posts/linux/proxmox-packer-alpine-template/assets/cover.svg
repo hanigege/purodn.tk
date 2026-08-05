@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" font-family="'JetBrains Mono', 'Consolas', monospace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="packerGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0a1628"/>
+    </linearGradient>
+    <linearGradient id="proxmoxGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3a1a0a"/>
+      <stop offset="100%" stop-color="#1a0a02"/>
+    </linearGradient>
+    <linearGradient id="alpineGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d3b66"/>
+      <stop offset="100%" stop-color="#05203a"/>
+    </linearGradient>
+    <linearGradient id="templateGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d3b2e"/>
+      <stop offset="100%" stop-color="#052018"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10" fill="#6366f1" opacity="0.8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#bg)"/>
+
+  <!-- Grid -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+  </pattern>
+  <rect width="800" height="450" fill="url(#grid)"/>
+
+  <!-- Title -->
+  <text x="400" y="42" text-anchor="middle" fill="#22d3ee" font-size="16" font-weight="bold" letter-spacing="2">Proxmox + Packer + Alpine</text>
+  <text x="400" y="65" text-anchor="middle" fill="#94a3b8" font-size="11">一键自动化构建 VM 模板</text>
+
+  <!-- Flow arrows (background layer) -->
+  <line x1="195" y1="220" x2="285" y2="220" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)" opacity="0.6"/>
+  <line x1="405" y1="220" x2="495" y2="220" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)" opacity="0.6"/>
+  <line x1="615" y1="220" x2="705" y2="220" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)" opacity="0.6"/>
+  <line x1="615" y1="290" x2="705" y2="290" stroke="#6366f1" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow)" opacity="0.4"/>
+
+  <!-- ========== Box 1: Alpine ISO ========== -->
+  <rect x="40" y="175" width="145" height="90" rx="10" fill="url(#alpineGrad)" stroke="#0ea5e9" stroke-width="1.5" opacity="0.9"/>
+  <!-- Alpine logo (simplified mountain) -->
+  <text x="112" y="205" text-anchor="middle" fill="#0ea5e9" font-size="22">🏔️</text>
+  <text x="112" y="230" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="bold">Alpine Linux</text>
+  <text x="112" y="247" text-anchor="middle" fill="#64748b" font-size="9">ISO 镜像 (virt)</text>
+
+  <!-- ========== Box 2: Packer ========== -->
+  <rect x="295" y="170" width="100" height="100" rx="10" fill="url(#packerGrad)" stroke="#6366f1" stroke-width="1.5" opacity="0.9"/>
+  <text x="345" y="202" text-anchor="middle" fill="#818cf8" font-size="20">📦</text>
+  <text x="345" y="228" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="bold">Packer</text>
+  <text x="345" y="245" text-anchor="middle" fill="#64748b" font-size="9">自动化构建</text>
+
+  <!-- ========== Box 3: Proxmox ========== -->
+  <rect x="505" y="168" width="100" height="104" rx="10" fill="url(#proxmoxGrad)" stroke="#f97316" stroke-width="1.5" opacity="0.9"/>
+  <text x="555" y="200" text-anchor="middle" fill="#fb923c" font-size="20">🖥️</text>
+  <text x="555" y="226" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="bold">Proxmox VE</text>
+  <text x="555" y="243" text-anchor="middle" fill="#64748b" font-size="9">KVM 虚拟化</text>
+
+  <!-- ========== Box 4: VM Template (result) ========== -->
+  <rect x="25" y="295" width="200" height="80" rx="12" fill="url(#templateGrad)" stroke="#34d399" stroke-width="1.5" opacity="0.95" filter="url(#glow)"/>
+  <text x="125" y="325" text-anchor="middle" fill="#34d399" font-size="18">✅</text>
+  <text x="125" y="348" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Alpine VM Template</text>
+  <text x="125" y="363" text-anchor="middle" fill="#64748b" font-size="9">Cloud-Init + SSH 就绪</text>
+
+  <!-- ========== Box 5: New VM ========== -->
+  <rect x="295" y="295" width="200" height="80" rx="12" fill="url(#templateGrad)" stroke="#a78bfa" stroke-width="1.5" opacity="0.85"/>
+  <text x="395" y="325" text-anchor="middle" fill="#a78bfa" font-size="18">🚀</text>
+  <text x="395" y="348" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">从模板克隆</text>
+  <text x="395" y="363" text-anchor="middle" fill="#64748b" font-size="9">创建新 VM 仅需数秒</text>
+
+  <!-- ========== Key features list ========== -->
+  <text x="560" y="305" fill="#94a3b8" font-size="9">▸ 无人值守安装</text>
+  <text x="560" y="322" fill="#94a3b8" font-size="9">▸ QEMU Guest Agent</text>
+  <text x="560" y="339" fill="#94a3b8" font-size="9">▸ Cloud-Init 支持</text>
+  <text x="560" y="356" fill="#94a3b8" font-size="9">▸ sudo wheel 组</text>
+  <text x="560" y="373" fill="#94a3b8" font-size="9">▸ 可重复构建</text>
+
+  <!-- Steps timeline -->
+  <text x="40" y="110" fill="#64748b" font-size="9">步骤</text>
+  <circle cx="55" cy="125" r="4" fill="#22d3ee" opacity="0.6"/>
+  <text x="65" y="129" fill="#64748b" font-size="9">下载项目</text>
+  <circle cx="165" cy="125" r="4" fill="#22d3ee" opacity="0.6"/>
+  <text x="175" y="129" fill="#64748b" font-size="9">配置变量</text>
+  <circle cx="285" cy="125" r="4" fill="#22d3ee" opacity="0.6"/>
+  <text x="295" y="129" fill="#64748b" font-size="9">初始化插件</text>
+  <circle cx="415" cy="125" r="4" fill="#22d3ee" opacity="0.6"/>
+  <text x="425" y="129" fill="#64748b" font-size="9">执行构建</text>
+  <circle cx="535" cy="125" r="4" fill="#34d399" opacity="0.8"/>
+  <text x="545" y="129" fill="#34d399" font-size="9">✅ 模板就绪</text>
+
+  <!-- Subtle glow line connecting steps -->
+  <line x1="55" y1="125" x2="535" y2="125" stroke="#22d3ee" stroke-width="1" opacity="0.2"/>
+
+  <!-- Footer -->
+  <text x="400" y="425" text-anchor="middle" fill="#334155" font-size="8">github.com/Pumba98/proxmox-packer-templates</text>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes Profile handbook cover</title>
+  <desc id="desc">A handbook style cover for Hermes profiles showing isolated bots, profile paths, tools, model, memory, skills and Telegram token.</desc>
+  <rect width="1200" height="630" fill="#18212b"/>
+  <rect x="54" y="48" width="1092" height="534" rx="22" fill="#f7f8f3"/>
+  <rect x="84" y="78" width="1032" height="78" rx="12" fill="#152235"/>
+  <text x="112" y="129" fill="#f9fbff" font-family="Arial, sans-serif" font-size="48" font-weight="700">Hermes Profile</text>
+  <text x="502" y="128" fill="#b7dfd4" font-family="Arial, sans-serif" font-size="30" font-weight="700">查询手册</text>
+  <text x="112" y="188" fill="#53606a" font-family="Arial, sans-serif" font-size="23">config · tools · model · memory · skills · Telegram token</text>
+
+  <rect x="96" y="236" width="268" height="208" rx="10" fill="#e6f1ec" stroke="#2f7468" stroke-width="3"/>
+  <text x="124" y="280" fill="#183f38" font-family="Arial, sans-serif" font-size="29" font-weight="700">default</text>
+  <text x="124" y="316" fill="#30564f" font-family="Arial, sans-serif" font-size="19">private assistant</text>
+  <text x="124" y="364" fill="#1e5a51" font-family="Menlo, Consolas, monospace" font-size="17">~/.hermes/config.yaml</text>
+  <text x="124" y="397" fill="#1e5a51" font-family="Menlo, Consolas, monospace" font-size="17">full tools</text>
+
+  <rect x="404" y="236" width="268" height="208" rx="10" fill="#fff3dc" stroke="#a56b18" stroke-width="3"/>
+  <text x="432" y="280" fill="#4f350c" font-family="Arial, sans-serif" font-size="29" font-weight="700">groupbot</text>
+  <text x="432" y="316" fill="#674716" font-family="Arial, sans-serif" font-size="19">group chat</text>
+  <text x="432" y="364" fill="#7a5012" font-family="Menlo, Consolas, monospace" font-size="17">profiles/groupbot</text>
+  <text x="432" y="397" fill="#7a5012" font-family="Menlo, Consolas, monospace" font-size="17">no terminal/file</text>
+
+  <rect x="712" y="236" width="388" height="208" rx="10" fill="#e8ecff" stroke="#3a56a5" stroke-width="3"/>
+  <text x="742" y="280" fill="#21376d" font-family="Arial, sans-serif" font-size="29" font-weight="700">isolated profiles</text>
+  <text x="742" y="322" fill="#2e477a" font-family="Menlo, Consolas, monospace" font-size="18">config.yaml  .env</text>
+  <text x="742" y="354" fill="#2e477a" font-family="Menlo, Consolas, monospace" font-size="18">tools       model</text>
+  <text x="742" y="386" fill="#2e477a" font-family="Menlo, Consolas, monospace" font-size="18">memory      skills</text>
+  <text x="742" y="418" fill="#2e477a" font-family="Menlo, Consolas, monospace" font-size="18">gateway     token</text>
+
+  <rect x="96" y="488" width="1004" height="48" rx="24" fill="#152235"/>
+  <text x="598" y="519" text-anchor="middle" fill="#f7fbff" font-family="Menlo, Consolas, monospace" font-size="22">hermes -p groupbot tools disable terminal</text>
+</svg>

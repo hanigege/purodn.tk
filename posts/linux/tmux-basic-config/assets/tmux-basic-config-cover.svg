@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">tmux basic config cover</title>
+  <desc id="desc">A terminal inspired cover for a tmux configuration article.</desc>
+  <rect width="1600" height="900" fill="#10151f"/>
+  <rect x="120" y="110" width="1360" height="680" rx="24" fill="#1f2430"/>
+  <rect x="120" y="110" width="1360" height="72" rx="24" fill="#2b313d"/>
+  <circle cx="172" cy="146" r="14" fill="#e06c75"/>
+  <circle cx="216" cy="146" r="14" fill="#e5c07b"/>
+  <circle cx="260" cy="146" r="14" fill="#98c379"/>
+  <rect x="168" y="236" width="390" height="52" rx="8" fill="#61afef"/>
+  <text x="196" y="270" fill="#10151f" font-family="Menlo, Consolas, monospace" font-size="28" font-weight="700">session: main</text>
+  <rect x="168" y="326" width="1264" height="2" fill="#3b4252"/>
+  <text x="168" y="390" fill="#abb2bf" font-family="Menlo, Consolas, monospace" font-size="34">set -g mouse on</text>
+  <text x="168" y="452" fill="#abb2bf" font-family="Menlo, Consolas, monospace" font-size="34">setw -g mode-keys vi</text>
+  <text x="168" y="514" fill="#abb2bf" font-family="Menlo, Consolas, monospace" font-size="34">set -s set-clipboard on</text>
+  <text x="168" y="576" fill="#abb2bf" font-family="Menlo, Consolas, monospace" font-size="34">bind r source-file ~/.tmux.conf</text>
+  <rect x="168" y="650" width="1264" height="64" rx="8" fill="#282c34"/>
+  <text x="196" y="692" fill="#61afef" font-family="Menlo, Consolas, monospace" font-size="30" font-weight="700">Ctrl+a</text>
+  <text x="320" y="692" fill="#abb2bf" font-family="Menlo, Consolas, monospace" font-size="30"> windows · panes · copy-mode · reload</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">SMG4004 gateway</title>
+  <desc id="desc">A GSM gateway connected to FreePBX with SIP routing.</desc>
+  <rect width="1280" height="720" fill="#101820"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="96" y="142" fill="#f8fafc" font-size="52" font-weight="700">SMG4004 对接 FreePBX</text>
+    <text x="100" y="190" fill="#fde68a" font-size="26">GSM Gateway - SIP Trunk - Mobile Calls</text>
+  </g>
+  <g stroke="#38bdf8" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M372 390 H594"/>
+    <path d="M758 390 H982"/>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" text-anchor="middle" font-weight="700">
+    <rect x="140" y="288" width="232" height="204" rx="16" fill="#172554" stroke="#60a5fa" stroke-width="4"/>
+    <rect x="178" y="326" width="46" height="80" rx="6" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+    <rect x="234" y="326" width="46" height="80" rx="6" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+    <rect x="290" y="326" width="46" height="80" rx="6" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+    <circle cx="200" cy="444" r="8" fill="#22c55e"/>
+    <circle cx="256" cy="444" r="8" fill="#22c55e"/>
+    <circle cx="312" cy="444" r="8" fill="#22c55e"/>
+    <text x="256" y="540" fill="#f8fafc" font-size="25">SIM 语音网关</text>
+    <rect x="594" y="276" width="164" height="228" rx="16" fill="#020617" stroke="#38bdf8" stroke-width="4"/>
+    <circle cx="676" cy="364" r="48" fill="#1d4ed8"/>
+    <text x="676" y="540" fill="#f8fafc" font-size="25">FreePBX</text>
+    <rect x="982" y="308" width="158" height="164" rx="22" fill="#1f2937" stroke="#34d399" stroke-width="4"/>
+    <path d="M1040 350 C1016 378 1038 426 1082 432" stroke="#bbf7d0" stroke-width="10" fill="none"/>
+    <text x="1061" y="540" fill="#f8fafc" font-size="25">SIP 分机</text>
+  </g>
+</svg>

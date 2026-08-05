@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Micro on Jay's Blog</title><link>https://purodn.tk/tags/micro/</link><description>Recent content in Micro on Jay's Blog</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 02 Aug 2026 12:25:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/micro/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 终端连接 Ubuntu 使用 Micro 编辑器完整教程：安装、配置、插件与乱码解决</title><link>https://purodn.tk/posts/linux/ubuntu-micro-editor-mac-terminal-guide/</link><pubDate>Sun, 02 Aug 2026 12:25:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-micro-editor-mac-terminal-guide/</guid><description>在 Mac 上通过终端连接远端 Ubuntu 使用 Micro 编辑器是一个非常棒的选择。Micro 的设计初衷就是为了让习惯 GUI（如 VS Code）的用户在终端里也能拥有几乎一致的操作体验。
+以下是一套完整的从安装到深度优化的教程，旨在让你的 Micro 像原生编辑器一样好用。
+1. 安装（在 Ubuntu 远端） 连接到远端 Ubuntu 后，建议使用官方脚本或 apt 安装：
+官方脚本（推荐，版本最新）：
+复制curl https://getmic.ro | bash sudo mv micro /usr/local/bin/ 或者使用 APT：
+复制sudo apt update &amp;amp;&amp;amp; sudo apt install micro 2. 核心配置：让它更好用 Micro 的配置文件位于 ~/.config/micro/settings.json。你可以直接在 Micro 中按 Ctrl+E（进入命令模式）然后输入 set &amp;lt;选项名&amp;gt; &amp;lt;值&amp;gt; 来修改，或者手动编辑配置文件。
+推荐开启的设置 输入：
+复制micro ~/.config/micro/settings.json 写入以下内容：
+复制{ &amp;#34;colorscheme&amp;#34;: &amp;#34;simple&amp;#34;, &amp;#34;mouse&amp;#34;: true, &amp;#34;saveundo&amp;#34;: true, &amp;#34;tabsize&amp;#34;: 4, &amp;#34;tabstospaces&amp;#34;: true, &amp;#34;autoindent&amp;#34;: true, &amp;#34;cursorline&amp;#34;: true, &amp;#34;ruler&amp;#34;: true, &amp;#34;clipboard&amp;#34;: &amp;#34;terminal&amp;#34; } clipboard: terminal：这是最关键的一步！它通过 OSC 52 协议让远端 Ubuntu 的剪贴板与你的 Mac 物理机共享。 mouse: true：开启鼠标支持。你可以直接用鼠标点击移动光标、滚动页面甚至拖拽选中代码。 3.</description></item></channel></rss>

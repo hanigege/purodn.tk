@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">FreeBSD trzsz-go install cover</title>
+  <desc id="desc">A technical cover for installing trz and tsz into /usr/local/bin on FreeBSD.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1720"/>
+      <stop offset="0.5" stop-color="#1d2d36"/>
+      <stop offset="1" stop-color="#243b45"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d9483f"/>
+      <stop offset="1" stop-color="#f2b84b"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="70" y="66" width="1060" height="498" rx="28" fill="#101820" stroke="#365260" stroke-width="2" filter="url(#shadow)"/>
+
+  <g transform="translate(110 104)">
+    <circle cx="76" cy="76" r="66" fill="#d9483f"/>
+    <circle cx="54" cy="52" r="17" fill="#fff"/>
+    <circle cx="98" cy="52" r="17" fill="#fff"/>
+    <path d="M42 99c18 23 50 23 68 0" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+    <path d="M24 24L0 0M128 24l24-24" stroke="#d9483f" stroke-width="16" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(290 112)" font-family="Arial, 'Noto Sans CJK SC', sans-serif">
+    <text x="0" y="52" fill="#ffffff" font-size="52" font-weight="700">FreeBSD 安装 trzsz-go</text>
+    <text x="0" y="110" fill="#d7e4e8" font-size="30">trz / tsz 直接放到 /usr/local/bin</text>
+  </g>
+
+  <g transform="translate(125 300)" font-family="Menlo, Consolas, monospace">
+    <rect x="0" y="0" width="950" height="158" rx="16" fill="#17242c" stroke="#3b5a66"/>
+    <text x="34" y="52" fill="#f2b84b" font-size="25">env GOBIN=/usr/local/bin go install .../cmd/trz@latest</text>
+    <text x="34" y="96" fill="#9edbd0" font-size="25">env GOBIN=/usr/local/bin go install .../cmd/tsz@latest</text>
+    <text x="34" y="140" fill="#ffffff" font-size="25">/usr/local/bin/trz  /usr/local/bin/tsz</text>
+  </g>
+
+  <rect x="125" y="500" width="260" height="48" rx="24" fill="url(#bar)"/>
+  <text x="153" y="532" fill="#ffffff" font-family="Arial, 'Noto Sans CJK SC', sans-serif" font-size="24" font-weight="700">Go CLI 工具安装</text>
+</svg>

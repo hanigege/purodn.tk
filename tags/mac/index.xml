@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Mac on Jay's Blog</title><link>https://purodn.tk/tags/mac/</link><description>Recent content in Mac on Jay's Blog</description><generator>Hugo</generator><language>zh-cn</language><lastBuildDate>Sun, 02 Aug 2026 12:25:04 +0800</lastBuildDate><atom:link href="https://purodn.tk/tags/mac/index.xml" rel="self" type="application/rss+xml"/><item><title>Mac 终端连接 Ubuntu 使用 Micro 编辑器完整教程：安装、配置、插件与乱码解决</title><link>https://purodn.tk/posts/linux/ubuntu-micro-editor-mac-terminal-guide/</link><pubDate>Sun, 02 Aug 2026 12:25:04 +0800</pubDate><guid>https://purodn.tk/posts/linux/ubuntu-micro-editor-mac-terminal-guide/</guid><description>在 Mac 上通过终端连接远端 Ubuntu 使用 Micro 编辑器是一个非常棒的选择。Micro 的设计初衷就是为了让习惯 GUI（如 VS Code）的用户在终端里也能拥有几乎一致的操作体验。
+以下是一套完整的从安装到深度优化的教程，旨在让你的 Micro 像原生编辑器一样好用。
+1. 安装（在 Ubuntu 远端） 连接到远端 Ubuntu 后，建议使用官方脚本或 apt 安装：
+官方脚本（推荐，版本最新）：
+复制curl https://getmic.ro | bash sudo mv micro /usr/local/bin/ 或者使用 APT：
+复制sudo apt update &amp;amp;&amp;amp; sudo apt install micro 2. 核心配置：让它更好用 Micro 的配置文件位于 ~/.config/micro/settings.json。你可以直接在 Micro 中按 Ctrl+E（进入命令模式）然后输入 set &amp;lt;选项名&amp;gt; &amp;lt;值&amp;gt; 来修改，或者手动编辑配置文件。
+推荐开启的设置 输入：
+复制micro ~/.config/micro/settings.json 写入以下内容：
+复制{ &amp;#34;colorscheme&amp;#34;: &amp;#34;simple&amp;#34;, &amp;#34;mouse&amp;#34;: true, &amp;#34;saveundo&amp;#34;: true, &amp;#34;tabsize&amp;#34;: 4, &amp;#34;tabstospaces&amp;#34;: true, &amp;#34;autoindent&amp;#34;: true, &amp;#34;cursorline&amp;#34;: true, &amp;#34;ruler&amp;#34;: true, &amp;#34;clipboard&amp;#34;: &amp;#34;terminal&amp;#34; } clipboard: terminal：这是最关键的一步！它通过 OSC 52 协议让远端 Ubuntu 的剪贴板与你的 Mac 物理机共享。 mouse: true：开启鼠标支持。你可以直接用鼠标点击移动光标、滚动页面甚至拖拽选中代码。 3.</description></item><item><title>Mac 本地文件夹与 GitHub 仓库一键同步完整教程</title><link>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</link><pubDate>Sat, 13 Jun 2026 11:34:12 +0800</pubDate><guid>https://purodn.tk/posts/linux/mac-folder-github-one-click-sync/</guid><description>这篇文章适合完全没用过 Git 的 Mac 用户。目标很简单：准备一个本地文件夹，把想同步的文件都放进去，以后运行一个脚本，就能自动提交并推送到 GitHub。
+最终效果是：
+复制/Users/mana/Documents/codex/file/ 本地同步文件夹 git@github.com:hanigege/file.git GitHub 远程仓库 push.sh 一键同步脚本 日常只需要做两件事：
+复制cd /Users/mana/Documents/codex/file ./push.sh 脚本会先从 GitHub 拉取远程更新，再检查本地文件变化，最后自动提交并推送。
+准备工作 Mac 上需要先具备 Git 和 SSH 访问 GitHub 的能力。
+先在终端检查 Git：
+复制git --version 如果系统提示安装 Command Line Tools，按提示安装即可。安装完成后，再运行一次 git --version 确认 Git 可用。
+然后确认当前 Mac 能通过 SSH 连接 GitHub：
+复制ssh -T git@github.com 如果看到类似 successfully authenticated 的提示，说明 SSH 已经配置好。这里不要求进入远程 shell，GitHub 只需要确认你的密钥身份。
+在 GitHub 创建空仓库 打开 GitHub 网站，点击右上角的 +，选择 New repository。
+仓库名称填写：</description></item></channel></rss>

@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1b2330"/>
+      <stop offset="55%" stop-color="#161d28"/>
+      <stop offset="100%" stop-color="#111722"/>
+    </linearGradient>
+    <linearGradient id="tunnel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4d8dd8" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#5fa5e8" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#4d8dd8" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="http" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c8873a" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#dba055" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#c8873a" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#232d3d"/>
+      <stop offset="100%" stop-color="#1a2230"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g stroke="#2a3547" stroke-width="1" opacity="0.35">
+    <path d="M0 130 H1200 M0 300 H1200 M0 470 H1200"/>
+    <path d="M300 0 V630 M600 0 V630 M900 0 V630"/>
+  </g>
+  <rect x="0" y="0" width="1200" height="5" fill="#5fa5e8" opacity="0.65"/>
+
+  <!-- Mac client -->
+  <g transform="translate(96,232)">
+    <rect x="0" y="0" width="228" height="150" rx="12" fill="url(#card)" stroke="#3b4a61" stroke-width="2"/>
+    <rect x="18" y="18" width="192" height="98" rx="6" fill="#0f1620" stroke="#33415a" stroke-width="1.5"/>
+    <circle cx="34" cy="33" r="4.5" fill="#e05c56"/>
+    <circle cx="50" cy="33" r="4.5" fill="#dba055"/>
+    <circle cx="66" cy="33" r="4.5" fill="#63b06a"/>
+    <rect x="32" y="52" width="120" height="8" rx="4" fill="#3d4d66"/>
+    <rect x="32" y="70" width="88" height="8" rx="4" fill="#334158"/>
+    <rect x="32" y="88" width="140" height="8" rx="4" fill="#2f3d53"/>
+    <rect x="70" y="128" width="88" height="7" rx="3.5" fill="#3b4a61"/>
+    <text x="114" y="182" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="23" font-weight="600" fill="#e8edf5" text-anchor="middle">Hermes One</text>
+    <text x="114" y="210" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" fill="#8496ae" text-anchor="middle">MacBook Air</text>
+  </g>
+
+  <!-- SSH tunnel -->
+  <g>
+    <rect x="352" y="252" width="424" height="34" rx="17" fill="url(#tunnel)"/>
+    <text x="564" y="238" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="19" font-weight="600" fill="#7fbcf0" text-anchor="middle">SSH tunnel  →  127.0.0.1:8642</text>
+    <text x="564" y="277" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#cfe2f6" text-anchor="middle">ssh -L 18642:127.0.0.1:8642</text>
+  </g>
+
+  <!-- HTTP direct -->
+  <g>
+    <rect x="352" y="356" width="424" height="30" rx="15" fill="url(#http)"/>
+    <text x="564" y="378" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#f2ddc0" text-anchor="middle">http://&lt;ip&gt;:8642  +  Bearer token</text>
+    <text x="564" y="412" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#c8873a" text-anchor="middle">HTTP 直连（需 API_SERVER_HOST=0.0.0.0）</text>
+  </g>
+
+  <!-- Server -->
+  <g transform="translate(804,222)">
+    <rect x="0" y="0" width="300" height="170" rx="12" fill="url(#card)" stroke="#3b4a61" stroke-width="2"/>
+    <g fill="#0f1620" stroke="#33415a" stroke-width="1.5">
+      <rect x="22" y="22" width="256" height="38" rx="6"/>
+      <rect x="22" y="70" width="256" height="38" rx="6"/>
+    </g>
+    <circle cx="44" cy="41" r="5" fill="#63b06a"/>
+    <circle cx="44" cy="89" r="5" fill="#5fa5e8"/>
+    <text x="64" y="47" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="15" fill="#a9bcd4">hermes-gateway</text>
+    <text x="64" y="95" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="15" fill="#a9bcd4">api_server :8642</text>
+    <rect x="22" y="122" width="256" height="26" rx="5" fill="#1d2635" stroke="#33415a" stroke-width="1.2"/>
+    <text x="150" y="140" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14" fill="#7f92aa" text-anchor="middle">~/.hermes/.env</text>
+    <text x="150" y="202" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="23" font-weight="600" fill="#e8edf5" text-anchor="middle">Hermes Agent</text>
+    <text x="150" y="230" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" fill="#8496ae" text-anchor="middle">Linux VM · 内网</text>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="92" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="43" font-weight="700" fill="#f2f6fb" text-anchor="middle">桌面客户端远程连接 Hermes Agent</text>
+  <text x="600" y="136" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#93a6be" text-anchor="middle">SSH 隧道 与 HTTP 直连 · 两种方式完整配置</text>
+
+  <!-- Pitfall strip -->
+  <g transform="translate(0,506)">
+    <rect x="96" y="0" width="1008" height="74" rx="10" fill="#221d16" stroke="#5c4a2e" stroke-width="1.5"/>
+    <text x="126" y="32" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" font-weight="600" fill="#dba055">两个致命坑</text>
+    <text x="126" y="58" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#bda98a">chmod 700 ~/.ssh  ·  客户端会覆写 API_SERVER_KEY</text>
+  </g>
+</svg>

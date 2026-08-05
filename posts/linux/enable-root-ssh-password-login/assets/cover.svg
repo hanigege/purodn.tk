@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Linux root SSH password login</title>
+  <desc id="desc">A terminal themed cover showing SSH access, a root prompt, and a server lock.</desc>
+  <rect width="1200" height="630" fill="#101820"/>
+  <rect x="88" y="86" width="1024" height="458" rx="22" fill="#16232f" stroke="#2f4f5f" stroke-width="3"/>
+  <rect x="88" y="86" width="1024" height="72" rx="22" fill="#20313f"/>
+  <circle cx="132" cy="122" r="12" fill="#ff5f57"/>
+  <circle cx="172" cy="122" r="12" fill="#ffbd2e"/>
+  <circle cx="212" cy="122" r="12" fill="#28c840"/>
+  <text x="124" y="225" fill="#9ad7ff" font-family="Menlo, Consolas, monospace" font-size="34">root@server:~# sshd -t</text>
+  <text x="124" y="285" fill="#d6f5e3" font-family="Menlo, Consolas, monospace" font-size="34">PermitRootLogin yes</text>
+  <text x="124" y="345" fill="#d6f5e3" font-family="Menlo, Consolas, monospace" font-size="34">PasswordAuthentication yes</text>
+  <text x="124" y="405" fill="#ffd98a" font-family="Menlo, Consolas, monospace" font-size="34">systemctl restart ssh</text>
+  <g transform="translate(815 226)">
+    <rect x="0" y="106" width="170" height="138" rx="22" fill="#f0b84f"/>
+    <path d="M40 106V70C40 30 70 0 116 0s76 30 76 70v36h-34V70c0-22-15-38-42-38S74 48 74 70v36z" fill="#f0b84f"/>
+    <circle cx="85" cy="170" r="18" fill="#101820"/>
+    <rect x="78" y="184" width="14" height="38" rx="7" fill="#101820"/>
+  </g>
+  <text x="124" y="496" fill="#ffffff" font-family="Arial, sans-serif" font-size="46" font-weight="700">Linux 临时开启 root 密码 SSH 登录</text>
+</svg>

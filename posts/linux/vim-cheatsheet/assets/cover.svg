@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#21252b"/>
+      <stop offset="50%" stop-color="#2c313a"/>
+      <stop offset="100%" stop-color="#21252b"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#98c379" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#61afef" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g stroke="#3b4252" stroke-width="0.5" opacity="0.3">
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="450"/>
+    <line x1="400" y1="0" x2="400" y2="450"/>
+    <line x1="600" y1="0" x2="600" y2="450"/>
+  </g>
+
+  <!-- Glow behind editor window -->
+  <ellipse cx="300" cy="220" rx="280" ry="170" fill="url(#glow)"/>
+
+  <!-- Main editor window -->
+  <rect x="40" y="80" width="480" height="280" rx="8" fill="#1e222a" stroke="#4b5263" stroke-width="1.5"/>
+  <!-- Title bar -->
+  <rect x="40" y="80" width="480" height="32" rx="8" fill="#2c313a"/>
+  <rect x="40" y="100" width="480" height="12" fill="#2c313a"/>
+  <circle cx="62" cy="96" r="5" fill="#e06c75"/>
+  <circle cx="80" cy="96" r="5" fill="#e5c07b"/>
+  <circle cx="98" cy="96" r="5" fill="#98c379"/>
+  <text x="280" y="101" fill="#6b7280" font-family="monospace" font-size="12" text-anchor="middle">VIM - Vi IMproved 9.1    config.conf</text>
+
+  <!-- Editor text lines with line numbers -->
+  <g font-family="monospace" font-size="13">
+    <text x="60" y="140" fill="#4b5263">1</text>
+    <text x="86" y="140" fill="#c678dd">server</text>
+    <text x="130" y="140" fill="#abb2bf"> {</text>
+    <text x="60" y="162" fill="#4b5263">2</text>
+    <text x="86" y="162" fill="#e06c75">listen</text>
+    <text x="140" y="162" fill="#98c379"> 80;</text>
+    <text x="60" y="184" fill="#4b5263">3</text>
+    <text x="86" y="184" fill="#e06c75">server_name</text>
+    <text x="175" y="184" fill="#98c379"> example.com;</text>
+    <text x="60" y="206" fill="#4b5263">4</text>
+    <text x="86" y="206" fill="#e06c75">root</text>
+    <text x="120" y="206" fill="#98c379"> /var/www/html;</text>
+    <text x="60" y="228" fill="#4b5263">5</text>
+    <text x="86" y="228" fill="#c678dd">}</text>
+  </g>
+
+  <!-- Cursor block on line 4 -->
+  <rect x="120" y="194" width="12" height="16" fill="#98c379" opacity="0.35"/>
+
+  <!-- Bottom command line -->
+  <rect x="40" y="315" width="480" height="45" fill="#161a1f" stroke="#4b5263" stroke-width="0.8"/>
+  <text x="56" y="342" fill="#61afef" font-family="monospace" font-size="13">:%s/old/new/g</text>
+  <text x="240" y="342" fill="#5c6370" font-family="monospace" font-size="12">| 全文件替换</text>
+
+  <!-- Right side: shortcut chips -->
+  <g font-family="monospace" font-size="13">
+    <rect x="560" y="100" width="200" height="36" rx="6" fill="#1e3a2b" stroke="#98c379" stroke-width="1"/>
+    <text x="580" y="123" fill="#98c379">ggVG</text>
+    <text x="636" y="123" fill="#e2e8f0">全选</text>
+
+    <rect x="560" y="148" width="200" height="36" rx="6" fill="#1e3347" stroke="#61afef" stroke-width="1"/>
+    <text x="580" y="171" fill="#61afef">:%s/old/new/g</text>
+    <text x="702" y="171" fill="#e2e8f0">全文替换</text>
+
+    <rect x="560" y="196" width="200" height="36" rx="6" fill="#2b2340" stroke="#c678dd" stroke-width="1"/>
+    <text x="580" y="219" fill="#c678dd">yy p</text>
+    <text x="636" y="219" fill="#e2e8f0">复制粘贴</text>
+
+    <rect x="560" y="244" width="200" height="36" rx="6" fill="#3a2527" stroke="#e06c75" stroke-width="1"/>
+    <text x="580" y="267" fill="#e06c75">/pattern</text>
+    <text x="660" y="267" fill="#e2e8f0">查找 n/N</text>
+
+    <rect x="560" y="292" width="200" height="36" rx="6" fill="#3a2f14" stroke="#e5c07b" stroke-width="1"/>
+    <text x="580" y="315" fill="#e5c07b">u Ctrl+R</text>
+    <text x="662" y="315" fill="#e2e8f0">撤销重做</text>
+
+    <rect x="560" y="340" width="200" height="36" rx="6" fill="#1e3a2b" stroke="#98c379" stroke-width="1"/>
+    <text x="580" y="363" fill="#98c379">:wq</text>
+    <text x="624" y="363" fill="#e2e8f0">保存退出</text>
+  </g>
+
+  <!-- Title -->
+  <text x="400" y="408" fill="#e2e8f0" font-family="sans-serif" font-size="28" font-weight="bold" text-anchor="middle" letter-spacing="2">vim 编辑器速查</text>
+  <text x="400" y="432" fill="#6b7280" font-family="sans-serif" font-size="14" text-anchor="middle" letter-spacing="1">模式 · 查找替换 · 复制粘贴 · Vim Editor Cheatsheet</text>
+</svg>

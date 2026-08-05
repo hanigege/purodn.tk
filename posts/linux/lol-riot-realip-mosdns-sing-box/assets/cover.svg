@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#111827"/>
+  <rect x="96" y="96" width="1408" height="708" rx="28" fill="#0b1220" stroke="#334155" stroke-width="4"/>
+  <circle cx="290" cy="270" r="92" fill="#ef4444"/>
+  <path d="M290 180 C340 220 350 290 290 356 C230 290 240 220 290 180Z" fill="#fee2e2"/>
+  <path d="M290 214 L317 262 L369 274 L327 308 L338 360 L290 334 L242 360 L253 308 L211 274 L263 262 Z" fill="#fde68a"/>
+  <rect x="432" y="194" width="720" height="56" rx="10" fill="#1f2937"/>
+  <rect x="432" y="286" width="560" height="36" rx="8" fill="#374151"/>
+  <rect x="432" y="344" width="660" height="36" rx="8" fill="#374151"/>
+  <rect x="432" y="402" width="500" height="36" rx="8" fill="#374151"/>
+  <rect x="432" y="512" width="270" height="118" rx="18" fill="#2563eb"/>
+  <rect x="730" y="512" width="270" height="118" rx="18" fill="#0f766e"/>
+  <rect x="1028" y="512" width="270" height="118" rx="18" fill="#475569"/>
+  <text x="432" y="170" fill="#e5e7eb" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="66" font-weight="700">LoL Real-IP Routing</text>
+  <text x="432" y="770" fill="#94a3b8" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="34">mosdns · sing-box · Riot · fake-ip · direct</text>
+</svg>

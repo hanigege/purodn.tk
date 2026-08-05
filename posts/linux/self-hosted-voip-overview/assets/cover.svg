@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Self-hosted VoIP overview</title>
+  <desc id="desc">A network diagram style cover for SIM gateway, FreePBX, SIP clients, and Telegram.</desc>
+  <rect width="1280" height="720" fill="#111827"/>
+  <path d="M0 620 C220 540 360 670 560 590 C780 500 920 610 1280 510 L1280 720 L0 720 Z" fill="#0f766e" opacity="0.45"/>
+  <path d="M0 96 H1280" stroke="#334155" stroke-width="2" opacity="0.45"/>
+  <path d="M0 624 H1280" stroke="#334155" stroke-width="2" opacity="0.45"/>
+  <g fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+    <path d="M288 360 H468"/>
+    <path d="M612 360 H792"/>
+    <path d="M936 360 H1092"/>
+    <path d="M640 410 V510 H850"/>
+  </g>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="90" y="130" fill="#f8fafc" font-size="54" font-weight="700">出国自建 VoIP</text>
+    <text x="94" y="178" fill="#bae6fd" font-size="26">SIM Gateway - FreePBX - SIP - Telegram</text>
+  </g>
+  <g font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" text-anchor="middle">
+    <rect x="122" y="284" width="166" height="152" rx="14" fill="#1f2937" stroke="#5eead4" stroke-width="3"/>
+    <rect x="168" y="318" width="74" height="72" rx="10" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+    <path d="M190 334 H220 M190 352 H220 M190 370 H220" stroke="#facc15" stroke-width="4"/>
+    <text x="205" y="476" fill="#f8fafc">SIM 网关</text>
+    <rect x="468" y="266" width="172" height="188" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+    <circle cx="554" cy="334" r="42" fill="#1d4ed8"/>
+    <path d="M526 352 C546 312 565 312 584 352" stroke="#e0f2fe" stroke-width="8" fill="none"/>
+    <text x="554" y="476" fill="#f8fafc">FreePBX</text>
+    <rect x="792" y="284" width="158" height="152" rx="14" fill="#1f2937" stroke="#a78bfa" stroke-width="3"/>
+    <path d="M846 330 C884 292 934 338 894 378 C872 400 844 390 832 366" stroke="#ddd6fe" stroke-width="8" fill="none"/>
+    <text x="871" y="476" fill="#f8fafc">SIP 客户端</text>
+    <rect x="1092" y="294" width="122" height="132" rx="20" fill="#0ea5e9" stroke="#e0f2fe" stroke-width="3"/>
+    <path d="M1122 360 L1186 332 L1160 398 L1148 372 Z" fill="#f8fafc"/>
+    <text x="1153" y="476" fill="#f8fafc">Telegram</text>
+  </g>
+</svg>

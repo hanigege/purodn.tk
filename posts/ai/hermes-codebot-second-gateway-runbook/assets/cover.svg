@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes Codebot Gateway Runbook</title>
+  <desc id="desc">A technical cover showing two Telegram gateway paths, environment variables, systemd, and validation checks.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10263a"/>
+      <stop offset="0.55" stop-color="#16475a"/>
+      <stop offset="1" stop-color="#1c5f51"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fbff"/>
+      <stop offset="1" stop-color="#dff7ee"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#06131d" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 520 C180 470 260 610 430 555 C580 505 660 430 840 480 C1010 528 1060 440 1200 470 L1200 630 L0 630 Z" fill="#7bd3aa" opacity="0.2"/>
+  <path d="M92 92 H1108 V538 H92 Z" rx="28" fill="url(#card)" filter="url(#shadow)"/>
+  <rect x="132" y="132" width="330" height="130" rx="18" fill="#163448"/>
+  <rect x="132" y="298" width="330" height="130" rx="18" fill="#163448"/>
+  <text x="164" y="184" font-family="Menlo, Consolas, monospace" font-size="30" fill="#b6e7ff">default gateway</text>
+  <text x="164" y="222" font-family="Menlo, Consolas, monospace" font-size="22" fill="#e8f6ff">~/.hermes/.env</text>
+  <text x="164" y="350" font-family="Menlo, Consolas, monospace" font-size="30" fill="#b6e7ff">codebot gateway</text>
+  <text x="164" y="388" font-family="Menlo, Consolas, monospace" font-size="22" fill="#e8f6ff">profiles/codebot/.env</text>
+  <path d="M492 198 H680" stroke="#2d6cdf" stroke-width="12" stroke-linecap="round"/>
+  <path d="M492 364 H680" stroke="#2d6cdf" stroke-width="12" stroke-linecap="round"/>
+  <path d="M650 174 L700 198 L650 222 Z" fill="#2d6cdf"/>
+  <path d="M650 340 L700 364 L650 388 Z" fill="#2d6cdf"/>
+  <rect x="718" y="128" width="348" height="314" rx="24" fill="#ffffff"/>
+  <text x="754" y="184" font-family="Menlo, Consolas, monospace" font-size="25" fill="#12324a">systemd --user</text>
+  <text x="754" y="234" font-family="Menlo, Consolas, monospace" font-size="23" fill="#256d57">check service</text>
+  <text x="754" y="274" font-family="Menlo, Consolas, monospace" font-size="23" fill="#256d57">dedupe .env</text>
+  <text x="754" y="314" font-family="Menlo, Consolas, monospace" font-size="23" fill="#256d57">allow Telegram ID</text>
+  <text x="754" y="354" font-family="Menlo, Consolas, monospace" font-size="23" fill="#256d57">load API key</text>
+  <text x="754" y="394" font-family="Menlo, Consolas, monospace" font-size="23" fill="#256d57">/sethome</text>
+  <circle cx="724" cy="224" r="8" fill="#33b27f"/>
+  <circle cx="724" cy="264" r="8" fill="#33b27f"/>
+  <circle cx="724" cy="304" r="8" fill="#33b27f"/>
+  <circle cx="724" cy="344" r="8" fill="#33b27f"/>
+  <circle cx="724" cy="384" r="8" fill="#33b27f"/>
+  <text x="132" y="505" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="44" font-weight="700" fill="#10263a">Hermes Codebot 第二个 Gateway 复盘</text>
+  <text x="132" y="552" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="25" fill="#315467">从默认网关到 codebot profile 的可复用排障清单</text>
+</svg>

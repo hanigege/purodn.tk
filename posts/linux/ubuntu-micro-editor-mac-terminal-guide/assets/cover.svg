@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f2027"/>
+      <stop offset="50%" stop-color="#203a43"/>
+      <stop offset="100%" stop-color="#2c5364"/>
+    </linearGradient>
+    <linearGradient id="term" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2a38"/>
+      <stop offset="100%" stop-color="#141c26"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Terminal window -->
+  <rect x="180" y="120" width="840" height="420" rx="12" fill="url(#term)" stroke="#3a4a5c" stroke-width="2"/>
+  <!-- Title bar -->
+  <rect x="180" y="120" width="840" height="40" rx="12" fill="#0d141c"/>
+  <rect x="180" y="145" width="840" height="15" fill="#0d141c"/>
+  <circle cx="215" cy="140" r="7" fill="#ff5f56"/>
+  <circle cx="240" cy="140" r="7" fill="#ffbd2e"/>
+  <circle cx="265" cy="140" r="7" fill="#27c93f"/>
+  <text x="600" y="146" font-family="Menlo, monospace" font-size="16" fill="#8fa3b8" text-anchor="middle">micro — ubuntu @ mac</text>
+  <!-- Code lines -->
+  <g font-family="Menlo, monospace" font-size="22">
+    <text x="220" y="200" fill="#7ee787">$ ssh user@ubuntu</text>
+    <text x="220" y="240" fill="#c9d1d9">$ micro settings.json</text>
+    <text x="220" y="290" fill="#79c0ff">{</text>
+    <text x="220" y="325" fill="#79c0ff">  "clipboard": <tspan fill="#a5d6ff">"terminal"</tspan>,</text>
+    <text x="220" y="360" fill="#79c0ff">  "mouse": <tspan fill="#ff9e64">true</tspan></text>
+    <text x="220" y="395" fill="#79c0ff">}</text>
+    <text x="220" y="445" fill="#7ee787">Ctrl-A · Ctrl-C ⌘V</text>
+    <text x="220" y="490" fill="#8fa3b8">— Shift+方向键乱码修复</text>
+  </g>
+  <!-- Cursor -->
+  <rect x="600" y="468" width="14" height="26" fill="#7ee787">
+    <animate attributeName="opacity" values="1;0;1" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+  <!-- Title -->
+  <text x="600" y="600" font-family="Helvetica, Arial, sans-serif" font-size="34" font-weight="bold" fill="#ffffff" text-anchor="middle">Micro 终端编辑器 · Mac → Ubuntu 完整教程</text>
+</svg>

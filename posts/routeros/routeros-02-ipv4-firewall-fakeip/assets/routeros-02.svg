@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">RouterOS IPv4 防火墙与 fakeip</title>
+  <desc id="desc">防火墙规则教程封面插图</desc>
+  <rect width="1200" height="675" fill="#111827"/>
+  <path d="M600 90 930 215v170c0 150-120 235-330 290-210-55-330-140-330-290V215Z" fill="#1f2937" stroke="#ef4444" stroke-width="9"/>
+  <path d="M435 350h330" stroke="#f97316" stroke-width="18" stroke-linecap="round"/>
+  <path d="M600 185v360" stroke="#38bdf8" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="600" cy="350" r="82" fill="#0f172a" stroke="#22c55e" stroke-width="8"/>
+  <text x="80" y="120" fill="#f97316" font-family="Arial, sans-serif" font-size="40" font-weight="800">IPv4 Firewall</text>
+  <text x="80" y="555" fill="#fff" font-family="Arial, sans-serif" font-size="62" font-weight="800">防火墙与 fakeip</text>
+  <text x="84" y="610" fill="#94a3b8" font-family="Arial, sans-serif" font-size="32" font-weight="700">规则顺序 / 放行策略 / 排障检查</text>
+</svg>

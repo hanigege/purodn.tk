@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">FreeBSD sudo root password cover</title>
+  <desc id="desc">A FreeBSD themed terminal and lock illustration for sudo configured to ask root password.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10222a"/>
+      <stop offset="0.55" stop-color="#17353b"/>
+      <stop offset="1" stop-color="#2b1f2a"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#203f45"/>
+      <stop offset="1" stop-color="#13262b"/>
+    </linearGradient>
+    <linearGradient id="lock" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1d083"/>
+      <stop offset="1" stop-color="#d59b38"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <path d="M0 518 C190 465 308 564 472 520 C646 474 710 345 900 382 C1050 411 1115 520 1280 472 L1280 720 L0 720 Z" fill="#244d4f" opacity="0.5"/>
+  <path d="M0 605 C188 560 342 622 502 583 C683 539 801 497 1000 555 C1116 588 1194 623 1280 600 L1280 720 L0 720 Z" fill="#0d181b" opacity="0.62"/>
+
+  <g transform="translate(126 128)" filter="url(#shadow)">
+    <rect x="0" y="0" width="710" height="456" rx="22" fill="url(#panel)" stroke="#77a4a6" stroke-opacity="0.28"/>
+    <rect x="0" y="0" width="710" height="58" rx="22" fill="#0c171a"/>
+    <path d="M0 38 H710 V58 H0 Z" fill="#0c171a"/>
+    <circle cx="35" cy="29" r="8" fill="#e36b5d"/>
+    <circle cx="64" cy="29" r="8" fill="#e6bd54"/>
+    <circle cx="93" cy="29" r="8" fill="#72c26c"/>
+
+    <text x="42" y="124" fill="#98d4d0" font-family="Menlo, Consolas, monospace" font-size="28">freebsd$ sudo pkg install sudo</text>
+    <text x="42" y="176" fill="#f1d083" font-family="Menlo, Consolas, monospace" font-size="28">root's password:</text>
+    <rect x="42" y="205" width="585" height="2" fill="#77a4a6" opacity="0.28"/>
+    <text x="42" y="268" fill="#d9f1ec" font-family="Menlo, Consolas, monospace" font-size="27">Defaults targetpw</text>
+    <text x="42" y="316" fill="#d9f1ec" font-family="Menlo, Consolas, monospace" font-size="27">%wheel ALL=(ALL:ALL) ALL</text>
+    <text x="42" y="382" fill="#81b8b8" font-family="Menlo, Consolas, monospace" font-size="24">wheel group only</text>
+  </g>
+
+  <g transform="translate(822 166)" filter="url(#shadow)">
+    <rect x="98" y="214" width="216" height="178" rx="28" fill="url(#lock)" stroke="#ffe1a0" stroke-opacity="0.55"/>
+    <path d="M146 214 V145 C146 81 266 81 266 145 V214" fill="none" stroke="#e7c06c" stroke-width="34" stroke-linecap="round"/>
+    <path d="M178 214 V148 C178 122 234 122 234 148 V214" fill="none" stroke="#163036" stroke-width="18" stroke-linecap="round" opacity="0.9"/>
+    <circle cx="206" cy="294" r="22" fill="#4d3417"/>
+    <rect x="197" y="310" width="18" height="46" rx="9" fill="#4d3417"/>
+    <circle cx="58" cy="76" r="42" fill="#b53535"/>
+    <circle cx="72" cy="63" r="14" fill="#fff0d0" opacity="0.9"/>
+    <path d="M35 95 C14 93 0 80 0 60 C24 64 38 72 48 88 Z" fill="#8e252c"/>
+    <text x="0" y="450" fill="#e8f4ee" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">sudo + rootpw</text>
+    <text x="2" y="494" fill="#a7c6c4" font-family="Arial, Helvetica, sans-serif" font-size="25">FreeBSD 权限隔离配置</text>
+  </g>
+</svg>

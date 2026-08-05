@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">sing-box FakeIP + TProxy 旁路网关部署草稿</title>
+  <desc id="desc">sing-box 旁路透明网关拓扑封面：客户端 DNS 查询到 FakeIP，主路由转发到 Linux 网关，经 nftables TProxy 交给 sing-box 代理出口。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06111f"/>
+      <stop offset="0.48" stop-color="#0f2742"/>
+      <stop offset="1" stop-color="#062e2d"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13233d"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="0.5" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0V44" fill="none" stroke="#93c5fd" stroke-opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect width="1200" height="675" fill="url(#grid)"/>
+  <circle cx="180" cy="130" r="210" fill="#38bdf8" opacity="0.12"/>
+  <circle cx="1010" cy="520" r="260" fill="#22c55e" opacity="0.12"/>
+
+  <g font-family="Inter, 'Noto Sans SC', 'Microsoft YaHei', Arial, sans-serif">
+    <text x="600" y="88" text-anchor="middle" font-size="44" font-weight="900" fill="#f8fafc">sing-box FakeIP + TProxy</text>
+    <text x="600" y="132" text-anchor="middle" font-size="29" font-weight="800" fill="#bae6fd">旁路透明网关部署草稿</text>
+    <text x="600" y="590" text-anchor="middle" font-size="18" fill="#a7f3d0">DNS 分流 · FakeIP 映射 · nftables TProxy · RouterOS 策略路由 · IPv4 / IPv6</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="74" y="172" width="1052" height="410" rx="34" fill="#020617" opacity="0.42" stroke="#1e3a8a" stroke-opacity="0.55"/>
+  </g>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M243 370 C350 300 440 300 504 330" stroke="url(#line)" stroke-width="8"/>
+    <path d="M696 330 C770 290 860 300 957 370" stroke="url(#line)" stroke-width="8"/>
+    <path d="M601 421 L601 485" stroke="#22c55e" stroke-width="8"/>
+    <path d="M601 218 L601 278" stroke="#38bdf8" stroke-width="8"/>
+  </g>
+  <g fill="#e0f2fe" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="16" font-weight="700">
+    <text x="347" y="300" text-anchor="middle">DNS → FakeIP</text>
+    <text x="815" y="300" text-anchor="middle">Domain → Proxy</text>
+    <text x="627" y="462">TProxy :9888</text>
+  </g>
+
+  <g transform="translate(110 296)" filter="url(#shadow)">
+    <rect width="205" height="146" rx="24" fill="url(#card)" stroke="#38bdf8" stroke-width="3"/>
+    <rect x="46" y="30" width="112" height="66" rx="10" fill="#020617" stroke="#64748b"/>
+    <rect x="78" y="101" width="48" height="10" rx="5" fill="#64748b"/>
+    <circle cx="62" cy="119" r="8" fill="#38bdf8" filter="url(#glow)"/>
+    <text x="102" y="131" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="18" font-weight="800" fill="#dbeafe">LAN Clients</text>
+  </g>
+
+  <g transform="translate(468 242)" filter="url(#shadow)">
+    <rect width="264" height="212" rx="30" fill="url(#card)" stroke="#22c55e" stroke-width="4"/>
+    <text x="132" y="52" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="30" font-weight="900" fill="#dcfce7">sing-box</text>
+    <rect x="36" y="78" width="192" height="42" rx="13" fill="#052e2b" stroke="#34d399"/>
+    <text x="132" y="106" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="20" font-weight="800" fill="#bbf7d0">FakeIP Store</text>
+    <rect x="36" y="134" width="192" height="42" rx="13" fill="#172554" stroke="#60a5fa"/>
+    <text x="132" y="162" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="20" font-weight="800" fill="#bfdbfe">DNS Rules</text>
+    <circle cx="132" cy="198" r="7" fill="#22c55e" filter="url(#glow)"/>
+  </g>
+
+  <g transform="translate(498 486)" filter="url(#shadow)">
+    <rect width="204" height="70" rx="22" fill="#111827" stroke="#f59e0b" stroke-width="3"/>
+    <text x="102" y="31" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="20" font-weight="900" fill="#fef3c7">nftables</text>
+    <text x="102" y="53" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="15" fill="#fde68a">mark + divert</text>
+  </g>
+
+  <g transform="translate(892 296)" filter="url(#shadow)">
+    <rect width="205" height="146" rx="24" fill="url(#card)" stroke="#f59e0b" stroke-width="3"/>
+    <path d="M55 90 C45 90 38 82 38 72 C38 63 44 56 53 55 C59 42 72 34 88 34 C106 34 121 46 125 63 C136 63 145 72 145 83 C145 95 136 104 124 104 H56" fill="#020617" stroke="#fbbf24" stroke-width="4"/>
+    <text x="102" y="131" text-anchor="middle" font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="18" font-weight="800" fill="#fef3c7">Proxy / Internet</text>
+  </g>
+
+  <g font-family="Inter, 'Noto Sans SC', Arial, sans-serif" font-size="16" font-weight="800">
+    <rect x="475" y="188" width="250" height="42" rx="21" fill="#082f49" stroke="#38bdf8" stroke-opacity="0.65"/>
+    <text x="600" y="216" text-anchor="middle" fill="#e0f2fe">Linux Gateway 10.20.20.12</text>
+    <rect x="449" y="330" width="65" height="30" rx="15" fill="#16a34a" opacity="0.95"/>
+    <text x="481" y="351" text-anchor="middle" fill="#052e16">28/8</text>
+    <rect x="686" y="330" width="89" height="30" rx="15" fill="#2563eb" opacity="0.95"/>
+    <text x="730" y="351" text-anchor="middle" fill="#eff6ff">2001:2::</text>
+  </g>
+</svg>

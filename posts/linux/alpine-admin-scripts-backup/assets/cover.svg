@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Alpine Linux script backup</title>
+  <desc id="desc">Terminal style cover for Alpine Linux administration scripts.</desc>
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="70" y="70" width="1140" height="580" rx="22" fill="#111827" stroke="#38bdf8" stroke-width="3"/>
+  <rect x="70" y="70" width="1140" height="70" rx="22" fill="#1f2937"/>
+  <circle cx="110" cy="105" r="10" fill="#ef4444"/>
+  <circle cx="145" cy="105" r="10" fill="#f59e0b"/>
+  <circle cx="180" cy="105" r="10" fill="#22c55e"/>
+  <text x="230" y="114" fill="#cbd5e1" font-family="Menlo, Consolas, monospace" font-size="28">alpine-admin-scripts</text>
+  <text x="110" y="220" fill="#38bdf8" font-family="Menlo, Consolas, monospace" font-size="42" font-weight="700">Alpine Linux</text>
+  <text x="110" y="285" fill="#e5e7eb" font-family="Menlo, Consolas, monospace" font-size="34">Firewall · SSL · SSH Keys</text>
+  <text x="110" y="370" fill="#94a3b8" font-family="Menlo, Consolas, monospace" font-size="27"># scripts backup</text>
+  <text x="110" y="420" fill="#f8fafc" font-family="Menlo, Consolas, monospace" font-size="27">apk add --no-cache iptables curl cronie</text>
+  <text x="110" y="470" fill="#f8fafc" font-family="Menlo, Consolas, monospace" font-size="27">acme.sh --issue --standalone -d example.com</text>
+  <text x="110" y="520" fill="#f8fafc" font-family="Menlo, Consolas, monospace" font-size="27">ssh-keygen -t ed25519</text>
+  <text x="110" y="590" fill="#22c55e" font-family="Menlo, Consolas, monospace" font-size="28">$ sh script.sh</text>
+</svg>

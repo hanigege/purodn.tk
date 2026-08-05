@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes YOLO and smart approvals</title>
+  <desc id="desc">A technical cover showing Hermes approval modes, a safe boundary, worktree, checkpoints, and YOLO execution.</desc>
+  <rect width="1200" height="630" fill="#10201b"/>
+  <rect x="52" y="52" width="1096" height="526" rx="24" fill="#f5f7f2"/>
+  <rect x="92" y="94" width="1016" height="98" rx="14" fill="#173b34"/>
+  <text x="132" y="154" fill="#f8fafc" font-family="Arial, sans-serif" font-size="44" font-weight="700">Hermes YOLO / smart approvals</text>
+  <text x="134" y="184" fill="#b8d6cd" font-family="Arial, sans-serif" font-size="20">smart daily · yolo temporary · worktree isolated · checkpoints reversible</text>
+
+  <rect x="104" y="238" width="292" height="248" rx="14" fill="#dff2eb" stroke="#276b5f" stroke-width="3"/>
+  <text x="142" y="286" fill="#16352f" font-family="Arial, sans-serif" font-size="30" font-weight="700">smart</text>
+  <text x="142" y="326" fill="#26433c" font-family="Arial, sans-serif" font-size="22">low risk: auto</text>
+  <text x="142" y="360" fill="#26433c" font-family="Arial, sans-serif" font-size="22">high risk: confirm</text>
+  <text x="142" y="414" fill="#1f5f53" font-family="Menlo, Consolas, monospace" font-size="18">approvals.mode smart</text>
+
+  <rect x="454" y="238" width="292" height="248" rx="14" fill="#fff4d6" stroke="#a66f15" stroke-width="3"/>
+  <text x="492" y="286" fill="#4b330b" font-family="Arial, sans-serif" font-size="30" font-weight="700">YOLO</text>
+  <text x="492" y="326" fill="#5b4216" font-family="Arial, sans-serif" font-size="22">temporary speed</text>
+  <text x="492" y="360" fill="#5b4216" font-family="Arial, sans-serif" font-size="22">only inside boundary</text>
+  <text x="492" y="414" fill="#7a510d" font-family="Menlo, Consolas, monospace" font-size="18">hermes --yolo</text>
+
+  <rect x="804" y="238" width="292" height="248" rx="14" fill="#e4ebff" stroke="#3453a3" stroke-width="3"/>
+  <text x="842" y="286" fill="#1d2f68" font-family="Arial, sans-serif" font-size="30" font-weight="700">guardrails</text>
+  <text x="842" y="326" fill="#2c3c69" font-family="Arial, sans-serif" font-size="22">git worktree</text>
+  <text x="842" y="360" fill="#2c3c69" font-family="Arial, sans-serif" font-size="22">checkpoints</text>
+  <text x="842" y="414" fill="#304c9d" font-family="Menlo, Consolas, monospace" font-size="18">--worktree --checkpoints</text>
+
+  <path d="M394 362 C424 362 424 362 454 362" stroke="#48645d" stroke-width="6" fill="none"/>
+  <path d="M746 362 C776 362 776 362 804 362" stroke="#48645d" stroke-width="6" fill="none"/>
+  <path d="M440 350 L456 362 L440 374" stroke="#48645d" stroke-width="6" fill="none"/>
+  <path d="M790 350 L806 362 L790 374" stroke="#48645d" stroke-width="6" fill="none"/>
+
+  <rect x="124" y="516" width="952" height="38" rx="19" fill="#173b34"/>
+  <text x="600" y="542" text-anchor="middle" fill="#ecfdf5" font-family="Arial, sans-serif" font-size="20">Do not run global YOLO on production, secrets, or real user data.</text>
+</svg>

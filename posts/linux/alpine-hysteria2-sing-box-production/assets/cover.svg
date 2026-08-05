@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#0f172a"/>
+  <rect x="90" y="90" width="1420" height="720" rx="28" fill="#111827" stroke="#334155" stroke-width="4"/>
+  <circle cx="260" cy="260" r="90" fill="#10b981"/>
+  <circle cx="260" cy="260" r="48" fill="#064e3b"/>
+  <path d="M260 188 L334 332 H186 Z" fill="#a7f3d0"/>
+  <rect x="430" y="190" width="740" height="54" rx="10" fill="#1f2937"/>
+  <rect x="430" y="280" width="560" height="36" rx="8" fill="#374151"/>
+  <rect x="430" y="338" width="680" height="36" rx="8" fill="#374151"/>
+  <rect x="430" y="396" width="500" height="36" rx="8" fill="#374151"/>
+  <rect x="430" y="500" width="260" height="120" rx="18" fill="#1d4ed8"/>
+  <rect x="720" y="500" width="260" height="120" rx="18" fill="#0f766e"/>
+  <rect x="1010" y="500" width="260" height="120" rx="18" fill="#475569"/>
+  <text x="430" y="168" fill="#e2e8f0" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="68" font-weight="700">Alpine Hysteria2</text>
+  <text x="430" y="765" fill="#94a3b8" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="34">OpenRC · 443/UDP · Salamander · sing-box</text>
+  <path d="M1160 206 h130 v24 h-130zM1160 252 h170 v24 h-170zM1160 298 h110 v24 h-110z" fill="#60a5fa"/>
+</svg>

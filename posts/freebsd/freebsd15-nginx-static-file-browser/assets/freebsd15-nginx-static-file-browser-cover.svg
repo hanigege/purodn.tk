@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">FreeBSD 15 Nginx static file browser</title>
+  <desc id="desc">A clean server dashboard style cover for a FreeBSD 15 Nginx HTTPS file browser guide.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10202a"/>
+      <stop offset="0.55" stop-color="#19313c"/>
+      <stop offset="1" stop-color="#7c1f22"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7fafc"/>
+      <stop offset="1" stop-color="#dfe8ec"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#071017" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 520 C170 450 280 555 420 500 C600 430 710 520 870 458 C1010 404 1110 430 1200 380 L1200 630 L0 630 Z" fill="#0b141a" opacity="0.42"/>
+  <g filter="url(#shadow)">
+    <rect x="116" y="94" width="968" height="442" rx="28" fill="url(#panel)"/>
+    <rect x="116" y="94" width="968" height="70" rx="28" fill="#243947"/>
+    <path d="M116 136 H1084" stroke="#314b5b" stroke-width="1"/>
+    <circle cx="158" cy="129" r="10" fill="#ff6b5f"/>
+    <circle cx="190" cy="129" r="10" fill="#ffc657"/>
+    <circle cx="222" cy="129" r="10" fill="#43d17a"/>
+  </g>
+  <g transform="translate(170 202)">
+    <rect x="0" y="0" width="300" height="230" rx="14" fill="#ffffff" stroke="#c6d3da"/>
+    <rect x="26" y="28" width="248" height="30" rx="6" fill="#dce8ed"/>
+    <rect x="26" y="82" width="248" height="18" rx="5" fill="#ec473f" opacity="0.9"/>
+    <rect x="26" y="118" width="210" height="18" rx="5" fill="#90a7b3"/>
+    <rect x="26" y="154" width="232" height="18" rx="5" fill="#90a7b3"/>
+    <rect x="26" y="190" width="168" height="18" rx="5" fill="#90a7b3"/>
+  </g>
+  <g transform="translate(522 204)">
+    <rect x="0" y="0" width="198" height="230" rx="18" fill="#1d303a"/>
+    <rect x="32" y="36" width="134" height="18" rx="4" fill="#8bd2ff"/>
+    <rect x="32" y="76" width="104" height="14" rx="4" fill="#dce8ed"/>
+    <rect x="32" y="110" width="128" height="14" rx="4" fill="#dce8ed"/>
+    <rect x="32" y="144" width="86" height="14" rx="4" fill="#dce8ed"/>
+    <rect x="32" y="178" width="112" height="14" rx="4" fill="#dce8ed"/>
+  </g>
+  <g transform="translate(780 208)">
+    <path d="M130 0 C178 0 216 38 216 86 V118 H186 V86 C186 55 161 30 130 30 C99 30 74 55 74 86 V118 H44 V86 C44 38 82 0 130 0 Z" fill="#f3c84f"/>
+    <rect x="24" y="108" width="212" height="124" rx="18" fill="#ec473f"/>
+    <circle cx="130" cy="164" r="20" fill="#fff4d0"/>
+    <rect x="120" y="180" width="20" height="34" rx="10" fill="#fff4d0"/>
+  </g>
+  <text x="150" y="484" fill="#10202a" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">FreeBSD 15 + Nginx</text>
+  <text x="150" y="522" fill="#49616c" font-family="Arial, Helvetica, sans-serif" font-size="24">HTTPS static file browser with auth, logs, limits and BBR</text>
+</svg>

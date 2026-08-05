@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">RouterOS 通网配置</title>
+  <desc id="desc">软路由通网教程封面插图</desc>
+  <rect width="1200" height="675" fill="#08111f"/>
+  <path d="M0 520C220 380 380 600 610 440s390-120 590-280v515H0Z" fill="#0ea5e9" opacity=".18"/>
+  <rect x="90" y="145" width="270" height="220" rx="26" fill="#111827" stroke="#38bdf8" stroke-width="5"/>
+  <rect x="830" y="145" width="270" height="220" rx="26" fill="#111827" stroke="#22c55e" stroke-width="5"/>
+  <path d="M370 255h455" stroke="#f97316" stroke-width="16" stroke-linecap="round"/>
+  <path d="m790 215 55 40-55 40" fill="none" stroke="#f97316" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="225" cy="255" r="52" fill="#38bdf8"/>
+  <circle cx="965" cy="255" r="52" fill="#22c55e"/>
+  <text x="92" y="520" fill="#fff" font-family="Arial, sans-serif" font-size="66" font-weight="800">RouterOS 通网配置</text>
+  <text x="96" y="585" fill="#f97316" font-family="Arial, sans-serif" font-size="34" font-weight="700">WAN / LAN / NAT / DNS</text>
+</svg>
