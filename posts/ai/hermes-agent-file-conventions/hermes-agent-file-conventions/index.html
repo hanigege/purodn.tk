@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md | Jay&#39;s Blog</title>
+    <meta name="description" content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。">
+    <link rel="icon" href="/favicon/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
+    <meta name="theme-color" content="#222831">
+      <link rel="stylesheet" href="/css/main.min.cdd752b721ae641c8ae73ed6a84114f4376fceb3b182cfe306c100cd4d702918.css" integrity="sha256-zddStyGuZByK5z7WqEEU9DdvzrOxgs/jBsEAzU1wKRg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="Jay&#39;s Blog 首页">
+      <img class="brand-sign" src="/images/jays-blog-brand.png" alt="Jay&#39;s Blog">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/router/">Router</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>AI</span>
+          <time datetime="2026-07-10">2026年7月10日</time>
+            <time class="updated" datetime="2026-08-06">更新于 2026年8月6日</time>
+        </div>
+        <h1>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</h1>
+      </header>
+
+      <div class="article-content">
+        <h2 id="一一句话结论先看这个">一、一句话结论（先看这个）</h2>
+<blockquote>
+<ol>
+<li>想让所有项目都生效的规则，只能写进 <code>SOUL.md</code>；<code>~/.hermes/</code> 根目录下放 <code>.hermes.md</code> / <code>AGENTS.md</code> / <code>HERMES.md</code> 完全无效。</li>
+<li><code>.hermes.md</code> 必须放在<strong>项目根目录</strong>才能作为全项目的“最高法”穿透所有子目录；放在子目录则无法作用于其他同级或上级目录。</li>
+<li><code>.hermes.md</code> 与 <code>HERMES.md</code> 同时存在时<strong>不会叠加应用</strong>，系统仅优先加载 <code>.hermes.md</code>。</li>
+</ol>
+</blockquote>
+<h2 id="二源码级加载规则按优先级">二、源码级加载规则（按优先级）</h2>
+<p>Hermes 每次构造 system prompt 时，会调用 <code>build_context_files_prompt()</code>，规则如下：</p>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>文件</th>
+<th>查找位置</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>.hermes.md</code> 或 <code>HERMES.md</code></td>
+<td>从 <strong>当前工作目录（CWD）</strong> 向上走到 <strong>git 仓库根</strong></td>
+<td>项目宪法（最高优先级）</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>AGENTS.md</code></td>
+<td>仅 CWD，不递归</td>
+<td>项目开发规范</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>CLAUDE.md</code></td>
+<td>仅 CWD</td>
+<td>Claude Code 兼容</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>.cursorrules</code>、<code>.cursor/rules/*.mdc</code></td>
+<td>仅 CWD</td>
+<td>Cursor 兼容</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>SOUL.md</code></td>
+<td>始终从 <strong>HERMES_HOME</strong>（profile 根目录）</td>
+<td>人格 + 全局行为准则</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键事实：</strong></p>
+<ol>
+<li>上面 1-4 是优先级，找到第一个就停。</li>
+<li><code>SOUL.md</code> 独立加载，与项目文件<strong>并存</strong>，不是替代关系。</li>
+<li><code>.hermes.md</code> 和 <code>HERMES.md</code> 等价，但<strong>互斥不叠加</strong>——源码按 <code>(&quot;.hermes.md&quot;, &quot;HERMES.md&quot;)</code> 顺序查找，匹配到第一个即停止。若根目录同时存在两者，<code>HERMES.md</code> 将被直接忽略。</li>
+<li><code>AGENTS.md</code> <strong>不递归</strong>。v0.5 之后明确改成&quot;top-level only&quot;，旧文章里说的&quot;递归发现子目录 AGENTS.md&quot;已经过时。</li>
+<li><code>~/.hermes/</code> 不是工作目录，把 <code>.hermes.md</code> 或 <code>HERMES.md</code> 放在这里永远不会被加载。</li>
+</ol>
+<h2 id="三常见误解纠正">三、常见误解纠正</h2>
+<h3 id="-误解-1把-hermesmd-放-hermes-当全局配置">❌ 误解 1：把 <code>.hermes.md</code> 放 <code>~/.hermes/</code> 当全局配置</h3>
+<p>真相：<code>.hermes.md</code> 是<strong>项目级</strong>文件，查找起点是 CWD。<code>~/.hermes/</code> 是 Hermes 自己的状态目录，agent 工作时 CWD 通常是用户的项目目录，根本走不到 <code>~/.hermes/</code>。想让规则全局生效，<strong>唯一</strong>正确的位置是 <code>SOUL.md</code>。</p>
+<h3 id="-误解-2hermesmd-放在项目任意子目录都能作为全项目最高法">❌ 误解 2：<code>.hermes.md</code> 放在项目任意子目录都能作为“全项目最高法”</h3>
+<p>真相：<code>.hermes.md</code> 的查找机制是从当前工作目录（CWD）向上一路找至 Git 根目录。如果把它放在 <code>backend/</code> 子目录，当你进入 <code>frontend/</code> 或项目根目录工作时，系统完全感知不到它的存在。<strong>只有将其存放在项目根目录，才能穿透全项目所有子目录。</strong></p>
+<h3 id="-误解-3同时创建-hermesmd-和-hermesmd-可以双重生效或补充">❌ 误解 3：同时创建 <code>.hermes.md</code> 和 <code>HERMES.md</code> 可以双重生效或补充</h3>
+<p>真相：系统加载时“找到即停”。同时存在时，系统仅读取 <code>.hermes.md</code>，<code>HERMES.md</code> 会被完全忽略。建议项目内统一只保留一个隐藏文件 <code>.hermes.md</code>。</p>
+<h3 id="-误解-4agentsmd-会递归发现子目录">❌ 误解 4：<code>AGENTS.md</code> 会递归发现子目录</h3>
+<p>真相：v0.5 起改为 top-level only。如果你以前在 <code>backend/AGENTS.md</code>、<code>frontend/AGENTS.md</code> 各放一份期望都被加载，<strong>只有 CWD 所在那一份生效</strong>。官方理由：递归加载会浪费大量 token，且子目录规则经常和顶层冲突。</p>
+<h3 id="-误解-5soulmd-只能写人格">❌ 误解 5：<code>SOUL.md</code> 只能写“人格”</h3>
+<p>真相：<code>SOUL.md</code> 是 profile 级唯一全局生效的指令文件。除了人格/语气，行为准则（比如“用简体中文”、“用金字塔原理”）也必须写在这里——它是你跨所有项目、跨所有 CWD 都生效的唯一通道。</p>
+<h2 id="四实战蜜和佬的配置">四、实战：蜜和佬的配置</h2>
+<h3 id="背景">背景</h3>
+<ul>
+<li><strong>蜜</strong>：default profile，跑日常助手任务，<code>HERMES_HOME = ~/.hermes/</code></li>
+<li><strong>佬</strong>：code profile，跑代码任务，<code>HERMES_HOME = ~/.hermes/profiles/code/</code></li>
+<li>两个 bot 共享同一台机器的同一个用户，CWD 经常是 <code>~/codex/hugo/</code>、<code>~/data/docker_data/</code> 等项目目录。</li>
+</ul>
+<h3 id="需求-1让蜜和佬都用简体中文--金字塔原理">需求 1：让蜜和佬都用简体中文 + 金字塔原理</h3>
+<p>错误做法 ❌：写 <code>~/.hermes/.hermes.md</code>（不会被加载）。
+正确做法 ✅：写进各自 profile 的 <code>SOUL.md</code>。</p>
+<p><strong>蜜的 <code>~/.hermes/SOUL.md</code>：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span># 行为准则
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 以简体中文输出
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 使用第一性原理思考
+</span></span><span style="display:flex;"><span>- 用金字塔原理组织输出</span></span></code></pre></div><script class="code-source" type="application/json">"# 行为准则\n\n- 以简体中文输出\n- 使用第一性原理思考\n- 用金字塔原理组织输出"</script>
+</div>
+<p><strong>佬的 <code>~/.hermes/profiles/code/SOUL.md</code>：（同样内容，独立维护）</strong>
+这样无论蜜/佬当前 CWD 是哪里，准则都生效。</p>
+<h3 id="需求-2给-sing-box-项目codexsb-alpine定规则">需求 2：给 sing-box 项目（<code>~/codex/sb-alpine/</code>）定规则</h3>
+<p>这是 Alpine Linux 的 sing-box 面板项目，要求“只支持 Alpine + OpenRC”、“修改前必读 AGENTS.md”。</p>
+<p>正确做法 ✅：在项目根目录 <code>~/codex/sb-alpine/</code> 下放置文件。</p>
+<p><strong><code>~/codex/sb-alpine/.hermes.md</code>（项目宪法，必须放在根目录）：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span># 行为准则
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 仅支持 Alpine + OpenRC
+</span></span><span style="display:flex;"><span>- 修改前必读 AGENTS.md</span></span></code></pre></div><script class="code-source" type="application/json">"# 行为准则\n\n- 仅支持 Alpine + OpenRC\n- 修改前必读 AGENTS.md"</script>
+</div>
+<p><strong><code>~/codex/sb-alpine/AGENTS.md</code>（根目录开发规范）：</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span># AGENTS.md
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">## sing-box 开发规范
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 使用 musl 工具链
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">-</span> 禁用 systemd
+</span></span><span style="display:flex;"><span>- 配置文件放置 /etc/sing-box/</span></span></code></pre></div><script class="code-source" type="application/json">"# AGENTS.md\n\n## sing-box 开发规范\n\n- 使用 musl 工具链\n- 禁用 systemd\n- 配置文件放置 /etc/sing-box/"</script>
+</div>
+<p>效果：无论蜜还是佬，只要 CWD 进入 <code>~/codex/sb-alpine/</code>（或它的子目录），<code>.hermes.md</code> 会沿目录树向上找到并加载；<code>AGENTS.md</code> 仅在 CWD 正好是项目根时加载。</p>
+<h3 id="需求-3在-codexsb-alpinebackend-子目录干活">需求 3：在 <code>~/codex/sb-alpine/backend/</code> 子目录干活</h3>
+<p>情况：CWD 是 <code>~/codex/sb-alpine/backend/</code>
+加载结果：</p>
+<ul>
+<li><code>.hermes.md</code>：从 <code>~/codex/sb-alpine/backend/</code> 向上走，在根目录 <code>~/codex/sb-alpine/</code> 找到 ✅ 加载</li>
+<li><code>AGENTS.md</code>：仅查当前 <code>~/codex/sb-alpine/backend/</code>，根目录的不加载 ❌（除非 <code>backend/</code> 下有独立的 <code>AGENTS.md</code>）</li>
+<li><code>SOUL.md</code>：始终从 HERMES_HOME 加载 ✅</li>
+</ul>
+<p><strong>结论</strong>：项目全局不可违反的“红线”必须写在项目根目录的 <code>.hermes.md</code>；而特定模块的开发指南写在对应目录下的 <code>AGENTS.md</code>。</p>
+<h2 id="五决策表什么时候用哪个">五、决策表（什么时候用哪个）</h2>
+<table>
+<thead>
+<tr>
+<th>你的需求</th>
+<th>该写的文件</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>让某个 bot 全局遵守某些规则（语言/思考方式/风格）</td>
+<td><code>SOUL.md</code></td>
+<td>profile 根目录</td>
+</tr>
+<tr>
+<td>项目不可违反的红线（技术栈/禁忌）</td>
+<td><code>.hermes.md</code></td>
+<td><strong>项目根目录</strong>（确保全项目生效）</td>
+</tr>
+<tr>
+<td>针对某具体目录的开发流程/规范</td>
+<td><code>AGENTS.md</code></td>
+<td>对应的当前工作目录（不递归）</td>
+</tr>
+<tr>
+<td>给 Claude Code 兼容用</td>
+<td><code>CLAUDE.md</code></td>
+<td>项目根目录（但 <code>.hermes.md</code> 优先）</td>
+</tr>
+<tr>
+<td>给 Cursor 兼容用</td>
+<td><code>.cursorrules</code></td>
+<td>项目根目录（优先级最低）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话记忆法：</strong> SOUL→全局人格，.hermes.md→项目根目录红线，AGENTS.md→局部目录流程。</p>
+<h2 id="六验证方法防止再被旧文章误导">六、验证方法（防止再被旧文章误导）</h2>
+<p>下次再看到“Hermes 加载 XX 文件”的说法，直接查源码：</p>
+<ul>
+<li><code>build_context_files_prompt_project()</code> — 定义 <code>.hermes.md</code> / <code>HERMES.md</code> 查找逻辑（CWD → git root）</li>
+<li><code>build_context_files_prompt_cwd()</code> — 定义 <code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>.cursorrules</code> 查找逻辑（仅 CWD）</li>
+<li><code>build_context_files_prompt()</code> — 总入口，注释里明确优先级</li>
+</ul>
+<p>读源码比读博客可靠，包括本文也可能过时——以源码为准。</p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/sing-box-credentials-backup-20260802/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">sing-box tcp-brutal 服务端完整教程：安装、配置与安全防护（US-232 / US-146 实战）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/purodn-commands-deploy-manual/">
+            <img src="/posts/linux/purodn-commands-deploy-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">purodn / purodncode 快捷命令部署手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/hugo-update-time-memo/">
+            <img src="/posts/linux/hugo-update-time-memo/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hugo 文章「更新于」时间机制与修改文章操作备忘</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/vim-cheatsheet/">
+            <img src="/posts/linux/vim-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">vim 编辑器速查：模式、查找替换、复制粘贴、全选</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nano-editor-cheatsheet/">
+            <img src="/posts/linux/nano-editor-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">nano 编辑器速查：快捷键、查找与替换</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-download-server-guide/">
+            <img src="/posts/docker/docker-download-server-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Docker 下载服务部署指南：Caddy / Filebrowser / Dufs 三方案</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/">
+            <img src="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;）</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 Jay&#39;s Blog.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

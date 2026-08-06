@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Shadowsocks on Jay&#39;s Blog</title>
+    <link>http://127.0.0.1:1313/tags/shadowsocks/</link>
+    <description>Recent content in Shadowsocks on Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 03 Aug 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/shadowsocks/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;）</title>
+      <link>http://127.0.0.1:1313/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/</link>
+      <pubDate>Mon, 03 Aug 2026 00:00:00 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/</guid>
+      <description>前提条件&#xA;一台新装的 Debian 12（推荐）或 Ubuntu 22.04+ 服务器，已开放 TCP 80、443 端口。 已将域名（例如 ssr.purodn.de5.net）解析到该服务器 IP。 建议使用 root 用户或具有 sudo 权限的账户执行以下命令。 一、 环境准备 复制# 更新系统并安装必要工具 apt update &amp;amp;&amp;amp; apt install -y curl micro git build-essential # （可选）如果你喜欢使用 vim，也可以替换 micro 为 vim 二、 下载并安装核心组件 有两种方式：直接在服务器上 wget 下载 或 先在本地下载后通过 SFTP 上传。 以下示例均假设文件已放在 /root 目录下。&#xA;方式一：直接在服务器上下载（wget） 复制# 1. Shadowsocks-rust 预编译二进制（v1.15.3） wget https://github.com/shadowsocks/shadowsocks-rust/releases/download/v1.15.3/shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz tar -xvf shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz -C /usr/local/bin/ # 2. v2ray-plugin（v1.3.2） wget https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.3.2/v2ray-plugin-linux-amd64-v1.3.2.tar.gz tar -xvf v2ray-plugin-linux-amd64-v1.</description>
+    </item>
+  </channel>
+</rss>
