@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+name="Synapse media purge scheduler"
+description="Run Synapse media cleanup once per day without cron"
+command="/root/data/docker_data/synapse/scripts/run-synapse-media-purge-loop.sh"
+command_background=true
+pidfile="/run/synapse-media-purge.pid"
+output_log="/var/log/synapse-media-purge-loop.log"
+error_log="/var/log/synapse-media-purge-loop.log"
+depend() {
+  need net docker
+  after matrix-bot-monitor matrix-bot-sync matrix-bot-weather
+}

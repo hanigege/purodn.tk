@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="55%" stop-color="#12263f"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3ab0e8"/>
+      <stop offset="100%" stop-color="#1d7fbe"/>
+    </linearGradient>
+    <linearGradient id="pipe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.07" stroke="#7dd3fc" stroke-width="1">
+    <path d="M0 90 H1200 M0 190 H1200 M0 290 H1200 M0 390 H1200 M0 490 H1200 M0 590 H1200"/>
+    <path d="M100 0 V630 M300 0 V630 M500 0 V630 M700 0 V630 M900 0 V630 M1100 0 V630"/>
+  </g>
+
+  <text x="80" y="120" font-family="Helvetica,Arial,sans-serif" font-size="52" font-weight="700" fill="#e2e8f0">Telegram MTProto 代理</text>
+  <text x="80" y="182" font-family="Helvetica,Arial,sans-serif" font-size="34" fill="#7dd3fc">FakeTLS 域名伪装 · 9seconds/mtg 部署实战</text>
+
+  <!-- client -->
+  <g transform="translate(110,300)">
+    <rect x="0" y="0" width="190" height="130" rx="16" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <circle cx="95" cy="48" r="26" fill="url(#tg)"/>
+    <path d="M82 48 l26 -10 -9 26 -6 -9 -11 -7z" fill="#0f172a"/>
+    <text x="95" y="103" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="20" fill="#cbd5e1">客户端</text>
+  </g>
+
+  <!-- pipe -->
+  <g>
+    <rect x="310" y="352" width="180" height="26" rx="13" fill="url(#pipe)" opacity="0.85"/>
+    <text x="400" y="335" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="19" fill="#a5f3fc">看起来像 TLS</text>
+    <text x="400" y="404" text-anchor="middle" font-family="monospace" font-size="17" fill="#67e8f9">SNI: microsoft.com</text>
+  </g>
+
+  <!-- mtg -->
+  <g transform="translate(500,285)">
+    <rect x="0" y="0" width="220" height="160" rx="18" fill="#0b3a4a" stroke="#2dd4bf" stroke-width="2.5"/>
+    <text x="110" y="58" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="38" font-weight="700" fill="#5eead4">mtg</text>
+    <text x="110" y="92" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="18" fill="#a7f3d0">v2 · Go 单文件</text>
+    <text x="110" y="124" text-anchor="middle" font-family="monospace" font-size="16" fill="#7dd3fc">secret: ee...</text>
+  </g>
+
+  <!-- branches -->
+  <g stroke="#38bdf8" stroke-width="3" fill="none">
+    <path d="M730 330 C 800 330, 830 250, 910 250"/>
+    <path d="M730 400 C 800 400, 830 480, 910 480"/>
+  </g>
+
+  <g transform="translate(910,205)">
+    <rect x="0" y="0" width="210" height="92" rx="14" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="105" y="40" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="20" fill="#e2e8f0">Telegram DC</text>
+    <text x="105" y="68" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="16" fill="#94a3b8">密钥正确 → 真代理</text>
+  </g>
+
+  <g transform="translate(910,435)">
+    <rect x="0" y="0" width="210" height="92" rx="14" fill="#26202f" stroke="#f0abfc" stroke-width="2"/>
+    <text x="105" y="40" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="20" fill="#f5d0fe">真实网站</text>
+    <text x="105" y="68" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="16" fill="#c4b5cf">探测 → 域名前置</text>
+  </g>
+
+  <text x="80" y="576" font-family="monospace" font-size="19" fill="#64748b">ee + hex(域名) = FakeTLS 密钥　|　dd / 32位hex = 仅混淆</text>
+</svg>

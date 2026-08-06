@@ -1,0 +1,80 @@
+{
+  "homeserver": "http://127.0.0.1:8008",
+  "token_path": "/root/data/docker_data/_secrets/matrix-bot/access_token",
+  "state_path": "/root/data/docker_data/synapse/scripts/matrix-bot-monitor.state.json",
+  "target_users": [
+    "@black:jgaga.tk",
+    "@honey:jgaga.tk",
+    "@admin2:jgaga.tk"
+  ],
+  "target_rooms": [],
+  "disk": {
+    "mounts": [
+      "/",
+      "/var/lib/docker"
+    ],
+    "warn_percent": 80,
+    "critical_percent": 90,
+    "min_free_gb": 10
+  },
+  "docker": {
+    "expected_containers": [
+      "matrix-admin-tools",
+      "caddy",
+      "element-web",
+      "synapse-admin",
+      "matrix-musicbot",
+      "matrix-synapse",
+      "postgres16",
+      "ntfy",
+      "element-call",
+      "matrix-livekit-jwt-service",
+      "livekit-server-test",
+      "coturn"
+    ]
+  },
+  "realtime": {
+    "containers": [
+      "coturn",
+      "livekit-server-test",
+      "matrix-livekit-jwt-service",
+      "element-call"
+    ],
+    "tcp_ports": [
+      3478,
+      7880,
+      8170,
+      8081
+    ],
+    "udp_ports": [
+      3478
+    ],
+    "http_probes": [
+      {
+        "name": "LiveKit JWT",
+        "url": "http://127.0.0.1:8170/healthz",
+        "ok": [
+          200
+        ]
+      },
+      {
+        "name": "LiveKit API",
+        "url": "http://127.0.0.1:7880/",
+        "ok": [
+          200,
+          404
+        ]
+      },
+      {
+        "name": "Element Call Web",
+        "url": "http://127.0.0.1:8081/",
+        "ok": [
+          200,
+          301,
+          302
+        ]
+      }
+    ]
+  },
+  "bot_user_id": "@bot:jgaga.tk"
+}

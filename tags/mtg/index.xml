@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Mtg on Jay&#39;s Blog</title>
+    <link>http://127.0.0.1:1313/tags/mtg/</link>
+    <description>Recent content in Mtg on Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 30 Jul 2026 09:23:17 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/mtg/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Telegram MTProto 代理 FakeTLS 完整教程：mtg 部署与客户端使用</title>
+      <link>http://127.0.0.1:1313/posts/linux/telegram-mtproto-proxy-faketls-mtg/</link>
+      <pubDate>Thu, 30 Jul 2026 09:23:17 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/linux/telegram-mtproto-proxy-faketls-mtg/</guid>
+      <description>Telegram 官方支持一种叫 MTProto Proxy 的自建代理协议。它最大的好处是客户端原生支持：不用装任何第三方 App，把一条 https://t.me/proxy?... 链接发给别人，点一下就自动配好了。&#xA;但裸 MTProto 特征明显，容易被识别封锁，所以现在能用的方案都必须开 FakeTLS（TLS 伪装）。&#xA;这篇教程的路线：&#xA;FakeTLS 与选型 — 原理，三款代理怎么选 部署 — 一条主线七步走完，不用做选择 导出代理链接 — 一条命令 客户端怎么用 — 三种方式（很多教程漏掉的一步） 后面是选读：识别 FakeTLS 链接、进阶配置、实战验证记录，以及附录里的其他部署方式（simple-run / compose / systemd / 双栈 / 动态 IP DDNS）。&#xA;💡 全文命令都在真机跑过，输出都是真的。踩过的坑写在对应位置和文末「实战验证」里。&#xA;一、FakeTLS 与选型 FakeTLS 解决什么问题 普通 MTProto 代理的握手包不像任何常见协议，很容易被流量分析打上标签。&#xA;FakeTLS 的做法是：把 MTProto 流量包装成一次看起来完全正常的 TLS 握手，握手里明文携带的 SNI（Server Name Indication，目标域名）写成一个真实存在的大站，比如 cloudflare.com。&#xA;mtg 在此之上还多做两件事：&#xA;域名前置（Domain Fronting）：如果来的请求密钥不对（比如探测器扫你的端口），mtg 不断开连接，而是把请求原样转给你伪装的那个真实网站，再把真实响应字节对字节回给对方。探测者看到的就是一个正常网站。 Doppelganger（分身）：模仿真实网站 TLS 数据包的时序和分块特征，让流量在统计学上也难以区分。默认自带 ok.ru 的统计数据，一般不用动。 三款代理对比 ① 最推荐：9seconds/mtg（Go 语言版） 仓库：https://github.</description>
+    </item>
+  </channel>
+</rss>

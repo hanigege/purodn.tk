@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>操作手册 on Jay&#39;s Blog</title>
+    <link>http://127.0.0.1:1313/tags/%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8C/</link>
+    <description>Recent content in 操作手册 on Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 06 Aug 2026 02:41:41 +0800</lastBuildDate>
+    <atom:link href="http://127.0.0.1:1313/tags/%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8C/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hugo 文章「更新于」时间机制与修改文章操作备忘</title>
+      <link>http://127.0.0.1:1313/posts/linux/hugo-update-time-memo/</link>
+      <pubDate>Thu, 06 Aug 2026 02:41:41 +0800</pubDate>
+      <guid>http://127.0.0.1:1313/posts/linux/hugo-update-time-memo/</guid>
+      <description>⚠️ 本文是内部操作备忘，draft = true 永不发布。随时可回查，照着操作即可。&#xA;最后核验：2026-08-06（蜜与小哥共同确认机制正确）。&#xA;一、背景：为什么会有这篇文章 2026-08-01 本站曾出现全站文章正文都显示「更新于 2026年8月1日」的假象。根因有两层：&#xA;站点曾开启 enableGitInfo: true——Hugo 0.131 实测：开启后 .Lastmod（&amp;ldquo;更新于&amp;quot;数据源）默认取 git 最后提交时间，front matter 里手写的 lastmod 字段反而会被忽略（Hugo 默认配置 Lastmod: [&#39;:git&#39;, &#39;lastmod&#39;, ...]，git 优先）。 8月1日有一次批量提交，给 134 篇文章的 front matter 统一加了 pinned = false 模板字段 → 这 134 篇的 git 最后提交时间全部变成 8月1日 → 全站&amp;quot;更新于 8月1日&amp;rdquo;。 修复方案：关掉 enableGitInfo，改用 front matter lastmod + 文件修改时间兜底。机制细节见下。&#xA;二、现在的机制（怎么决定&amp;quot;更新于&amp;quot;显示什么） hugo.yaml 中的配置：&#xA;复制frontmatter: lastmod: - lastmod # ① 优先：front matter 里的 lastmod 字段 - :fileModTime # ② 兜底：没有 lastmod 就用文件修改时间（mtime） 模板 layouts/_default/single.</description>
+    </item>
+  </channel>
+</rss>

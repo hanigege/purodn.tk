@@ -1,0 +1,1507 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Telegram MTProto 代理 FakeTLS 完整教程：mtg 部署与客户端使用 | Jay&#39;s Blog</title>
+    <meta name="description" content="一条主线七步部署 9seconds/mtg：查 IP 归属选伪装域名、生成 ee 密钥、docker run 与 compose 两种启动、mtg doctor 自检、导出代理链接，以及 Telegram 客户端三种使用方式。附双栈与动态 IP DDNS 配置，全部真机实测。">
+    <link rel="icon" href="/favicon/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
+    <meta name="theme-color" content="#222831">
+      <link rel="stylesheet" href="/css/main.min.cdd752b721ae641c8ae73ed6a84114f4376fceb3b182cfe306c100cd4d702918.css" integrity="sha256-zddStyGuZByK5z7WqEEU9DdvzrOxgs/jBsEAzU1wKRg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="Jay&#39;s Blog 首页">
+      <img class="brand-sign" src="/images/jays-blog-brand.png" alt="Jay&#39;s Blog">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/router/">Router</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-07-30">2026年7月30日</time>
+        </div>
+        <h1>Telegram MTProto 代理 FakeTLS 完整教程：mtg 部署与客户端使用</h1>
+          <p>一条主线七步部署 9seconds/mtg：查 IP 归属选伪装域名、生成 ee 密钥、docker run 与 compose 两种启动、mtg doctor 自检、导出代理链接，以及 Telegram 客户端三种使用方式。附双栈与动态 IP DDNS 配置，全部真机实测。</p>
+      </header>
+          <img class="article-cover" src="/posts/linux/telegram-mtproto-proxy-faketls-mtg/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <p>Telegram 官方支持一种叫 <strong>MTProto Proxy</strong> 的自建代理协议。它最大的好处是<strong>客户端原生支持</strong>：不用装任何第三方 App，把一条 <code>https://t.me/proxy?...</code> 链接发给别人，点一下就自动配好了。</p>
+<p>但裸 MTProto 特征明显，容易被识别封锁，所以现在能用的方案都必须开 <strong>FakeTLS（TLS 伪装）</strong>。</p>
+<p>这篇教程的路线：</p>
+<ol>
+<li><strong>FakeTLS 与选型</strong> — 原理，三款代理怎么选</li>
+<li><strong>部署</strong> — 一条主线七步走完，不用做选择</li>
+<li><strong>导出代理链接</strong> — 一条命令</li>
+<li><strong>客户端怎么用</strong> — 三种方式（很多教程漏掉的一步）</li>
+</ol>
+<p>后面是选读：识别 FakeTLS 链接、进阶配置、实战验证记录，以及附录里的其他部署方式（simple-run / compose / systemd / 双栈 / 动态 IP DDNS）。</p>
+<blockquote>
+<p>💡 全文命令都在真机跑过，输出都是真的。踩过的坑写在对应位置和文末「实战验证」里。</p>
+</blockquote>
+<hr>
+<h2 id="一faketls-与选型">一、FakeTLS 与选型</h2>
+<h3 id="faketls-解决什么问题">FakeTLS 解决什么问题</h3>
+<p>普通 MTProto 代理的握手包不像任何常见协议，很容易被流量分析打上标签。</p>
+<p>FakeTLS 的做法是：<strong>把 MTProto 流量包装成一次看起来完全正常的 TLS 握手</strong>，握手里明文携带的 SNI（Server Name Indication，目标域名）写成一个真实存在的大站，比如 <code>cloudflare.com</code>。</p>
+<p>mtg 在此之上还多做两件事：</p>
+<ul>
+<li><strong>域名前置（Domain Fronting）</strong>：如果来的请求密钥不对（比如探测器扫你的端口），mtg 不断开连接，而是把请求原样转给你伪装的那个真实网站，再把真实响应字节对字节回给对方。探测者看到的就是一个正常网站。</li>
+<li><strong>Doppelganger（分身）</strong>：模仿真实网站 TLS 数据包的时序和分块特征，让流量在统计学上也难以区分。默认自带 ok.ru 的统计数据，一般不用动。</li>
+</ul>
+<h3 id="三款代理对比">三款代理对比</h3>
+<h4 id="-最推荐9secondsmtggo-语言版">① 最推荐：9seconds/mtg（Go 语言版）</h4>
+<ul>
+<li><strong>仓库</strong>：<a href="https://github.com/9seconds/mtg">https://github.com/9seconds/mtg</a></li>
+<li><strong>本文实测版本</strong>：v2.2.8，Docker 镜像 <code>nineseconds/mtg:2</code></li>
+</ul>
+<p>作者在重构到 v2.x 后原生全面支持 FakeTLS 和链路优化，是目前维护最好、性能最好的单文件 / Docker 工具，能撑约 1~2 万并发连接。</p>
+<p>优点：</p>
+<ul>
+<li>单个静态二进制，或一行 <code>docker run</code> 就能跑</li>
+<li><strong>只支持 FakeTLS</strong>，v2 直接禁用了旧的 simple / secured 模式，不给你配错的机会</li>
+<li>自带 <code>mtg doctor</code> 自检、<code>mtg access</code> 出链接</li>
+<li>支持 SOCKS5 上游链式代理（出站可再套 Trojan / sing-box / v2ray）</li>
+<li>支持 IP 黑名单、防重放攻击、Proxy Protocol v1/v2</li>
+</ul>
+<p>取舍（作者故意这么设计的）：</p>
+<ul>
+<li>⚠️ <strong>只支持单个密钥</strong>，无多用户管理。要多密钥用 fork <a href="https://github.com/dolonet/mtg-multi">mtg-multi</a></li>
+<li>⚠️ <strong>v2 完全移除 adtag</strong>（推广频道）。要 adtag 用 v1 分支，或改用 <a href="https://github.com/telemt/telemt">telemt</a></li>
+<li>⚠️ 没有 Web 面板，作者明确表示不做</li>
+</ul>
+<p>分支别选错：</p>
+<table>
+<thead>
+<tr>
+<th>分支</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stable</code></td>
+<td><strong>推荐</strong>，master 的稳定快照</td>
+</tr>
+<tr>
+<td><code>master</code></td>
+<td>开发前沿，可能有破坏性变更</td>
+</tr>
+<tr>
+<td><code>v2</code></td>
+<td>v2.x 开发线，目前等同 master</td>
+</tr>
+<tr>
+<td><code>v1</code></td>
+<td>仅维护模式，唯一有 adtag 的分支</td>
+</tr>
+</tbody>
+</table>
+<h4 id="-docker-一键部署版">② Docker 一键部署版</h4>
+<ul>
+<li><a href="https://github.com/yurykovshov/mtproto-proxy">yurykovshov/mtproto-proxy</a></li>
+<li><a href="https://github.com/alexbers/mtprotoproxy">alexbers/mtprotoproxy</a>（Python 实现，也支持 FakeTLS）</li>
+<li><a href="https://github.com/iShift/docker-compose-mtproxy">iShift/docker-compose-mtproxy</a></li>
+</ul>
+<p>这类项目是对 mtg 或 C 版的一键脚本 / 容器封装，内置自动生成 <code>ee</code> 前缀密钥和域名伪装的逻辑，适合完全不想碰配置文件的人。</p>
+<ul>
+<li>✅ 一条命令跑完，密钥和链接自动打印</li>
+<li>⚠️ <strong>版本滞后于上游</strong>，出问题要同时看封装脚本和上游两层代码。选之前看仓库最后提交时间，超过一年没动的别用</li>
+</ul>
+<h4 id="-官方-c-语言版telegrammessengermtproxy">③ 官方 C 语言版：TelegramMessenger/MTProxy</h4>
+<ul>
+<li>
+<p><strong>仓库</strong>：<a href="https://github.com/TelegramMessenger/MTProxy">https://github.com/TelegramMessenger/MTProxy</a></p>
+</li>
+<li>
+<p>✅ 官方出品，性能极高，adtag 的原生实现</p>
+</li>
+<li>
+<p>⚠️ 要自己编译（依赖 <code>openssl-devel</code>、<code>zlib-devel</code>），命令行参数很多，比 mtg 繁琐得多。官方仓库更新极慢，FakeTLS 靠社区补丁</p>
+</li>
+</ul>
+<h4 id="一句话选型">一句话选型</h4>
+<table>
+<thead>
+<tr>
+<th>你的情况</th>
+<th>选什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自己或小圈子用，想最省心</td>
+<td><strong>9seconds/mtg v2</strong></td>
+</tr>
+<tr>
+<td>完全不想碰配置文件</td>
+<td>Docker 一键封装版</td>
+</tr>
+<tr>
+<td>需要 adtag 推广频道</td>
+<td>mtg v1 或 telemt</td>
+</tr>
+<tr>
+<td>需要多用户多密钥</td>
+<td>mtg-multi fork</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="二部署一条主线走完">二、部署（一条主线走完）</h2>
+<p>下面这条流程是真机从零跑通的完整过程，<strong>照着抄就行</strong>，不用做任何选择。用 Docker + 配置文件，因为这条路能用 <code>mtg doctor</code> 自检、<code>mtg access</code> 自动出链接，出问题好查。</p>
+<p>（不想用配置文件、想一条命令搞定，或者要 compose / systemd / 双栈 / 动态 IP，见文末「附录：其他部署方式」。）</p>
+<h3 id="第-1-步确定伪装域名">第 1 步：确定伪装域名</h3>
+<p>FakeTLS 要假装访问一个真实网站，这个域名<strong>不能乱选</strong>。</p>
+<p>很多教程直接抄 <code>google.com</code>——<strong>这是坏例子</strong>，作者本人在 README 里说过：运营商很容易查出你的 IP 不属于 Google 的网段，一对不上就露馅。</p>
+<p>正确做法是选<strong>和你服务器 IP 归属同一家</strong>的域名。先查你的 IP 属于谁：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -s https://ipinfo.io/<span style="color:#66d9ef">$(</span>curl -s ifconfig.co<span style="color:#66d9ef">)</span> | grep -E <span style="color:#e6db74">&#39;org|hostname&#39;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -s https://ipinfo.io/$(curl -s ifconfig.co) | grep -E 'org|hostname'"</script>
+</div>
+<p>本文实测服务器的真实输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>  &#34;hostname&#34;: &#34;192-227-236-209-host.colocrossing.com&#34;,
+</span></span><span style="display:flex;"><span>  &#34;org&#34;: &#34;AS36352 HostPapa&#34;,</span></span></code></pre></div><script class="code-source" type="application/json">"  \"hostname\": \"192-227-236-209-host.colocrossing.com\",\n  \"org\": \"AS36352 HostPapa\","</script>
+</div>
+<p><code>org</code> 是 HostPapa、hostname 带 <code>colocrossing.com</code>，所以伪装域名就选 <strong><code>www.colocrossing.com</code></strong>。</p>
+<p>这个选择好在哪：<code>www.colocrossing.com</code> 解析到 <code>198.23.210.28</code>，和本文服务器 <code>192.227.236.209</code> <strong>同属 ColoCrossing 网段</strong>。审查方看到「ColoCrossing 的 IP 在访问 ColoCrossing 官网」，完全合理。</p>
+<p><strong>上面的要说明一下，这个只针对墙外的vps的测试方法，墙内的话</strong>：</p>
+<p>在墙内家宽环境下，FakeTLS 伪装域名该选什么？
+完全不需要填写联通自己的域名，直接选择国际公认、流量巨大的大厂域名是效果最好、最稳定的。</p>
+<p>优先推荐使用以下域名来生成 mtg 的 Secret：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>cloudflare.com（最推荐，节点和流量极其庞大，防封效果最好）
+
+azure.microsoft.com 或 microsoft.com（微软大厂域名）
+
+aws.amazon.com（亚马逊 AWS）
+
+dl.google.com</code></pre><script class="code-source" type="application/json">"cloudflare.com（最推荐，节点和流量极其庞大，防封效果最好）\n\nazure.microsoft.com 或 microsoft.com（微软大厂域名）\n\naws.amazon.com（亚马逊 AWS）\n\ndl.google.com"</script>
+</div>
+<p>如何用这个域名生成 Secret？
+直接在终端运行 mtg generate-secret，把伪装域名设为 cloudflare.com 即可：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Bash" data-lang="Bash"><span style="display:flex;"><span>docker run --rm nineseconds/mtg:2 generate-secret --hex cloudflare.com</span></span></code></pre></div><script class="code-source" type="application/json">"docker run --rm nineseconds/mtg:2 generate-secret --hex cloudflare.com"</script>
+</div>
+<p>这样生成的以 ee 开头的 Secret（里面已经包含了 cloudflare.com 的十六进制编码）：</p>
+<p>客户端在建立 TLS 握手时，DPI 看到的目标域名是 cloudflare.com，不会盲目拦截。</p>
+<p>Telegram 客户端与你的服务器握手成功后，就能正常传输加密数据。</p>
+<p>按你自己的结果对应着选：</p>
+<table>
+<thead>
+<tr>
+<th><code>org</code> / <code>hostname</code> 显示</th>
+<th>伪装域名用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ColoCrossing / HostPapa</td>
+<td><code>www.colocrossing.com</code></td>
+</tr>
+<tr>
+<td>DigitalOcean</td>
+<td><code>digitalocean.com</code></td>
+</tr>
+<tr>
+<td>Vultr</td>
+<td><code>vultr.com</code></td>
+</tr>
+<tr>
+<td>Hetzner</td>
+<td><code>hetzner.com</code></td>
+</tr>
+<tr>
+<td>Linode / Akamai</td>
+<td><code>linode.com</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="第-2-步生成密钥">第 2 步：生成密钥</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run --rm nineseconds/mtg:2 generate-secret --hex www.colocrossing.com</span></span></code></pre></div><script class="code-source" type="application/json">"docker run --rm nineseconds/mtg:2 generate-secret --hex www.colocrossing.com"</script>
+</div>
+<p>第一次跑会自动拉镜像，真实输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Unable to find image &#39;nineseconds/mtg:2&#39; locally
+</span></span><span style="display:flex;"><span>2: Pulling from nineseconds/mtg
+</span></span><span style="display:flex;"><span>bc789cc7bfb3: Pull complete
+</span></span><span style="display:flex;"><span>c4e5c75d1caf: Pull complete
+</span></span><span style="display:flex;"><span>cf4791f5a2e1: Pull complete
+</span></span><span style="display:flex;"><span>58e68664fbe2: Pull complete
+</span></span><span style="display:flex;"><span>c9ba8415b742: Download complete
+</span></span><span style="display:flex;"><span>Digest: sha256:c082586a19886e4822f92aa8c1949a771df3519053d64b1b5505a9a280a3929d
+</span></span><span style="display:flex;"><span>Status: Downloaded newer image for nineseconds/mtg:2
+</span></span><span style="display:flex;"><span>ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d</span></span></code></pre></div><script class="code-source" type="application/json">"Unable to find image 'nineseconds/mtg:2' locally\n2: Pulling from nineseconds/mtg\nbc789cc7bfb3: Pull complete\nc4e5c75d1caf: Pull complete\ncf4791f5a2e1: Pull complete\n58e68664fbe2: Pull complete\nc9ba8415b742: Download complete\nDigest: sha256:c082586a19886e4822f92aa8c1949a771df3519053d64b1b5505a9a280a3929d\nStatus: Downloaded newer image for nineseconds/mtg:2\nee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d"</script>
+</div>
+<p>最后一行就是密钥。</p>
+<blockquote>
+<p>⚠️ <strong>每次跑结果都不一样</strong>（前 16 字节是随机的），别抄本文的，用你自己生成的那串。</p>
+<p>⚠️ <strong>密钥等于密码</strong>，泄露了别人就能白用你的代理。别发到公开地方。</p>
+</blockquote>
+<h3 id="第-3-步写配置文件">第 3 步：写配置文件</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p ~/data/docker_data/mtg <span style="color:#f92672">&amp;&amp;</span> cd ~/data/docker_data/mtg
+</span></span><span style="display:flex;"><span>nvim config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p ~/data/docker_data/mtg \u0026\u0026 cd ~/data/docker_data/mtg\nnvim config.toml"</script>
+</div>
+<p>内容只要三段：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">secret</span> = <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;0.0.0.0:3128&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret = \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\"\nbind-to = \"0.0.0.0:3128\"\n\n[network]\ndns = \"https://223.5.5.5\""</script>
+</div>
+<p>三行分别是什么：</p>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>secret</code></td>
+<td>上一步生成的密钥</td>
+</tr>
+<tr>
+<td><code>bind-to</code></td>
+<td><strong>容器内</strong>监听地址。主机部分必须是字面 IP，写域名会报 <code>host is not an IP address</code>。这个 <code>3128</code> 不是客户端连的端口</td>
+</tr>
+<tr>
+<td><code>dns</code></td>
+<td>DNS 解析器。<strong>必须写</strong>，理由见下</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong><code>dns</code> 这一行别省，这是最容易翻车的地方。</strong> mtg 默认用 <code>1.1.1.1</code> 做 DNS-over-HTTPS，很多服务器（尤其墙内）访问不到，会导致域名前置直接失效，日志刷：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>{&#34;level&#34;:&#34;warn&#34;,&#34;logger&#34;:&#34;proxy&#34;,&#34;error&#34;:&#34;dial tcp: lookup ...: i/o timeout&#34;,&#34;message&#34;:&#34;cannot dial to the fronting domain&#34;}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"level\":\"warn\",\"logger\":\"proxy\",\"error\":\"dial tcp: lookup ...: i/o timeout\",\"message\":\"cannot dial to the fronting domain\"}"</script>
+</div>
+<p>坑在于<strong>容器显示 <code>Up</code>、端口也在监听，看起来一切正常</strong>，但客户端就是连不上。写成 <code>dns = &quot;https://223.5.5.5&quot;</code>（阿里 DoH）或 <code>https://8.8.8.8</code> 即可。</p>
+<p>顺带一提：mtg v2.1.12 之前这个选项叫 <code>doh-ip</code>，老教程抄的是旧名字，两个不能同时写。</p>
+</blockquote>
+<h3 id="第-4-步启动">第 4 步：启动</h3>
+<p>两种启动方式，<strong>效果完全一样，选一个</strong>。想长期维护建议用 compose（配置都写在文件里，不用记命令）。</p>
+<h4 id="方式一docker-run-一条命令">方式一：docker run 一条命令</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -d -v $PWD/config.toml:/config.toml -p 27777:3128 --name mtg --restart always nineseconds/mtg:2</span></span></code></pre></div><script class="code-source" type="application/json">"docker run -d -v $PWD/config.toml:/config.toml -p 27777:3128 --name mtg --restart always nineseconds/mtg:2"</script>
+</div>
+<p>真实输出（容器 ID）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>7a2465b9bbf5142165292a6ba21c475ac7508d111290c99930a0ca2620534690</span></span></code></pre></div><script class="code-source" type="application/json">"7a2465b9bbf5142165292a6ba21c475ac7508d111290c99930a0ca2620534690"</script>
+</div>
+<h4 id="方式二docker-compose推荐长期用">方式二：docker-compose（推荐长期用）</h4>
+<p>在同一个目录（<code>~/data/docker_data/mtg</code>）里再建一个文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nvim docker-compose.yml</span></span></code></pre></div><script class="code-source" type="application/json">"nvim docker-compose.yml"</script>
+</div>
+<p>内容：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">mtg</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nineseconds/mtg:2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">mtg</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.toml:/config.toml:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;27777:3128&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  mtg:\n    image: nineseconds/mtg:2\n    container_name: mtg\n    restart: always\n    volumes:\n      - ./config.toml:/config.toml:ro\n    ports:\n      - \"27777:3128\""</script>
+</div>
+<p>启动：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"docker compose up -d"</script>
+</div>
+<blockquote>
+<p>💡 密钥<strong>不在</strong> compose 文件里，它在 <code>config.toml</code> 里。compose 只负责把配置文件挂进容器（<code>:ro</code> 是只读挂载，更安全）。所以要改密钥只动 <code>config.toml</code>，compose 文件不用碰。</p>
+</blockquote>
+<p>compose 的日常操作：</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>命令</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>启动</td>
+<td><code>docker compose up -d</code></td>
+</tr>
+<tr>
+<td>停止</td>
+<td><code>docker compose down</code></td>
+</tr>
+<tr>
+<td>重启（改完配置后）</td>
+<td><code>docker compose restart</code></td>
+</tr>
+<tr>
+<td>看状态</td>
+<td><code>docker compose ps</code></td>
+</tr>
+<tr>
+<td>看日志</td>
+<td><code>docker compose logs --tail 50</code></td>
+</tr>
+<tr>
+<td>升级镜像</td>
+<td><code>docker compose pull &amp;&amp; docker compose up -d</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="两种方式都要注意的端口问题">两种方式都要注意的端口问题</h4>
+<p><code>-p 27777:3128</code>（或 compose 里的 <code>&quot;27777:3128&quot;</code>）是全流程最容易搞混的一处：</p>
+<ul>
+<li><strong>左边 <code>27777</code></strong> = 客户端要连的<strong>宿主机端口</strong>，自己定，后面拼链接用这个</li>
+<li><strong>右边 <code>3128</code></strong> = 容器内端口，要和 <code>config.toml</code> 里 <code>bind-to</code> 的端口一致</li>
+</ul>
+<blockquote>
+<p>💡 <strong>端口优先选 443</strong>。高位端口跑 TLS 流量本身是异常特征，伪装效果打折。443 没被占用就改成 <code>443:3128</code>，配置文件不用动。本文用 27777 只是因为测试机 443 已占用。</p>
+</blockquote>
+<h4 id="顺手把-ipv6-也支持上可选">顺手把 IPv6 也支持上（可选）</h4>
+<p>上面的配置<strong>只监听 IPv4</strong>。服务器有 IPv6 的话，把 <code>config.toml</code> 里的 <code>bind-to</code> 改一个字就同时支持两种客户端：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">secret</span> = <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;[::]:3128&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">prefer-ip</span> = <span style="color:#e6db74">&#34;prefer-ipv4&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret = \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\"\nbind-to = \"[::]:3128\"\nprefer-ip = \"prefer-ipv4\"\n\n[network]\ndns = \"https://223.5.5.5\""</script>
+</div>
+<p>改动只有两处：</p>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bind-to = &quot;[::]:3128&quot;</code></td>
+<td><code>[::]</code> 是 IPv6 通配地址，Linux 下<strong>同时覆盖 IPv4 和 IPv6</strong>（中括号不能省，因为 IPv6 地址自带冒号，不加括号分不清端口分隔符）</td>
+</tr>
+<tr>
+<td><code>prefer-ip = &quot;prefer-ipv4&quot;</code></td>
+<td>mtg <strong>出站连 Telegram</strong> 时优先用 IPv4。默认是 <code>prefer-ipv6</code>，但 IPv6 是隧道或质量不好时反而变慢，所以一般写 <code>prefer-ipv4</code></td>
+</tr>
+</tbody>
+</table>
+<p>改完重启，本文实测 <code>docker ps</code> 输出确认双栈映射生效：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>mtg   Up 4 seconds   0.0.0.0:27777-&gt;3128/tcp, [::]:27777-&gt;3128/tcp</span></span></code></pre></div><script class="code-source" type="application/json">"mtg   Up 4 seconds   0.0.0.0:27777-\u003e3128/tcp, [::]:27777-\u003e3128/tcp"</script>
+</div>
+<p><code>ss -tln | grep 27777</code> 也能看到两条：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>LISTEN 0  4096   0.0.0.0:27777   0.0.0.0:*
+</span></span><span style="display:flex;"><span>LISTEN 0  4096      [::]:27777      [::]:*</span></span></code></pre></div><script class="code-source" type="application/json">"LISTEN 0  4096   0.0.0.0:27777   0.0.0.0:*\nLISTEN 0  4096      [::]:27777      [::]:*"</script>
+</div>
+<blockquote>
+<p>⚠️ <strong>Docker 的 bridge 网络默认不转发 IPv6 外部流量</strong>。上面这样配，容器内和端口映射层面是双栈了，但要让公网 IPv6 客户端真正连进来，最省事的办法是改用 host 网络（compose 里加 <code>network_mode: host</code>，同时去掉 <code>ports:</code> 段，此时 <code>bind-to</code> 的端口就是客户端连的真实端口）。详细说明和另一种开 Docker IPv6 的办法见文末附录「IPv4 + IPv6 双栈」。</p>
+<p>💡 只有 IPv4 的服务器直接用 <code>bind-to = &quot;0.0.0.0:3128&quot;</code> 就好，别配双栈，白折腾。</p>
+</blockquote>
+<h3 id="第-5-步自检">第 5 步：自检</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec mtg /mtg doctor /config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec mtg /mtg doctor /config.toml"</script>
+</div>
+<p>真实输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Deprecated options
+</span></span><span style="display:flex;"><span>  ✅ All good
+</span></span><span style="display:flex;"><span>Time skewness
+</span></span><span style="display:flex;"><span>  ✅ Time drift is -9.520119ms, but tolerate-time-skewness is 3s
+</span></span><span style="display:flex;"><span>Validate native network connectivity
+</span></span><span style="display:flex;"><span>  ✅ DC 1
+</span></span><span style="display:flex;"><span>  ✅ DC 2
+</span></span><span style="display:flex;"><span>  ✅ DC 3
+</span></span><span style="display:flex;"><span>  ✅ DC 4
+</span></span><span style="display:flex;"><span>  ✅ DC 5
+</span></span><span style="display:flex;"><span>  ✅ DC 203
+</span></span><span style="display:flex;"><span>Validate fronting domain connectivity
+</span></span><span style="display:flex;"><span>  ✅ www.colocrossing.com:443 is reachable
+</span></span><span style="display:flex;"><span>Validate SNI-DNS match
+</span></span><span style="display:flex;"><span>  ❌ Hostname www.colocrossing.com is resolved to &#34;198.23.210.28&#34; addresses, not 192.227.236.209</span></span></code></pre></div><script class="code-source" type="application/json">"Deprecated options\n  ✅ All good\nTime skewness\n  ✅ Time drift is -9.520119ms, but tolerate-time-skewness is 3s\nValidate native network connectivity\n  ✅ DC 1\n  ✅ DC 2\n  ✅ DC 3\n  ✅ DC 4\n  ✅ DC 5\n  ✅ DC 203\nValidate fronting domain connectivity\n  ✅ www.colocrossing.com:443 is reachable\nValidate SNI-DNS match\n  ❌ Hostname www.colocrossing.com is resolved to \"198.23.210.28\" addresses, not 192.227.236.209"</script>
+</div>
+<p><strong>最后那个 ❌ 是正常的，不用管。</strong></p>
+<p>这一项检查的是「伪装域名解析的 IP」是否<strong>完全等于</strong>你服务器的 IP。要它变绿，等于要求你拥有 <code>www.colocrossing.com</code> 这个域名并把它解析到你自己机器上——<strong>不可能做到</strong>。只要你是拿别人的域名做伪装，这项就必然是 ❌，跟配置对不对没关系。</p>
+<p>真正要看的是它上面两项，<strong>这两项必须 ✅</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>意义</th>
+<th>❌ 了怎么办</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>native network connectivity</code> 6 个 DC</td>
+<td>你的服务器能连上 Telegram</td>
+<td>某个 DC ❌ 说明到该数据中心不通，可能被墙，考虑配 SOCKS5 上游</td>
+</tr>
+<tr>
+<td><code>fronting domain connectivity</code></td>
+<td>域名前置能正常工作</td>
+<td>❌ 先查 <code>dns</code> 那一行是不是没写（第 3 步的坑），再考虑换域名</td>
+</tr>
+<tr>
+<td><code>Time skewness</code></td>
+<td>服务器时间准</td>
+<td>❌ 执行 <code>timedatectl set-ntp true</code>；出现 <code>‼️ cannot access ntp pool</code> 是<strong>没测成</strong>（容器 UDP 123 被拦），不是时间不对，宿主机 <code>timedatectl status</code> 显示 <code>synchronized: yes</code> 就没事</td>
+</tr>
+<tr>
+<td><code>Deprecated options</code></td>
+<td>没用废弃选项</td>
+<td>❌ 把顶层 <code>domain-fronting-*</code> 改写进 <code>[domain-fronting]</code> 段</td>
+</tr>
+</tbody>
+</table>
+<h3 id="第-6-步放行端口">第 6 步：放行端口</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo ufw allow 27777/tcp</span></span></code></pre></div><script class="code-source" type="application/json">"sudo ufw allow 27777/tcp"</script>
+</div>
+<p>⚠️ 云服务器还要去<strong>厂商控制台的安全组</strong>里放行同一个端口，只改服务器本地防火墙不够。</p>
+<h3 id="第-7-步验证域名前置真的在工作">第 7 步：验证域名前置真的在工作</h3>
+<p>用 <code>curl</code> 冒充探测器连你的代理，正常情况应该收到<strong>伪装网站的真实响应</strong>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -sk --max-time <span style="color:#ae81ff">15</span> https://192.227.236.209:27777/ -H <span style="color:#e6db74">&#34;Host: www.colocrossing.com&#34;</span> -D- -o /dev/null | head -6</span></span></code></pre></div><script class="code-source" type="application/json">"curl -sk --max-time 15 https://192.227.236.209:27777/ -H \"Host: www.colocrossing.com\" -D- -o /dev/null | head -6"</script>
+</div>
+<p>本文实测输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>HTTP/1.1 200 OK
+</span></span><span style="display:flex;"><span>Date: Thu, 30 Jul 2026 02:08:37 GMT
+</span></span><span style="display:flex;"><span>Server: Apache
+</span></span><span style="display:flex;"><span>Last-Modified: Thu, 30 Jul 2026 01:13:40 GMT
+</span></span><span style="display:flex;"><span>Cache-Control: max-age=0
+</span></span><span style="display:flex;"><span>Expires: Thu, 30 Jul 2026 02:08:37 GMT</span></span></code></pre></div><script class="code-source" type="application/json">"HTTP/1.1 200 OK\nDate: Thu, 30 Jul 2026 02:08:37 GMT\nServer: Apache\nLast-Modified: Thu, 30 Jul 2026 01:13:40 GMT\nCache-Control: max-age=0\nExpires: Thu, 30 Jul 2026 02:08:37 GMT"</script>
+</div>
+<p>返回的是 ColoCrossing 官网真实的 Apache 200 响应——<strong>说明域名前置生效了</strong>：不知道密钥的探测者扫到你这个端口，看到的就是个普通网站，而不是代理。这就是 FakeTLS 的核心价值。</p>
+<blockquote>
+<p>💡 不带 <code>Host</code> 头直接 curl 会返回 <code>400</code>，这是正常的（SNI 不匹配被真实网站自己拒了）。
+返回 <code>000</code> 或超时才是有问题，八成是第 3 步的 <code>dns</code> 没写。</p>
+</blockquote>
+<hr>
+<h2 id="三导出代理链接">三、导出代理链接</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec mtg /mtg access -p <span style="color:#ae81ff">27777</span> /config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec mtg /mtg access -p 27777 /config.toml"</script>
+</div>
+<p>真实输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ipv4&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;ip&#34;</span>: <span style="color:#e6db74">&#34;192.227.236.209&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;port&#34;</span>: <span style="color:#ae81ff">27777</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tg_url&#34;</span>: <span style="color:#e6db74">&#34;tg://proxy?port=27777&amp;secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&amp;server=192.227.236.209&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tg_qrcode&#34;</span>: <span style="color:#e6db74">&#34;https://api.qrserver.com/v1/create-qr-code?data=tg%3A%2F%2Fproxy%3Fport%3D27777%26secret%3D7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ%26server%3D192.227.236.209&amp;format=svg&amp;qzone=4&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tme_url&#34;</span>: <span style="color:#e6db74">&#34;https://t.me/proxy?port=27777&amp;secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&amp;server=192.227.236.209&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tme_qrcode&#34;</span>: <span style="color:#e6db74">&#34;https://api.qrserver.com/v1/create-qr-code?data=https%3A%2F%2Ft.me%2Fproxy%3Fport%3D27777%26secret%3D7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ%26server%3D192.227.236.209&amp;format=svg&amp;qzone=4&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;secret&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;hex&#34;</span>: <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;base64&#34;</span>: <span style="color:#e6db74">&#34;7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&#34;</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"ipv4\": {\n    \"ip\": \"192.227.236.209\",\n    \"port\": 27777,\n    \"tg_url\": \"tg://proxy?port=27777\u0026secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\u0026server=192.227.236.209\",\n    \"tg_qrcode\": \"https://api.qrserver.com/v1/create-qr-code?data=tg%3A%2F%2Fproxy%3Fport%3D27777%26secret%3D7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ%26server%3D192.227.236.209\u0026format=svg\u0026qzone=4\",\n    \"tme_url\": \"https://t.me/proxy?port=27777\u0026secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\u0026server=192.227.236.209\",\n    \"tme_qrcode\": \"https://api.qrserver.com/v1/create-qr-code?data=https%3A%2F%2Ft.me%2Fproxy%3Fport%3D27777%26secret%3D7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ%26server%3D192.227.236.209\u0026format=svg\u0026qzone=4\"\n  },\n  \"secret\": {\n    \"hex\": \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\",\n    \"base64\": \"7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\"\n  }\n}"</script>
+</div>
+<blockquote>
+<p>⚠️ <strong><code>-p 27777</code> 必须加！</strong> 不加的话输出的 <code>port</code> 会是配置文件里的 <code>3128</code>（容器内端口），拿那条链接客户端<strong>连不上</strong>。这个坑很多人踩。</p>
+</blockquote>
+<p>四个字段挑着用：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tme_url</code></td>
+<td><strong>最常用</strong>，<code>https://t.me/proxy?...</code> 形式，发到聊天里能点</td>
+</tr>
+<tr>
+<td><code>tg_url</code></td>
+<td><code>tg://</code> 协议形式，效果一样，某些环境下点不动</td>
+</tr>
+<tr>
+<td><code>tme_qrcode</code></td>
+<td>二维码图片链接，浏览器打开后手机扫码</td>
+</tr>
+<tr>
+<td><code>secret.base64</code></td>
+<td>手动填代理时用的密钥</td>
+</tr>
+</tbody>
+</table>
+<p><strong>服务器连不上 <code>ifconfig.co</code> 时</strong>（<code>ip</code> 字段是空的或错的），手动指定：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker exec mtg /mtg access -p <span style="color:#ae81ff">27777</span> -i 你的公网IP /config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"docker exec mtg /mtg access -p 27777 -i 你的公网IP /config.toml"</script>
+</div>
+<hr>
+<h2 id="四客户端怎么用三种方式">四、客户端怎么用（三种方式）</h2>
+<h3 id="方式一点链接最简单推荐">方式一：点链接（最简单，推荐）</h3>
+<p>把 <code>tme_url</code> 那条链接发到任意 Telegram 聊天窗口——<strong>发给自己的「Saved Messages / 收藏夹」最方便</strong>——然后点它：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://t.me/proxy?port=27777&amp;secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&amp;server=192.227.236.209</span></span></code></pre></div><script class="code-source" type="application/json">"https://t.me/proxy?port=27777\u0026secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\u0026server=192.227.236.209"</script>
+</div>
+<p>Telegram 弹出确认框：</p>
+<blockquote>
+<p>启用此代理？/ Enable this proxy?
+192.227.236.209:27777</p>
+</blockquote>
+<p>点「<strong>启用代理 / Enable Proxy</strong>」，完事。服务器、端口、密钥全自动填好。</p>
+<h3 id="方式二扫二维码配到手机上">方式二：扫二维码（配到手机上）</h3>
+<p>在电脑浏览器打开 <code>access</code> 输出里的 <code>tme_qrcode</code> 那条链接，会显示一张二维码，手机 Telegram 扫一下就配好了。</p>
+<p>适合「在电脑上部署完，要配到手机」的场景，省得把长链接传来传去。</p>
+<h3 id="方式三手动填前两种都不行时">方式三：手动填（前两种都不行时）</h3>
+<p>各平台菜单路径：</p>
+<ul>
+<li><strong>Android</strong>：设置 → 数据和存储 → 代理设置 → 添加代理 → <strong>MTProto 代理</strong></li>
+<li><strong>iOS</strong>：设置 → 数据与存储 → 代理 → 添加代理 → <strong>MTProto</strong></li>
+<li><strong>桌面版（Windows / macOS / Linux）</strong>：设置 → 高级 → 连接类型 → 使用自定义代理 → 添加代理 → <strong>MTProto</strong></li>
+</ul>
+<p>填三个字段：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填什么</th>
+<th>本文示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server / 服务器</td>
+<td>服务器公网 IP</td>
+<td><code>192.227.236.209</code></td>
+</tr>
+<tr>
+<td>Port / 端口</td>
+<td><code>-p</code> 冒号<strong>左边</strong>那个数字</td>
+<td><code>27777</code></td>
+</tr>
+<tr>
+<td>Secret / 密钥</td>
+<td><code>access</code> 输出的 <code>base64</code>（或 hex，都认）</td>
+<td><code>7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>类型必须选 MTProto</strong>，别填到 SOCKS5 那一栏——填错栏永远连不上，这是最常见的错。</p>
+</blockquote>
+<h3 id="怎么确认连上了">怎么确认连上了</h3>
+<ul>
+<li>代理设置页面里，该条目下方显示「<strong>已连接 / Connected</strong>」</li>
+<li>顶部标题栏不再转圈显示「连接中… / Connecting…」</li>
+<li>随便打开个频道，消息能正常刷新</li>
+</ul>
+<h3 id="连不上怎么查按这个顺序">连不上怎么查（按这个顺序）</h3>
+<ol>
+<li><strong>端口对不对</strong>——链接里的 <code>port</code> 是不是 <code>-p</code> 冒号左边那个数字？<code>mtg access</code> 忘加 <code>-p</code> 的话这里必错</li>
+<li><strong>防火墙 / 安全组</strong>——本地 <code>sudo ufw allow 27777/tcp</code>，以及云厂商控制台的安全组</li>
+<li><strong>容器活着吗</strong>——<code>docker ps --filter name=mtg</code>，STATUS 要是 <code>Up</code></li>
+<li><strong>看日志</strong>——<code>docker logs mtg</code>。刷 <code>cannot dial to the fronting domain</code> 就是 <code>dns</code> 那行没写</li>
+<li><strong>重跑第 7 步的 curl 验证</strong>——服务端自己能不能通</li>
+<li><strong>类型选错了吗</strong>——手动填的时候是不是填到 SOCKS5 栏了</li>
+</ol>
+<h3 id="分享给别人时注意">分享给别人时注意</h3>
+<ul>
+<li>链接里含完整密钥，<strong>给出去等于给了账号</strong></li>
+<li>mtg v2 <strong>只支持单个密钥</strong>，做不到给不同人不同密钥（要这功能用 <a href="https://github.com/dolonet/mtg-multi">mtg-multi</a> fork）</li>
+<li>别公开传播。作者原话：代理应该「fly under the radar」，一旦被大范围分享，等着 IP 被封</li>
+</ul>
+<h3 id="日常维护">日常维护</h3>
+<p>改完配置重启：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker restart mtg</span></span></code></pre></div><script class="code-source" type="application/json">"docker restart mtg"</script>
+</div>
+<p>换密钥（比如泄露了）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. 生成新密钥</span>
+</span></span><span style="display:flex;"><span>docker run --rm nineseconds/mtg:2 generate-secret --hex www.colocrossing.com
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. 填进 config.toml 的 secret</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 3. 重启</span>
+</span></span><span style="display:flex;"><span>docker restart mtg
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 4. 重新导出链接发给用户（旧链接立即失效）</span>
+</span></span><span style="display:flex;"><span>docker exec mtg /mtg access -p <span style="color:#ae81ff">27777</span> /config.toml</span></span></code></pre></div><script class="code-source" type="application/json">"# 1. 生成新密钥\ndocker run --rm nineseconds/mtg:2 generate-secret --hex www.colocrossing.com\n# 2. 填进 config.toml 的 secret\n# 3. 重启\ndocker restart mtg\n# 4. 重新导出链接发给用户（旧链接立即失效）\ndocker exec mtg /mtg access -p 27777 /config.toml"</script>
+</div>
+<p>看日志：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker logs --tail <span style="color:#ae81ff">50</span> mtg</span></span></code></pre></div><script class="code-source" type="application/json">"docker logs --tail 50 mtg"</script>
+</div>
+<blockquote>
+<p>💡 <code>docker logs</code> 是空的<strong>不是故障</strong>。mtg 默认 <code>debug = false</code>，正常运行几乎不打日志。要详细日志在 <code>config.toml</code> 里加 <code>debug = true</code> 再重启。</p>
+</blockquote>
+<hr>
+<h2 id="五如何识别一个代理链接是否开启了-faketls">五、如何识别一个代理链接是否开启了 FakeTLS</h2>
+<p>拿到别人给的 <code>tg://proxy?...</code> 或 <code>https://t.me/proxy?...</code>，<strong>只看 secret 就能判断</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>密钥形态</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>32 位十六进制，如 <code>d41d8cd98f00b204e9800998ecf8427e</code></td>
+<td>普通 MTProto</td>
+<td>无任何伪装，最容易被封</td>
+</tr>
+<tr>
+<td>以 <code>dd</code> 开头（34 位 hex）</td>
+<td>混淆模式（secured）</td>
+<td>有随机填充，但没有 TLS 伪装</td>
+</tr>
+<tr>
+<td><strong>以 <code>ee</code> 开头，后面附加 hex 编码的伪装域名</strong></td>
+<td><strong>FakeTLS</strong></td>
+<td>✅ 有 TLS 伪装，最抗检测</td>
+</tr>
+</tbody>
+</table>
+<p><code>ee</code> 密钥的结构：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ee 4fab7465717aff1924b27420437817ef 636c6f7564666c6172652e636f6d
+</span></span><span style="display:flex;"><span>│  └── 32位 hex = 16 字节真实密钥 ──┘ └─── hex 编码的伪装域名 ───┘
+</span></span><span style="display:flex;"><span>└─ FakeTLS 标记</span></span></code></pre></div><script class="code-source" type="application/json">"ee 4fab7465717aff1924b27420437817ef 636c6f7564666c6172652e636f6d\n│  └── 32位 hex = 16 字节真实密钥 ──┘ └─── hex 编码的伪装域名 ───┘\n└─ FakeTLS 标记"</script>
+</div>
+<p>把末尾那段 hex 解码，就知道它伪装成了什么网站：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo -n <span style="color:#e6db74">&#34;636c6f7564666c6172652e636f6d&#34;</span> | xxd -r -p</span></span></code></pre></div><script class="code-source" type="application/json">"echo -n \"636c6f7564666c6172652e636f6d\" | xxd -r -p"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>cloudflare.com</span></span></code></pre></div><script class="code-source" type="application/json">"cloudflare.com"</script>
+</div>
+<p>一条命令从完整密钥里剥出域名（跳过前面 <code>ee</code> + 32 位密钥共 34 个字符）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;ee4fab7465717aff1924b27420437817ef636c6f7564666c6172652e636f6d&#34;</span> | cut -c35- | xxd -r -p</span></span></code></pre></div><script class="code-source" type="application/json">"echo \"ee4fab7465717aff1924b27420437817ef636c6f7564666c6172652e636f6d\" | cut -c35- | xxd -r -p"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>cloudflare.com</span></span></code></pre></div><script class="code-source" type="application/json">"cloudflare.com"</script>
+</div>
+<p><strong>Base64 格式的密钥怎么判断？</strong></p>
+<p>客户端链接里常见 Base64（更短），比如 <code>7k-rdGVxev8ZJLJ0IEN4F-9jbG91ZGZsYXJlLmNvbQ</code>。它和上面那串 hex 是<strong>同一个密钥</strong>。方法是解码转 hex，看是不是 <code>ee</code> 开头：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python3 -c <span style="color:#e6db74">&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">import base64, binascii
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">s = &#39;7k-rdGVxev8ZJLJ0IEN4F-9jbG91ZGZsYXJlLmNvbQ&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">raw = base64.urlsafe_b64decode(s + &#39;=&#39; * (-len(s) % 4))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">h = binascii.hexlify(raw).decode()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(&#39;hex     :&#39;, h)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(&#39;FakeTLS :&#39;, h.startswith(&#39;ee&#39;))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(&#39;伪装域名:&#39;, binascii.unhexlify(h[34:]).decode(errors=&#39;replace&#39;))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"python3 -c \"\nimport base64, binascii\ns = '7k-rdGVxev8ZJLJ0IEN4F-9jbG91ZGZsYXJlLmNvbQ'\nraw = base64.urlsafe_b64decode(s + '=' * (-len(s) % 4))\nh = binascii.hexlify(raw).decode()\nprint('hex     :', h)\nprint('FakeTLS :', h.startswith('ee'))\nprint('伪装域名:', binascii.unhexlify(h[34:]).decode(errors='replace'))\n\""</script>
+</div>
+<p>本文实测输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>hex     : ee4fab7465717aff1924b27420437817ef636c6f7564666c6172652e636f6d
+</span></span><span style="display:flex;"><span>FakeTLS : True
+</span></span><span style="display:flex;"><span>伪装域名: cloudflare.com</span></span></code></pre></div><script class="code-source" type="application/json">"hex     : ee4fab7465717aff1924b27420437817ef636c6f7564666c6172652e636f6d\nFakeTLS : True\n伪装域名: cloudflare.com"</script>
+</div>
+<blockquote>
+<p>💡 用 Python 而不是 <code>base64 -d</code> 是因为 Telegram 用的是 <strong>URL-safe Base64</strong>（<code>-</code> 和 <code>_</code> 代替 <code>+</code> 和 <code>/</code>）且省略了末尾的 <code>=</code> 填充，<code>base64 -d</code> 会直接报错。上面的脚本已经处理好这两点。</p>
+</blockquote>
+<p><strong>额外的判断经验</strong>：FakeTLS 代理端口通常是 <code>443</code>。如果看到 <code>ee</code> 开头的密钥却配了个奇怪的高位端口，伪装效果会打折——「TLS 流量走非 443 端口」本身就是异常信号。（本文为避开本机已占用端口用了 27777，生产环境建议 443。）</p>
+<hr>
+<h2 id="六进阶配置">六、进阶配置</h2>
+<p>完整选项参考仓库的 <a href="https://github.com/9seconds/mtg/blob/master/example.config.toml"><code>example.config.toml</code></a>，每项都有注释，那个文件本身就是配置文档。挑几个实用的：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#75715e"># 最大并发连接数，默认 8192</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">concurrency</span> = <span style="color:#ae81ff">8192</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># IP 协议偏好：prefer-ipv6(默认) / prefer-ipv4 / only-ipv6 / only-ipv4</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">prefer-ip</span> = <span style="color:#e6db74">&#34;prefer-ipv6&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 服务器访问不了 ifconfig.co 时手动指定公网 IP，</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 让 mtg access 和 mtg doctor 能正常工作。</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 想让 mtg access 输出 IPv6 链接，public-ipv6 必须手动写</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># public-ipv4 = &#34;203.0.113.45&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># public-ipv6 = &#34;2001:db8::1&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 容忍的时间偏差，默认 3s</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tolerate-time-skewness</span> = <span style="color:#e6db74">&#34;5s&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 排障时打开，日志变得非常详细</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">debug</span> = <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># DNS 解析器，默认 https://1.1.1.1。墙内机器务必改掉。</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 支持 DoH(https://)、DoT(tls://)、UDP(udp:// 或裸 IP)</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 最大并发连接数，默认 8192\nconcurrency = 8192\n\n# IP 协议偏好：prefer-ipv6(默认) / prefer-ipv4 / only-ipv6 / only-ipv4\nprefer-ip = \"prefer-ipv6\"\n\n# 服务器访问不了 ifconfig.co 时手动指定公网 IP，\n# 让 mtg access 和 mtg doctor 能正常工作。\n# 想让 mtg access 输出 IPv6 链接，public-ipv6 必须手动写\n# public-ipv4 = \"203.0.113.45\"\n# public-ipv6 = \"2001:db8::1\"\n\n# 容忍的时间偏差，默认 3s\ntolerate-time-skewness = \"5s\"\n\n# 排障时打开，日志变得非常详细\ndebug = false\n\n[network]\n# DNS 解析器，默认 https://1.1.1.1。墙内机器务必改掉。\n# 支持 DoH(https://)、DoT(tls://)、UDP(udp:// 或裸 IP)\ndns = \"https://223.5.5.5\""</script>
+</div>
+<p>伪装域名的 DNS 在你的网络里被污染或封锁时，可以直接指定要连的 IP，SNI 仍用原域名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span>[<span style="color:#a6e22e">domain-fronting</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ip</span> = <span style="color:#e6db74">&#34;104.16.132.229&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">port</span> = <span style="color:#ae81ff">443</span></span></span></code></pre></div><script class="code-source" type="application/json">"[domain-fronting]\nip = \"104.16.132.229\"\nport = 443"</script>
+</div>
+<blockquote>
+<p>⚠️ 顶层的 <code>domain-fronting-port</code>、<code>domain-fronting-ip</code>、<code>domain-fronting-proxy-protocol</code> <strong>已废弃</strong>。老教程还在用它们，现在应写进 <code>[domain-fronting]</code> 段。<code>mtg doctor</code> 第一项 <code>Deprecated options</code> 就是查这个的。</p>
+</blockquote>
+<p>让 Doppelganger 模仿你自己选的站，而不是默认的 ok.ru：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span>[<span style="color:#a6e22e">defense</span>.<span style="color:#a6e22e">doppelganger</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">urls</span> = [
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;https://example.com/index.html&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#e6db74">&#34;https://example.com/contacts.html&#34;</span>,
+</span></span><span style="display:flex;"><span>]</span></span></code></pre></div><script class="code-source" type="application/json">"[defense.doppelganger]\nurls = [\n  \"https://example.com/index.html\",\n  \"https://example.com/contacts.html\",\n]"</script>
+</div>
+<p>规则：必须 HTTPS、尽量同域名、2~3 个够了（一轻一重页面）、必须服务器能直连。作者原话：<strong>「如果你不确定这是干什么的，就什么都别动，默认值已经很好」</strong>。</p>
+<hr>
+<h2 id="七实战验证">七、实战验证</h2>
+<p><strong>测试环境</strong></p>
+<ul>
+<li>服务器 ColoCrossing（AS36352 HostPapa），公网 IP <code>192.227.236.209</code></li>
+<li>Docker 29.2.1，镜像 <code>nineseconds/mtg:2</code>，实际版本 v2.2.8</li>
+<li>伪装域名 <code>www.colocrossing.com</code>，端口映射 <code>27777</code> → 容器 <code>3128</code></li>
+</ul>
+<p><strong>主线七步的实测结果</strong></p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查 IP 归属</td>
+<td>✅ <code>org: AS36352 HostPapa</code>，<code>hostname: 192-227-236-209-host.colocrossing.com</code></td>
+</tr>
+<tr>
+<td>生成密钥</td>
+<td>✅ 输出 <code>ee4a7e40...636f6d</code>，<code>ee</code> 前缀 + 域名 hex 结构正确</td>
+</tr>
+<tr>
+<td>写配置 + 启动</td>
+<td>✅ 容器 ID <code>7a2465b9bbf5...</code>，STATUS <code>Up</code></td>
+</tr>
+<tr>
+<td><code>mtg doctor</code></td>
+<td>✅ 6 个 DC 全通、fronting domain reachable；SNI-DNS match ❌（必然，见下）</td>
+</tr>
+<tr>
+<td>端口可达性（外网测）</td>
+<td>✅ <code>27777</code> 端口开放</td>
+</tr>
+<tr>
+<td>域名前置（外网测）</td>
+<td>✅ <code>HTTP/1.1 200 OK</code> + <code>Server: Apache</code>，返回 ColoCrossing 官网真实响应</td>
+</tr>
+<tr>
+<td><code>mtg access -p 27777</code></td>
+<td>✅ 输出端口正确的 <code>tme_url</code> / <code>tg_url</code> / 二维码链接</td>
+</tr>
+<tr>
+<td>compose 方式启动（挂载 config.toml）</td>
+<td>✅ 与 <code>docker run</code> 等效，容器 <code>Up</code></td>
+</tr>
+<tr>
+<td>双栈 <code>bind-to = &quot;[::]:3128&quot;</code></td>
+<td>✅ <code>docker ps</code> 显示 <code>0.0.0.0:27777-&gt;3128/tcp, [::]:27777-&gt;3128/tcp</code>，<code>ss -tln</code> 两条监听，前置返回 <code>200</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>踩到过的坑与根因</strong></p>
+<ol>
+<li>
+<p><strong>默认 DoH <code>1.1.1.1</code> 不通导致域名前置全挂</strong>（最重要的一个）
+报错原文：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>{&#34;level&#34;:&#34;warn&#34;,&#34;logger&#34;:&#34;proxy&#34;,&#34;error&#34;:&#34;dial tcp: lookup cloudflare.com: i/o timeout&#34;,&#34;message&#34;:&#34;cannot dial to the fronting domain&#34;}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"level\":\"warn\",\"logger\":\"proxy\",\"error\":\"dial tcp: lookup cloudflare.com: i/o timeout\",\"message\":\"cannot dial to the fronting domain\"}"</script>
+</div>
+<p><code>curl</code> 探测返回 <code>000</code>。<strong>根因</strong>：mtg 默认用 <code>1.1.1.1</code> 做 DNS-over-HTTPS，测试机访问不到，域名解析超时。<strong>解法</strong>：<code>config.toml</code> 写 <code>dns = &quot;https://223.5.5.5&quot;</code>，或 simple-run 加 <code>-n 223.5.5.5</code>。
+<strong>迷惑点</strong>：容器 <code>docker ps</code> 显示 <code>Up</code>、端口在 LISTEN，看着完全正常，只有翻日志才能发现。</p>
+</li>
+<li>
+<p><strong><code>Validate SNI-DNS match</code> 必然 ❌，不是配错</strong>
+报错原文：<code>Hostname www.colocrossing.com is resolved to &quot;198.23.210.28&quot; addresses, not 192.227.236.209</code>。
+<strong>根因</strong>：这项要求伪装域名解析的 IP 等于服务器 IP，除非域名是你自己的且解析到本机，否则不可能满足。<strong>不影响功能</strong>——后续外网 curl 前置测试拿到了真实的 200 响应。</p>
+</li>
+<li>
+<p><strong><code>mtg access</code> 不加 <code>-p</code> 输出的端口是错的</strong>
+不加时输出配置文件里 <code>bind-to</code> 的容器内端口（<code>3128</code>），拿那条链接客户端连不上。<strong>解法</strong>：<code>mtg access -p 27777</code>。</p>
+</li>
+<li>
+<p><strong><code>bind-to</code> / <code>public-ipv4</code> / <code>access -i</code> 都不接受域名</strong>
+实测报错：<code>host is not an IP address</code> / <code>incorret ip ...</code>（作者拼写错误，原文如此）/ <code>--ipv4: invalid IP address</code>。<strong>但不影响用 DDNS</strong>，见附录动态 IP 一节。</p>
+</li>
+<li>
+<p><strong><code>docker logs</code> 空的不是故障</strong>
+mtg 默认 <code>debug = false</code>，正常运行几乎不打日志。要日志加 <code>debug = true</code> 重启。</p>
+</li>
+<li>
+<p><strong>本机 DNS 被污染会误导判断</strong>
+测试机 <code>getent hosts colocrossing.com</code> 返回 <code>2001:2::dd5</code>（IETF 保留的文档测试地址段），是污染结果。用公共 DoH 复核才拿到真实的 <code>198.23.210.28</code>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -s <span style="color:#e6db74">&#34;https://223.5.5.5/resolve?name=www.colocrossing.com&amp;type=A&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"curl -s \"https://223.5.5.5/resolve?name=www.colocrossing.com\u0026type=A\""</script>
+</div>
+</li>
+</ol>
+<h2 id="八运维小结">八、运维小结</h2>
+<ul>
+<li><strong>端口优先选 443</strong>，最不显眼；本文用高位端口只是为了避开本机占用</li>
+<li><strong>DoH 一定要设成你能访问的</strong>，这是墙内机器最容易翻车的地方</li>
+<li><strong>伪装域名与 IP 归属要对得上</strong>，最容易忽略又最影响存活时间</li>
+<li><strong>有 IPv6 就配上双栈</strong>（<code>bind-to = &quot;[::]:443&quot;</code> + <code>public-ipv6</code>），Docker 场景直接用 <code>--network host</code> 最省事</li>
+<li><strong>长期维护用 compose</strong>，配置都在文件里，升级镜像一条 <code>docker compose pull &amp;&amp; docker compose up -d</code></li>
+<li><strong>动态 IP 用 DDNS 域名</strong>：服务端不用改（<code>bind-to</code> 填 <code>0.0.0.0</code>、别写 <code>public-ipv4</code>），链接里 server 直接填域名，TTL 设 60 秒</li>
+<li><strong>密钥不要公开发布</strong>，MTProto 代理适合小圈子</li>
+<li><strong>改配置后重跑 <code>mtg doctor</code></strong>，能挡掉大部分低级错误</li>
+<li><strong>墙内环境</strong>单纯的 MTProto 代理生存期有限；作者推荐把 mtg 作为前端，出站再通过 SOCKS5 链到 Trojan / sing-box / v2ray 隧道</li>
+<li>更多建议见仓库的 <a href="https://github.com/9seconds/mtg/blob/master/BEST_PRACTICES.md">BEST_PRACTICES.md</a></li>
+</ul>
+<h2 id="附录其他部署方式">附录：其他部署方式</h2>
+<p>主线用的是「Docker + 配置文件」。下面几种按需选，<strong>不看也能把代理跑起来</strong>。</p>
+<h3 id="一simple-run一条命令不要配置文件">一、simple-run：一条命令，不要配置文件</h3>
+<p><code>simple-run</code> 模式<strong>把密钥直接写在启动命令里</strong>，完全不需要配置文件：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -d --name mtg --restart always -p 27777:3128 nineseconds/mtg:2 simple-run -n 223.5.5.5 0.0.0.0:3128 ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d</span></span></code></pre></div><script class="code-source" type="application/json">"docker run -d --name mtg --restart always -p 27777:3128 nineseconds/mtg:2 simple-run -n 223.5.5.5 0.0.0.0:3128 ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d"</script>
+</div>
+<p>拆解一下这条命令，每一段都要看懂：</p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-p 27777:3128</code></td>
+<td><code>27777</code> 是<strong>客户端要连的宿主机端口</strong>（自己定），<code>3128</code> 是容器内 mtg 监听的端口</td>
+</tr>
+<tr>
+<td><code>simple-run</code></td>
+<td>mtg 的子命令，表示不用配置文件</td>
+</tr>
+<tr>
+<td><code>-n 223.5.5.5</code></td>
+<td>DoH 服务器地址。<strong>建议加，原因见下方警告</strong></td>
+</tr>
+<tr>
+<td><code>0.0.0.0:3128</code></td>
+<td>mtg 在容器内监听的地址，要和 <code>-p</code> 后面那个数字一致</td>
+</tr>
+<tr>
+<td><code>ee4fab...636f6d</code></td>
+<td>你第 1 步生成的密钥</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>这是本文实测踩到的坑，务必注意</strong>：不加 <code>-n</code> 参数时 mtg 默认用 <code>1.1.1.1</code> 做 DNS-over-HTTPS 解析。如果你的服务器访问不了 <code>1.1.1.1</code>（墙内机器基本都不通），域名前置会直接失败，日志里刷这个：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>{&#34;level&#34;:&#34;warn&#34;,&#34;logger&#34;:&#34;proxy&#34;,&#34;error&#34;:&#34;dial tcp: lookup www.colocrossing.com: i/o timeout&#34;,&#34;message&#34;:&#34;cannot dial to the fronting domain&#34;}</span></span></code></pre></div><script class="code-source" type="application/json">"{\"level\":\"warn\",\"logger\":\"proxy\",\"error\":\"dial tcp: lookup www.colocrossing.com: i/o timeout\",\"message\":\"cannot dial to the fronting domain\"}"</script>
+</div>
+<p>表现是：容器状态正常 <code>Up</code>，端口也在监听，但 <code>curl</code> 探测时连不上、Telegram 也连不上代理。</p>
+<p><strong>解法</strong>：加 <code>-n 223.5.5.5</code>（阿里 DoH）或 <code>-n 8.8.8.8</code>，本文实测换成 <code>223.5.5.5</code> 后立刻正常。</p>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong><code>-n</code> 参数背后的配置项名字变过</strong>：mtg v2.1.12 之前配置文件里用 <code>doh-ip</code>，之后改成了更通用的 <code>dns</code>（同时支持 DoH <code>https://</code>、DoT <code>tls://</code>、UDP <code>udp://</code> 或裸 IP）。老教程里的 <code>doh-ip = &quot;1.1.1.1&quot;</code> 等价于现在的 <code>dns = &quot;https://1.1.1.1&quot;</code>。两个都写会冲突，官方注释明确说了「设置 <code>dns</code> 时请把 <code>doh-ip</code> 注释掉」。</p>
+</blockquote>
+<p>多行写法更好读（复制时注意行尾反斜杠后面不能有空格）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -d <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --name mtg <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --restart always <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  -p 27777:3128 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  nineseconds/mtg:2 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  simple-run -n 223.5.5.5 0.0.0.0:3128 ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d</span></span></code></pre></div><script class="code-source" type="application/json">"docker run -d \\\n  --name mtg \\\n  --restart always \\\n  -p 27777:3128 \\\n  nineseconds/mtg:2 \\\n  simple-run -n 223.5.5.5 0.0.0.0:3128 ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d"</script>
+</div>
+<p>其他可用参数：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义</th>
+<th>默认值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code></td>
+<td>最大并发连接数</td>
+<td>8192</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td>网络超时</td>
+<td>10s</td>
+</tr>
+<tr>
+<td><code>-a</code></td>
+<td>防重放缓存大小</td>
+<td>1MB</td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td>IP 偏好</td>
+<td>prefer-ipv6</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td>域名前置端口</td>
+<td>443</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>debug 模式，日志变详细</td>
+<td>关</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>simple-run 的代价</strong>：因为没有配置文件，<code>mtg access</code> 和 <code>mtg doctor</code> 这两个命令都用不了（它们都必须传配置文件路径，不传会报 <code>mtg: error: expected &quot;&lt;config-path&gt;&quot;</code>）。代理链接需要手动拼，方法见第三部分。</p>
+</blockquote>
+<h3 id="二compose-里直接写密钥不要-configtoml">二、compose 里直接写密钥（不要 config.toml）</h3>
+<p>主线第 4 步已经讲了标准的 compose 用法（挂载 <code>config.toml</code>）。如果你连配置文件都不想建，可以用 <code>command</code> 让 compose 走 simple-run 模式，密钥直接写在 compose 文件里：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">mtg</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nineseconds/mtg:2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">mtg</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;27777:3128&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: &gt;<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      simple-run -n 223.5.5.5 0.0.0.0:3128
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d</span>      </span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  mtg:\n    image: nineseconds/mtg:2\n    container_name: mtg\n    restart: always\n    ports:\n      - \"27777:3128\"\n    command: \u003e\n      simple-run -n 223.5.5.5 0.0.0.0:3128\n      ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d"</script>
+</div>
+<p>这样目录里只有一个 <code>docker-compose.yml</code>，<code>docker compose up -d</code> 就跑起来了。</p>
+<p>代价和上面的 simple-run 一样：<strong><code>mtg access</code> / <code>mtg doctor</code> 都用不了</strong>（它们必须读配置文件），链接得自己拼。</p>
+<blockquote>
+<p>💡 除非你特别讨厌多一个文件，否则<strong>建议还是用主线那种挂载 <code>config.toml</code> 的方式</strong>——能自检、能自动出链接，排障方便太多。</p>
+</blockquote>
+<h3 id="三不用-docker二进制--systemd">三、不用 Docker：二进制 + systemd</h3>
+<p>资源占用更小的话可以直接跑二进制。</p>
+<p>拿二进制，三种途径任选：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 途径一：从 Releases 下载对应架构压缩包</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># https://github.com/9seconds/mtg/releases</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 途径二：有 Go 环境直接装</span>
+</span></span><span style="display:flex;"><span>go install github.com/9seconds/mtg/v2@latest
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 途径三：源码编译（v2 用 mise，不是 make）</span>
+</span></span><span style="display:flex;"><span>git clone https://github.com/9seconds/mtg.git
+</span></span><span style="display:flex;"><span>cd mtg <span style="color:#f92672">&amp;&amp;</span> mise install <span style="color:#f92672">&amp;&amp;</span> mise tasks run build</span></span></code></pre></div><script class="code-source" type="application/json">"# 途径一：从 Releases 下载对应架构压缩包\n# https://github.com/9seconds/mtg/releases\n\n# 途径二：有 Go 环境直接装\ngo install github.com/9seconds/mtg/v2@latest\n\n# 途径三：源码编译（v2 用 mise，不是 make）\ngit clone https://github.com/9seconds/mtg.git\ncd mtg \u0026\u0026 mise install \u0026\u0026 mise tasks run build"</script>
+</div>
+<blockquote>
+<p>⚠️ 很多老教程还写 <code>make build</code>，v2 已换成 <code>mise tasks run build</code>（<a href="https://mise.jdx.dev/">mise</a> 是个工具版本管理器），照抄老命令会报找不到 Makefile。</p>
+</blockquote>
+<p>放好文件。<strong>不用 Docker 时没有端口映射这层，<code>bind-to</code> 直接写客户端要连的真实端口</strong>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo mv mtg /usr/local/bin/mtg <span style="color:#f92672">&amp;&amp;</span> sudo chmod +x /usr/local/bin/mtg
+</span></span><span style="display:flex;"><span>sudo nvim /etc/mtg.toml</span></span></code></pre></div><script class="code-source" type="application/json">"sudo mv mtg /usr/local/bin/mtg \u0026\u0026 sudo chmod +x /usr/local/bin/mtg\nsudo nvim /etc/mtg.toml"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">secret</span> = <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;0.0.0.0:443&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret = \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\"\nbind-to = \"0.0.0.0:443\"\n\n[network]\ndns = \"https://223.5.5.5\""</script>
+</div>
+<p>写 systemd 服务：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo nvim /etc/systemd/system/mtg.service</span></span></code></pre></div><script class="code-source" type="application/json">"sudo nvim /etc/systemd/system/mtg.service"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#66d9ef">[Unit]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Description</span><span style="color:#f92672">=</span><span style="color:#e6db74">mtg - MTProto proxy server</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Documentation</span><span style="color:#f92672">=</span><span style="color:#e6db74">https://github.com/9seconds/mtg</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">After</span><span style="color:#f92672">=</span><span style="color:#e6db74">network.target</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Service]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/usr/local/bin/mtg run /etc/mtg.toml</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Restart</span><span style="color:#f92672">=</span><span style="color:#e6db74">always</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">RestartSec</span><span style="color:#f92672">=</span><span style="color:#e6db74">3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">DynamicUser</span><span style="color:#f92672">=</span><span style="color:#e6db74">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">LimitNOFILE</span><span style="color:#f92672">=</span><span style="color:#e6db74">65536</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">AmbientCapabilities</span><span style="color:#f92672">=</span><span style="color:#e6db74">CAP_NET_BIND_SERVICE</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Install]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">WantedBy</span><span style="color:#f92672">=</span><span style="color:#e6db74">multi-user.target</span></span></span></code></pre></div><script class="code-source" type="application/json">"[Unit]\nDescription=mtg - MTProto proxy server\nDocumentation=https://github.com/9seconds/mtg\nAfter=network.target\n\n[Service]\nExecStart=/usr/local/bin/mtg run /etc/mtg.toml\nRestart=always\nRestartSec=3\nDynamicUser=true\nLimitNOFILE=65536\nAmbientCapabilities=CAP_NET_BIND_SERVICE\n\n[Install]\nWantedBy=multi-user.target"</script>
+</div>
+<p>两个关键项别删：</p>
+<ul>
+<li><code>AmbientCapabilities=CAP_NET_BIND_SERVICE</code>——没有它，<code>DynamicUser</code> 起的非 root 进程<strong>绑不了 443 这种 1024 以下的端口</strong>，服务起不来</li>
+<li><code>LimitNOFILE=65536</code>——并发多时不至于耗尽文件描述符</li>
+</ul>
+<p>启动并自检：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl daemon-reload
+</span></span><span style="display:flex;"><span>sudo systemctl enable --now mtg
+</span></span><span style="display:flex;"><span>systemctl status mtg --no-pager
+</span></span><span style="display:flex;"><span>mtg doctor /etc/mtg.toml</span></span></code></pre></div><script class="code-source" type="application/json">"sudo systemctl daemon-reload\nsudo systemctl enable --now mtg\nsystemctl status mtg --no-pager\nmtg doctor /etc/mtg.toml"</script>
+</div>
+<hr>
+<h3 id="四ipv4--ipv6-双栈">四、IPv4 + IPv6 双栈</h3>
+<p>前面所有例子的 <code>bind-to = &quot;0.0.0.0:3128&quot;</code> <strong>只监听 IPv4</strong>，IPv6 客户端连不上。想两种都支持，要改三个地方。</p>
+<h4 id="第-1-处bind-to-改成-">第 1 处：<code>bind-to</code> 改成 <code>[::]</code></h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;[::]:3128&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"bind-to = \"[::]:3128\""</script>
+</div>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>监听范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;0.0.0.0:3128&quot;</code></td>
+<td>只有 IPv4</td>
+</tr>
+<tr>
+<td><code>&quot;[::]:3128&quot;</code></td>
+<td><strong>IPv4 + IPv6 双栈</strong>（Linux 默认 <code>net.ipv6.bindv6only=0</code>，IPv6 通配地址会自动兼容 IPv4）</td>
+</tr>
+<tr>
+<td><code>&quot;[::1]:3128&quot;</code></td>
+<td>只有本机 IPv6，别用，外面连不上</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>中括号不能省</strong>。TOML 里 IPv6 地址必须写成 <code>[地址]:端口</code>，因为 IPv6 地址本身含冒号，不加括号解析器分不清哪个冒号是端口分隔符。写成 <code>&quot;::3128&quot;</code> 会报错。</p>
+<p>⚠️ 如果你的系统把 <code>net.ipv6.bindv6only</code> 改成了 <code>1</code>，<code>[::]</code> 就<strong>只监听 IPv6</strong> 了。查一下：<code>sysctl net.ipv6.bindv6only</code>，输出应该是 <code>= 0</code>。</p>
+</blockquote>
+<h4 id="第-2-处prefer-ip-决定出站走哪个协议">第 2 处：<code>prefer-ip</code> 决定出站走哪个协议</h4>
+<p>这个选项管的是 <strong>mtg 连 Telegram 服务器</strong>时用 IPv4 还是 IPv6，和客户端连你没关系，两回事别搞混：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">prefer-ip</span> = <span style="color:#e6db74">&#34;prefer-ipv6&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"prefer-ip = \"prefer-ipv6\""</script>
+</div>
+<p>四个可选值：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefer-ipv6</code></td>
+<td>两种都能用，优先 IPv6（<strong>默认值</strong>）</td>
+</tr>
+<tr>
+<td><code>prefer-ipv4</code></td>
+<td>两种都能用，优先 IPv4</td>
+</tr>
+<tr>
+<td><code>only-ipv6</code></td>
+<td>只用 IPv6 出站</td>
+</tr>
+<tr>
+<td><code>only-ipv4</code></td>
+<td>只用 IPv4 出站</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>💡 <strong>怎么选</strong>：服务器 IPv6 是原生的、质量好 → 留默认 <code>prefer-ipv6</code>。IPv6 是隧道的或者不稳 → 改 <code>prefer-ipv4</code>，否则 mtg 优先走 IPv6 反而变慢。完全没有 IPv6 → 写 <code>only-ipv4</code>，省掉每次都试一遍 IPv6 的开销。</p>
+</blockquote>
+<h4 id="第-3-处public-ipv6-让-mtg-access-输出-ipv6-链接">第 3 处：<code>public-ipv6</code> 让 <code>mtg access</code> 输出 IPv6 链接</h4>
+<p>这一步是最容易漏的。mtg 默认通过访问 <code>ifconfig.co</code> 自动探测自己的公网 IP，探测不到 IPv6 就<strong>不会生成 IPv6 链接</strong>。手动指定就一定有：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">public-ipv4</span> = <span style="color:#e6db74">&#34;192.227.236.209&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">public-ipv6</span> = <span style="color:#e6db74">&#34;2001:db8::1&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"public-ipv4 = \"192.227.236.209\"\npublic-ipv6 = \"2001:db8::1\""</script>
+</div>
+<p>这两个值去哪里查：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 公网 IPv4</span>
+</span></span><span style="display:flex;"><span>curl -s4 ifconfig.co
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 公网 IPv6（没输出说明服务器没有可用 IPv6）</span>
+</span></span><span style="display:flex;"><span>curl -s6 ifconfig.co</span></span></code></pre></div><script class="code-source" type="application/json">"# 公网 IPv4\ncurl -s4 ifconfig.co\n\n# 公网 IPv6（没输出说明服务器没有可用 IPv6）\ncurl -s6 ifconfig.co"</script>
+</div>
+<p>也可以直接看网卡上的全局 IPv6 地址（<code>scope global</code>，不是 <code>fe80::</code> 开头的链路本地地址）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip -6 addr show scope global | grep inet6</span></span></code></pre></div><script class="code-source" type="application/json">"ip -6 addr show scope global | grep inet6"</script>
+</div>
+<h4 id="完整的双栈配置文件">完整的双栈配置文件</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">secret</span> = <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 双栈监听：IPv4 和 IPv6 客户端都能连</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;[::]:3128&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 出站连 Telegram 时优先用 IPv4（IPv6 质量不好时这样配）</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">prefer-ip</span> = <span style="color:#e6db74">&#34;prefer-ipv4&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 手动指定公网地址，让 mtg access 能生成两种链接</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">public-ipv4</span> = <span style="color:#e6db74">&#34;192.227.236.209&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">public-ipv6</span> = <span style="color:#e6db74">&#34;2001:db8::1&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret = \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\"\n\n# 双栈监听：IPv4 和 IPv6 客户端都能连\nbind-to = \"[::]:3128\"\n\n# 出站连 Telegram 时优先用 IPv4（IPv6 质量不好时这样配）\nprefer-ip = \"prefer-ipv4\"\n\n# 手动指定公网地址，让 mtg access 能生成两种链接\npublic-ipv4 = \"192.227.236.209\"\npublic-ipv6 = \"2001:db8::1\"\n\n[network]\ndns = \"https://223.5.5.5\""</script>
+</div>
+<h4 id="docker-双栈额外要做的事">Docker 双栈额外要做的事</h4>
+<p>⚠️ <strong>这里有个 Docker 层面的坑</strong>：容器里配好双栈还不够，Docker 默认的 bridge 网络<strong>不转发 IPv6</strong>。</p>
+<p>最省事的办法是用 host 网络，绕开 Docker 的网络层：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -d --name mtg --restart always --network host -v $PWD/config.toml:/config.toml nineseconds/mtg:2</span></span></code></pre></div><script class="code-source" type="application/json">"docker run -d --name mtg --restart always --network host -v $PWD/config.toml:/config.toml nineseconds/mtg:2"</script>
+</div>
+<p>用 <code>--network host</code> 时<strong>没有 <code>-p</code> 端口映射了</strong>，容器直接用宿主机网络，所以 <code>bind-to</code> 里的端口就是客户端要连的真实端口。想让客户端连 443 就写：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;[::]:443&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"bind-to = \"[::]:443\""</script>
+</div>
+<p>compose 版：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">mtg</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">nineseconds/mtg:2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">mtg</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#ae81ff">host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.toml:/config.toml:ro</span></span></span></code></pre></div><script class="code-source" type="application/json">"services:\n  mtg:\n    image: nineseconds/mtg:2\n    container_name: mtg\n    restart: always\n    network_mode: host\n    volumes:\n      - ./config.toml:/config.toml:ro"</script>
+</div>
+<p>如果坚持用 bridge 网络，得先给 Docker 守护进程开 IPv6（改 <code>/etc/docker/daemon.json</code> 后重启 Docker）：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ipv6&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;fixed-cidr-v6&#34;</span>: <span style="color:#e6db74">&#34;fd00:dead:beef::/64&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ip6tables&#34;</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"ipv6\": true,\n  \"fixed-cidr-v6\": \"fd00:dead:beef::/64\",\n  \"ip6tables\": true\n}"</script>
+</div>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl restart docker</span></span></code></pre></div><script class="code-source" type="application/json">"sudo systemctl restart docker"</script>
+</div>
+<blockquote>
+<p>💡 <strong>建议</strong>：双栈场景直接用 <code>--network host</code>，比折腾 Docker IPv6 简单得多，性能也更好（少一层 NAT）。</p>
+</blockquote>
+<h4 id="验证双栈生效">验证双栈生效</h4>
+<p>配好后 <code>mtg access</code> 会同时输出 ipv4 和 ipv6 两段。本文实测输出：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ipv4&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;ip&#34;</span>: <span style="color:#e6db74">&#34;192.227.236.209&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;port&#34;</span>: <span style="color:#ae81ff">27782</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tme_url&#34;</span>: <span style="color:#e6db74">&#34;https://t.me/proxy?port=27782&amp;secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&amp;server=192.227.236.209&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;ipv6&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;ip&#34;</span>: <span style="color:#e6db74">&#34;2001:db8::1&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;port&#34;</span>: <span style="color:#ae81ff">27782</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;tme_url&#34;</span>: <span style="color:#e6db74">&#34;https://t.me/proxy?port=27782&amp;secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&amp;server=2001%3Adb8%3A%3A1&#34;</span>
+</span></span><span style="display:flex;"><span>  },
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;secret&#34;</span>: {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;hex&#34;</span>: <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;base64&#34;</span>: <span style="color:#e6db74">&#34;7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ&#34;</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n  \"ipv4\": {\n    \"ip\": \"192.227.236.209\",\n    \"port\": 27782,\n    \"tme_url\": \"https://t.me/proxy?port=27782\u0026secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\u0026server=192.227.236.209\"\n  },\n  \"ipv6\": {\n    \"ip\": \"2001:db8::1\",\n    \"port\": 27782,\n    \"tme_url\": \"https://t.me/proxy?port=27782\u0026secret=7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\u0026server=2001%3Adb8%3A%3A1\"\n  },\n  \"secret\": {\n    \"hex\": \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\",\n    \"base64\": \"7kp-QJuJhL7NgRe1cp4I5493d3cuY29sb2Nyb3NzaW5nLmNvbQ\"\n  }\n}"</script>
+</div>
+<p><strong>看到 <code>ipv6</code> 这一段出现就说明配对了。</strong> 没配 <code>public-ipv6</code> 时这一段根本不会有。</p>
+<blockquote>
+<p>💡 注意 IPv6 链接里的 <code>server=2001%3Adb8%3A%3A1</code>——<code>%3A</code> 是冒号 <code>:</code> 的 URL 编码。这是<strong>正确的</strong>，IPv6 地址在 URL 参数里必须编码，Telegram 客户端会自己解码。别手工把它改回冒号。</p>
+</blockquote>
+<p>宿主机上确认端口两种协议都在听：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ss -tlnp | grep <span style="color:#ae81ff">443</span></span></span></code></pre></div><script class="code-source" type="application/json">"ss -tlnp | grep 443"</script>
+</div>
+<p>双栈正常的话会看到 <code>*:443</code> 或 <code>[::]:443</code>（<code>*</code> 表示同时覆盖 v4/v6）；只有 <code>0.0.0.0:443</code> 说明 IPv6 没监听上。</p>
+<p>从外部各自测一次连通性：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 测 IPv4</span>
+</span></span><span style="display:flex;"><span>curl -4 -sk --max-time <span style="color:#ae81ff">10</span> https://192.227.236.209:443/ -H <span style="color:#e6db74">&#34;Host: www.colocrossing.com&#34;</span> -o /dev/null -w <span style="color:#e6db74">&#34;IPv4: %{http_code}\n&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 测 IPv6（地址要加中括号）</span>
+</span></span><span style="display:flex;"><span>curl -6 -sk --max-time <span style="color:#ae81ff">10</span> <span style="color:#e6db74">&#34;https://[2001:db8::1]:443/&#34;</span> -H <span style="color:#e6db74">&#34;Host: www.colocrossing.com&#34;</span> -o /dev/null -w <span style="color:#e6db74">&#34;IPv6: %{http_code}\n&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 测 IPv4\ncurl -4 -sk --max-time 10 https://192.227.236.209:443/ -H \"Host: www.colocrossing.com\" -o /dev/null -w \"IPv4: %{http_code}\\n\"\n\n# 测 IPv6（地址要加中括号）\ncurl -6 -sk --max-time 10 \"https://[2001:db8::1]:443/\" -H \"Host: www.colocrossing.com\" -o /dev/null -w \"IPv6: %{http_code}\\n\""</script>
+</div>
+<p>两条都返回 <code>301</code>（cloudflare 的真实跳转）就是双栈都通了。</p>
+<blockquote>
+<p>⚠️ <code>curl</code> 测 IPv6 时<strong>地址必须加中括号</strong>，写成 <code>https://2001:db8::1:443/</code> 会被解析成域名，报错。</p>
+</blockquote>
+<h4 id="客户端怎么用-ipv6-链接">客户端怎么用 IPv6 链接</h4>
+<ul>
+<li><strong>点链接</strong>：和 IPv4 一样，直接点 <code>tme_url</code>，Telegram 自动处理</li>
+<li><strong>手动填</strong>：Server 栏直接填 IPv6 地址，<strong>不要加中括号</strong>（Telegram 输入框不需要），如 <code>2001:db8::1</code></li>
+<li><strong>给别人时给哪个</strong>：IPv4 链接兼容性最好（几乎所有网络都能连），IPv6 链接只有对方网络支持 IPv6 时才能用。不确定就给 IPv4 那条，或者两条都给让对方自己试</li>
+</ul>
+<h3 id="五动态-ip能用-ddns-域名吗">五、动态 IP：能用 DDNS 域名吗？</h3>
+<p><strong>能。</strong> 家宽自建、IP 会变的场景可以完全靠 DDNS 域名跑起来，但要分清两层：<strong>服务端不认域名，客户端认域名</strong>。</p>
+<h4 id="mtg-服务端三处都只收字面-ip实测报错">mtg 服务端：三处都只收字面 IP（实测报错）</h4>
+<table>
+<thead>
+<tr>
+<th>你想填域名的地方</th>
+<th>结果</th>
+<th>报错原文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bind-to = &quot;proxy.example.com:3128&quot;</code></td>
+<td>❌ 拒绝</td>
+<td><code>cannot parse a config: host is not an IP address: proxy.example.com:3128</code></td>
+</tr>
+<tr>
+<td><code>public-ipv4 = &quot;proxy.example.com&quot;</code></td>
+<td>❌ 拒绝</td>
+<td><code>cannot parse a config: incorret ip proxy.example.com</code>（作者拼写错误，原文如此）</td>
+</tr>
+<tr>
+<td><code>mtg access -i proxy.example.com</code></td>
+<td>❌ 拒绝</td>
+<td><code>--ipv4: invalid IP address: proxy.example.com</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>但这三处都不影响你用 DDNS</strong>，因为它们的作用根本不是「告诉别人怎么找到你」：</p>
+<ul>
+<li><code>bind-to</code> 是<strong>本机监听地址</strong>，填 <code>0.0.0.0:端口</code> 或 <code>[::]:端口</code> 就行，它跟你的公网地址无关，本来就不需要填域名</li>
+<li><code>public-ipv4</code> / <code>access -i</code> 只是<strong>让 mtg 生成分享链接时往 server 字段里填的值</strong>，纯粹是个字符串来源。动态 IP 用户直接别用 <code>mtg access</code>，自己拼链接就完事了</li>
+</ul>
+<h4 id="telegram-客户端认域名且各平台一致">Telegram 客户端：认域名，且各平台一致</h4>
+<p>这是关键。有三处官方源码/文档证据：</p>
+<p><strong>证据一：TDLib 官方接口注释</strong>（iOS 官方客户端和大量第三方客户端的核心库）</p>
+<p>文件 <a href="https://github.com/tdlib/td/blob/master/td/generate/scheme/td_api.tl"><code>td/generate/scheme/td_api.tl</code></a>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>//@server Proxy server domain or IP address
+</span></span><span style="display:flex;"><span>//@port Proxy server port
+</span></span><span style="display:flex;"><span>//@type Type of the proxy
+</span></span><span style="display:flex;"><span>proxy server:string port:int32 type:ProxyType = Proxy;</span></span></code></pre></div><script class="code-source" type="application/json">"//@server Proxy server domain or IP address\n//@port Proxy server port\n//@type Type of the proxy\nproxy server:string port:int32 type:ProxyType = Proxy;"</script>
+</div>
+<p>官方注释明写 <strong>domain or IP address</strong>。</p>
+<p><strong>证据二：Telegram Android 内置 DNS 解析兜底</strong></p>
+<p>文件 <a href="https://github.com/DrKLO/Telegram/blob/master/TMessagesProj/jni/tgnet/ConnectionSocket.cpp"><code>TMessagesProj/jni/tgnet/ConnectionSocket.cpp</code></a>，连代理时先试着把地址当 IP 字面量解析，不是 IP 就走 DNS：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">hostent</span> <span style="color:#f92672">*</span>he;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> ((he <span style="color:#f92672">=</span> gethostbyname(proxyAddress<span style="color:#f92672">-&gt;</span>c_str())) <span style="color:#f92672">==</span> <span style="color:#66d9ef">nullptr</span>) {
+</span></span><span style="display:flex;"><span>    DEBUG_E(<span style="color:#e6db74">&#34;connection(%p) can&#39;t resolve host %s address&#34;</span>, ...);</span></span></code></pre></div><script class="code-source" type="application/json">"struct hostent *he;\nif ((he = gethostbyname(proxyAddress-\u003ec_str())) == nullptr) {\n    DEBUG_E(\"connection(%p) can't resolve host %s address\", ...);"</script>
+</div>
+<p><strong>证据三：Telegram Desktop 有专门的域名解析分支</strong></p>
+<p>文件 <a href="https://github.com/telegramdesktop/tdesktop/blob/dev/Telegram/SourceFiles/mtproto/mtproto_proxy_data.cpp"><code>Telegram/SourceFiles/mtproto/mtproto_proxy_data.cpp</code></a>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">bool</span> ProxyData<span style="color:#f92672">::</span>tryCustomResolve() <span style="color:#66d9ef">const</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">auto</span> RegExp <span style="color:#f92672">=</span> QRegularExpression(
+</span></span><span style="display:flex;"><span>		QStringLiteral(<span style="color:#e6db74">&#34;^</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">d+</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">.</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">d+</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">.</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">d+</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">.</span><span style="color:#ae81ff">\\</span><span style="color:#e6db74">d+$&#34;</span>)
+</span></span><span style="display:flex;"><span>	);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> (type <span style="color:#f92672">==</span> Type<span style="color:#f92672">::</span>Socks5 <span style="color:#f92672">||</span> type <span style="color:#f92672">==</span> Type<span style="color:#f92672">::</span>Mtproto)
+</span></span><span style="display:flex;"><span>		<span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">!</span>qthelp<span style="color:#f92672">::</span>is_ipv6(host)
+</span></span><span style="display:flex;"><span>		<span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">!</span>RegExp.match(host).hasMatch();
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"bool ProxyData::tryCustomResolve() const {\n\tstatic const auto RegExp = QRegularExpression(\n\t\tQStringLiteral(\"^\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+$\")\n\t);\n\treturn (type == Type::Socks5 || type == Type::Mtproto)\n\t\t\u0026\u0026 !qthelp::is_ipv6(host)\n\t\t\u0026\u0026 !RegExp.match(host).hasMatch();\n}"</script>
+</div>
+<p>逻辑是：host 既不是 IPv4 也不是 IPv6 字面量（也就是域名）时，对 MTProto / SOCKS5 代理<strong>触发自定义解析流程</strong>。Desktop 甚至用自己的 DoH 通道解析，抗污染。</p>
+<p>结论：<strong>Android / iOS / Desktop 全都支持域名</strong>，没有平台差异。</p>
+<h4 id="具体怎么配">具体怎么配</h4>
+<p><strong>服务端配置：完全不用管域名</strong>，照常写就行：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">secret</span> = <span style="color:#e6db74">&#34;ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;0.0.0.0:443&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">network</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dns</span> = <span style="color:#e6db74">&#34;https://223.5.5.5&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"secret = \"ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d\"\nbind-to = \"0.0.0.0:443\"\n\n[network]\ndns = \"https://223.5.5.5\""</script>
+</div>
+<p>双栈的话：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span><span style="color:#a6e22e">bind-to</span> = <span style="color:#e6db74">&#34;[::]:443&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">prefer-ip</span> = <span style="color:#e6db74">&#34;prefer-ipv4&#34;</span></span></span></code></pre></div><script class="code-source" type="application/json">"bind-to = \"[::]:443\"\nprefer-ip = \"prefer-ipv4\""</script>
+</div>
+<p><strong>注意</strong>：动态 IP 场景<strong>别写 <code>public-ipv4</code> / <code>public-ipv6</code></strong>，写死了 IP 一变就是错的，反而误导。</p>
+<p><strong>链接自己拼</strong>，server 位置直接填你的 DDNS 域名：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>https://t.me/proxy?server=proxy.example.com&amp;port=443&amp;secret=ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d</span></span></code></pre></div><script class="code-source" type="application/json">"https://t.me/proxy?server=proxy.example.com\u0026port=443\u0026secret=ee4a7e409b8984becd8117b5729e08e78f7777772e636f6c6f63726f7373696e672e636f6d"</script>
+</div>
+<p>这条链接<strong>永久有效</strong>，IP 变了也不用换 —— 客户端每次重连都会重新解析域名。</p>
+<p><strong>手动填也一样</strong>，客户端 Server 栏直接填域名：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server / 服务器</td>
+<td><code>proxy.example.com</code>（你的 DDNS 域名）</td>
+</tr>
+<tr>
+<td>Port / 端口</td>
+<td><code>443</code></td>
+</tr>
+<tr>
+<td>Secret / 密钥</td>
+<td>你的 <code>ee...</code> 密钥</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ddns-场景的注意事项">DDNS 场景的注意事项</h4>
+<p>⚠️ <strong>1. Desktop 端有解析缓存，IP 刚变时可能要手动重连一次</strong></p>
+<p>Telegram Desktop 解析完域名会把结果存进 <code>resolvedIPs</code> 缓存。IP 刚跳变的那几分钟，桌面端可能还在连旧 IP。解法：在代理设置里把该代理<strong>关掉再打开</strong>（或切换一次代理），强制重新解析。手机端一般重连就会自己刷新。</p>
+<p>⚠️ <strong>2. DDNS 更新有延迟，TTL 要调小</strong></p>
+<p>DDNS 客户端检测到 IP 变化 → 更新 DNS 记录 → 各地 DNS 缓存过期，整个链条有延迟。把域名的 <strong>TTL 设成 60 秒</strong>（Cloudflare 免费版可设 1 分钟 / Auto），能把中断时间压到最短。TTL 留默认的 3600 秒，IP 变了最坏要等一小时。</p>
+<p>⚠️ <strong>3. 用 Cloudflare 做 DDNS 的话，那条记录必须关掉小云朵（DNS only）</strong></p>
+<p>Cloudflare 橙色云朵（Proxied）只代理 HTTP/HTTPS 流量，<strong>MTProto 走不通</strong>，而且开代理后域名解析到的是 Cloudflare 的 IP，不是你家的。这条 DNS 记录必须设成灰色云朵（<strong>DNS only / 仅 DNS</strong>）。</p>
+<p>⚠️ <strong>4. 域名也能顺带当伪装域名用吗？不行</strong></p>
+<p><code>generate-secret</code> 后面跟的伪装域名要选一个<strong>大站</strong>（<code>www.colocrossing.com</code> 之类），不能填你自己的 DDNS 域名。原因：域名前置要求 mtg 能把探测请求转给那个真实网站并返回像样的响应，填你自己的域名等于自己转给自己，伪装直接失效。这两个域名是两回事，别混：</p>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>填什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端连你用的地址（链接 server 字段）</td>
+<td>你的 DDNS 域名</td>
+</tr>
+<tr>
+<td>FakeTLS 伪装域名（密钥里编码的那个）</td>
+<td>与你 IP 归属匹配的大站域名</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ <strong>5. 家宽自建的两个额外拦路虎</strong></p>
+<p>这跟 mtg 无关，但动态 IP 通常意味着家宽，得先确认：</p>
+<ul>
+<li><strong>有没有公网 IP</strong>——很多宽带是大内网（NAT），根本没有独立公网 IP，端口转发做不了。查法：路由器 WAN 口显示的 IP 和 <code>curl -s ifconfig.co</code> 的结果<strong>一致</strong>才是真公网 IP。不一致就是运营商 NAT，得打电话要公网 IP，或者改用有固定 IP 的中转</li>
+<li><strong>端口是否被封</strong>——家宽的 80 / 443 常被运营商封禁。443 连不通就换个高位端口（如 <code>27777</code>），代价是伪装效果打折（TLS 走非 443 端口本身是异常信号）</li>
+</ul>
+<p><strong>怎么快速判断自己是不是大内网</strong>：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 路由器 WAN 口 IP（登录路由器管理页看），和下面这条对比</span>
+</span></span><span style="display:flex;"><span>curl -s ifconfig.co</span></span></code></pre></div><script class="code-source" type="application/json">"# 路由器 WAN 口 IP（登录路由器管理页看），和下面这条对比\ncurl -s ifconfig.co"</script>
+</div>
+<p><code>ifconfig.co</code> 返回的是 <code>100.64.x.x</code> ~ <code>100.127.x.x</code> 这个段的话，那是运营商级 NAT 的保留地址，你<strong>没有</strong>公网 IP。</p>
+<h4 id="ddns-方案-vs-脚本更新链接">DDNS 方案 vs 脚本更新链接</h4>
+<p>如果你的环境不适合 DDNS（比如没公网 IP），备选是脚本定时检测 IP 变化并重新生成链接推送给自己，但这样每次 IP 变了<strong>所有用户都得重新加代理</strong>，体验很差。能用 DDNS 就用 DDNS。</p>
+<hr>
+<h2 id="参考链接">参考链接</h2>
+<ul>
+<li><a href="https://github.com/9seconds/mtg">9seconds/mtg</a> — 本文主角</li>
+<li><a href="https://github.com/9seconds/mtg/blob/master/example.config.toml">example.config.toml</a> — 事实上的配置文档</li>
+<li><a href="https://github.com/9seconds/mtg/blob/master/BEST_PRACTICES.md">BEST_PRACTICES.md</a></li>
+<li><a href="https://github.com/TelegramMessenger/MTProxy">TelegramMessenger/MTProxy</a> — 官方 C 版</li>
+<li><a href="https://github.com/alexbers/mtprotoproxy">alexbers/mtprotoproxy</a> — Python 版</li>
+<li><a href="https://github.com/telemt/telemt">telemt/telemt</a> — Rust 版，支持 adtag</li>
+<li><a href="https://github.com/dolonet/mtg-multi">dolonet/mtg-multi</a> — mtg 多密钥 fork</li>
+</ul>
+<hr>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/sing-box-credentials-backup-20260802/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">sing-box tcp-brutal 服务端完整教程：安装、配置与安全防护（US-232 / US-146 实战）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/purodn-commands-deploy-manual/">
+            <img src="/posts/linux/purodn-commands-deploy-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">purodn / purodncode 快捷命令部署手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/hugo-update-time-memo/">
+            <img src="/posts/linux/hugo-update-time-memo/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hugo 文章「更新于」时间机制与修改文章操作备忘</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/vim-cheatsheet/">
+            <img src="/posts/linux/vim-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">vim 编辑器速查：模式、查找替换、复制粘贴、全选</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nano-editor-cheatsheet/">
+            <img src="/posts/linux/nano-editor-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">nano 编辑器速查：快捷键、查找与替换</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-download-server-guide/">
+            <img src="/posts/docker/docker-download-server-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Docker 下载服务部署指南：Caddy / Filebrowser / Dufs 三方案</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/">
+            <img src="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;）</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 Jay&#39;s Blog.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>
