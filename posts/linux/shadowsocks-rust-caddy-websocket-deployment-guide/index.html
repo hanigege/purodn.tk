@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;） | Jay&#39;s Blog</title>
+    <meta name="description" content="软路由、Linux、FreeBSD、Docker、AI 相关的部署记录、教程和踩坑笔记。">
+    <link rel="icon" href="/favicon/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
+    <meta name="theme-color" content="#222831">
+      <link rel="stylesheet" href="/css/main.min.cdd752b721ae641c8ae73ed6a84114f4376fceb3b182cfe306c100cd4d702918.css" integrity="sha256-zddStyGuZByK5z7WqEEU9DdvzrOxgs/jBsEAzU1wKRg=">
+  </head>
+  <body>
+    <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="Jay&#39;s Blog 首页">
+      <img class="brand-sign" src="/images/jays-blog-brand.png" alt="Jay&#39;s Blog">
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      
+        <a href="/">首页</a>
+      
+        <a href="/categories/ai/">AI</a>
+      
+        <a href="/categories/router/">Router</a>
+      
+        <a href="/categories/linux/">Linux</a>
+      
+        <a href="/categories/freebsd/">FreeBSD</a>
+      
+        <a href="/categories/docker/">Docker</a>
+      
+    </nav>
+  </div>
+</header>
+
+    <main>
+      
+  <div class="article-layout">
+    <article class="article">
+      <header class="article-header">
+        <div class="post-meta"><span>Linux</span>
+          <time datetime="2026-08-03">2026年8月3日</time>
+        </div>
+        <h1>Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;）</h1>
+      </header>
+          <img class="article-cover" src="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/assets/cover.svg" alt="">
+
+      <div class="article-content">
+        <blockquote>
+<p><strong>前提条件</strong></p>
+<ul>
+<li>一台新装的 Debian 12（推荐）或 Ubuntu 22.04+ 服务器，已开放 TCP 80、443 端口。</li>
+<li>已将域名（例如 <code>ssr.purodn.de5.net</code>）解析到该服务器 IP。</li>
+<li>建议使用 root 用户或具有 sudo 权限的账户执行以下命令。</li>
+</ul>
+</blockquote>
+<h2 id="一-环境准备">一、 环境准备</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 更新系统并安装必要工具</span>
+</span></span><span style="display:flex;"><span>apt update <span style="color:#f92672">&amp;&amp;</span> apt install -y curl micro git build-essential
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># （可选）如果你喜欢使用 vim，也可以替换 micro 为 vim</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 更新系统并安装必要工具\napt update \u0026\u0026 apt install -y curl micro git build-essential\n\n# （可选）如果你喜欢使用 vim，也可以替换 micro 为 vim"</script>
+</div>
+<h2 id="二-下载并安装核心组件">二、 下载并安装核心组件</h2>
+<p>有两种方式：<strong>直接在服务器上 wget 下载</strong> 或 <strong>先在本地下载后通过 SFTP 上传</strong>。
+以下示例均假设文件已放在 <code>/root</code> 目录下。</p>
+<h3 id="方式一直接在服务器上下载wget">方式一：直接在服务器上下载（wget）</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. Shadowsocks-rust 预编译二进制（v1.15.3）</span>
+</span></span><span style="display:flex;"><span>wget https://github.com/shadowsocks/shadowsocks-rust/releases/download/v1.15.3/shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz
+</span></span><span style="display:flex;"><span>tar -xvf shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz -C /usr/local/bin/
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. v2ray-plugin（v1.3.2）</span>
+</span></span><span style="display:flex;"><span>wget https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.3.2/v2ray-plugin-linux-amd64-v1.3.2.tar.gz
+</span></span><span style="display:flex;"><span>tar -xvf v2ray-plugin-linux-amd64-v1.3.2.tar.gz
+</span></span><span style="display:flex;"><span>mv v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin
+</span></span><span style="display:flex;"><span>chmod +x /usr/local/bin/v2ray-plugin
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 3. Caddy（v2.7.6）--- 选择任意一种安装方式</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 方式 A：使用官方 APT 源（推荐）</span>
+</span></span><span style="display:flex;"><span>apt install -y debian-keyring debian-archive-keyring apt-transport-https
+</span></span><span style="display:flex;"><span>curl -1sLf <span style="color:#e6db74">&#39;https://dl.cloudsmith.io/public/caddy/stable/gpg.key&#39;</span> | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+</span></span><span style="display:flex;"><span>curl -1sLf <span style="color:#e6db74">&#39;https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt&#39;</span> | tee /etc/apt/sources.list.d/caddy-stable.list
+</span></span><span style="display:flex;"><span>apt update <span style="color:#f92672">&amp;&amp;</span> apt install -y caddy
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 方式 B：使用官方静态二进制包（如果不想用 APT）</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># wget https://github.com/caddyserver/caddy/releases/download/v2.7.6/caddy_2.7.6_linux_amd64.tar.gz</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># tar -xvf caddy_2.7.6_linux_amd64.tar.gz caddy</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># mv caddy /usr/bin/</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># chmod +x /usr/bin/caddy</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 1. Shadowsocks-rust 预编译二进制（v1.15.3）\nwget https://github.com/shadowsocks/shadowsocks-rust/releases/download/v1.15.3/shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz\ntar -xvf shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz -C /usr/local/bin/\n\n# 2. v2ray-plugin（v1.3.2）\nwget https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.3.2/v2ray-plugin-linux-amd64-v1.3.2.tar.gz\ntar -xvf v2ray-plugin-linux-amd64-v1.3.2.tar.gz\nmv v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin\nchmod +x /usr/local/bin/v2ray-plugin\n\n# 3. Caddy（v2.7.6）--- 选择任意一种安装方式\n# 方式 A：使用官方 APT 源（推荐）\napt install -y debian-keyring debian-archive-keyring apt-transport-https\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg\ncurl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list\napt update \u0026\u0026 apt install -y caddy\n\n# 方式 B：使用官方静态二进制包（如果不想用 APT）\n# wget https://github.com/caddyserver/caddy/releases/download/v2.7.6/caddy_2.7.6_linux_amd64.tar.gz\n# tar -xvf caddy_2.7.6_linux_amd64.tar.gz caddy\n# mv caddy /usr/bin/\n# chmod +x /usr/bin/caddy"</script>
+</div>
+<h3 id="方式二先在本地下载后通过-sftp-上传">方式二：先在本地下载后通过 SFTP 上传</h3>
+<ol>
+<li>在本地电脑下载以下三个文件（保存到任意目录）：
+<ul>
+<li><code>shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz</code></li>
+<li><code>v2ray-plugin-linux-amd64-v1.3.2.tar.gz</code></li>
+<li><code>caddy_2.7.6_linux_amd64.tar.gz</code></li>
+</ul>
+</li>
+<li>使用 SFTP（如 FinalShell、WinSCP）将上述文件上传到服务器的 <code>/root</code> 目录。</li>
+<li>登录服务器后执行：</li>
+</ol>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. Shadowsocks-rust</span>
+</span></span><span style="display:flex;"><span>mkdir -p /usr/local/bin/ss-rust
+</span></span><span style="display:flex;"><span>tar -xvf /root/shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz -C /usr/local/bin/ss-rust
+</span></span><span style="display:flex;"><span>cp /usr/local/bin/ss-rust/ssserver /usr/local/bin/
+</span></span><span style="display:flex;"><span>chmod +x /usr/local/bin/ssserver
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. v2ray-plugin</span>
+</span></span><span style="display:flex;"><span>tar -xvf /root/v2ray-plugin-linux-amd64-v1.3.2.tar.gz
+</span></span><span style="display:flex;"><span>mv v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin
+</span></span><span style="display:flex;"><span>chmod +x /usr/local/bin/v2ray-plugin
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 3. Caddy（静态二进制）</span>
+</span></span><span style="display:flex;"><span>tar -xvf /root/caddy_2.7.6_linux_amd64.tar.gz caddy
+</span></span><span style="display:flex;"><span>mv caddy /usr/bin/
+</span></span><span style="display:flex;"><span>chmod +x /usr/bin/caddy</span></span></code></pre></div><script class="code-source" type="application/json">"# 1. Shadowsocks-rust\nmkdir -p /usr/local/bin/ss-rust\ntar -xvf /root/shadowsocks-v1.15.3.x86_64-unknown-linux-gnu.tar.xz -C /usr/local/bin/ss-rust\ncp /usr/local/bin/ss-rust/ssserver /usr/local/bin/\nchmod +x /usr/local/bin/ssserver\n\n# 2. v2ray-plugin\ntar -xvf /root/v2ray-plugin-linux-amd64-v1.3.2.tar.gz\nmv v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin\nchmod +x /usr/local/bin/v2ray-plugin\n\n# 3. Caddy（静态二进制）\ntar -xvf /root/caddy_2.7.6_linux_amd64.tar.gz caddy\nmv caddy /usr/bin/\nchmod +x /usr/bin/caddy"</script>
+</div>
+<blockquote>
+<p><strong>提示</strong>：如果你选择了方式二的 Caddy 静态二进制安装，请继续阅读下文的系统服务配置部分，其中会提供 <code>caddy.service</code> 的示例。</p>
+</blockquote>
+<h2 id="三-配置文件">三、 配置文件</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 创建配置目录</span>
+</span></span><span style="display:flex;"><span>mkdir -p /etc/shadowsocks-rust /etc/caddy
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 1. Shadowsocks-rust 配置文件</span>
+</span></span><span style="display:flex;"><span>cat &gt; /etc/shadowsocks-rust/config.json <span style="color:#e6db74">&lt;&lt;EOF
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">{
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;server&#34;:&#34;127.0.0.1&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;server_port&#34;:10000,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;password&#34;:&#34;passwd888&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;method&#34;:&#34;chacha20-ietf-poly1305&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;plugin&#34;:&#34;/usr/local/bin/v2ray-plugin&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;plugin_opts&#34;:&#34;server;mode=websocket;path=/jgaga&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. Caddyfile 配置（请将域名换成你的实际域名，例如 ssr.purodn.de5.net）</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 以下示例采用「首页伪装反代到 Bing」的方案，若想使用本地静态网页伪装，请参考下方注释。</span>
+</span></span><span style="display:flex;"><span>cat &gt; /etc/caddy/Caddyfile <span style="color:#e6db74">&lt;&lt;EOF
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ssr.purodn.de5.net {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    # 自动申请 SSL 证书
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    tls your-email@example.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    # 路径暗号匹配（必须放在首页伪装之前）
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    handle /jgaga* {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        reverse_proxy localhost:10000
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    }
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    # 首页伪装（反代到 Bing）
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    handle {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        reverse_proxy https://www.bing.com {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            header_up Host {upstream_hostport}
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        }
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    }
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 若你想把首页伪装改为「本地静态网页」，请使用以下 Caddyfile 内容（取消上面的配置，使用下面这一块）：</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># cat &gt; /etc/caddy/Caddyfile &lt;&lt;&#39;EOF&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ssr.purodn.de5.net {</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#     tls your-email@example.com</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#     handle /jgaga* {</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#         reverse_proxy localhost:10000</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#     }</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#     handle {</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#         root * /var/www/html</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#         file_server</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#         try_files {path} /index.html</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#     }</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># }</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># EOF</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 然后记得创建网站目录并放置测试页（见下文「验证」部分）。</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 创建配置目录\nmkdir -p /etc/shadowsocks-rust /etc/caddy\n\n# 1. Shadowsocks-rust 配置文件\ncat \u003e /etc/shadowsocks-rust/config.json \u003c\u003cEOF\n{\n    \"server\":\"127.0.0.1\",\n    \"server_port\":10000,\n    \"password\":\"passwd888\",\n    \"method\":\"chacha20-ietf-poly1305\",\n    \"plugin\":\"/usr/local/bin/v2ray-plugin\",\n    \"plugin_opts\":\"server;mode=websocket;path=/jgaga\"\n}\nEOF\n\n# 2. Caddyfile 配置（请将域名换成你的实际域名，例如 ssr.purodn.de5.net）\n# 以下示例采用「首页伪装反代到 Bing」的方案，若想使用本地静态网页伪装，请参考下方注释。\ncat \u003e /etc/caddy/Caddyfile \u003c\u003cEOF\nssr.purodn.de5.net {\n    # 自动申请 SSL 证书\n    tls your-email@example.com\n\n    # 路径暗号匹配（必须放在首页伪装之前）\n    handle /jgaga* {\n        reverse_proxy localhost:10000\n    }\n\n    # 首页伪装（反代到 Bing）\n    handle {\n        reverse_proxy https://www.bing.com {\n            header_up Host {upstream_hostport}\n        }\n    }\n}\nEOF\n\n# 若你想把首页伪装改为「本地静态网页」，请使用以下 Caddyfile 内容（取消上面的配置，使用下面这一块）：\n# cat \u003e /etc/caddy/Caddyfile \u003c\u003c'EOF'\n# ssr.purodn.de5.net {\n#     tls your-email@example.com\n#     handle /jgaga* {\n#         reverse_proxy localhost:10000\n#     }\n#     handle {\n#         root * /var/www/html\n#         file_server\n#         try_files {path} /index.html\n#     }\n# }\n# EOF\n# 然后记得创建网站目录并放置测试页（见下文「验证」部分）。"</script>
+</div>
+<h2 id="四-注册系统服务开机自启">四、 注册系统服务（开机自启）</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. Shadowsocks-rust 服务文件</span>
+</span></span><span style="display:flex;"><span>cat &gt; /etc/systemd/system/ss-rust.service <span style="color:#e6db74">&lt;&lt;EOF
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Unit]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Description=Shadowsocks-rust Service
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">After=network.target
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Service]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Type=simple
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">User=root
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ExecStart=/usr/local/bin/ssserver -c /etc/shadowsocks-rust/config.json
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Restart=on-failure
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Install]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">WantedBy=multi-user.target
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. Caddy 服务文件</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果你是通过 APT 安装的 caddy，可直接使用以下内容；</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果你是通过静态二进体安装（放在 /usr/bin/caddy），同样适用。</span>
+</span></span><span style="display:flex;"><span>cat &gt; /etc/systemd/system/caddy.service <span style="color:#e6db74">&lt;&lt;EOF
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Unit]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Description=Caddy
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Documentation=https://caddyserver.com/docs/
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">After=network.target network-online.target
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Requires=network-online.target
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Service]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Type=notify
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">User=root
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Group=root
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile --force
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">TimeoutStopSec=5s
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">LimitNOFILE=1048576
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">LimitNPROC=512
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">PrivateTmp=true
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ProtectSystem=full
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">AmbientCapabilities=CAP_NET_BIND_SERVICE
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[Install]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">WantedBy=multi-user.target
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 重新加载 systemd 配置，启用并启动服务</span>
+</span></span><span style="display:flex;"><span>systemctl daemon-reload
+</span></span><span style="display:flex;"><span>systemctl enable --now ss-rust caddy
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 检查服务状态（应显示 active (running)）</span>
+</span></span><span style="display:flex;"><span>systemctl status ss-rust caddy</span></span></code></pre></div><script class="code-source" type="application/json">"# 1. Shadowsocks-rust 服务文件\ncat \u003e /etc/systemd/system/ss-rust.service \u003c\u003cEOF\n[Unit]\nDescription=Shadowsocks-rust Service\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nExecStart=/usr/local/bin/ssserver -c /etc/shadowsocks-rust/config.json\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target\nEOF\n\n# 2. Caddy 服务文件\n# 如果你是通过 APT 安装的 caddy，可直接使用以下内容；\n# 如果你是通过静态二进体安装（放在 /usr/bin/caddy），同样适用。\ncat \u003e /etc/systemd/system/caddy.service \u003c\u003cEOF\n[Unit]\nDescription=Caddy\nDocumentation=https://caddyserver.com/docs/\nAfter=network.target network-online.target\nRequires=network-online.target\n\n[Service]\nType=notify\nUser=root\nGroup=root\nExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile\nExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile --force\nTimeoutStopSec=5s\nLimitNOFILE=1048576\nLimitNPROC=512\nPrivateTmp=true\nProtectSystem=full\nAmbientCapabilities=CAP_NET_BIND_SERVICE\n\n[Install]\nWantedBy=multi-user.target\nEOF\n\n# 重新加载 systemd 配置，启用并启动服务\nsystemctl daemon-reload\nsystemctl enable --now ss-rust caddy\n\n# 检查服务状态（应显示 active (running)）\nsystemctl status ss-rust caddy"</script>
+</div>
+<h2 id="五-防火墙与内核加速必做">五、 防火墙与内核加速（必做）</h2>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 1. 开启 BBR 拥塞控制算法</span>
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;net.core.default_qdisc=fq&#34;</span> &gt;&gt; /etc/sysctl.conf
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;net.ipv4.tcp_congestion_control=bbr&#34;</span> &gt;&gt; /etc/sysctl.conf
+</span></span><span style="display:flex;"><span>sysctl -p
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 2. 安装并配置简易防火墙（以 ufw 为例）</span>
+</span></span><span style="display:flex;"><span>apt install -y ufw
+</span></span><span style="display:flex;"><span>ufw allow 22/tcp
+</span></span><span style="display:flex;"><span>ufw allow 80/tcp
+</span></span><span style="display:flex;"><span>ufw allow 443/tcp
+</span></span><span style="display:flex;"><span>ufw allow 443/udp
+</span></span><span style="display:flex;"><span>ufw allow in on lo
+</span></span><span style="display:flex;"><span>ufw enable
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看防火墙状态</span>
+</span></span><span style="display:flex;"><span>ufw status verbose</span></span></code></pre></div><script class="code-source" type="application/json">"# 1. 开启 BBR 拥塞控制算法\necho \"net.core.default_qdisc=fq\" \u003e\u003e /etc/sysctl.conf\necho \"net.ipv4.tcp_congestion_control=bbr\" \u003e\u003e /etc/sysctl.conf\nsysctl -p\n\n# 2. 安装并配置简易防火墙（以 ufw 为例）\napt install -y ufw\nufw allow 22/tcp\nufw allow 80/tcp\nufw allow 443/tcp\nufw allow 443/udp\nufw allow in on lo\nufw enable\n\n# 查看防火墙状态\nufw status verbose"</script>
+</div>
+<h2 id="六-验证与客户端配置">六、 验证与客户端配置</h2>
+<h3 id="1-查看-caddy-日志确认-tls-申请成功">1. 查看 Caddy 日志确认 TLS 申请成功</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>journalctl -u caddy --no-pager | tail -n <span style="color:#ae81ff">20</span></span></span></code></pre></div><script class="code-source" type="application/json">"journalctl -u caddy --no-pager | tail -n 20"</script>
+</div>
+<p>你应看到类似：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><pre tabindex="0"><code>{&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;enabling automatic TLS certificate management&#34;,&#34;domains&#34;:[&#34;ssr.purodn.de5.net&#34;]}</code></pre><script class="code-source" type="application/json">"{\"level\":\"info\",\"msg\":\"enabling automatic TLS certificate management\",\"domains\":[\"ssr.purodn.de5.net\"]}"</script>
+</div>
+<h3 id="2-创建测试网页若使用本地静态伪装方案">2. 创建测试网页（若使用本地静态伪装方案）</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p /var/www/html
+</span></span><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;&lt;h1&gt;Hello! This is my local decoy site.&lt;/h1&gt;&#34;</span> &gt; /var/www/html/index.html
+</span></span><span style="display:flex;"><span>chown -R caddy:caddy /var/www/html
+</span></span><span style="display:flex;"><span>chmod -R <span style="color:#ae81ff">755</span> /var/www/html</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p /var/www/html\necho \"\u003ch1\u003eHello! This is my local decoy site.\u003c/h1\u003e\" \u003e /var/www/html/index.html\nchown -R caddy:caddy /var/www/html\nchmod -R 755 /var/www/html"</script>
+</div>
+<h3 id="3-浏览器访问验证">3. 浏览器访问验证</h3>
+<ul>
+<li>打开浏览器访问 <code>https://ssr.purodn.de5.net</code> （不挂代理）：
+<ul>
+<li>若看到 Bing 首页（或你放置的测试网页），说明 Caddy 和 TLS 证书正常。</li>
+</ul>
+</li>
+<li>访问 <code>https://ssr.purodn.de5.net/jgaga</code> 应该会被反代到本地 10000 端口的 Shadowsocks-rust 服务（此时你的客户端应能连通）。</li>
+<li>若出现 403，请检查 <code>/var/www/html</code> 目录的权限是否为 <code>caddy:caddy</code> 且目录可读。</li>
+<li>若出现 404，请确认 Caddyfile 中 <code>root</code> 路径和 <code>try_files</code> 配置正确。</li>
+</ul>
+<h3 id="4-客户端参数对照表以常见-shadowsocks-客户端为例">4. 客户端参数对照表（以常见 Shadowsocks 客户端为例）</h3>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>设置值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服务器</td>
+<td>ssr.purodn.de5.net</td>
+<td>你的域名</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>443</td>
+<td>必须是 HTTPS 端口</td>
+</tr>
+<tr>
+<td>密码</td>
+<td>passwd888</td>
+<td>与服务器端保持一致</td>
+</tr>
+<tr>
+<td>加密方式</td>
+<td>chacha20-ietf-poly1305</td>
+<td>性能之选</td>
+</tr>
+<tr>
+<td>插件</td>
+<td>v2ray</td>
+<td>或对应的 v2ray-plugin</td>
+</tr>
+<tr>
+<td>插件选项</td>
+<td>mode=websocket-tls;host=ssr.purodn.de5.net;path=/jgaga</td>
+<td>暗号（path）必须与服务器端 <code>/jgaga</code> 对齐</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>注意</strong>：部分客户端插件选项写法略有差异，例如 <code>websocket;host=ssr.purodn.de5.net;path=/jgaga;tls</code>，请根据客户端文档调整，但核心是 <code>path=/jgaga</code> 和开启 TLS。</p>
+</blockquote>
+<h2 id="七-常见问题快速排查">七、 常见问题快速排查</h2>
+<ol>
+<li>
+<p><strong>检查服务器端口通不通</strong>（在本地机器终端执行）</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>nc -vz ssr.purodn.de5.net <span style="color:#ae81ff">443</span></span></span></code></pre></div><script class="code-source" type="application/json">"nc -vz ssr.purodn.de5.net 443"</script>
+</div>
+<ul>
+<li>返回 <code>succeeded</code>：说明 IP 和端口没死，问题可能在配置或 DNS。</li>
+<li>长时间卡住显示 <code>Timeout</code>：IP 或端口大概率被墙。</li>
+</ul>
+</li>
+<li>
+<p><strong>检查域名解析是否正常</strong></p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ping ssr.purodn.de5.net</span></span></code></pre></div><script class="code-source" type="application/json">"ping ssr.purodn.de5.net"</script>
+</div>
+<ul>
+<li>返回的 IP 应该是你服务器的真实 IP。若出现 <code>0.0.0.0</code> 或奇怪的国外 IP，说明域名被 DNS 投毒。</li>
+</ul>
+</li>
+<li>
+<p><strong>检查 Caddy 是否还在工作</strong></p>
+<p>在浏览器直接访问 <code>https://ssr.purodn.de5.net</code>（不挂代理）：</p>
+<ul>
+<li>能看到伪装页面 → Caddy 和 TLS 证书正常。</li>
+<li>连伪装页都打不开 → 443 端口可能已断。</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>以上步骤完成后，你即可在客户端使用上表参数连接，享受由 Shadowsocks-rust + Caddy + WebSocket 提供的高性能、可观流量的代理服务。祝使用愉快！</p>
+</blockquote>
+<hr>
+<h2 id="八-进阶docker-compose-一键部署方案">八、 进阶：Docker Compose 一键部署方案</h2>
+<p>如果你希望在多台机器上快速复制、避免手动编写 systemd 服务文件，或者想实现一键升级/回滚，可以使用 <strong>Docker Compose</strong> 将 Shadowsocks-rust、v2ray-plugin 和 Caddy 打包成容器运行。</p>
+<h3 id="为什么-docker-方案更好">为什么 Docker 方案更好？</h3>
+<ul>
+<li><strong>一键启动</strong>：一条 <code>docker compose up -d</code> 完成所有服务部署</li>
+<li><strong>跨平台</strong>：x86、ARM、云主机通用，无需关心底层系统差异</li>
+<li><strong>快速升级</strong>：修改镜像标签后 <code>docker compose pull &amp;&amp; docker compose up -d</code> 即可完成升级</li>
+<li><strong>配置隔离</strong>：所有配置通过卷挂载，修改配置无需重新构建镜像</li>
+<li><strong>自动重启</strong>：<code>restart: unless-stopped</code> 策略替代 systemd 服务文件</li>
+<li><strong>易于备份/迁移</strong>：整个目录打包即可迁移到另一台机器</li>
+</ul>
+<h3 id="前置要求">前置要求</h3>
+<ul>
+<li>已安装 Docker 和 Docker Compose Plugin
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Debian/Ubuntu 一键安装 Docker</span>
+</span></span><span style="display:flex;"><span>curl -fsSL https://get.docker.com | bash
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 验证安装</span>
+</span></span><span style="display:flex;"><span>docker --version
+</span></span><span style="display:flex;"><span>docker compose version</span></span></code></pre></div><script class="code-source" type="application/json">"# Debian/Ubuntu 一键安装 Docker\ncurl -fsSL https://get.docker.com | bash\n\n# 验证安装\ndocker --version\ndocker compose version"</script>
+</div>
+</li>
+</ul>
+<h3 id="目录结构">目录结构</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>~/ss-caddy-docker/
+</span></span><span style="display:flex;"><span>├── docker-compose.yml      # 主配置文件
+</span></span><span style="display:flex;"><span>├── Caddyfile               # Caddy 配置
+</span></span><span style="display:flex;"><span>├── config.json             # Shadowsocks-rust 配置
+</span></span><span style="display:flex;"><span>└── www/                    # （可选）本地静态伪装网页目录
+</span></span><span style="display:flex;"><span>    └── index.html</span></span></code></pre></div><script class="code-source" type="application/json">"~/ss-caddy-docker/\n├── docker-compose.yml      # 主配置文件\n├── Caddyfile               # Caddy 配置\n├── config.json             # Shadowsocks-rust 配置\n└── www/                    # （可选）本地静态伪装网页目录\n    └── index.html"</script>
+</div>
+<h3 id="1-创建目录并编写配置文件">1. 创建目录并编写配置文件</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir -p ~/ss-caddy-docker/www
+</span></span><span style="display:flex;"><span>cd ~/ss-caddy-docker</span></span></code></pre></div><script class="code-source" type="application/json">"mkdir -p ~/ss-caddy-docker/www\ncd ~/ss-caddy-docker"</script>
+</div>
+<h4 id="docker-composeyml">docker-compose.yml</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">version</span>: <span style="color:#e6db74">&#34;3.8&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">shadowsocks-rust</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">ghcr.io/shadowsocks/shadowsocks-rust:v1.15.3</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">ss-rust</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./config.json:/etc/shadowsocks-rust/config.json:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#e6db74">&#34;host&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;ssserver&#34;</span>, <span style="color:#e6db74">&#34;-c&#34;</span>, <span style="color:#e6db74">&#34;/etc/shadowsocks-rust/config.json&#34;</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">caddy</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">caddy:2.7.6</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">unless-stopped</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./Caddyfile:/etc/caddy/Caddyfile:ro</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">caddy_data:/data</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">caddy_config:/config</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">./www:/var/www/html:ro</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">network_mode</span>: <span style="color:#e6db74">&#34;host&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">ACME_AGREE=true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cap_add</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">NET_BIND_SERVICE</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">caddy_data</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">caddy_config:</span></span></span></code></pre></div><script class="code-source" type="application/json">"version: \"3.8\"\n\nservices:\n  shadowsocks-rust:\n    image: ghcr.io/shadowsocks/shadowsocks-rust:v1.15.3\n    container_name: ss-rust\n    restart: unless-stopped\n    volumes:\n      - ./config.json:/etc/shadowsocks-rust/config.json:ro\n    network_mode: \"host\"\n    command: [\"ssserver\", \"-c\", \"/etc/shadowsocks-rust/config.json\"]\n\n  caddy:\n    image: caddy:2.7.6\n    container_name: caddy\n    restart: unless-stopped\n    volumes:\n      - ./Caddyfile:/etc/caddy/Caddyfile:ro\n      - caddy_data:/data\n      - caddy_config:/config\n      - ./www:/var/www/html:ro\n    network_mode: \"host\"\n    environment:\n      - ACME_AGREE=true\n    cap_add:\n      - NET_BIND_SERVICE\n\nvolumes:\n  caddy_data:\n  caddy_config:"</script>
+</div>
+<h4 id="configjson与二进制方案相同">config.json（与二进制方案相同）</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;server&#34;</span>:<span style="color:#e6db74">&#34;127.0.0.1&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;server_port&#34;</span>:<span style="color:#ae81ff">10000</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;password&#34;</span>:<span style="color:#e6db74">&#34;passwd888&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;method&#34;</span>:<span style="color:#e6db74">&#34;chacha20-ietf-poly1305&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;plugin&#34;</span>:<span style="color:#e6db74">&#34;/usr/local/bin/v2ray-plugin&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;plugin_opts&#34;</span>:<span style="color:#e6db74">&#34;server;mode=websocket;path=/jgaga&#34;</span>
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"{\n    \"server\":\"127.0.0.1\",\n    \"server_port\":10000,\n    \"password\":\"passwd888\",\n    \"method\":\"chacha20-ietf-poly1305\",\n    \"plugin\":\"/usr/local/bin/v2ray-plugin\",\n    \"plugin_opts\":\"server;mode=websocket;path=/jgaga\"\n}"</script>
+</div>
+<blockquote>
+<p><strong>注意</strong>：官方 shadowsocks-rust 镜像已内置 v2ray-plugin，无需额外容器。</p>
+</blockquote>
+<h4 id="caddyfile与二进制方案相同">Caddyfile（与二进制方案相同）</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-caddyfile" data-lang="caddyfile"><span style="display:flex;"><span>ssr.purodn.de5.net {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">tls</span> <span style="color:#e6db74">your-email@example.com</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">handle</span> <span style="color:#a6e22e">/jgaga*</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">reverse_proxy</span> localhost:<span style="color:#ae81ff">10000</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">handle</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">root</span> <span style="color:#a6e22e">*</span> <span style="color:#e6db74">/var/www/html</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">file_server</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">try_files</span> <span style="color:#ae81ff">{path}</span> <span style="color:#e6db74">/index.html</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><script class="code-source" type="application/json">"ssr.purodn.de5.net {\n    tls your-email@example.com\n\n    handle /jgaga* {\n        reverse_proxy localhost:10000\n    }\n\n    handle {\n        root * /var/www/html\n        file_server\n        try_files {path} /index.html\n    }\n}"</script>
+</div>
+<h4 id="测试网页可选">测试网页（可选）</h4>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>echo <span style="color:#e6db74">&#34;&lt;h1&gt;Hello! This is my Docker decoy site.&lt;/h1&gt;&#34;</span> &gt; www/index.html</span></span></code></pre></div><script class="code-source" type="application/json">"echo \"\u003ch1\u003eHello! This is my Docker decoy site.\u003c/h1\u003e\" \u003e www/index.html"</script>
+</div>
+<h3 id="2-启动服务">2. 启动服务</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cd ~/ss-caddy-docker
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 启动所有容器</span>
+</span></span><span style="display:flex;"><span>docker compose up -d
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看运行状态</span>
+</span></span><span style="display:flex;"><span>docker compose ps
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看 Caddy 日志（确认 TLS 证书申请成功）</span>
+</span></span><span style="display:flex;"><span>docker compose logs -f caddy</span></span></code></pre></div><script class="code-source" type="application/json">"cd ~/ss-caddy-docker\n\n# 启动所有容器\ndocker compose up -d\n\n# 查看运行状态\ndocker compose ps\n\n# 查看 Caddy 日志（确认 TLS 证书申请成功）\ndocker compose logs -f caddy"</script>
+</div>
+<h3 id="3-防火墙放行">3. 防火墙放行</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 如果使用 ufw</span>
+</span></span><span style="display:flex;"><span>ufw allow 80/tcp
+</span></span><span style="display:flex;"><span>ufw allow 443/tcp
+</span></span><span style="display:flex;"><span>ufw allow 443/udp
+</span></span><span style="display:flex;"><span>ufw reload</span></span></code></pre></div><script class="code-source" type="application/json">"# 如果使用 ufw\nufw allow 80/tcp\nufw allow 443/tcp\nufw allow 443/udp\nufw reload"</script>
+</div>
+<h3 id="4-验证">4. 验证</h3>
+<p>与二进制方案的验证步骤相同：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 查看 Caddy 日志确认 TLS 申请成功</span>
+</span></span><span style="display:flex;"><span>docker compose logs caddy | grep <span style="color:#e6db74">&#34;enabling automatic TLS&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 浏览器访问 https://ssr.purodn.de5.net 查看伪装页面</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 访问 https://ssr.purodn.de5.net/jgaga 测试代理连通性</span></span></span></code></pre></div><script class="code-source" type="application/json">"# 查看 Caddy 日志确认 TLS 申请成功\ndocker compose logs caddy | grep \"enabling automatic TLS\"\n\n# 浏览器访问 https://ssr.purodn.de5.net 查看伪装页面\n# 访问 https://ssr.purodn.de5.net/jgaga 测试代理连通性"</script>
+</div>
+<h3 id="5-日常维护命令">5. 日常维护命令</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 查看日志</span>
+</span></span><span style="display:flex;"><span>docker compose logs -f          <span style="color:#75715e"># 所有服务</span>
+</span></span><span style="display:flex;"><span>docker compose logs -f caddy    <span style="color:#75715e"># 只看 Caddy</span>
+</span></span><span style="display:flex;"><span>docker compose logs -f ss-rust  <span style="color:#75715e"># 只看 Shadowsocks</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 重启服务</span>
+</span></span><span style="display:flex;"><span>docker compose restart
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 停止服务</span>
+</span></span><span style="display:flex;"><span>docker compose down
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更新镜像（升级版本）</span>
+</span></span><span style="display:flex;"><span>docker compose pull
+</span></span><span style="display:flex;"><span>docker compose up -d
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看资源占用</span>
+</span></span><span style="display:flex;"><span>docker stats</span></span></code></pre></div><script class="code-source" type="application/json">"# 查看日志\ndocker compose logs -f          # 所有服务\ndocker compose logs -f caddy    # 只看 Caddy\ndocker compose logs -f ss-rust  # 只看 Shadowsocks\n\n# 重启服务\ndocker compose restart\n\n# 停止服务\ndocker compose down\n\n# 更新镜像（升级版本）\ndocker compose pull\ndocker compose up -d\n\n# 查看资源占用\ndocker stats"</script>
+</div>
+<h3 id="6-迁移到新机器">6. 迁移到新机器</h3>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 在原机器上打包</span>
+</span></span><span style="display:flex;"><span>cd ~
+</span></span><span style="display:flex;"><span>tar -czvf ss-caddy-docker.tar.gz ss-caddy-docker/
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 传输到新机器（scp/sftp/rsync）</span>
+</span></span><span style="display:flex;"><span>scp ss-caddy-docker.tar.gz user@new-server:~/
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 在新机器上解压并启动</span>
+</span></span><span style="display:flex;"><span>ssh user@new-server
+</span></span><span style="display:flex;"><span>tar -xzvf ss-caddy-docker.tar.gz
+</span></span><span style="display:flex;"><span>cd ss-caddy-docker
+</span></span><span style="display:flex;"><span>docker compose up -d</span></span></code></pre></div><script class="code-source" type="application/json">"# 在原机器上打包\ncd ~\ntar -czvf ss-caddy-docker.tar.gz ss-caddy-docker/\n\n# 传输到新机器（scp/sftp/rsync）\nscp ss-caddy-docker.tar.gz user@new-server:~/\n\n# 在新机器上解压并启动\nssh user@new-server\ntar -xzvf ss-caddy-docker.tar.gz\ncd ss-caddy-docker\ndocker compose up -d"</script>
+</div>
+<h3 id="注意事项">注意事项</h3>
+<ol>
+<li>
+<p><strong>network_mode: &ldquo;host&rdquo;</strong> 让容器直接使用宿主机网络，Caddy 可以直接绑定 80/443 端口，这是最简单的方案。如果你需要使用 Docker 的桥接网络，需要额外配置端口映射，并注意 Caddy 的 ACME 验证需要能访问到宿主机的 80/443。</p>
+</li>
+<li>
+<p><strong>镜像版本锁定</strong>：建议将 <code>latest</code> 替换为具体版本号（如 <code>v1.15.3</code>、<code>2.7.6</code>），避免自动拉取不兼容的新版本。</p>
+</li>
+<li>
+<p><strong>v2ray-plugin</strong>：官方 <code>shadowsocks-rust</code> 镜像已内置 v2ray-plugin，无需单独容器。如果你需要自定义插件版本，可以挂载自己的二进制文件覆盖。</p>
+</li>
+<li>
+<p><strong>资源限制</strong>：如需限制容器资源，可在 <code>docker-compose.yml</code> 中添加：</p>
+<div class="code-block">
+  <button class="copy-code" type="button">复制</button><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">deploy</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">resources</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">limits</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">cpus</span>: <span style="color:#e6db74">&#39;0.5&#39;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">memory</span>: <span style="color:#ae81ff">512M</span></span></span></code></pre></div><script class="code-source" type="application/json">"deploy:\n  resources:\n    limits:\n      cpus: '0.5'\n      memory: 512M"</script>
+</div>
+</li>
+</ol>
+<hr>
+<p><em>教程中出现的域名、密码、路径均为示例，请根据你的实际情况替换。</em><br>
+<em>本文为草稿，发布前请自行审核并修改为正式版本。</em></p>
+
+      </div>
+    </article>
+
+    <aside class="sidebar article-sidebar">
+  <section class="widget search-widget">
+    <form class="search-form" action="/search/" method="get">
+      <label for="article-site-search">搜索</label>
+      <div class="search-row">
+        <input id="article-site-search" name="q" type="search" placeholder="搜索教程..." autocomplete="off">
+        <button type="submit" aria-label="搜索">搜索</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="widget article-latest-widget">
+    <h2>最新文章</h2>
+    <ol class="article-latest-list">
+      
+      
+        <li>
+          <a href="/posts/linux/sing-box-credentials-backup-20260802/">
+            <img src="/images/computer-tutorial-hero.png" alt="">
+            <span class="latest-rank">1</span>
+            <span class="latest-title">sing-box tcp-brutal 服务端完整教程：安装、配置与安全防护（US-232 / US-146 实战）</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/purodn-commands-deploy-manual/">
+            <img src="/posts/linux/purodn-commands-deploy-manual/assets/cover.svg" alt="">
+            <span class="latest-rank">2</span>
+            <span class="latest-title">purodn / purodncode 快捷命令部署手册</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/hugo-update-time-memo/">
+            <img src="/posts/linux/hugo-update-time-memo/assets/cover.svg" alt="">
+            <span class="latest-rank">3</span>
+            <span class="latest-title">Hugo 文章「更新于」时间机制与修改文章操作备忘</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/vim-cheatsheet/">
+            <img src="/posts/linux/vim-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">4</span>
+            <span class="latest-title">vim 编辑器速查：模式、查找替换、复制粘贴、全选</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/nano-editor-cheatsheet/">
+            <img src="/posts/linux/nano-editor-cheatsheet/assets/cover.svg" alt="">
+            <span class="latest-rank">5</span>
+            <span class="latest-title">nano 编辑器速查：快捷键、查找与替换</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/docker/docker-download-server-guide/">
+            <img src="/posts/docker/docker-download-server-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">6</span>
+            <span class="latest-title">Docker 下载服务部署指南：Caddy / Filebrowser / Dufs 三方案</span>
+          </a>
+        </li>
+      
+        <li>
+          <a href="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/">
+            <img src="/posts/linux/shadowsocks-rust-caddy-websocket-deployment-guide/assets/cover.svg" alt="">
+            <span class="latest-rank">7</span>
+            <span class="latest-title">Shadowsocks-rust &#43; Caddy &#43; WebSocket 一键部署教程（适用于 Debian 12 / Ubuntu 22.04&#43;）</span>
+          </a>
+        </li>
+      
+    </ol>
+  </section>
+</aside>
+
+  </div>
+
+    </main>
+    <footer class="site-footer">
+  <p>
+    © 2026 Jay&#39;s Blog.
+    专注清晰、可复现、少踩坑的电脑教程。
+  </p>
+</footer>
+
+      <script src="/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js" integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/&#43;n4OILKI=" defer></script>
+    
+  <script src="/js/article-toolbar.js" defer></script>
+  </body>
+</html>

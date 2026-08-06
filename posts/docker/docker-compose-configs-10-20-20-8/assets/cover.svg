@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Docker Compose Config Backup</title>
+  <desc id="desc">A private backup cover for Docker Compose files on host 10.20.20.8.</desc>
+  <rect width="1600" height="900" fill="#101820"/>
+  <path d="M0 680 C260 620 360 760 610 690 C850 620 940 520 1160 585 C1360 645 1450 620 1600 560 L1600 900 L0 900 Z" fill="#1f7a8c" opacity="0.72"/>
+  <path d="M0 760 C240 715 420 820 650 760 C890 698 980 640 1220 705 C1395 752 1490 720 1600 690 L1600 900 L0 900 Z" fill="#2ec4b6" opacity="0.72"/>
+  <g transform="translate(190 165)">
+    <rect x="0" y="0" width="1220" height="570" rx="28" fill="#f7f7f2"/>
+    <rect x="0" y="0" width="1220" height="72" rx="28" fill="#233142"/>
+    <circle cx="42" cy="36" r="12" fill="#ff6b6b"/>
+    <circle cx="82" cy="36" r="12" fill="#ffd166"/>
+    <circle cx="122" cy="36" r="12" fill="#06d6a0"/>
+    <text x="180" y="46" fill="#d7e3ea" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="24">/root/data/docker_data</text>
+    <g font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="30" fill="#1d2d35">
+      <text x="64" y="150">services:</text>
+      <text x="104" y="205">synapse: matrixdotorg/synapse</text>
+      <text x="104" y="260">npm: jc21/nginx-proxy-manager</text>
+      <text x="104" y="315">coturn: coturn/coturn</text>
+      <text x="104" y="370">ntfy: binwiederhier/ntfy</text>
+      <text x="64" y="450">networks: [matrix]</text>
+      <text x="64" y="505">backup: 10.20.20.8</text>
+    </g>
+  </g>
+</svg>
