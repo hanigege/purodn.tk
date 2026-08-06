@@ -11,10 +11,7 @@ YOLO 模式（全自动模式） 就是用来解决这个问题的——它跳�
 2. 会话中动态切换：/yolo 命令 如果已经进入交互会话，不需要退出，直接输入斜杠命令即可实时切换：
 复制/yolo 这是一个开关命令：输入一次开启 YOLO，再输入一次关闭，恢复默认审批模式。
 注意：/config 斜杠命令只用于查看当前配置，不支持通过它修改配置项。修改配置请用下面的方式。
-3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description></item><item><title>Hermes Agent 文件约定：SOUL.md vs .hermes.md vs AGENTS.md</title><link>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</link><pubDate>Fri, 10 Jul 2026 20:04:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-agent-file-conventions/</guid><description>网上（包括旧版本文）对 Hermes Agent 上下文文件的描述很多是错的。本文直接基于 Hermes Agent v0.5+ 的源码（agent/prompt_builder.py）查证，给出一套经过验证的加载规则，并用「蜜」（default profile）和「佬」（code profile）两个真实 bot 演示使用方法。
-一、一句话结论（先看这个） 想让所有项目都生效的规则，只能写进 SOUL.md；项目级规则放项目目录的 .hermes.md / AGENTS.md；~/.hermes/ 根目录下放 .hermes.md / AGENTS.md / HERMES.md 完全无效。
-二、源码级加载规则（按优先级） Hermes 每次构造 system prompt 时，会调用 build_context_files_prompt()，规则如下：
-优先级 文件 查找位置 用途 1 .hermes.md 或 HERMES.md 从 当前工作目录（CWD） 向上走到 git 仓库根 项目宪法（最高优先级） 2 AGENTS.md 仅 CWD，不递归 项目开发规范 3 CLAUDE.md 仅 CWD Claude Code 兼容 4 .cursorrules、.cursor/rules/*.mdc 仅 CWD Cursor 兼容 — SOUL.md 始终从 HERMES_HOME（profile 根目录） 人格 + 全局行为准则 关键事实：</description></item><item><title>Hermes Agent Busy Input Modes 完全指南</title><link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link><pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid><description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。
+3. 永久配置：写入 config.yaml 方法 A：CLI 命令（推荐） 复制# 全自动模式（YOLO） hermes config set approvals.mode off # 智能审批模式（推荐折中方案） hermes config set approvals.</description></item><item><title>Hermes Agent Busy Input Modes 完全指南</title><link>https://purodn.tk/posts/ai/hermes-busy-input-modes/</link><pubDate>Sat, 04 Jul 2026 22:25:03 +0800</pubDate><guid>https://purodn.tk/posts/ai/hermes-busy-input-modes/</guid><description>前言 用过 AI 代理工具的朋友很可能遇到过这种情况：你正在观察代理执行一系列操作，发现方向不对，赶紧发了一条消息过去纠正——结果代理完全没反应，等了几分钟它做完所有事情才看到你的消息。
 这正是 Busy Input Modes 要解决的问题。本文用最直观的方式讲清 Hermes Agent 的三种忙碌输入模式，以及它们分别在什么场景下使用。
 问题背景 Hermes Agent 执行任务时会连续调用工具（读取文件、运行命令、搜索网络等），每一轮可能包含多个工具调用。当你在这期间发送消息时，系统需要决定如何处理这条消息——是排队等做完、插入到当前步骤之间、还是直接打断？
 这个决策由两个配置共同控制：
