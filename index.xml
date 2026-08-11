@@ -296,10 +296,11 @@ CPU 核心数和内存要求不高，根据预算选择即可。
 核心建议很简单：
 新机器先把 Docker 和 Docker Compose 装好。 立刻给 Docker daemon 配一个全局日志轮转兜底，避免容器日志长期写爆硬盘。 Compose 文件里如果单独配置了 logging，以 Compose 的容器级配置为准，不会和 daemon 默认值冲突。 Docker IPv6 不建议第一次安装时顺手整段开启，只有明确需要容器直连 IPv6、容器对外提供 IPv6 服务，或某些应用必须在容器网络内使用 IPv6 时，再单独启用。 一、安装 Docker 在 Ubuntu 或 Debian 上，最省事的方式是使用 Docker 官方安装脚本：
 复制sh &amp;lt;(curl -sSL https://get.docker.com) 安装后检查客户端和服务端版本：
-复制docker version 查看 Docker 服务是否能正常列出容器：
-复制docker ps 如果当前是 root 用户，以上命令通常可以直接执行。如果后续希望普通用户也能运行 Docker，需要把用户加入 docker 组：
-复制sudo usermod -aG docker $USER 然后重新登录 SSH 会话，再测试：
-复制docker ps 注意：加入 docker 组后，这个普通用户基本等同于拥有宿主机 root 权限。只应给可信用户加入该组。</description></item><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。
+复制docker version 这里如果报错，如下： 如果有这行日志：
+Failed to resolve group &amp;lsquo;docker&amp;rsquo;
+原因是系统中缺失 docker 用户组。docker.socket 在启动时需要将套接字文件（/var/run/docker.sock）的所属组修改为 docker，但因为你的系统里没有这个用户组，直接导致 chown 过程崩溃（退出码 status 216），连带拉跨了 Docker 服务。
+一键修复步骤 直接依次运行以下命令添加用户组并启动服务即可：
+复制# 1. 手动创建 docker 用户组 groupadd docker # 2.</description></item><item><title>Vim 查找替换命令速查</title><link>https://purodn.tk/posts/linux/vim-search-replace-commands/</link><pubDate>Fri, 29 May 2026 09:48:00 +0800</pubDate><guid>https://purodn.tk/posts/linux/vim-search-replace-commands/</guid><description>Vim 里最常用的查找替换命令是 :s，也就是 substitute。它可以只替换当前行，也可以替换整个文件，还可以逐个确认，适合批量修改配置文件里的 IP、域名、路径和变量名。
 基本格式 Vim 替换命令的基本格式是：
 复制:[范围]s/查找内容/替换内容/[标志] 常见写法：
 复制:s/foo/bar/ 表示只在当前行，把第一个 foo 替换成 bar。
