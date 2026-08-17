@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="tssh 下使用 scp 和 sftp 传输文件">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1080" cy="90" r="220" fill="#38bdf8" opacity="0.07"/>
+  <circle cx="120" cy="540" r="180" fill="#34d399" opacity="0.06"/>
+
+  <!-- Title -->
+  <text x="600" y="86" text-anchor="middle" font-family="'SF Mono','JetBrains Mono','Menlo',monospace" font-size="46" font-weight="700" fill="#f8fafc">tssh 下使用 scp / sftp</text>
+  <text x="600" y="132" text-anchor="middle" font-family="'SF Mono','JetBrains Mono','Menlo',monospace" font-size="24" fill="#94a3b8">传文件，小白完整指南</text>
+
+  <!-- Left terminal window: sftp -->
+  <rect x="90" y="180" width="480" height="360" rx="14" fill="#0b1220" stroke="#334155" stroke-width="2"/>
+  <rect x="90" y="180" width="480" height="42" rx="14" fill="#1e293b"/>
+  <rect x="90" y="206" width="480" height="16" fill="#1e293b"/>
+  <circle cx="116" cy="201" r="7" fill="#f87171"/>
+  <circle cx="140" cy="201" r="7" fill="#fbbf24"/>
+  <circle cx="164" cy="201" r="7" fill="#34d399"/>
+  <text x="330" y="206" text-anchor="middle" font-family="'SF Mono',monospace" font-size="16" fill="#64748b">sftp -S tssh vmsb</text>
+
+  <text x="112" y="256" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#38bdf8">$ sftp -S tssh vmsb</text>
+  <text x="112" y="288" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">Connected to vmsb.</text>
+  <text x="112" y="320" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#34d399">sftp&gt; get test.json</text>
+  <text x="112" y="352" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">Fetching /home/test.json to test.json</text>
+  <text x="112" y="392" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#34d399">sftp&gt; put demo.txt</text>
+  <text x="112" y="424" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">Uploading demo.txt ...</text>
+  <text x="112" y="464" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#fbbf24">sftp&gt; exit</text>
+
+  <!-- Arrow between -->
+  <text x="600" y="380" text-anchor="middle" font-family="'SF Mono',monospace" font-size="40" fill="#38bdf8">⇄</text>
+
+  <!-- Right terminal window: scp -->
+  <rect x="630" y="180" width="480" height="360" rx="14" fill="#0b1220" stroke="#334155" stroke-width="2"/>
+  <rect x="630" y="180" width="480" height="42" rx="14" fill="#1e293b"/>
+  <rect x="630" y="206" width="480" height="16" fill="#1e293b"/>
+  <circle cx="656" cy="201" r="7" fill="#f87171"/>
+  <circle cx="680" cy="201" r="7" fill="#fbbf24"/>
+  <circle cx="704" cy="201" r="7" fill="#34d399"/>
+  <text x="870" y="206" text-anchor="middle" font-family="'SF Mono',monospace" font-size="16" fill="#64748b">scp -S tssh</text>
+
+  <text x="652" y="256" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#38bdf8">$ scp -S tssh ~/demo.txt vmsb:/tmp/</text>
+  <text x="652" y="288" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">demo.txt  100%  12KB</text>
+  <text x="652" y="328" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#38bdf8">$ scp -S tssh vmsb:/tmp/a.log .</text>
+  <text x="652" y="360" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">a.log     100%  34KB</text>
+  <text x="652" y="400" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#94a3b8"># 加 -r 传整个目录</text>
+  <text x="652" y="432" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#38bdf8">$ scp -S tssh -r ~/project vmsb:~/</text>
+  <text x="652" y="472" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#64748b">project/   100%  1MB</text>
+
+  <!-- Footer -->
+  <rect x="90" y="566" width="1020" height="2" fill="#334155"/>
+  <text x="600" y="600" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',monospace" font-size="18" fill="#34d399">-S tssh 一招复用：记住密码 / UDP 加速自动生效</text>
+</svg>
