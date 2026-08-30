@@ -15,19 +15,19 @@
 </span></span><span style=display:flex><span><span style=color:#75715e># 直接一键识别</span>
 </span></span><span style=display:flex><span>srt meeting.wav</span></span></code></pre></div><script class=code-source type=application/json>"# 切换到音频所在目录（如桌面）\ncd ~/Desktop\n\n# 直接一键识别\nsrt meeting.wav"</script></div><p>命令执行完毕后，同目录下会立刻吐出带时间戳的字幕文件 <code>meeting.wav.srt</code>。</p><h2 id=五格式避坑守则>五、格式避坑守则</h2><blockquote><p>⚠️ <strong>格式避坑守则</strong></p><p>Whisper 核心对音频输入有严格的格式限制（必须是 16kHz、单声道 WAV）。如果遇到非标准音频导致 <code>srt</code> 命令报错，先用 ffmpeg 压一把，再对准输出文件跑 <code>srt</code>：</p></blockquote><div class=code-block><button class=copy-code type=button>复制</button><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>ffmpeg -i original.mp3 -ar <span style=color:#ae81ff>16000</span> -ac <span style=color:#ae81ff>1</span> -c:a pcm_s16le ready.wav
 </span></span><span style=display:flex><span>srt ready.wav</span></span></code></pre></div><script class=code-source type=application/json>"ffmpeg -i original.mp3 -ar 16000 -ac 1 -c:a pcm_s16le ready.wav\nsrt ready.wav"</script></div><h2 id=总结>总结</h2><ul><li>GUI（Whispering）负责下载和管理模型，终端 Alias 负责一键转写，两者互补，全程本地免费。</li><li>模型路径固定在 <code>~/Library/Application Support/com.bradenwong.whispering/models/whisper/</code>。</li><li>非 16kHz 单声道 WAV 的音频，先过一遍 ffmpeg 转码再转写。</li></ul></div></article><aside class="sidebar article-sidebar"><section class="widget search-widget"><form class=search-form action=/search/ method=get><label for=article-site-search>搜索</label><div class=search-row><input id=article-site-search name=q type=search placeholder=搜索教程... autocomplete=off>
-<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/ai/mac-whisper-srt-tutorial/><img src=/posts/ai/mac-whisper-srt-tutorial/assets/cover.svg alt>
+<button type=submit aria-label=搜索>搜索</button></div></form></section><section class="widget article-latest-widget"><h2>最新文章</h2><ol class=article-latest-list><li><a href=/posts/routeros/vyos-podlet-quadlet-container-persist/><img src=/posts/routeros/vyos-podlet-quadlet-container-persist/assets/cover.svg alt>
 <span class=latest-rank>1</span>
-<span class=latest-title>Mac 本地 Whisper 语音转字幕教程（GUI 下载模型 + 终端一键转 SRT）</span></a></li><li><a href=/posts/linux/tssh-scp-sftp-guide/><img src=/posts/linux/tssh-scp-sftp-guide/assets/cover.svg alt>
+<span class=latest-title>VyOS 容器持久化：用 podlet + Quadlet 让 podman 容器开机自启</span></a></li><li><a href=/posts/ai/mac-whisper-srt-tutorial/><img src=/posts/ai/mac-whisper-srt-tutorial/assets/cover.svg alt>
 <span class=latest-rank>2</span>
-<span class=latest-title>tssh 下使用 scp 和 sftp：传文件小白完整指南</span></a></li><li><a href=/posts/ai/claude-code-deepseek-config/><img src=/posts/ai/claude-code-deepseek-config/assets/cover.svg alt>
+<span class=latest-title>Mac 本地 Whisper 语音转字幕教程（GUI 下载模型 + 终端一键转 SRT）</span></a></li><li><a href=/posts/linux/tssh-scp-sftp-guide/><img src=/posts/linux/tssh-scp-sftp-guide/assets/cover.svg alt>
 <span class=latest-rank>3</span>
-<span class=latest-title>把 Claude Code 接入 DeepSeek V4-Flash（Ubuntu / Debian / Alpine 配置教程）</span></a></li><li><a href=/posts/linux/vim-cheatsheet/><img src=/posts/linux/vim-cheatsheet/assets/cover.svg alt>
+<span class=latest-title>tssh 下使用 scp 和 sftp：传文件小白完整指南</span></a></li><li><a href=/posts/ai/claude-code-deepseek-config/><img src=/posts/ai/claude-code-deepseek-config/assets/cover.svg alt>
 <span class=latest-rank>4</span>
-<span class=latest-title>vim 编辑器速查：模式、查找替换、复制粘贴、全选</span></a></li><li><a href=/posts/linux/nano-editor-cheatsheet/><img src=/posts/linux/nano-editor-cheatsheet/assets/cover.svg alt>
+<span class=latest-title>把 Claude Code 接入 DeepSeek V4-Flash（Ubuntu / Debian / Alpine 配置教程）</span></a></li><li><a href=/posts/linux/vim-cheatsheet/><img src=/posts/linux/vim-cheatsheet/assets/cover.svg alt>
 <span class=latest-rank>5</span>
-<span class=latest-title>nano 编辑器速查：快捷键、查找与替换</span></a></li><li><a href=/posts/docker/docker-download-server-guide/><img src=/posts/docker/docker-download-server-guide/assets/cover.svg alt>
+<span class=latest-title>vim 编辑器速查：模式、查找替换、复制粘贴、全选</span></a></li><li><a href=/posts/linux/nano-editor-cheatsheet/><img src=/posts/linux/nano-editor-cheatsheet/assets/cover.svg alt>
 <span class=latest-rank>6</span>
-<span class=latest-title>Docker 下载服务部署指南：Caddy / Filebrowser / Dufs 三方案</span></a></li><li><a href=/posts/linux/ubuntu-micro-editor-mac-terminal-guide/><img src=/posts/linux/ubuntu-micro-editor-mac-terminal-guide/assets/cover.svg alt>
+<span class=latest-title>nano 编辑器速查：快捷键、查找与替换</span></a></li><li><a href=/posts/docker/docker-download-server-guide/><img src=/posts/docker/docker-download-server-guide/assets/cover.svg alt>
 <span class=latest-rank>7</span>
-<span class=latest-title>Mac 终端连接 Ubuntu 使用 Micro 编辑器完整教程：安装、配置、插件与乱码解决</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 Jay's Blog.
+<span class=latest-title>Docker 下载服务部署指南：Caddy / Filebrowser / Dufs 三方案</span></a></li></ol></section></aside></div></main><footer class=site-footer><p>© 2026 Jay's Blog.
 专注清晰、可复现、少踩坑的电脑教程。</p></footer><script src=/js/code-copy.min.3c4506b5a479421e1f2dd29702a729f3d3ea05a9b1a77b9d6a2ffe9f83882ca2.js integrity="sha256-PEUGtaR5Qh4fLdKXAqcp89PqBamxp3udai/+n4OILKI=" defer></script><script src=/js/article-toolbar.js defer></script></body></html>

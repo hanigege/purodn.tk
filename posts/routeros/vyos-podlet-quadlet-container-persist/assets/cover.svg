@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- VyOS to Podlet/Quadlet to systemd persistent container -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1b2a"/>
+      <stop offset="1" stop-color="#1b2a41"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d4a6f"/>
+      <stop offset="1" stop-color="#22364f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g fill="none" stroke="#3d5a80" stroke-width="1" opacity="0.35">
+    <path d="M0 110 H1200 M0 520 H1200"/>
+    <path d="M90 0 V630 M1110 0 V630"/>
+  </g>
+
+  <!-- VyOS router box -->
+  <g>
+    <rect x="80" y="235" width="220" height="160" rx="14" fill="url(#box)" stroke="#6fb3e0" stroke-width="2"/>
+    <text x="190" y="290" text-anchor="middle" fill="#cfe8ff" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" font-weight="bold">VyOS</text>
+    <text x="190" y="330" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans, Arial, sans-serif" font-size="17">podman + containers</text>
+  </g>
+
+  <!-- arrow 1 -->
+  <g stroke="#6fb3e0" stroke-width="3" fill="#6fb3e0">
+    <line x1="310" y1="315" x2="420" y2="315"/>
+    <path d="M420 315 l-14 -8 v16 z"/>
+  </g>
+  <text x="365" y="295" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans, Arial, sans-serif" font-size="15">podlet</text>
+
+  <!-- Quadlet file -->
+  <g>
+    <rect x="440" y="225" width="280" height="180" rx="14" fill="url(#box)" stroke="#f0a83c" stroke-width="2"/>
+    <text x="580" y="272" text-anchor="middle" fill="#ffd9a0" font-family="DejaVu Sans Mono, monospace" font-size="21">smbox.container</text>
+    <text x="580" y="308" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans Mono, monospace" font-size="15">[Container]</text>
+    <text x="580" y="334" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans Mono, monospace" font-size="15">[Service] Restart=always</text>
+    <text x="580" y="360" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans Mono, monospace" font-size="15">[Install] WantedBy=default.target</text>
+  </g>
+
+  <!-- arrow 2 -->
+  <g stroke="#6fb3e0" stroke-width="3" fill="#6fb3e0">
+    <line x1="730" y1="315" x2="840" y2="315"/>
+    <path d="M840 315 l-14 -8 v16 z"/>
+  </g>
+  <text x="785" y="295" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans, Arial, sans-serif" font-size="15">generator</text>
+
+  <!-- systemd unit -->
+  <g>
+    <rect x="860" y="235" width="260" height="160" rx="14" fill="url(#box)" stroke="#5cb85c" stroke-width="2"/>
+    <text x="990" y="290" text-anchor="middle" fill="#d3f5d3" font-family="DejaVu Sans Mono, monospace" font-size="22">smbox.service</text>
+    <text x="990" y="328" text-anchor="middle" fill="#8fd98f" font-family="DejaVu Sans, Arial, sans-serif" font-size="17">systemd 开机自启</text>
+    <circle cx="960" cy="356" r="6" fill="#5cb85c"/>
+    <text x="975" y="362" fill="#8fd98f" font-family="DejaVu Sans, Arial, sans-serif" font-size="14">active (running)</text>
+  </g>
+
+  <!-- title -->
+  <text x="600" y="105" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, Arial, sans-serif" font-size="44" font-weight="bold">VyOS 容器终极持久化</text>
+  <text x="600" y="150" text-anchor="middle" fill="#8fb6d9" font-family="DejaVu Sans, Arial, sans-serif" font-size="22">podlet + Quadlet：把 podman 容器变成 systemd 服务</text>
+
+  <!-- bottom note -->
+  <text x="600" y="575" text-anchor="middle" fill="#5d7a99" font-family="DejaVu Sans, Arial, sans-serif" font-size="16">reboot 后容器自动拉起，无需手动干预</text>
+</svg>

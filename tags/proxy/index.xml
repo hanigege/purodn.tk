@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Proxy on Jay&#39;s Blog</title>
+    <link>http://0.0.0.0:1313/tags/proxy/</link>
+    <description>Recent content in Proxy on Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 11 Aug 2026 18:55:57 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/proxy/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Shadowsocks-libev 服务端部署：Snap 安装 &#43; v2ray-plugin 伪装实战</title>
+      <link>http://0.0.0.0:1313/posts/linux/shadowsocks-libev-snap-v2ray-plugin-guide/</link>
+      <pubDate>Tue, 11 Aug 2026 18:55:57 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/shadowsocks-libev-snap-v2ray-plugin-guide/</guid>
+      <description>⚠️ 本文为私有备份草稿，永不发布。 这是从 7829.eu.org 整理迁移的 Shadowsocks 部署笔记，仅作私有备份与回查，绝不 push 到公开仓库。&#xA;💡 适用场景：一台常开机的服务器（家庭小主机 / VPS）跑 Shadowsocks 服务端，人在外面通过手机/电脑连回家里内网——这就是「回家」。本文采用 Snap 官方推荐方式安装 shadowsocks-libev，并附上 v2ray-plugin 伪装层（TLS / WebSocket），让流量看起来像普通 HTTPS，降低被识别的风险。&#xA;一、安装 Shadowsocks-libev（Snap 官方推荐） 通过 Snap 应用商店安装 Shadowsocks-libev 是官方推荐的方式。如果你的服务器运行 Ubuntu 16.04 LTS 及以上版本，Snap 已经默认安装好了；其他发行版需要先安装 Snap core。&#xA;复制# 检测/安装 Snap core sudo snap install core # 安装 shadowsocks-libev sudo snap install shadowsocks-libev --edge Snap 安装好后会自动在 systemd 注册多个单元文件（/etc/systemd/system/ 下），我们关心的是：&#xA;snap.shadowsocks-libev.ss-server-daemon.service — 服务端 snap.shadowsocks-libev.ss-local-daemon.service — 本地代理端 1.1 生成强密码 复制openssl rand -base64 16 把输出结果记下来，替换下面配置里的 ExamplePassword。</description>
+    </item>
+  </channel>
+</rss>

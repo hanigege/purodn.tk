@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Aead2022 on Jay&#39;s Blog</title>
+    <link>http://0.0.0.0:1313/tags/aead2022/</link>
+    <description>Recent content in Aead2022 on Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 14 Aug 2026 21:00:00 +0800</lastBuildDate>
+    <atom:link href="http://0.0.0.0:1313/tags/aead2022/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Shadowsocks AEAD-2022 &#43; 官方 sing-box 网关 一键部署教程（Debian 12 / Ubuntu 22.04&#43;）</title>
+      <link>http://0.0.0.0:1313/posts/linux/shadowsocks-aead2022-singbox-gateway-deploy/</link>
+      <pubDate>Thu, 13 Aug 2026 16:18:01 +0800</pubDate>
+      <guid>http://0.0.0.0:1313/posts/linux/shadowsocks-aead2022-singbox-gateway-deploy/</guid>
+      <description>⚠️ 本文为私有备份草稿，永不发布。 仅作私有备份与回查，绝不 push 到公开仓库。&#xA;这篇教程教什么 给你一台 Debian 12 / Ubuntu 22.04+ 服务器（下文叫「服务端」），以及一台已经装好 官方 sing-box 的网关机（下文叫「网关」，就是局域网里负责科学上网的那台机器）， 一步步把 Shadowsocks AEAD-2022 原生节点搭起来并接入网关，最终在浏览器里正常上网。&#xA;这套方案的特点：&#xA;不用伪装插件（不需要 v2ray-plugin / WebSocket / Caddy），流量本身就是加密随机字节流 抗 DPI 检测：AEAD-2022 是 Shadowsocks 官方为绕过深度包检测（DPI）设计的协议， 带随机 padding、防重放、抗主动探测（官方白皮书原文：流量与随机字节流不可区分） 吞吐高：网关用官方 sing-box 原生直连，实测 60+ Mbps（对比：走 v2ray-plugin 的 WS 伪装版在 sing-box 上只有 ~17M，因为 SIP003 插件管道有性能瓶颈） ⚠️ 重要前提：本教程的网关必须用官方 sing-box（github.com/SagerNet/sing-box）。 如果你用的是 reF1nd 等 fork，它的 2022-blake3 实现有 bug（配置能过 check 但流量不动）， 请先换成官方版再继续。判断方法：sing-box version 输出 sing-box version 1.x.x（无 reF1nd 字样）。</description>
+    </item>
+  </channel>
+</rss>
